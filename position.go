@@ -1,0 +1,190 @@
+package main
+
+import (
+  "errors"
+  "strconv"
+)
+
+const WHITE byte = 0
+const BLACK byte = 1
+
+// References for pieces role/color for bitboards in position struct
+const WHITE_KING int = 0
+const WHITE_QUEEN int = 1
+const WHITE_ROOK int = 2
+const WHITE_BISHOP int = 3
+const WHITE_KNIGHT int = 4
+const WHITE_PAWN int = 5
+const BLACK_KING int = 6
+const BLACK_QUEEN int = 7
+const BLACK_ROOK int = 8
+const BLACK_BISHOP int = 9
+const BLACK_KNIGHT int = 10
+const BLACK_PAWN int = 11
+
+// Maps squares to uint64 (the index of the array is the bit position on a bitboard that represents that square)
+var squareMap = []string{"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+                         "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+                         "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+                         "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+                         "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+                         "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+                         "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+                         "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"}
+
+// Position contains all information about a chess position
+type Position struct {
+	// bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
+	bitboards [12]Bitboard
+	turn      byte
+}
+
+type IPosition interface {
+	pieceAt(square string) (Piece, error)
+  addPiece(role int, square string)
+  emptySquares() Bitboard
+  attackedSquares(side byte) Bitboard
+  pieces(side byte) Bitboard
+  check(side byte) bool
+}
+
+// InitialPosition is a factory that returns an initial postion board
+func InitialPosition() (pos *Position) {
+  var initialBiboards = [12]Bitboard{WHITE_KING: 0b10000,
+                                     WHITE_QUEEN: 0b1000,
+                                     WHITE_ROOK: 0b10000001,
+                                     WHITE_BISHOP: 0b100100,
+                                     WHITE_KNIGHT: 0b1000010,
+                                     WHITE_PAWN: 0b11111111 << 8,
+                                     BLACK_KING: 0b1 << 60,
+                                     BLACK_QUEEN: 0b1 << 59,
+                                     BLACK_ROOK: 0b10000001 << 56,
+                                     BLACK_BISHOP: 0b100100 << 56,
+                                     BLACK_KNIGHT: 0b1000010 << 56,
+                                     BLACK_PAWN: 0b11111111 << 48,
+                                   }
+
+  pos = &Position{bitboards: initialBiboards, turn: WHITE}
+	return
+}
+
+// pieceAt returns a Piece at the given square coordinate in the Position
+func (pos *Position) pieceAt(square string) (piece Piece, e error) {
+	bitboardSquare := sqaureToBitboard(square)
+
+	for role, bitboard := range pos.bitboards {
+		if bitboard & bitboardSquare > 1 {
+      piece = makePiece(role, bitboardSquare)
+		}
+	}
+  if piece == nil {
+    return piece, errors.New("No piece")
+  }
+	return piece, nil
+}
+
+// addPiece adds a new Piece to the Position
+func (pos *Position) addPiece(role int, square string) {
+  bitboardSquare := sqaureToBitboard(square)
+  pos.bitboards[role] |= bitboardSquare
+
+}
+
+// emptySquares returns a Bitboard with the empty sqaures of the position
+func (pos *Position) emptySquares() (emptySquares Bitboard) {
+  // Set all as empty
+  emptySquares = 0xFFFFFFFFFFFFFFFF
+
+	for _, bitboard := range pos.bitboards {
+    emptySquares &= ^bitboard
+	}
+  return
+}
+
+// attackedSquares returns a bitboard with all squares attacked by the passed side
+func (pos *Position) attackedSquares(side byte) (attackedSquares Bitboard) {
+  startingBitboard := 0
+  if side != WHITE {
+    startingBitboard = 6
+  }
+
+  for currentBitboard := startingBitboard; currentBitboard - startingBitboard < 6 ; currentBitboard++ {
+    for _, square := range bitboardToSquares(pos.bitboards[currentBitboard]) {
+      piece, err := pos.pieceAt(square)
+      // TODO remove later. I need this check for now because not all pieces are yet implemented
+      if err != nil {
+        continue
+      }
+      attackedSquares |= piece.attacks(pos)
+    }
+  }
+
+  return
+}
+
+// pieces returns a Bitboard with the pieces of the color pased
+func (pos *Position) pieces(side byte) (pieces Bitboard) {
+  startingBitboard := 0
+  if side != WHITE {
+    startingBitboard = 6
+  }
+  for currentBitboard := startingBitboard; currentBitboard - startingBitboard < 6 ; currentBitboard++ {
+    pieces |= pos.bitboards[currentBitboard]
+  }
+  return
+}
+
+// check returns if the side passed is in check
+func (pos *Position) check(side byte) (inCheck bool) {
+  king := WHITE_KING
+  if side == BLACK {
+    king = BLACK_KING
+  }
+  kingPos := pos.bitboards[king]
+
+  if (kingPos & pos.attackedSquares(side)) > 1 {
+    inCheck = true
+  }
+  return
+}
+
+// Utility functions
+
+// makePiece is a factory function that returns a Piece based on the role and square passed
+func makePiece(role int, square Bitboard) (piece Piece) {
+  switch role {
+  case WHITE_KING:
+    piece = &King{color: WHITE, square: square}
+  case WHITE_KNIGHT:
+    piece = &Knight{color: WHITE, square: square}
+  case BLACK_KING:
+    piece = &King{color: BLACK, square: square}
+  case BLACK_KNIGHT:
+    piece = &Knight{color: BLACK, square: square}
+  }
+  return
+}
+
+// squareToBitboard returns a bitboard containing the position of the square coordinate passed
+func sqaureToBitboard(coordinate string) (bitboard Bitboard) {
+	fileNumber := int(coordinate[0]) - 96
+	rankNumber := int(coordinate[1]) - 48
+	squareNumber :=  (fileNumber - 1) + 8*(rankNumber - 1)
+
+	// displaces 1 bit to the coordinate passed
+	bitboard = 0b1 << squareNumber
+	return
+}
+
+// bitboardToSquares returns an slice of strings of the squares coordinates of
+// occupied squares in a bitboard
+func bitboardToSquares(bitboard Bitboard) (squares []string) {
+	binaryString := strconv.FormatUint(uint64(bitboard), 2)
+
+  for i := len(binaryString)-1; i >= 0; i-- {
+    if binaryString[i] == '1' {
+      squares = append(squares, squareMap[len(binaryString) - i - 1])
+    }
+  }
+  return
+}
