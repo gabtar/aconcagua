@@ -23,20 +23,31 @@ import (
 //    --------------------------
 //    a  b  c  d  e  f  g  h
 
-const aFile Bitboard = 0x0101010101010101
+// files contains bitboards representing a file in chess board. Eg -> files[0] -> a File, files[1] -> b file, etc
+var files [8]Bitboard = [8]Bitboard{
+  0x0101010101010101,
+  0x0101010101010101 << 1,
+  0x0101010101010101 << 2,
+  0x0101010101010101 << 3,
+  0x0101010101010101 << 4,
+  0x0101010101010101 << 5,
+  0x0101010101010101 << 6,
+  0x0101010101010101 << 7,
+}
 
-// Get another file using bitwise operations
-// aFile << (number of file to displace the 'a' file (1 - 7))
-// const bFile uint64 = aFile << 1
-// const hFile uint64 = aFile << 7
-const hFile Bitboard = 0x8080808080808080
+// ranks contains bitboards representing a rank in chess board. Eg -> rank[0] -> rank 1, rank[1] -> rank 2, etc
+var ranks [8]Bitboard = [8]Bitboard{
+  0x00000000000000FF,
+  0x00000000000000FF << 8,
+  0x00000000000000FF << 16,
+  0x00000000000000FF << 24,
+  0x00000000000000FF << 32,
+  0x00000000000000FF << 40,
+  0x00000000000000FF << 48,
+  0x00000000000000FF << 56,
+}
 
-const rank1 Bitboard = 0x00000000000000FF
-
-// Get other rank using bitwise operations
-// const rank2 uint64 = rank1 << 8
-// rank1 << 8*(number of files to displace the '1' rank (1-7))
-const rank8 Bitboard = 0xFF00000000000000
+// TODO, I need to map diagonals in the same way as files and ranks
 
 const a1h8diagonal Bitboard = 0x8040201008040201
 const h1a8antidiagonal Bitboard = 0x0102040810204080
@@ -50,6 +61,10 @@ type Printer interface {
 	Print()
 }
 
+type BitboardConverter interface {
+  ToStringSlice() (squares []string)
+}
+
 // Print draws a Bitboard in the terminal in a 'prettier' way
 func (b Bitboard) Print() {
 	binary := strconv.FormatUint(uint64(b), 2)
@@ -61,6 +76,7 @@ func (b Bitboard) Print() {
 	for i := 0; i < 8; i++ {
 		fmt.Println(reverseArray(strings.Split(binary[i*8:i*8+8], "")))
 	}
+  fmt.Println()
 }
 
 // reverseArray reverses an array of strings
@@ -69,4 +85,18 @@ func reverseArray(arr []string) []string {
 		arr[i], arr[j] = arr[j], arr[i]
 	}
 	return arr
+}
+
+
+// ToStringSlice returns an slice of (string)coordinates with the squares occupied
+// in the bitboard
+func (b Bitboard) ToStringSlice() (squares []string){
+	binaryString := strconv.FormatUint(uint64(b), 2)
+
+  for i := len(binaryString)-1; i >= 0; i-- {
+    if binaryString[i] == '1' {
+      squares = append(squares, squareMap[len(binaryString) - i - 1])
+    }
+  }
+  return
 }

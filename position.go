@@ -1,8 +1,7 @@
 package main
 
 import (
-  "errors"
-  "strconv"
+	"errors"
 )
 
 const WHITE byte = 0
@@ -48,29 +47,9 @@ type IPosition interface {
   check(side byte) bool
 }
 
-// InitialPosition is a factory that returns an initial postion board
-func InitialPosition() (pos *Position) {
-  var initialBiboards = [12]Bitboard{WHITE_KING: 0b10000,
-                                     WHITE_QUEEN: 0b1000,
-                                     WHITE_ROOK: 0b10000001,
-                                     WHITE_BISHOP: 0b100100,
-                                     WHITE_KNIGHT: 0b1000010,
-                                     WHITE_PAWN: 0b11111111 << 8,
-                                     BLACK_KING: 0b1 << 60,
-                                     BLACK_QUEEN: 0b1 << 59,
-                                     BLACK_ROOK: 0b10000001 << 56,
-                                     BLACK_BISHOP: 0b100100 << 56,
-                                     BLACK_KNIGHT: 0b1000010 << 56,
-                                     BLACK_PAWN: 0b11111111 << 48,
-                                   }
-
-  pos = &Position{bitboards: initialBiboards, turn: WHITE}
-	return
-}
-
 // pieceAt returns a Piece at the given square coordinate in the Position
 func (pos *Position) pieceAt(square string) (piece Piece, e error) {
-	bitboardSquare := sqaureToBitboard(square)
+  bitboardSquare := sqaureToBitboard([]string{square})
 
 	for role, bitboard := range pos.bitboards {
 		if bitboard & bitboardSquare > 1 {
@@ -85,7 +64,7 @@ func (pos *Position) pieceAt(square string) (piece Piece, e error) {
 
 // addPiece adds a new Piece to the Position
 func (pos *Position) addPiece(role int, square string) {
-  bitboardSquare := sqaureToBitboard(square)
+  bitboardSquare := sqaureToBitboard([]string{square})
   pos.bitboards[role] |= bitboardSquare
 
 }
@@ -109,7 +88,7 @@ func (pos *Position) attackedSquares(side byte) (attackedSquares Bitboard) {
   }
 
   for currentBitboard := startingBitboard; currentBitboard - startingBitboard < 6 ; currentBitboard++ {
-    for _, square := range bitboardToSquares(pos.bitboards[currentBitboard]) {
+    for _, square := range pos.bitboards[currentBitboard].ToStringSlice() {
       piece, err := pos.pieceAt(square)
       // TODO remove later. I need this check for now because not all pieces are yet implemented
       if err != nil {
@@ -155,36 +134,55 @@ func makePiece(role int, square Bitboard) (piece Piece) {
   switch role {
   case WHITE_KING:
     piece = &King{color: WHITE, square: square}
+  case WHITE_ROOK:
+    piece = &Rook{color: WHITE, square: square}
   case WHITE_KNIGHT:
     piece = &Knight{color: WHITE, square: square}
   case BLACK_KING:
     piece = &King{color: BLACK, square: square}
+  case BLACK_ROOK:
+    piece = &Rook{color: BLACK, square: square}
   case BLACK_KNIGHT:
     piece = &Knight{color: BLACK, square: square}
   }
   return
 }
 
-// squareToBitboard returns a bitboard containing the position of the square coordinate passed
-func sqaureToBitboard(coordinate string) (bitboard Bitboard) {
-	fileNumber := int(coordinate[0]) - 96
-	rankNumber := int(coordinate[1]) - 48
-	squareNumber :=  (fileNumber - 1) + 8*(rankNumber - 1)
+// squareToBitboard returns a bitboard containing the position of the squares coordinates passed
+func sqaureToBitboard(coordinates []string) (bitboard Bitboard) {
+  for _, coordinate := range coordinates {
+    fileNumber := int(coordinate[0]) - 96
+    rankNumber := int(coordinate[1]) - 48
+    squareNumber :=  (fileNumber - 1) + 8*(rankNumber - 1)
 
-	// displaces 1 bit to the coordinate passed
-	bitboard = 0b1 << squareNumber
+    // displaces 1 bit to the coordinate passed
+    bitboard |= 0b1 << squareNumber
+  }
 	return
 }
 
-// bitboardToSquares returns an slice of strings of the squares coordinates of
-// occupied squares in a bitboard
-func bitboardToSquares(bitboard Bitboard) (squares []string) {
-	binaryString := strconv.FormatUint(uint64(bitboard), 2)
+// InitialPosition is a factory that returns an initial postion board
+func InitialPosition() (pos *Position) {
+  var initialBiboards = [12]Bitboard{WHITE_KING: 0b10000,
+                                     WHITE_QUEEN: 0b1000,
+                                     WHITE_ROOK: 0b10000001,
+                                     WHITE_BISHOP: 0b100100,
+                                     WHITE_KNIGHT: 0b1000010,
+                                     WHITE_PAWN: 0b11111111 << 8,
+                                     BLACK_KING: 0b1 << 60,
+                                     BLACK_QUEEN: 0b1 << 59,
+                                     BLACK_ROOK: 0b10000001 << 56,
+                                     BLACK_BISHOP: 0b100100 << 56,
+                                     BLACK_KNIGHT: 0b1000010 << 56,
+                                     BLACK_PAWN: 0b11111111 << 48,
+                                   }
 
-  for i := len(binaryString)-1; i >= 0; i-- {
-    if binaryString[i] == '1' {
-      squares = append(squares, squareMap[len(binaryString) - i - 1])
-    }
-  }
-  return
+  pos = &Position{bitboards: initialBiboards, turn: WHITE}
+	return
+}
+
+// EmptyPosition returns an empty Position struct
+func EmptyPosition() (pos *Position) {
+  pos = &Position{turn: WHITE}
+	return
 }
