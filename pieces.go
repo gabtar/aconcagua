@@ -1,7 +1,9 @@
 // Pieces movements in a chess board
 package main
 
-import "math/bits"
+import (
+	"math/bits"
+)
 
 // King models a king piece in chess
 type King struct {
@@ -54,6 +56,40 @@ var raysAttacks [4][64]Bitboard = [4][64]Bitboard{
           0x1000000000000000, 0x2000000000000000, 0x4000000000000000, 0x8000000000000000,
           0x000000000000000, 0x000000000000000, 0x000000000000000, 0x000000000000000,
           0x0000000000000000, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000,
+  },
+  EAST: {0, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f,
+         0, 0x100, 0x300, 0x700, 0xf00, 0x1f00, 0x3f00, 0x7f00,
+         0, 0x10000, 0x30000, 0x70000, 0xf0000, 0x1f0000, 0x3f0000, 0x7f0000,
+         0, 0x1000000, 0x3000000, 0x7000000, 0xf000000, 0x1f000000, 0x3f000000, 0x7f000000,
+         0, 0x100000000, 0x300000000, 0x700000000, 0xf00000000, 0x1f00000000, 0x3f00000000, 0x7f00000000,
+         0, 0x10000000000, 0x30000000000, 0x70000000000, 0xf0000000000, 0x1f0000000000, 0x3f0000000000, 0x7f0000000000,
+         0, 0x1000000000000, 0x3000000000000, 0x7000000000000, 0xf000000000000, 0x1f000000000000, 0x3f000000000000, 0x7f000000000000,
+         0, 0x100000000000000, 0x300000000000000, 0x700000000000000, 0xf00000000000000, 0x1f00000000000000, 0x3f00000000000000, 0x7f00000000000000,
+  },
+  SOUTH: {0, 0, 0, 0, 0, 0, 0, 0,
+          0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
+          0x101, 0x202, 0x404, 0x808, 0x1010, 0x2020, 0x4040, 0x8080,
+          0x10101, 0x20202, 0x40404, 0x80808, 0x101010, 0x202020, 0x404040, 0x808080,
+          0x1010101, 0x2020202, 0x4040404, 0x8080808, 0x10101010, 0x20202020, 0x40404040, 0x80808080,
+          0x101010101, 0x202020202, 0x404040404, 0x808080808, 0x1010101010, 0x2020202020, 0x4040404040, 0x8080808080,
+          0x10101010101, 0x20202020202, 0x40404040404, 0x80808080808, 0x101010101010, 0x202020202020, 0x404040404040, 0x808080808080,
+          0x1010101010101, 0x2020202020202, 0x4040404040404, 0x8080808080808, 0x10101010101010, 0x20202020202020, 0x40404040404040, 0x80808080808080,
+  },
+  WEST: {0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80, 0,
+         0xfe << 8, 0xfc << 8, 0xf8 << 8, 0xf0 << 8, 0xe0 << 8, 0xc0 << 8, 0x80 << 8, 0,
+         0xfe << 16, 0xfc << 16, 0xf8 << 16, 0xf0 << 16, 0xe0 << 16, 0xc0 << 16, 0x80 << 16, 0,
+         0xfe << 24, 0xfc << 24, 0xf8 << 24, 0xf0 << 24, 0xe0 << 24, 0xc0 << 24, 0x80 << 24, 0,
+         0xfe << 32, 0xfc << 32, 0xf8 << 32, 0xf0 << 32, 0xe0 << 32, 0xc0 << 32, 0x80 << 32, 0,
+         0xfe << 40, 0xfc << 40, 0xf8 << 40, 0xf0 << 40, 0xe0 << 40, 0xc0 << 40, 0x80 << 40, 0,
+         0xfe << 48, 0xfc << 48, 0xf8 << 48, 0xf0 << 48, 0xe0 << 48, 0xc0 << 48, 0x80 << 48, 0,
+         0xfe << 56, 0xfc << 56, 0xf8 << 56, 0xf0 << 56, 0xe0 << 56, 0xc0 << 56, 0x80 << 56, 0,
+         // 0xfe00, 0xfc00, 0xf800, 0xf000, 0xe00, 0xc00, 0x800, 0,
+         // 0xfe0000, 0xfc0000, 0xf80000, 0xf0000, 0xe0000, 0xc0000, 0x80000, 0,
+         // 0xfe000000, 0xfc000000, 0xf8000000, 0xf000000, 0xe000000, 0xc000000, 0x8000000, 0,
+         // 0xfe00000000, 0xfc00000000, 0xf800000000, 0xf00000000, 0xe00000000, 0xc00000000, 0x800000000, 0,
+         // 0xfe0000000000, 0xfc0000000000, 0xf80000000000, 0xf0000000000, 0xe0000000000, 0xc0000000000, 0x80000000000, 0,
+         // 0xfe000000000000, 0xfc000000000000, 0xf8000000000000, 0xf000000000000, 0xe000000000000, 0xc000000000000, 0x8000000000000, 0,
+         // 0xfe00000000000000, 0xfc00000000000000, 0xf800000000000000, 0xf00000000000000, 0xe00000000000000, 0xc00000000000000, 0x800000000000000, 0,
   },
 }
 
@@ -137,11 +173,6 @@ func (r *Rook) attacks(pos *Position) (attacks Bitboard) {
   //   ------------------
   //   |     | >>8 |     |
   //   ------------------
-
-  // TODO, need to check blocked if squares are blocked
-  // Get rank and file
-  // go up to oponent piece in that file/rank
-  // or go up to piece -1 if piece if of same color
   square := r.square.ToStringSlice()[0]
 
   // Need to find in four directions the 'nearest' piece and attack up to that square
@@ -149,55 +180,38 @@ func (r *Rook) attacks(pos *Position) (attacks Bitboard) {
   attacks |= files[int(square[0]) - 97] | ranks[int(square[1]) - 49]
 
   // Posibles Blockers bitboard for rook files and ranks
-  blockers := (attacks & pieces & ^r.square)
-  fileBlockers := blockers & files[int(square[0]) - 97]
-  // rankBlockers := blockers & ranks[int(square[1]) - 49]
+  blockers := (attacks & pieces)
 
-
-  // TODO!!!!!!!
-  // Better way of finding on each direction:
-  // TrailingZeros64 and LeadingZeros64 can be used to find the distance to the nearest blocker
-  // For NORTH/EAST -> TrailingZeros64 and for SOUTH/WEST LeadingZeros64
-  // Then get the rays for that blocker in same direction
-  // And by negating it(the rayAttack) can be used to get the squares up to the rook can go
-  // nortBlk := blockers & raysAttacks[NORTH][bits.TrailingZeros64(uint64(r.square))]
-  // nearestNorthBlocker := Bitboard( 0b1 << bits.TrailingZeros64(uint64(nortBlk)))
-  // nearestNorthBlocker.Print()
-
-  // Need to split into simple bitboards
-  // Map to square bitboard
-
-  // TODO For each direction find the nearest blocker and check color? to find if it can move there
-  // FOR RIGHT
-  // for _, square := range blockers.ToStringSlice() {
-  // }
-
-  // Need to initialize at max value, so the diference will always be smaller 
-  var nearestNorthBlocker, nearestSouthBlocker Bitboard = 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
-  // Nearest Horizontal blocker
-  // Need to check the nearest if is > or < of r.square and store in a variable result
-  for _, sq := range fileBlockers.ToStringSlice() {
-    bitboard := sqaureToBitboard([]string{sq})
-    // Remap each square to a bitboard
-    // Check if higher / lower than r.square
-    // store in a variable the nearest of all in each direction
-    if bitboard > r.square {
-      // Its upstairs the in the file
-      if (bitboard - r.square) < (nearestNorthBlocker - r.square) {
-        nearestNorthBlocker = bitboard 
-      }
-    } else {
-      // Its downstairs in the file
-      if (r.square - bitboard) < (r.square - nearestSouthBlocker) {
-        nearestSouthBlocker = bitboard 
-      }
-    }
+  // North attacks -> up to nearest north piece
+  northBlockers := blockers & raysAttacks[NORTH][bits.TrailingZeros64(uint64(r.square))]
+  nearestNorthBlocker := Bitboard(0b1 << bits.TrailingZeros64(uint64(northBlockers)))
+  // Need to do this because when no blockers TrailingZeros64 returns 64 and goes out of index/null pointer error
+  if nearestNorthBlocker > 0 {
+    attacks &= ^raysAttacks[NORTH][bits.TrailingZeros64(uint64(nearestNorthBlocker))]
   }
-  // TODO do the same for right and left blockers
-  raysAttacks[NORTH][bits.TrailingZeros64(uint64(nearestNorthBlocker))].Print()
 
-  attacks &= (nearestSouthBlocker | nearestNorthBlocker)
-  return
+  // East attacks -> up to nearest east piece
+  eastBlockers := blockers & raysAttacks[EAST][bits.TrailingZeros64(uint64(r.square))]
+  nearestEastBlocker := Bitboard(0b1 << bits.TrailingZeros64(uint64(eastBlockers)))
+  if nearestEastBlocker > 0 {
+    attacks &= ^raysAttacks[EAST][bits.TrailingZeros64(uint64(nearestEastBlocker))]
+  }
+
+  // South attacks -> up to the neaest south piece
+  southBlockers := blockers & raysAttacks[SOUTH][bits.TrailingZeros64(uint64(r.square))]
+  nearestSouthBlocker := Bitboard(0b1 << bits.TrailingZeros64(uint64(southBlockers)))
+  if nearestSouthBlocker > 0 {
+    attacks &= ^raysAttacks[SOUTH][bits.TrailingZeros64(uint64(nearestSouthBlocker))]
+  }
+
+  // West attacks -> up to the neaest west piece
+  westBlockers := blockers & raysAttacks[WEST][bits.TrailingZeros64(uint64(r.square))]
+  nearestWestBlocker := Bitboard(0b1 << bits.TrailingZeros64(uint64(westBlockers)))
+  if nearestWestBlocker > 0 {
+    attacks &= ^raysAttacks[WEST][bits.TrailingZeros64(uint64(nearestWestBlocker))]
+  }
+
+  return attacks & ^r.square
 }
 
 // moves returns a bitboard with the legal squares the Rook can move to in a chess position

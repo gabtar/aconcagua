@@ -50,7 +50,7 @@ func TestKingCannotMoveToAttackedSquare(t *testing.T) {
 }
 
 // Rook moves tests
-func TestRookMovesOnEmptyBoard(t *testing.T) {
+func TestRookAttacksOnEmptyBoard(t *testing.T) {
   pos := EmptyPosition()
   pos.addPiece(BLACK_ROOK, "e4")
   rook, _ := pos.pieceAt("e4")
@@ -66,15 +66,34 @@ func TestRookMovesOnEmptyBoard(t *testing.T) {
 	}
 }
 
-func TestRookMovesWithBlockedSquares(t *testing.T) {
+func TestRookAttacksWithBlockedSquares(t *testing.T) {
   pos := EmptyPosition()
   pos.addPiece(BLACK_ROOK, "e4")
-  pos.addPiece(BLACK_KING, "b4") // King blocking on b4
-  pos.addPiece(WHITE_KNIGHT, "e7") // Knight blocking on e7
+  pos.addPiece(WHITE_KNIGHT, "c4") // Knight blocking on c4
   rook, _ := pos.pieceAt("e4")
 
   expectedSquares := []string{"e1", "e2", "e3", "e5", "e6", "e7", "e8",
                               "c4", "d4", "f4", "g4", "h4"}
+
+  expected := sqaureToBitboard(expectedSquares)
+  got := rook.attacks(pos)
+
+  if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+
+func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
+  pos := EmptyPosition()
+  pos.addPiece(BLACK_ROOK, "b3")
+  pos.addPiece(WHITE_KNIGHT, "b4") // Knight blocking on b4
+  pos.addPiece(WHITE_KNIGHT, "b2") // Knight blocking on b5
+  pos.addPiece(WHITE_KNIGHT, "a3") // Knight blocking on a3
+  pos.addPiece(WHITE_KNIGHT, "c3") // Knight blocking on c3
+  rook, _ := pos.pieceAt("b3")
+
+  expectedSquares := []string{"b4", "b2", "a3", "c3"}
 
   expected := sqaureToBitboard(expectedSquares)
   got := rook.attacks(pos)
