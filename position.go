@@ -144,7 +144,7 @@ func (pos *Position) check(side byte) (inCheck bool) {
   }
   kingPos := pos.bitboards[king]
 
-  if (kingPos & pos.attackedSquares(opponentSide(side))) > 1 {
+  if (kingPos & pos.attackedSquares(opponentSide(side))) > 0 {
     inCheck = true
   }
   return
@@ -157,6 +157,21 @@ func (pos *Position) KingPosition(side byte) (king Bitboard) {
     king = pos.bitboards[BLACK_KING]
   }
   return
+}
+
+// Remove Piece returns a new position without the piece passed
+func (pos Position) RemovePiece(piece Bitboard) Position {
+  newPos := pos
+
+  // Iterate over all bitboards to find the piece and remove from it
+	for role, bitboard := range newPos.bitboards {
+		if bitboard & piece > 0 {
+      // Found the piece, remove from bitboard
+      newPos.bitboards[role] &= ^piece
+		}
+	}
+
+  return newPos
 }
 
 // Utility functions
