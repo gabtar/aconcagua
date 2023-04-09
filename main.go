@@ -1,15 +1,15 @@
 package main
 
+import "fmt"
+
 func main() {
 
-  // fmt.Println("Ranks")
-  // for _, rank := range ranks {
-  //   fmt.Println("-------------------")
-  //   rank.Print()
-  // }
-  for i := 56; i < 64; i++ {
-    Bitboard(raysAttacks[NORTH][i]).Print()
-  }
+  // Test direction function
+  bb1 := Bitboard(0b1 << 1)
+  bb2 := Bitboard(0b1)
+  bb1.Print()
+  bb2.Print()
+  fmt.Println(getDirection(bb2, bb1))
   
 
   // pos := InitialPosition()

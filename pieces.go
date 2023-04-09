@@ -25,8 +25,11 @@ type Knight struct {
 
 // Piece is the interface that has all methods for chess pieces
 type Piece interface {
-  attacks(pos *Position) Bitboard
-  moves(pos *Position) Bitboard // Legal moves -> attacks - occupied by same color piece - pinned in direction
+  Attacks(pos *Position) Bitboard
+  Moves(pos *Position) Bitboard // Legal moves -> attacks - occupied by same color piece - pinned in direction
+  Square() Bitboard
+  Color() byte
+  IsSliding() bool
 }
 
 // rays contains all rays for a given square in all possible 8 directions
@@ -83,21 +86,14 @@ var raysAttacks [4][64]Bitboard = [4][64]Bitboard{
          0xfe << 40, 0xfc << 40, 0xf8 << 40, 0xf0 << 40, 0xe0 << 40, 0xc0 << 40, 0x80 << 40, 0,
          0xfe << 48, 0xfc << 48, 0xf8 << 48, 0xf0 << 48, 0xe0 << 48, 0xc0 << 48, 0x80 << 48, 0,
          0xfe << 56, 0xfc << 56, 0xf8 << 56, 0xf0 << 56, 0xe0 << 56, 0xc0 << 56, 0x80 << 56, 0,
-         // 0xfe00, 0xfc00, 0xf800, 0xf000, 0xe00, 0xc00, 0x800, 0,
-         // 0xfe0000, 0xfc0000, 0xf80000, 0xf0000, 0xe0000, 0xc0000, 0x80000, 0,
-         // 0xfe000000, 0xfc000000, 0xf8000000, 0xf000000, 0xe000000, 0xc000000, 0x8000000, 0,
-         // 0xfe00000000, 0xfc00000000, 0xf800000000, 0xf00000000, 0xe00000000, 0xc00000000, 0x800000000, 0,
-         // 0xfe0000000000, 0xfc0000000000, 0xf80000000000, 0xf0000000000, 0xe0000000000, 0xc0000000000, 0x80000000000, 0,
-         // 0xfe000000000000, 0xfc000000000000, 0xf8000000000000, 0xf000000000000, 0xe000000000000, 0xc000000000000, 0x8000000000000, 0,
-         // 0xfe00000000000000, 0xfc00000000000000, 0xf800000000000000, 0xf00000000000000, 0xe00000000000000, 0xc00000000000000, 0x800000000000000, 0,
   },
 }
 
 // -------------
 // KING ♔
 // -------------
-// attacks returns all squares that a King attacks in a chess board
-func (k *King) attacks(pos *Position) (attacks Bitboard) {
+// Attacks returns all squares that a King attacks in a chess board
+func (k *King) Attacks(pos *Position) (attacks Bitboard) {
   //  Bitwise displacements for all possible King attacks
   //   ------------------
   //   | <<9 | <<8 | <<7 |
@@ -115,19 +111,34 @@ func (k *King) attacks(pos *Position) (attacks Bitboard) {
 	return
 }
 
-// moves returns a bitboard with the legal squares the King can move to
-func (k *King) moves(pos *Position) (moves Bitboard) {
+// Moves returns a bitboard with the legal squares the King can move to
+func (k *King) Moves(pos *Position) (moves Bitboard) {
   // King can only move to an empty square or capture an opponent piece not defended by 
   // opposite side
-  moves = k.attacks(pos) & ^pos.attackedSquares(opponentSide(k.color)) & ^pos.pieces(k.color)
+  moves = k.Attacks(pos) & ^pos.attackedSquares(opponentSide(k.color)) & ^pos.pieces(k.color)
   return
+}
+
+// Square returns the bitboard with the position of the piece
+func (k *King) Square() Bitboard {
+  return k.square
+}
+
+// Color returns the color(side) of the piece
+func (k *King) Color() byte {
+  return k.color
+}
+
+// Returns if the piece is an sliding piece(bishops, rooks, queens)
+func (k *King) IsSliding() bool {
+  return false
 }
 
 // -------------
 // KNIGHT ♘
 // -------------
-// attacks returns all squares that a Knight attacks in a chess board
-func (k *Knight) attacks(pos *Position) (attacks Bitboard) {
+// Attacks returns all squares that a Knight attacks in a chess board
+func (k *Knight) Attacks(pos *Position) (attacks Bitboard) {
   //  Bitwise displacements for all possible Knight attacks
   //   -------------------------------
   //   |     |<<15 |     |<<17 |     |
@@ -153,26 +164,40 @@ func (k *Knight) attacks(pos *Position) (attacks Bitboard) {
   return
 }
 
-// moves returns a bitboard with the legal squares the Knight can move to in a chess position
-func (k *Knight) moves(pos *Position) (moves Bitboard) {
+// Moves returns a bitboard with the legal squares the Knight can move to in a chess position
+func (k *Knight) Moves(pos *Position) (moves Bitboard) {
   // TODO check if the knight is pinned -> the move will result in check
-  moves = k.attacks(pos) & ^pos.pieces(k.color)
+  moves = k.Attacks(pos) & ^pos.pieces(k.color)
   return
+}
+
+// Square returns the bitboard with the position of the piece
+func (k *Knight) Square() Bitboard {
+  return k.square
+}
+
+// Color returns the color(side) of the piece
+func (k *Knight) Color() byte {
+  return k.color
+}
+
+// Returns if the piece is an sliding piece(bishops, rooks, queens)
+func (k *Knight) IsSliding() bool {
+  return false
 }
 
 // -------------
 // ROOK ♖
 // -------------
-// attacks returns all squares that a Rook attacks in a chess board
-func (r *Rook) attacks(pos *Position) (attacks Bitboard) {
-  //  Bitwise displacements for all possible King attacks
-  //   ------------------
-  //   |     | <<8 |     |
-  //   ------------------
-  //   | <<1 |  R  | >>1 |
-  //   ------------------
-  //   |     | >>8 |     |
-  //   ------------------
+// Attacks returns all squares that a Rook attacks in a chess board
+func (r *Rook) Attacks(pos *Position) (attacks Bitboard) {
+  // Uses the raysAttacks array for each direction. -> Classical Approach
+  // In each direction computes the nearest blocker piece(any color) and gets
+  // the raysAttacks from that piece to the 'end' of the board in that direction.
+  // By negating/inverting the rays(bitboard) to the full column/row (bitboard) 
+  // we get the squares the rook can reach -> attack(if black pieces)/defend(if
+  // it's a same color piece)
+
   square := r.square.ToStringSlice()[0]
 
   // Need to find in four directions the 'nearest' piece and attack up to that square
@@ -214,9 +239,58 @@ func (r *Rook) attacks(pos *Position) (attacks Bitboard) {
   return attacks & ^r.square
 }
 
-// moves returns a bitboard with the legal squares the Rook can move to in a chess position
-func (r *Rook) moves(pos *Position) (moves Bitboard) {
-  return
+// Moves returns a bitboard with the legal squares the Rook can move to in a chess position
+func (r *Rook) Moves(pos *Position) (moves Bitboard) {
+  // TODO, i need to validate when the piece is pinned
+  // For now its only the attacks and removes the blocked squares by same color pieces
+  attacks := r.Attacks(pos) & ^pos.pieces(r.color)
+
+  if pos.check(r.color) {
+    // TODO, if king(same color) is in check can only moves if the rook blocks the check
+    // Check -> See if the rook can capture the opponent piece(on single check)
+    //       -> See if there is a move that can block the checking piece attack(only for slider pieces)
+    // Supose for now that there is only one 'single check' 
+    // When double check -> the rook cannot do nothing
+
+    // Obtener la pieza que está dando jaque
+    // ver si la puedo capturar
+    // si es a distancia ver tambien si hay alguna jugada que permita blockear el rayo
+    checkingPieces := pos.checkingPieces(r.color)
+
+    if len(checkingPieces) == 1 {
+      checker := checkingPieces[0]
+      // Check if i can obstruct the path when sliding piece
+      if checker.IsSliding() {
+        // Calculate the direction from piece to king first
+        direction := getDirection(checker.Square(), pos.KingPosition(r.color))
+        // Get the ray from piece to king
+        // check if there is one move that can block in that direction
+        moves |= raysAttacks[direction][bits.TrailingZeros64(uint64(checker.Square()))] & attacks
+      }
+      // Check if i can capture the piece
+      moves |= checker.Square() & attacks
+      return
+    } else {
+      // No se puede mover la pieza
+      return Bitboard(0)
+    }
+  }
+  return attacks
+}
+
+// Square returns the bitboard with the position of the piece
+func (r *Rook) Square() Bitboard {
+  return r.square
+}
+
+// Color returns the color(side) of the piece
+func (r *Rook) Color() byte {
+  return r.color
+}
+
+// Returns if the piece is an sliding piece(bishops, rooks, queens)
+func (r *Rook) IsSliding() bool {
+  return true
 }
 
 // Helper functions
@@ -228,3 +302,34 @@ func opponentSide(color byte) byte {
   }
   return BLACK
 }
+
+// getDirection returns the direction between 2 bitboards containing only 1 piece each one
+func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
+  // TODO add bishop rays direction
+  // Check displacement between bitboards?
+  //   ------------------
+  //   | <<9 | <<8 | <<7 |
+  //   ------------------
+  //   | <<1 |  P  | >>1 |
+  //   ------------------
+  //   | >>7 | >>8 | >>9 |
+  //   ------------------
+  filePiece1 := bits.TrailingZeros64(uint64(piece1)) / 8
+  filePiece2 := bits.TrailingZeros64(uint64(piece2)) / 8
+  rankPiece1 := bits.TrailingZeros64(uint64(piece1)) % 8
+  rankPiece2 := bits.TrailingZeros64(uint64(piece2)) % 8
+  fileDiff := filePiece1 - filePiece2
+  rankDiff := rankPiece1 - rankPiece2
+
+  switch {
+  case fileDiff == 1 && rankDiff == 0:
+    dir = SOUTH
+  case fileDiff == -1 && rankDiff == 0:
+    dir = NORTH
+  case fileDiff == 0 && rankDiff == 1:
+    dir = EAST
+  case fileDiff == 0 && rankDiff == -1:
+    dir = WEST
+  }
+  return
+} 

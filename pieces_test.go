@@ -10,7 +10,7 @@ func TestKingAttacks(t *testing.T){
   king, _ := pos.pieceAt("e1")
 
   expected := Bitboard(0b11100000101000)
-  got := king.attacks(pos)
+  got := king.Attacks(pos)
 
   if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -25,7 +25,7 @@ func TestKingMovesToEmptySquares(t *testing.T) {
   expectedSquares := []string{"d3", "d4", "d5", "e3", "e5", "f3", "f4", "f5"}
 
   expected := sqaureToBitboard(expectedSquares)
-  got := king.moves(pos)
+  got := king.Moves(pos)
 
   if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -42,7 +42,7 @@ func TestKingCannotMoveToAttackedSquare(t *testing.T) {
   expectedSquares := []string{"d3", "d5", "e3", "f3", "f4", "f5"}
 
   expected := sqaureToBitboard(expectedSquares)
-  got := king.moves(pos)
+  got := king.Moves(pos)
 
   if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -59,7 +59,7 @@ func TestRookAttacksOnEmptyBoard(t *testing.T) {
                               "a4", "b4", "c4", "d4", "f4", "g4", "h4"}
 
   expected := sqaureToBitboard(expectedSquares)
-  got := rook.attacks(pos)
+  got := rook.Attacks(pos)
 
   if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -76,13 +76,12 @@ func TestRookAttacksWithBlockedSquares(t *testing.T) {
                               "c4", "d4", "f4", "g4", "h4"}
 
   expected := sqaureToBitboard(expectedSquares)
-  got := rook.attacks(pos)
+  got := rook.Attacks(pos)
 
   if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
-
 
 func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
   pos := EmptyPosition()
@@ -96,7 +95,76 @@ func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
   expectedSquares := []string{"b4", "b2", "a3", "c3"}
 
   expected := sqaureToBitboard(expectedSquares)
-  got := rook.attacks(pos)
+  got := rook.Attacks(pos)
+
+  if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestRookMovesWithCaptures(t *testing.T) {
+  pos := EmptyPosition()
+  pos.addPiece(BLACK_ROOK, "a8")
+  pos.addPiece(WHITE_KNIGHT, "a4") // Can move(capture) white knight on a4
+  pos.addPiece(WHITE_KNIGHT, "c8") // Can move(capture) knight on c8
+  rook, _ := pos.pieceAt("a8")
+
+  expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
+
+  expected := sqaureToBitboard(expectedSquares)
+  got := rook.Moves(pos)
+
+  if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestRookMovesWithBlockingPieces(t *testing.T) {
+  pos := EmptyPosition()
+  pos.addPiece(WHITE_ROOK, "g2")
+  pos.addPiece(BLACK_KNIGHT, "g4") // Can move(capture) white knight on g4
+  pos.addPiece(WHITE_KNIGHT, "f2") // Cannot move to f2, because its blocked by Knight
+  rook, _ := pos.pieceAt("g2")
+
+  expectedSquares := []string{"g1", "h2", "g3", "g4"}
+
+  expected := sqaureToBitboard(expectedSquares)
+  got := rook.Moves(pos)
+
+  if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestRookMoveWhenCanBlockCheck(t *testing.T) {
+  pos := EmptyPosition()
+  pos.addPiece(BLACK_ROOK, "c6") // Black king is in check, so only legal move is Re6 blocking the check
+  pos.addPiece(WHITE_ROOK, "e1")
+  pos.addPiece(BLACK_KING, "e8")
+  rook, _ := pos.pieceAt("c6")
+
+  expectedSquares := []string{"e6"}
+
+  expected := sqaureToBitboard(expectedSquares)
+  got := rook.Moves(pos)
+
+  if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestRookMovesWhenKingInDoubleCheck(t *testing.T) {
+  pos := EmptyPosition()
+  pos.addPiece(BLACK_ROOK, "c6")
+  pos.addPiece(WHITE_ROOK, "e1") // Gives check to the black king on e8
+  pos.addPiece(WHITE_ROOK, "a8") // Gives check to the black king on e8
+  pos.addPiece(BLACK_KING, "e8")
+  rook, _ := pos.pieceAt("c6")
+
+  expectedSquares := []string{} // The rook cannot move at all because of the double check in own king
+
+  expected := sqaureToBitboard(expectedSquares)
+  got := rook.Moves(pos)
 
   if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

@@ -43,8 +43,10 @@ type IPosition interface {
   addPiece(role int, square string)
   emptySquares() Bitboard
   attackedSquares(side byte) Bitboard
+  checkingPieces(side byte) []Piece
   pieces(side byte) Bitboard
   check(side byte) bool
+  KingPosition(side byte) Bitboard
 }
 
 // pieceAt returns a Piece at the given square coordinate in the Position
@@ -94,10 +96,31 @@ func (pos *Position) attackedSquares(side byte) (attackedSquares Bitboard) {
       if err != nil {
         continue
       }
-      attackedSquares |= piece.attacks(pos)
+      attackedSquares |= piece.Attacks(pos)
     }
   }
 
+  return
+}
+
+// checkingPieces returns an slice of Piece{} that are checking the passed side king
+func (pos *Position) checkingPieces(side byte) (pieces []Piece) {
+  if !pos.check(side) {
+    return
+  }
+
+  kingSq := pos.bitboards[WHITE_KING]
+  if side != WHITE {
+    kingSq = pos.bitboards[BLACK_KING]
+  }
+  // iterate over all opponent pieces an add the ones that are attacking the king
+  for _, sq := range pos.pieces(opponentSide(side)).ToStringSlice() {
+    piece, _ := pos.pieceAt(sq)
+
+    if (kingSq & piece.Attacks(pos)) > 0 {
+      pieces = append(pieces, piece)
+    }
+  }
   return
 }
 
@@ -121,8 +144,17 @@ func (pos *Position) check(side byte) (inCheck bool) {
   }
   kingPos := pos.bitboards[king]
 
-  if (kingPos & pos.attackedSquares(side)) > 1 {
+  if (kingPos & pos.attackedSquares(opponentSide(side))) > 1 {
     inCheck = true
+  }
+  return
+}
+
+func (pos *Position) KingPosition(side byte) (king Bitboard) {
+  if side == WHITE {
+    king = pos.bitboards[WHITE_KING]
+  } else {
+    king = pos.bitboards[BLACK_KING]
   }
   return
 }
