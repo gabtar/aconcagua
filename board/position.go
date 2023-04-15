@@ -1,4 +1,4 @@
-package main
+package board
 
 import (
 	"errors"
@@ -39,18 +39,18 @@ type Position struct {
 }
 
 type IPosition interface {
-	pieceAt(square string) (Piece, error)
-  addPiece(role int, square string)
-  emptySquares() Bitboard
-  attackedSquares(side byte) Bitboard
-  checkingPieces(side byte) []Piece
-  pieces(side byte) Bitboard
-  check(side byte) bool
+	PieceAt(square string) (Piece, error)
+  AddPiece(role int, square string)
+  EmptySquares() Bitboard
+  AttackedSquares(side byte) Bitboard
+  CheckingPieces(side byte) []Piece
+  Pieces(side byte) Bitboard
+  Check(side byte) bool
   KingPosition(side byte) Bitboard
 }
 
 // pieceAt returns a Piece at the given square coordinate in the Position
-func (pos *Position) pieceAt(square string) (piece Piece, e error) {
+func (pos *Position) PieceAt(square string) (piece Piece, e error) {
   bitboardSquare := sqaureToBitboard([]string{square})
 
 	for role, bitboard := range pos.bitboards {
@@ -65,14 +65,14 @@ func (pos *Position) pieceAt(square string) (piece Piece, e error) {
 }
 
 // addPiece adds a new Piece to the Position
-func (pos *Position) addPiece(role int, square string) {
+func (pos *Position) AddPiece(role int, square string) {
   bitboardSquare := sqaureToBitboard([]string{square})
   pos.bitboards[role] |= bitboardSquare
 
 }
 
 // emptySquares returns a Bitboard with the empty sqaures of the position
-func (pos *Position) emptySquares() (emptySquares Bitboard) {
+func (pos *Position) EmptySquares() (emptySquares Bitboard) {
   // Set all as empty
   emptySquares = 0xFFFFFFFFFFFFFFFF
 
@@ -83,7 +83,7 @@ func (pos *Position) emptySquares() (emptySquares Bitboard) {
 }
 
 // attackedSquares returns a bitboard with all squares attacked by the passed side
-func (pos *Position) attackedSquares(side byte) (attackedSquares Bitboard) {
+func (pos *Position) AttackedSquares(side byte) (attackedSquares Bitboard) {
   startingBitboard := 0
   if side != WHITE {
     startingBitboard = 6
@@ -91,7 +91,7 @@ func (pos *Position) attackedSquares(side byte) (attackedSquares Bitboard) {
 
   for currentBitboard := startingBitboard; currentBitboard - startingBitboard < 6 ; currentBitboard++ {
     for _, square := range pos.bitboards[currentBitboard].ToStringSlice() {
-      piece, err := pos.pieceAt(square)
+      piece, err := pos.PieceAt(square)
       // TODO remove later. I need this check for now because not all pieces are yet implemented
       if err != nil {
         continue
@@ -104,8 +104,8 @@ func (pos *Position) attackedSquares(side byte) (attackedSquares Bitboard) {
 }
 
 // checkingPieces returns an slice of Piece{} that are checking the passed side king
-func (pos *Position) checkingPieces(side byte) (pieces []Piece) {
-  if !pos.check(side) {
+func (pos *Position) CheckingPieces(side byte) (pieces []Piece) {
+  if !pos.Check(side) {
     return
   }
 
@@ -114,8 +114,8 @@ func (pos *Position) checkingPieces(side byte) (pieces []Piece) {
     kingSq = pos.bitboards[BLACK_KING]
   }
   // iterate over all opponent pieces an add the ones that are attacking the king
-  for _, sq := range pos.pieces(opponentSide(side)).ToStringSlice() {
-    piece, _ := pos.pieceAt(sq)
+  for _, sq := range pos.Pieces(opponentSide(side)).ToStringSlice() {
+    piece, _ := pos.PieceAt(sq)
 
     if (kingSq & piece.Attacks(pos)) > 0 {
       pieces = append(pieces, piece)
@@ -125,7 +125,7 @@ func (pos *Position) checkingPieces(side byte) (pieces []Piece) {
 }
 
 // pieces returns a Bitboard with the pieces of the color pased
-func (pos *Position) pieces(side byte) (pieces Bitboard) {
+func (pos *Position) Pieces(side byte) (pieces Bitboard) {
   startingBitboard := 0
   if side != WHITE {
     startingBitboard = 6
@@ -137,14 +137,14 @@ func (pos *Position) pieces(side byte) (pieces Bitboard) {
 }
 
 // check returns if the side passed is in check
-func (pos *Position) check(side byte) (inCheck bool) {
+func (pos *Position) Check(side byte) (inCheck bool) {
   king := WHITE_KING
   if side == BLACK {
     king = BLACK_KING
   }
   kingPos := pos.bitboards[king]
 
-  if (kingPos & pos.attackedSquares(opponentSide(side))) > 0 {
+  if (kingPos & pos.AttackedSquares(opponentSide(side))) > 0 {
     inCheck = true
   }
   return
@@ -183,6 +183,8 @@ func makePiece(role int, square Bitboard) (piece Piece) {
     piece = &King{color: WHITE, square: square}
   case WHITE_ROOK:
     piece = &Rook{color: WHITE, square: square}
+  case WHITE_BISHOP:
+    piece = &Bishop{color: WHITE, square: square}
   case WHITE_KNIGHT:
     piece = &Knight{color: WHITE, square: square}
   case BLACK_KING:

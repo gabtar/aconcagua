@@ -1,4 +1,4 @@
-package main
+package board
 
 import (
 	"fmt"
@@ -53,7 +53,6 @@ const a1h8diagonal Bitboard = 0x8040201008040201
 const h1a8antidiagonal Bitboard = 0x0102040810204080
 const lightSquares Bitboard = 0x55AA55AA55AA55AA
 const darkSquares Bitboard = 0xAA55AA55AA55AA55
-
 // Bitboard represents a bitboard as a 64bit integer
 type Bitboard uint64
 
