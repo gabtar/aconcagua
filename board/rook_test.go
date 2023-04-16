@@ -2,53 +2,6 @@ package board
 
 import "testing"
 
-// King moves tests
-
-// TODO, tests more corner cases
-func TestKingAttacks(t *testing.T) {
-	pos := InitialPosition()
-	king, _ := pos.PieceAt("e1")
-
-	expected := Bitboard(0b11100000101000)
-	got := king.Attacks(pos)
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestKingMovesToEmptySquares(t *testing.T) {
-	pos := EmptyPosition()
-	pos.AddPiece(WHITE_KING, "e4")
-	king, _ := pos.PieceAt("e4")
-
-	expectedSquares := []string{"d3", "d4", "d5", "e3", "e5", "f3", "f4", "f5"}
-
-	expected := sqaureToBitboard(expectedSquares)
-	got := king.Moves(pos)
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestKingCannotMoveToAttackedSquare(t *testing.T) {
-	pos := EmptyPosition()
-	pos.AddPiece(WHITE_KING, "e4")
-	pos.AddPiece(BLACK_KNIGHT, "c6")
-	king, _ := pos.PieceAt("e4")
-
-	// Cannot move to d4 or e5 because it's attacked by the black knight
-	expectedSquares := []string{"d3", "d5", "e3", "f3", "f4", "f5"}
-
-	expected := sqaureToBitboard(expectedSquares)
-	got := king.Moves(pos)
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 // Rook moves tests
 func TestRookAttacksOnEmptyBoard(t *testing.T) {
 	pos := EmptyPosition()
@@ -193,19 +146,3 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 }
 
 
-// Bishop moves tests
-func TestBishopAttacksOnEmptyBoard(t *testing.T) {
-	pos := EmptyPosition()
-	pos.AddPiece(WHITE_BISHOP, "h1")
-	bishop, _ := pos.PieceAt("h1")
-
-	expectedSquares := []string{"g2", "f3", "e4", "d5", "c6", "b7", "a8"}
-
-	expected := sqaureToBitboard(expectedSquares)
-	got := bishop.Attacks(pos)
-  got.Print()
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}

@@ -38,9 +38,12 @@ func (k *Knight) Attacks(pos *Position) (attacks Bitboard) {
 
 // Moves returns a bitboard with the legal squares the Knight can move to in a chess position
 func (k *Knight) Moves(pos *Position) (moves Bitboard) {
-	// TODO check if the knight is pinned -> the move will result in check
-	moves = k.Attacks(pos) & ^pos.Pieces(k.color)
-	return
+  moves = k.Attacks(pos) & ^pos.Pieces(k.color)
+  // If the knight is pinned it can move at all
+  if isPinned(k.square, k.color, pos) {
+    moves = Bitboard(0)
+  }
+  return
 }
 
 // Square returns the bitboard with the position of the piece

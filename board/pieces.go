@@ -88,7 +88,7 @@ var raysAttacks [8][64]Bitboard = [8][64]Bitboard{
   SOUTHWEST: {0, 0, 0, 0, 0, 0, 0, 0,
     0, 0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40,
     0, 0x100, 0x201, 0x402, 0x804, 0x1008, 0x2010, 0x4020,
-    0, 0x10000, 0x2010000, 0x40201, 0x80402, 0x100804, 0x201008, 0x402010,
+    0, 0x10000, 0x20100, 0x40201, 0x80402, 0x100804, 0x201008, 0x402010,
     0, 0x1000000, 0x2010000, 0x4020100, 0x8040201, 0x10080402, 0x20100804, 0x40201008,
     0, 0x100000000, 0x201000000, 0x402010000, 0x804020100, 0x1008040201, 0x2010080402, 0x4020100804,
     0, 0x10000000000, 0x20100000000, 0x40201000000, 0x80402010000, 0x100804020100, 0x201008040201, 0x402010080402,
@@ -135,31 +135,64 @@ func opponentSide(color byte) byte {
 
 // getDirection returns the direction between 2 bitboards containing only 1 piece each one
 func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
-	// TODO add bishop rays direction
-	// Check displacement between bitboards?
-	//   ------------------
-	//   | <<9 | <<8 | <<7 |
-	//   ------------------
-	//   | <<1 |  P  | >>1 |
-	//   ------------------
-	//   | >>7 | >>8 | >>9 |
-	//   ------------------
-	filePiece1 := bits.TrailingZeros64(uint64(piece1)) / 8
-	filePiece2 := bits.TrailingZeros64(uint64(piece2)) / 8
-	rankPiece1 := bits.TrailingZeros64(uint64(piece1)) % 8
-	rankPiece2 := bits.TrailingZeros64(uint64(piece2)) % 8
-	fileDiff := filePiece1 - filePiece2
-	rankDiff := rankPiece1 - rankPiece2
+  //  Direction of piece2 with respect to piece1
+  //  Based on ±File±Column difference
+  //   ---------------------
+  //   | +1-1 | -1+0 | +1+1 |
+  //   ----------------------
+  //   | -1+0 |  P2  | +0+1 |
+  //   ----------------------
+  //   | -1-1 | +1+0 | -1+1 |
+  //   ----------------------
+  filePiece1 := bits.TrailingZeros64(uint64(piece1)) / 8
+  filePiece2 := bits.TrailingZeros64(uint64(piece2)) / 8
+  rankPiece1 := bits.TrailingZeros64(uint64(piece1)) % 8
+  rankPiece2 := bits.TrailingZeros64(uint64(piece2)) % 8
+  fileDiff := filePiece1 - filePiece2
+  rankDiff := rankPiece1 - rankPiece2
 
-	switch {
-	case fileDiff == 1 && rankDiff == 0:
-		dir = SOUTH
-	case fileDiff == -1 && rankDiff == 0:
-		dir = NORTH
-	case fileDiff == 0 && rankDiff == 1:
-		dir = EAST
-	case fileDiff == 0 && rankDiff == -1:
-		dir = WEST
-	}
-	return
+  switch {
+  case fileDiff == 1 && rankDiff == 0:
+    dir = SOUTH
+  case fileDiff == -1 && rankDiff == 0:
+    dir = NORTH
+  case fileDiff == 0 && rankDiff == 1:
+    dir = EAST
+  case fileDiff == 0 && rankDiff == -1:
+    dir = WEST
+  case fileDiff == -1 && rankDiff == -1:
+    dir = SOUTHWEST
+  case fileDiff == 1 && rankDiff == 1:
+    dir = NORTHEAST
+  case fileDiff == 1 && rankDiff == -1:
+    dir = NORTHWEST
+  case fileDiff == -1 && rankDiff == 1:
+    dir = SOUTHEAST
+  }
+  return
+}
+
+// raysDirection returns the rays along the direction passed with intersects the
+// piece in the square passed
+func raysDirection(square Bitboard, direction uint64) Bitboard {
+  rays := Bitboard(0) | square
+  rays |= raysAttacks[direction][bits.TrailingZeros64(uint64(square))]
+
+  // Need to complement the opposite of the direction passed
+  switch direction {
+  case NORTH:
+    rays |= raysAttacks[SOUTH][bits.TrailingZeros64(uint64(square))]
+  case NORTHEAST:
+    rays |= raysAttacks[SOUTHWEST][bits.TrailingZeros64(uint64(square))]
+  case EAST:
+    rays |= raysAttacks[WEST][bits.TrailingZeros64(uint64(square))]
+  case SOUTHEAST:
+    rays |= raysAttacks[NORTHWEST][bits.TrailingZeros64(uint64(square))]
+  case SOUTH:
+    rays |= raysAttacks[NORTH][bits.TrailingZeros64(uint64(square))]
+  case SOUTHWEST:
+    rays |= raysAttacks[NORTHEAST][bits.TrailingZeros64(uint64(square))]
+  }
+
+  return rays
 }

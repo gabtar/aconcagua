@@ -38,6 +38,7 @@ type Position struct {
 	turn      byte
 }
 
+// TODO, i dont know if this interface is necesary for now...
 type IPosition interface {
 	PieceAt(square string) (Piece, error)
   AddPiece(role int, square string)
@@ -191,6 +192,8 @@ func makePiece(role int, square Bitboard) (piece Piece) {
     piece = &King{color: BLACK, square: square}
   case BLACK_ROOK:
     piece = &Rook{color: BLACK, square: square}
+  case BLACK_BISHOP:
+    piece = &Bishop{color: BLACK, square: square}
   case BLACK_KNIGHT:
     piece = &Knight{color: BLACK, square: square}
   }

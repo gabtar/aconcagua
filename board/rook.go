@@ -40,16 +40,14 @@ func (r *Rook) Attacks(pos *Position) (attacks Bitboard) {
 func (r *Rook) Moves(pos *Position) (moves Bitboard) {
 	posiblesMoves := r.Attacks(pos) & ^pos.Pieces(r.color)
 	moves |= posiblesMoves
-
   // If Rook is pinned only allow moves along the pinned direction
   if isPinned(r.square, r.color, pos) && !pos.Check(r.color) {
-    kingSq := pos.KingPosition(r.color).ToStringSlice()[0]
-    rookSq := r.square.ToStringSlice()[0]
+    kingBB := pos.KingPosition(r.color)
+    direction := getDirection(kingBB, r.square)
 
-    rookFileRank := files[int(rookSq[0])-97] | ranks[int(rookSq[1])-49]
-    kingFileRank := files[int(kingSq[0])-97] | ranks[int(kingSq[1])-49]
-
-    moves &= rookFileRank & kingFileRank
+    // Need to move along the king-rook direction because of the pin
+    allowedMovesDirection := raysDirection(kingBB, direction)
+    moves &= allowedMovesDirection
   }
 
 	if pos.Check(r.color) {
