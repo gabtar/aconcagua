@@ -28,13 +28,17 @@ func TestCheckingPieces(t *testing.T) {
 	}
 }
 
-//
-// func TestRays(t *testing.T) {
-//   for i, v := range raysAttacks[NORTHWEST] {
-//     if (i < 48 || i >= 56) {
-//       continue
-//     }
-//     v.Print()
-//   }
-//
-// }
+func TestGetDirection(t *testing.T) {
+  pos := EmptyPosition()
+  pos.AddPiece(BLACK_KING, "e1")
+  pos.AddPiece(BLACK_ROOK, "e8")
+  king, _ := pos.PieceAt("e1")
+  rook, _ := pos.PieceAt("e8")
+
+	expected := NORTH
+	got := getDirection(rook.Square(), king.Square()) // rook is in NORTH of the king
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

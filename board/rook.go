@@ -40,11 +40,11 @@ func (r *Rook) Attacks(pos *Position) (attacks Bitboard) {
 func (r *Rook) Moves(pos *Position) (moves Bitboard) {
 	posiblesMoves := r.Attacks(pos) & ^pos.Pieces(r.color)
 	moves |= posiblesMoves
+  kingBB := pos.KingPosition(r.color) // King bitboard position
+
   // If Rook is pinned only allow moves along the pinned direction
   if isPinned(r.square, r.color, pos) && !pos.Check(r.color) {
-    kingBB := pos.KingPosition(r.color)
     direction := getDirection(kingBB, r.square)
-
     // Need to move along the king-rook direction because of the pin
     allowedMovesDirection := raysDirection(kingBB, direction)
     moves &= allowedMovesDirection
@@ -59,8 +59,9 @@ func (r *Rook) Moves(pos *Position) (moves Bitboard) {
 
 			// Check also if i can block the path to the king when it's a sliding piece
 			if checker.IsSliding() {
-				direction := getDirection(checker.Square(), pos.KingPosition(r.color))
-				moves |= raysAttacks[direction][bits.TrailingZeros64(uint64(checker.Square()))] & posiblesMoves
+        direction := getDirection(checker.Square(), kingBB)
+
+        moves |= raysDirection(kingBB, direction) & posiblesMoves
 			}
 		} else {
 			// Double check -> cannot avoid check by capture/blocking

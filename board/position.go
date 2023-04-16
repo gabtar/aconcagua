@@ -182,6 +182,8 @@ func makePiece(role int, square Bitboard) (piece Piece) {
   switch role {
   case WHITE_KING:
     piece = &King{color: WHITE, square: square}
+  case WHITE_QUEEN:
+    piece = &Queen{color: WHITE, square: square}
   case WHITE_ROOK:
     piece = &Rook{color: WHITE, square: square}
   case WHITE_BISHOP:
@@ -190,6 +192,8 @@ func makePiece(role int, square Bitboard) (piece Piece) {
     piece = &Knight{color: WHITE, square: square}
   case BLACK_KING:
     piece = &King{color: BLACK, square: square}
+  case BLACK_QUEEN:
+    piece = &Queen{color: BLACK, square: square}
   case BLACK_ROOK:
     piece = &Rook{color: BLACK, square: square}
   case BLACK_BISHOP:
