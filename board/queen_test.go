@@ -120,8 +120,6 @@ func TestQueenMovesWhenKingInDoubleCheck(t *testing.T) {
 	}
 }
 
-// TODO test more corner cases!!!
-// TODO this is not working the queen cannot move at all, the test is failing
 func TestQueenMovesWhenKingInDoubleCheckTest2(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BLACK_QUEEN, "c6")
@@ -134,8 +132,6 @@ func TestQueenMovesWhenKingInDoubleCheckTest2(t *testing.T) {
 
 	expected := sqaureToBitboard(expectedSquares)
 	got := queen.Moves(pos)
-	expected.Print()
-	got.Print()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

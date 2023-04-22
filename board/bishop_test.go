@@ -85,11 +85,11 @@ func TestBishopMoveWhenCanBlockCheck(t *testing.T) {
 	}
 }
 
-func TestBishopMovesWhenDoubleCheck(t *testing.T) {
+func TestBishopMovesWhenPinnedAndInCheck(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WHITE_KING, "d1")
 	pos.AddPiece(BLACK_ROOK, "h1") // Gives check to the white king on d1
-	pos.AddPiece(BLACK_ROOK, "d8") // Gives check to the white king on d1
+	pos.AddPiece(BLACK_ROOK, "d8") // Gives check to the white king on d1 (by xrays) -> pins the bishop
 	pos.AddPiece(WHITE_BISHOP, "d4")
 	bishop, _ := pos.PieceAt("d4")
 

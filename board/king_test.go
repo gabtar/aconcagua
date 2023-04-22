@@ -4,7 +4,6 @@ import "testing"
 
 // King moves tests
 
-// TODO, tests more corner cases
 func TestKingAttacks(t *testing.T) {
 	pos := InitialPosition()
 	king, _ := pos.PieceAt("e1")
@@ -43,6 +42,26 @@ func TestKingCannotMoveToAttackedSquare(t *testing.T) {
 
 	expected := sqaureToBitboard(expectedSquares)
 	got := king.Moves(pos)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+// TODO, FAILS!!!!!
+func TestKingMovesWhenInCheck(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(WHITE_KING, "e1")
+	pos.AddPiece(BLACK_ROOK, "h1")
+	king, _ := pos.PieceAt("e1")
+
+	// Can only move to the second rank, becuase first rank is attacked by the rook, by x rays
+	expectedSquares := []string{"c2", "e2", "f2"}
+
+	expected := sqaureToBitboard(expectedSquares)
+	got := king.Moves(pos)
+  // Try removing the king while checking attacked squares? by x rays
+  got.Print()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

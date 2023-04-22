@@ -132,10 +132,10 @@ func opponentSide(color byte) byte {
 	return BLACK
 }
 
-// getDirection returns the direction between 2 bitboards containing only 1 piece each one
+// getDirection returns the direction from piece2 towards piece1 (piece2 -> piece1)
 func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
-  // TODO not working in long range directions!!!!!!!!
-	//  Direction of piece2 with respect to piece1
+	// TODO need to check when its an invalid direction like a Knight jump or piece1 == piece2?
+	//  Direction of piece2 towards piece1 (piece2 -> piece1)
 	//  Based on ±File±Column difference
 	//   ---------------------
 	//   | +1-1 | -1+0 | +1+1 |
@@ -144,30 +144,39 @@ func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
 	//   ----------------------
 	//   | -1-1 | +1+0 | -1+1 |
 	//   ----------------------
-	filePiece1 := bits.TrailingZeros64(uint64(piece1)) / 8
-	filePiece2 := bits.TrailingZeros64(uint64(piece2)) / 8
-	rankPiece1 := bits.TrailingZeros64(uint64(piece1)) % 8
-	rankPiece2 := bits.TrailingZeros64(uint64(piece2)) % 8
+	filePiece1 := bits.TrailingZeros64(uint64(piece1)) % 8
+	filePiece2 := bits.TrailingZeros64(uint64(piece2)) % 8
+	rankPiece1 := bits.TrailingZeros64(uint64(piece1)) / 8
+	rankPiece2 := bits.TrailingZeros64(uint64(piece2)) / 8
 	fileDiff := filePiece1 - filePiece2
 	rankDiff := rankPiece1 - rankPiece2
 
 	switch {
-	case fileDiff == 1 && rankDiff == 0:
-		dir = SOUTH
-	case fileDiff == -1 && rankDiff == 0:
+	// Directions calculations reference
+	// fileDiff == 0 and rankDiff > 0 -> NORTH
+	// fileDiff == 0 and rankDiff < 0 -> SOUTH
+	// fileDiff > 0 and rankDiff == 0 -> EAST
+	// fileDiff < 0 and rankDiff == 0 -> WEST
+	// fileDiff == rankDiff && fileDiff < 0 && rankDiff < 0 -> SOTUHWEST
+	// fileDiff == rankDiff && fileDiff > 0 && rankDiff > 0 -> NORTHEAST
+	// fileDiff == rankDiff && fileDiff > 0 && rankDiff < 0 -> SOTUHEAST
+	// fileDiff == rankDiff && fileDiff < 0 && rankDiff > 0 -> NORTHWEST
+	case fileDiff == 0 && rankDiff > 0:
 		dir = NORTH
-	case fileDiff == 0 && rankDiff == 1:
+	case fileDiff == 0 && rankDiff < 0:
+		dir = SOUTH
+	case fileDiff > 0 && rankDiff == 0:
 		dir = EAST
-	case fileDiff == 0 && rankDiff == -1:
+	case fileDiff < 0 && rankDiff == 0:
 		dir = WEST
-	case fileDiff == -1 && rankDiff == -1:
+	case fileDiff == rankDiff && fileDiff < 0 && rankDiff < 0:
 		dir = SOUTHWEST
-	case fileDiff == 1 && rankDiff == 1:
+	case fileDiff == rankDiff && fileDiff > 0 && rankDiff > 0:
 		dir = NORTHEAST
-	case fileDiff == 1 && rankDiff == -1:
-		dir = NORTHWEST
-	case fileDiff == -1 && rankDiff == 1:
+	case fileDiff == rankDiff && fileDiff > 0 && rankDiff < 0:
 		dir = SOUTHEAST
+	case fileDiff == rankDiff && fileDiff < 0 && rankDiff > 0:
+		dir = NORTHWEST
 	}
 	return
 }
@@ -195,4 +204,14 @@ func raysDirection(square Bitboard, direction uint64) Bitboard {
 	}
 
 	return rays
+}
+
+// getRayPath returns a Bitboard with the path between 2 bitboards pieces
+// (not including the 2 pieces)
+func getRayPath(from Bitboard, to Bitboard) (rayPath Bitboard) {
+  // TODO need to validate direction
+  fromDirection := getDirection(to, from)
+  toDirection := getDirection(from, to)
+  rayPath = (raysAttacks[fromDirection][bits.TrailingZeros64(uint64(from))] & raysAttacks[toDirection][bits.TrailingZeros64(uint64(to))])
+	return
 }

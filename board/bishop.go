@@ -41,9 +41,8 @@ func (b *Bishop) Moves(pos *Position) (moves Bitboard) {
 	moves |= posiblesMoves
 	kingBB := pos.KingPosition(b.color)
 
-	if isPinned(b.square, b.color, pos) && !pos.Check(b.color) {
+	if isPinned(b.square, b.color, pos) {
 		direction := getDirection(kingBB, b.square)
-
 		allowedMovesDirection := raysDirection(kingBB, direction)
 		moves &= allowedMovesDirection
 	}
@@ -53,13 +52,13 @@ func (b *Bishop) Moves(pos *Position) (moves Bitboard) {
 
 		if len(checkingPieces) == 1 {
 			checker := checkingPieces[0]
-			moves &= checker.Square() & posiblesMoves // Check if can capture the checker
+      checkerKingPath := Bitboard(0)
 
-			// Check also if i can block the path to the king when it's a sliding piece
 			if checker.IsSliding() {
-				direction := getDirection(checker.Square(), kingBB)
-				moves |= raysDirection(kingBB, direction) & posiblesMoves
+        checkerKingPath = getRayPath(checker.Square(), kingBB)
 			}
+      // Check if can capture the checker or block the path
+			moves &= (checker.Square() | checkerKingPath) & posiblesMoves
 		} else {
 			// Double check -> cannot avoid check by capture/blocking
 			moves = Bitboard(0)

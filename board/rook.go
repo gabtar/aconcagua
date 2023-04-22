@@ -8,67 +8,63 @@ type Rook struct {
 	square Bitboard
 }
 
-
 // -------------
 // ROOK ♖
 // -------------
 // Attacks returns all squares that a Rook attacks in a chess board
 func (r *Rook) Attacks(pos *Position) (attacks Bitboard) {
-  blockers := ^pos.EmptySquares()
+	blockers := ^pos.EmptySquares()
 
-  for _, direction := range []uint64{NORTH, EAST, SOUTH, WEST} {
-    attacks |= raysAttacks[direction][bits.TrailingZeros64(uint64(r.square))]
-    blockersInDirection := blockers & raysAttacks[direction][bits.TrailingZeros64(uint64(r.square))]
-    nearestBlocker := Bitboard(0)
+	for _, direction := range []uint64{NORTH, EAST, SOUTH, WEST} {
+		attacks |= raysAttacks[direction][bits.TrailingZeros64(uint64(r.square))]
+		blockersInDirection := blockers & raysAttacks[direction][bits.TrailingZeros64(uint64(r.square))]
+		nearestBlocker := Bitboard(0)
 
-    switch direction {
-    case NORTH, EAST:
-	    nearestBlocker = Bitboard(0b1 << bits.TrailingZeros64(uint64(blockersInDirection)))
-    case SOUTH, WEST:
-	    nearestBlocker = Bitboard((0x1 << 63) >> bits.LeadingZeros64(uint64(blockersInDirection)))
-    }
+		switch direction {
+		case NORTH, EAST:
+			nearestBlocker = Bitboard(0b1 << bits.TrailingZeros64(uint64(blockersInDirection)))
+		case SOUTH, WEST:
+			nearestBlocker = Bitboard((0x1 << 63) >> bits.LeadingZeros64(uint64(blockersInDirection)))
+		}
 
-    // Need this becuase if its zero, LeadingZeros returns the length of uint64 and goes out of bounds
-    if nearestBlocker > 0 {
-		  attacks &= ^raysAttacks[direction][bits.TrailingZeros64(uint64(nearestBlocker))]
-    }
-  }
-  return
+		// Need this becuase if its zero, LeadingZeros returns the length of uint64 and goes out of bounds
+		if nearestBlocker > 0 {
+			attacks &= ^raysAttacks[direction][bits.TrailingZeros64(uint64(nearestBlocker))]
+		}
+	}
+	return
 }
 
 // Moves returns a bitboard with the legal squares the Rook can move to in a chess position
 func (r *Rook) Moves(pos *Position) (moves Bitboard) {
 	posiblesMoves := r.Attacks(pos) & ^pos.Pieces(r.color)
 	moves |= posiblesMoves
-  kingBB := pos.KingPosition(r.color) // King bitboard position
+	kingBB := pos.KingPosition(r.color) // King bitboard position
 
-  // If Rook is pinned only allow moves along the pinned direction
-  if isPinned(r.square, r.color, pos) && !pos.Check(r.color) {
-    direction := getDirection(kingBB, r.square)
-    // Need to move along the king-rook direction because of the pin
-    allowedMovesDirection := raysDirection(kingBB, direction)
-    moves &= allowedMovesDirection
-  }
+	// If Rook is pinned only allow moves along the pinned direction
+	if isPinned(r.square, r.color, pos) && !pos.Check(r.color) {
+		direction := getDirection(kingBB, r.square)
+		allowedMovesDirection := raysDirection(kingBB, direction)
+		moves &= allowedMovesDirection
+	}
 
 	if pos.Check(r.color) {
 		checkingPieces := pos.CheckingPieces(r.color)
 
 		if len(checkingPieces) == 1 {
 			checker := checkingPieces[0]
-			moves &= checker.Square() & posiblesMoves // Check if can capture the checker
+      checkerKingPath := Bitboard(0)
 
-			// Check also if i can block the path to the king when it's a sliding piece
 			if checker.IsSliding() {
-        direction := getDirection(checker.Square(), kingBB)
-
-        moves |= raysDirection(kingBB, direction) & posiblesMoves
+        checkerKingPath = getRayPath(checker.Square(), kingBB)
 			}
+      // Check if can capture the checker or block the path
+			moves &= (checker.Square() | checkerKingPath) & posiblesMoves
 		} else {
 			// Double check -> cannot avoid check by capture/blocking
 			moves = Bitboard(0)
 		}
 	}
-
 	return
 }
 
@@ -86,4 +82,3 @@ func (r *Rook) Color() byte {
 func (r *Rook) IsSliding() bool {
 	return true
 }
-

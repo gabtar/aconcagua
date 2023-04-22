@@ -144,5 +144,3 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 	}
 
 }
-
-
