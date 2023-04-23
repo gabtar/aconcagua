@@ -2,6 +2,7 @@
 package board
 
 import (
+	"math"
 	"math/bits"
 )
 
@@ -14,16 +15,18 @@ type Piece interface {
 	IsSliding() bool
 }
 
-// rays contains all rays for a given square in all possible 8 directions
-// https://www.chessprogramming.org/Classical_Approach
-const NORTH uint64 = 0
-const NORTHEAST uint64 = 1
-const EAST uint64 = 2
-const SOUTHEAST uint64 = 3
-const SOUTH uint64 = 4
-const SOUTHWEST uint64 = 5
-const WEST uint64 = 6
-const NORTHWEST uint64 = 7
+// Constants for orthogonal directions in the board
+const (
+	NORTH     uint64 = 0
+	NORTHEAST uint64 = 1
+	EAST      uint64 = 2
+	SOUTHEAST uint64 = 3
+	SOUTH     uint64 = 4
+	SOUTHWEST uint64 = 5
+	WEST      uint64 = 6
+	NORTHWEST uint64 = 7
+	INVALID   uint64 = 8
+)
 
 // rays contains all precalculated rays for a given square in all possible 8 directions
 // useful with calculating attacks/moves on sliding pieces(Rook, Bishop, Queens)
@@ -115,13 +118,62 @@ var raysAttacks [8][64]Bitboard = [8][64]Bitboard{
 
 // isPinned returns if the passed piece is pinned in the passed position
 func isPinned(piece Bitboard, side byte, pos *Position) bool {
-	// Check if i remove the piece the king is in check
-	removedPinnedPosition := pos.RemovePiece(piece)
+	// TODO, quedo medio fea..., pero funciona bien
+	kingBB := pos.KingPosition(side)
+	// FIX: Es necesario poruqe en algunos test no hay rey en la posicion
+	if kingBB == 0 {
+		return false
+	}
 
-	if removedPinnedPosition.Check(side) {
-		return true
+	pinDirection := getDirection(piece, kingBB) // Direction from king to posible pinned piece
+	if pinDirection == INVALID {
+		return false
+	}
+	// Ray from king to piece
+	possibleAttackers := raysAttacks[pinDirection][bits.TrailingZeros64(uint64(kingBB))]
+
+	// Get the pieces along that line
+	piecesInLine := possibleAttackers & ^pos.EmptySquares()
+	if piecesInLine < 1 { // NULL bitboard
+		return false
+	}
+
+	// Get the first 2 pieces along the direction
+	switch pinDirection {
+	case NORTH, EAST, NORTHEAST, NORTHWEST:
+		firstBB := Bitboard(0b1 << bits.TrailingZeros64(uint64(piecesInLine)))
+		secondBB := Bitboard(0b1 << bits.TrailingZeros64(uint64(piecesInLine & ^firstBB)))
+
+		if (firstBB|secondBB) > 0 && secondBB != 0 {
+			pieceOne, _ := pos.PieceAt(firstBB.ToStringSlice()[0])
+			pieceTwo, _ := pos.PieceAt(secondBB.ToStringSlice()[0])
+
+			if pieceOne.Color() != pieceTwo.Color() {
+				return true
+			}
+		}
+
+	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
+		firstBB := Bitboard((0x1 << 63) >> bits.LeadingZeros64(uint64(piecesInLine)))
+		secondBB := Bitboard((0x1 << 63) >> bits.LeadingZeros64(uint64(piecesInLine & ^firstBB)))
+
+		if (firstBB|secondBB) > 0 && secondBB != 0 {
+			pieceOne, _ := pos.PieceAt(firstBB.ToStringSlice()[0])
+			pieceTwo, _ := pos.PieceAt(secondBB.ToStringSlice()[0])
+
+			if pieceOne.Color() != pieceTwo.Color() {
+				return true
+			}
+		}
 	}
 	return false
+	// OLD implementation
+	// removedPinnedPosition := pos.RemovePiece(piece)
+	//
+	// if removedPinnedPosition.Check(side) {
+	// 	return true
+	// }
+	// return false
 }
 
 // opponentSide returns the opposite color of the passed
@@ -134,7 +186,6 @@ func opponentSide(color byte) byte {
 
 // getDirection returns the direction from piece2 towards piece1 (piece2 -> piece1)
 func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
-	// TODO need to check when its an invalid direction like a Knight jump or piece1 == piece2?
 	//  Direction of piece2 towards piece1 (piece2 -> piece1)
 	//  Based on ±File±Column difference
 	//   ---------------------
@@ -150,17 +201,10 @@ func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
 	rankPiece2 := bits.TrailingZeros64(uint64(piece2)) / 8
 	fileDiff := filePiece1 - filePiece2
 	rankDiff := rankPiece1 - rankPiece2
+	absFileDiff := math.Abs(float64(fileDiff))
+	absRankDiff := math.Abs(float64(rankDiff))
 
 	switch {
-	// Directions calculations reference
-	// fileDiff == 0 and rankDiff > 0 -> NORTH
-	// fileDiff == 0 and rankDiff < 0 -> SOUTH
-	// fileDiff > 0 and rankDiff == 0 -> EAST
-	// fileDiff < 0 and rankDiff == 0 -> WEST
-	// fileDiff == rankDiff && fileDiff < 0 && rankDiff < 0 -> SOTUHWEST
-	// fileDiff == rankDiff && fileDiff > 0 && rankDiff > 0 -> NORTHEAST
-	// fileDiff == rankDiff && fileDiff > 0 && rankDiff < 0 -> SOTUHEAST
-	// fileDiff == rankDiff && fileDiff < 0 && rankDiff > 0 -> NORTHWEST
 	case fileDiff == 0 && rankDiff > 0:
 		dir = NORTH
 	case fileDiff == 0 && rankDiff < 0:
@@ -169,14 +213,16 @@ func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
 		dir = EAST
 	case fileDiff < 0 && rankDiff == 0:
 		dir = WEST
-	case fileDiff == rankDiff && fileDiff < 0 && rankDiff < 0:
+	case absFileDiff == absRankDiff && fileDiff < 0 && rankDiff < 0:
 		dir = SOUTHWEST
-	case fileDiff == rankDiff && fileDiff > 0 && rankDiff > 0:
+	case absFileDiff == absRankDiff && fileDiff > 0 && rankDiff > 0:
 		dir = NORTHEAST
-	case fileDiff == rankDiff && fileDiff > 0 && rankDiff < 0:
+	case absFileDiff == absRankDiff && fileDiff > 0 && rankDiff < 0:
 		dir = SOUTHEAST
-	case fileDiff == rankDiff && fileDiff < 0 && rankDiff > 0:
+	case absFileDiff == absRankDiff && fileDiff < 0 && rankDiff > 0:
 		dir = NORTHWEST
+	default:
+		dir = INVALID
 	}
 	return
 }
@@ -209,9 +255,9 @@ func raysDirection(square Bitboard, direction uint64) Bitboard {
 // getRayPath returns a Bitboard with the path between 2 bitboards pieces
 // (not including the 2 pieces)
 func getRayPath(from Bitboard, to Bitboard) (rayPath Bitboard) {
-  // TODO need to validate direction
-  fromDirection := getDirection(to, from)
-  toDirection := getDirection(from, to)
-  rayPath = (raysAttacks[fromDirection][bits.TrailingZeros64(uint64(from))] & raysAttacks[toDirection][bits.TrailingZeros64(uint64(to))])
+	// TODO need to validate direction
+	fromDirection := getDirection(to, from)
+	toDirection := getDirection(from, to)
+	rayPath = (raysAttacks[fromDirection][bits.TrailingZeros64(uint64(from))] & raysAttacks[toDirection][bits.TrailingZeros64(uint64(to))])
 	return
 }

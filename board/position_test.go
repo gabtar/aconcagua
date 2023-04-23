@@ -73,7 +73,6 @@ func TestGetDirectionSouthWest(t *testing.T) {
 	}
 }
 
-
 func TestGetRayPath(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BLACK_ROOK, "c4")
@@ -85,6 +84,22 @@ func TestGetRayPath(t *testing.T) {
 
 	expected := sqaureToBitboard(expectedSquares)
 	got := getRayPath(black_rook.Square(), white_rook.Square())
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+}
+
+func TestPinnedPiece(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(BLACK_KING, "c7")
+	pos.AddPiece(BLACK_ROOK, "c6")
+	pos.AddPiece(WHITE_ROOK, "c1")
+	blackRook, _ := pos.PieceAt("c6")
+
+	expected := true
+	got := isPinned(blackRook.Square(), blackRook.Color(), pos)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

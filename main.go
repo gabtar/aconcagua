@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-  "github.com/gabtar/aconcagua/board"
+	"github.com/gabtar/aconcagua/board"
 )
 
 func main() {

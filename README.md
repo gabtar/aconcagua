@@ -10,10 +10,10 @@ Chess engine in go - WIP
 
 
 # TODO, Move generation:
-- [ ] Validate moves when king is in check
-- [ ] Pawn moves generation
+- [x] Validate moves when king is in check
+- [x] Pawn moves generation
 - [ ] Add castle moves to king(if available)
-- [ ] Add en passant and pawn first move
-- [ ] From a given position return all posibles next moves/positions(will be used later for searching best move)
+- [ ] Add en passant, pawn first move and queening move for pawns
+- [ ] From a given position return all posibles next moves/positions for a given side(will be used later for searching best move)
     - [ ] Tests if given a position returns all availables moves correctly
 

@@ -32,7 +32,8 @@ func (k *King) Attacks(pos *Position) (attacks Bitboard) {
 func (k *King) Moves(pos *Position) (moves Bitboard) {
 	// King can only move to an empty square or capture an opponent piece not defended by
 	// opposite side
-	moves = k.Attacks(pos) & ^pos.AttackedSquares(opponentSide(k.color)) & ^pos.Pieces(k.color)
+  withoutKing := pos.RemovePiece(k.square)
+	moves = k.Attacks(pos) & ^withoutKing.AttackedSquares(opponentSide(k.color)) & ^pos.Pieces(k.color)
 	return
 }
 
