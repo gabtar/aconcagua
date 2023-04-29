@@ -4,7 +4,7 @@ import "math/bits"
 
 // Bishop models a bishop piece in chess
 type Bishop struct {
-	color  byte
+	color  rune
 	square Bitboard
 }
 
@@ -73,11 +73,20 @@ func (b *Bishop) Square() Bitboard {
 }
 
 // Color returns the color(side) of the piece
-func (b *Bishop) Color() byte {
+func (b *Bishop) Color() rune {
 	return b.color
 }
 
 // Returns if the piece is an sliding piece(bishops, rooks, queens)
 func (b *Bishop) IsSliding() bool {
 	return true
+}
+
+// role Returns the role of the piece in the board
+func (b *Bishop) role() int {
+  if b.color == WHITE {
+    return WHITE_BISHOP
+  } else {
+    return BLACK_BISHOP
+  }
 }

@@ -82,13 +82,12 @@ func TestGetRayPath(t *testing.T) {
 
 	expectedSquares := []string{"d4", "e4"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := getRayPath(black_rook.Square(), white_rook.Square())
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
-
 }
 
 func TestPinnedPiece(t *testing.T) {
@@ -104,5 +103,61 @@ func TestPinnedPiece(t *testing.T) {
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
-
 }
+
+func TestShortLegalCastleForWhite(t *testing.T) {
+	pos := From("8/8/8/8/8/8/8/4K2R w K - 0 1")
+
+	expected := 1
+	got := len(pos.legalCastles(WHITE))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestShortIlegalCastleForWhite(t *testing.T) {
+	pos := From("8/8/8/2b5/8/8/8/4K2R w K - 0 1")
+
+	expected := 0
+	got := len(pos.legalCastles(WHITE))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestLongIllegalCastleForBlack(t *testing.T) {
+	pos := From("rn2k3/8/8/8/8/8/8/8 w q - 1 1")
+
+	expected := 0
+	got := len(pos.legalCastles(BLACK))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestEnPassantMoves(t *testing.T) {
+	// Both white pawns from c5 and e5 can capture en passant to d6
+	pos := From("3k4/8/8/2PpP3/8/8/8/3K4 w - d6 0 1")
+
+	expected := 2
+	got := len(pos.legalEnPassant(WHITE))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+// func TestIllegalEnPassantMoves(t *testing.T) {
+// // Cannot capture ep
+// 	pos := From("3K4/8/8/2pP4/b7/8/8/3r4 w - c6 0 1")
+//
+// 	expected := 0
+// 	got := len(pos.legalEnPassant(WHITE))
+//
+// 	if got != expected {
+// 		t.Errorf("Expected: %v, got: %v", expected, got)
+// 	}
+// }

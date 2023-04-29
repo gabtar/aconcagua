@@ -10,7 +10,7 @@ func TestBishopAttacksOnEmptyBoard(t *testing.T) {
 
 	expectedSquares := []string{"g2", "f3", "e4", "d5", "c6", "b7", "a8"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := bishop.Attacks(pos)
 
 	if got != expected {
@@ -26,7 +26,7 @@ func TestBishopAttacksWithBlockedSquares(t *testing.T) {
 
 	expectedSquares := []string{"f2", "g1", "d4", "c5", "b6", "a7", "f4", "g5", "d2", "c1"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := bishop.Attacks(pos)
 
 	if got != expected {
@@ -43,7 +43,7 @@ func TestBishopMovesWithCaptures(t *testing.T) {
 
 	expectedSquares := []string{"a2", "b3", "d3", "d5", "e6", "f7", "b5", "a6"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := bishop.Moves(pos)
 
 	if got != expected {
@@ -60,7 +60,7 @@ func TestBishopMovesWithBlockingPieces(t *testing.T) {
 
 	expectedSquares := []string{"h7", "h5", "f7"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := bishop.Moves(pos)
 
 	if got != expected {
@@ -77,7 +77,7 @@ func TestBishopMoveWhenCanBlockCheck(t *testing.T) {
 
 	expectedSquares := []string{"d2", "d8"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := bishop.Moves(pos)
 
 	if got != expected {
@@ -95,7 +95,7 @@ func TestBishopMovesWhenPinnedAndInCheck(t *testing.T) {
 
 	expectedSquares := []string{} // The bishop cannot move at all, because of the double check
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := bishop.Moves(pos)
 
 	if got != expected {
@@ -112,7 +112,7 @@ func TestBishpMovesWhenTheBishopIsPinned(t *testing.T) {
 	bishop, _ := pos.PieceAt("d5")
 	expectedSquares := []string{"e6", "f7", "g8"} // Can only move along the g8 c4 diagonal because of the pin
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := bishop.Moves(pos)
 
 	if got != expected {

@@ -11,7 +11,7 @@ func TestRookAttacksOnEmptyBoard(t *testing.T) {
 	expectedSquares := []string{"e1", "e2", "e3", "e5", "e6", "e7", "e8",
 		"a4", "b4", "c4", "d4", "f4", "g4", "h4"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := rook.Attacks(pos)
 
 	if got != expected {
@@ -28,7 +28,7 @@ func TestRookAttacksWithBlockedSquares(t *testing.T) {
 	expectedSquares := []string{"e1", "e2", "e3", "e5", "e6", "e7", "e8",
 		"c4", "d4", "f4", "g4", "h4"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := rook.Attacks(pos)
 
 	if got != expected {
@@ -47,7 +47,7 @@ func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
 
 	expectedSquares := []string{"b4", "b2", "a3", "c3"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := rook.Attacks(pos)
 
 	if got != expected {
@@ -64,7 +64,7 @@ func TestRookMovesWithCaptures(t *testing.T) {
 
 	expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := rook.Moves(pos)
 
 	if got != expected {
@@ -81,7 +81,7 @@ func TestRookMovesWithBlockingPieces(t *testing.T) {
 
 	expectedSquares := []string{"g1", "h2", "g3", "g4"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := rook.Moves(pos)
 
 	if got != expected {
@@ -98,7 +98,7 @@ func TestRookMoveWhenCanBlockCheck(t *testing.T) {
 
 	expectedSquares := []string{"e6"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := rook.Moves(pos)
 
 	if got != expected {
@@ -116,7 +116,7 @@ func TestRookMovesWhenKingInDoubleCheck(t *testing.T) {
 
 	expectedSquares := []string{} // The rook cannot move at all because of the double check in own king
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := rook.Moves(pos)
 
 	if got != expected {
@@ -136,7 +136,7 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 	// along the 4 rank, the king will be in check!
 	expectedSquares := []string{"e3", "e5", "e6", "e7"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := rook.Moves(pos)
 
 	if got != expected {

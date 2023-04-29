@@ -2,7 +2,7 @@ package board
 
 // Knight models a knight piece in chess
 type Knight struct {
-	color  byte
+	color  rune
 	square Bitboard
 }
 
@@ -52,11 +52,21 @@ func (k *Knight) Square() Bitboard {
 }
 
 // Color returns the color(side) of the piece
-func (k *Knight) Color() byte {
+func (k *Knight) Color() rune {
 	return k.color
 }
 
 // Returns if the piece is an sliding piece(bishops, rooks, queens)
+// TODO refactor to a function instead of part of the interface?
 func (k *Knight) IsSliding() bool {
 	return false
+}
+
+// role Returns the role of the piece in the board
+func (k *Knight) role() int {
+  if k.color == WHITE {
+    return WHITE_KNIGHT
+  } else {
+    return BLACK_KNIGHT
+  }
 }

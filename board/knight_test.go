@@ -9,7 +9,7 @@ func TestKnightAttacks(t *testing.T) {
 
   expectedSquares := []string{"d6", "f6", "d2", "f2", "g5", "g3", "c5", "c3"}
 
-  expected := sqaureToBitboard(expectedSquares)
+  expected := squareToBitboard(expectedSquares)
   got := knight.Attacks(pos)
 
   if got != expected {
@@ -28,7 +28,7 @@ func TestKnightMovesWhenBlockedBySameColorPieces(t *testing.T) {
 
   expectedSquares := []string{"g5", "g3", "c5", "c3"}
 
-  expected := sqaureToBitboard(expectedSquares)
+  expected := squareToBitboard(expectedSquares)
   got := knight.Moves(pos)
 
   if got != expected {
@@ -46,7 +46,7 @@ func TestKnightMovesWithCaptures(t *testing.T) {
 
   expectedSquares := []string{"c3"} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
 
-  expected := sqaureToBitboard(expectedSquares)
+  expected := squareToBitboard(expectedSquares)
   got := knight.Moves(pos)
 
   if got != expected {
@@ -63,7 +63,7 @@ func TestKnightMovesWhenPinned(t *testing.T) {
 
   expectedSquares := []string{} // The Knight is pinned, it cannot move at all
 
-  expected := sqaureToBitboard(expectedSquares)
+  expected := squareToBitboard(expectedSquares)
   got := knight.Moves(pos)
 
   if got != expected {

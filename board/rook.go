@@ -4,7 +4,7 @@ import "math/bits"
 
 // Rook models a rook piece in chess
 type Rook struct {
-	color  byte
+	color  rune
 	square Bitboard
 }
 
@@ -74,11 +74,20 @@ func (r *Rook) Square() Bitboard {
 }
 
 // Color returns the color(side) of the piece
-func (r *Rook) Color() byte {
+func (r *Rook) Color() rune {
 	return r.color
 }
 
 // Returns if the piece is an sliding piece(bishops, rooks, queens)
 func (r *Rook) IsSliding() bool {
 	return true
+}
+
+// role Returns the role of the piece in the board
+func (r *Rook) role() int {
+  if r.color == WHITE {
+    return WHITE_ROOK
+  } else {
+    return BLACK_ROOK
+  }
 }

@@ -11,7 +11,7 @@ func TestPawnAttacks(t *testing.T) {
 
 	expectedSquares := []string{"d3", "f3"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := pawn.Attacks(pos)
 
 	if got != expected {
@@ -26,7 +26,7 @@ func TestPawnAttacksOnEdgeFiles(t *testing.T) {
 
 	expectedSquares := []string{"g3"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := pawn.Attacks(pos)
 
 	if got != expected {
@@ -41,7 +41,7 @@ func TestPawnMovesOnEmptyBoard(t *testing.T) {
 
 	expectedSquares := []string{"e3", "e4"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := pawn.Moves(pos)
 
 	if got != expected {
@@ -60,7 +60,7 @@ func TestPawnMovesWithCapturesFrom7thRank(t *testing.T) {
   // Can also move to b6 and b7
 	expectedSquares := []string{"a6", "b6", "b5"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := pawn.Moves(pos)
 
 	if got != expected {
@@ -78,7 +78,7 @@ func TestPawnCanBlockACheckOnFirstMove(t *testing.T) {
   // The only legal move of the pawn is to block the check on f4
 	expectedSquares := []string{"f4"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := pawn.Moves(pos)
 
 	if got != expected {
@@ -96,7 +96,7 @@ func TestPawnCanOnlyMoveInThePinnedDirection(t *testing.T) {
   // The only legal move of the pawn is to capture the bishop on e3
 	expectedSquares := []string{"e3"}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := pawn.Moves(pos)
 
 	if got != expected {
@@ -114,7 +114,7 @@ func TestPawnPinnedAndInCheck(t *testing.T) {
 
 	expectedSquares := []string{}
 
-	expected := sqaureToBitboard(expectedSquares)
+	expected := squareToBitboard(expectedSquares)
 	got := pawn.Moves(pos)
 
 	if got != expected {

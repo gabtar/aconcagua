@@ -69,7 +69,7 @@ func (b Bitboard) Print() {
 	binary := strconv.FormatUint(uint64(b), 2)
 	fill := ""
 	if len(binary) < 64 {
-		fill = strings.Repeat("0", 64-len(binary))
+		fill = strings.Repeat("0", 64 - len(binary))
 	}
 	binary = fill + binary
 	for i := 0; i < 8; i++ {

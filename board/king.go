@@ -2,7 +2,7 @@ package board
 
 // King models a king piece in chess
 type King struct {
-	color  byte
+	color  rune
 	square Bitboard
 }
 
@@ -43,7 +43,7 @@ func (k *King) Square() Bitboard {
 }
 
 // Color returns the color(side) of the piece
-func (k *King) Color() byte {
+func (k *King) Color() rune {
 	return k.color
 }
 
@@ -52,3 +52,11 @@ func (k *King) IsSliding() bool {
 	return false
 }
 
+// role Returns the role of the piece in the board
+func (k *King) role() int {
+  if k.color == WHITE {
+    return WHITE_KING
+  } else {
+    return BLACK_KING
+  }
+}

@@ -4,7 +4,7 @@ import "math/bits"
 
 // Queen models a queen piece in chess
 type Queen struct {
-	color  byte
+	color  rune
 	square Bitboard
 }
 
@@ -76,11 +76,20 @@ func (q *Queen) Square() Bitboard {
 }
 
 // Color returns the color(side) of the piece
-func (q *Queen) Color() byte {
+func (q *Queen) Color() rune {
 	return q.color
 }
 
 // Returns if the piece is an sliding piece(bishops, rooks, queens)
 func (q *Queen) IsSliding() bool {
 	return true
+}
+
+// role Returns the role of the piece in the board
+func (q *Queen) role() int {
+  if q.color == WHITE {
+    return WHITE_QUEEN
+  } else {
+    return BLACK_QUEEN
+  }
 }

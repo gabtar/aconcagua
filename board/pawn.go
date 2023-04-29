@@ -2,7 +2,7 @@ package board
 
 // Bishop models a bishop piece in chess
 type Pawn struct {
-	color  byte
+	color  rune
 	square Bitboard
 }
 
@@ -19,7 +19,6 @@ func (p *Pawn) Attacks(pos *Position) (attacks Bitboard) {
 	//   ------------------
 	//   | >>7 |     | >>9 |  Black pawns
 	//   ------------------
-
 	notInHFile := p.square & ^(p.square & files[7])
 	notInAFile := p.square & ^(p.square & files[0])
 
@@ -79,11 +78,20 @@ func (p *Pawn) Square() Bitboard {
 }
 
 // Color returns the color(side) of the piece
-func (p *Pawn) Color() byte {
+func (p *Pawn) Color() rune {
 	return p.color
 }
 
 // Returns if the piece is an sliding piece(bishops, rooks, queens)
 func (p *Pawn) IsSliding() bool {
 	return false
+}
+
+// role Returns the role of the piece in the board
+func (p *Pawn) role() int {
+  if p.color == WHITE {
+    return WHITE_PAWN
+  } else {
+    return BLACK_PAWN
+  }
 }

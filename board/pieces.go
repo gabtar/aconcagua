@@ -9,10 +9,11 @@ import (
 // Piece is the interface that has all methods for chess pieces
 type Piece interface {
 	Attacks(pos *Position) Bitboard
-	Moves(pos *Position) Bitboard // Legal moves -> attacks - occupied by same color piece - pinned in direction
+	Moves(pos *Position) Bitboard // Legal moves (not including castle or ep)
 	Square() Bitboard
-	Color() byte
+	Color() rune
 	IsSliding() bool
+  role() int
 }
 
 // Constants for orthogonal directions in the board
@@ -117,7 +118,7 @@ var raysAttacks [8][64]Bitboard = [8][64]Bitboard{
 }
 
 // isPinned returns if the passed piece is pinned in the passed position
-func isPinned(piece Bitboard, side byte, pos *Position) bool {
+func isPinned(piece Bitboard, side rune, pos *Position) bool {
 	// TODO, quedo medio fea..., pero funciona bien
 	kingBB := pos.KingPosition(side)
 	// FIX: Es necesario poruqe en algunos test no hay rey en la posicion
@@ -167,17 +168,10 @@ func isPinned(piece Bitboard, side byte, pos *Position) bool {
 		}
 	}
 	return false
-	// OLD implementation
-	// removedPinnedPosition := pos.RemovePiece(piece)
-	//
-	// if removedPinnedPosition.Check(side) {
-	// 	return true
-	// }
-	// return false
 }
 
 // opponentSide returns the opposite color of the passed
-func opponentSide(color byte) byte {
+func opponentSide(color rune) rune {
 	if color == BLACK {
 		return WHITE
 	}
