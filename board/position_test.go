@@ -1,8 +1,6 @@
 package board
 
-import (
-	"testing"
-)
+import "testing"
 
 // Position tests
 
@@ -150,14 +148,68 @@ func TestEnPassantMoves(t *testing.T) {
 	}
 }
 
-// func TestIllegalEnPassantMoves(t *testing.T) {
-// // Cannot capture ep
-// 	pos := From("3K4/8/8/2pP4/b7/8/8/3r4 w - c6 0 1")
-//
-// 	expected := 0
-// 	got := len(pos.legalEnPassant(WHITE))
-//
-// 	if got != expected {
-// 		t.Errorf("Expected: %v, got: %v", expected, got)
-// 	}
-// }
+func TestLegalMovesFromInitialPosition(t *testing.T) {
+	pos := From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+
+	expected := 20
+	got := len(pos.LegalMoves(WHITE))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestLegalMovesOnAPositionWithPromotion(t *testing.T) {
+	pos := From("3r2k1/5ppp/8/8/8/8/pp4PP/5R1K b - - 0 1")
+
+	expected := 28
+	got := len(pos.LegalMoves(BLACK))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestLegalMovesOnAPositionIllegalLongCastle(t *testing.T) {
+	pos := From("6k1/5ppp/8/7q/7b/8/5PPP/RN2K2R w KQ - 1 1")
+
+	expected := 18
+	got := len(pos.LegalMoves(WHITE))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestLegalMovesOnAPositionWithDoubleEnPassantCaptures(t *testing.T) {
+  pos := From("6k1/5bpp/8/1PpPN3/8/8/6PP/6K1 w - c6 0 1")
+
+	expected := 19
+	got := len(pos.LegalMoves(WHITE))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestLegalMovesOnMultiplePinsWithCheck(t *testing.T) {
+  pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/1R4K1 b - - 0 1")
+
+	expected := 5
+	got := len(pos.LegalMoves(BLACK))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestLegalMovesOnMultiplePinsWithCheckTwo(t *testing.T) {
+  pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/2R3K1 b - - 0 1")
+
+	expected := 4 // 3 of king 1 block of the knight
+	got := len(pos.LegalMoves(BLACK))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

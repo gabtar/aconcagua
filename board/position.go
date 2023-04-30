@@ -58,8 +58,8 @@ var pieceReference = map[string]int{
 type Position struct {
 	// TODO, add all fields of a fen string to the position, so its easy to serialize to fen
 	// bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
-	bitboards [12]Bitboard
-	turn      rune
+	bitboards       [12]Bitboard
+	turn            rune
 	castlingRights  string
 	enPassantTarget Bitboard // TODO, not sure to save as a bitboard or a coordinate string
 	halfmoveClock   int
@@ -162,7 +162,7 @@ func (pos *Position) Check(side rune) (inCheck bool) {
 	return
 }
 
-// FIX/REFACTOR i think this method is not necessary can directly access the struct since im not using the Interface at all
+// KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side rune) (king Bitboard) {
 	if side == WHITE {
 		king = pos.bitboards[WHITE_KING]
@@ -181,7 +181,6 @@ func (pos Position) RemovePiece(piece Bitboard) Position {
 			newPos.bitboards[role] &= ^piece
 		}
 	}
-
 	return newPos
 }
 
@@ -199,7 +198,7 @@ func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
 
 		// MOVES / CAPTURES / PROMOTIONS
 		for _, to := range destinations {
-			pieceBB := squareToBitboard([]string{to})
+			pieceBB := piece.Square()
 			isWhitePawn := pieceBB&pos.bitboards[WHITE_PAWN] > 0
 			isBlackPawn := pieceBB&pos.bitboards[BLACK_PAWN] > 0
 
@@ -259,10 +258,10 @@ func (pos *Position) legalCastles(side rune) (castle []Move) {
 	} else {
 		canCastleShort := castlePathsBB[2]&(^pos.EmptySquares()|pos.AttackedSquares(opponentSide(side))) == 0
 		canCastleLong := (castlePathsBB[3] & ^pos.EmptySquares())|(passingKingPathBB[3]&pos.AttackedSquares(opponentSide(side))) == 0
-		if strings.Contains(pos.castlingRights, "K") && canCastleShort {
+		if strings.Contains(pos.castlingRights, "k") && canCastleShort {
 			castle = append(castle, Move{from: "e8", to: "g8", piece: BLACK_KING, moveType: CASTLE})
 		}
-		if strings.Contains(pos.castlingRights, "Q") && canCastleLong {
+		if strings.Contains(pos.castlingRights, "q") && canCastleLong {
 			castle = append(castle, Move{from: "e8", to: "c8", piece: BLACK_KING, moveType: CASTLE})
 		}
 	}
@@ -271,9 +270,6 @@ func (pos *Position) legalCastles(side rune) (castle []Move) {
 
 // legalEnPassant returns if there are any legal en passant move for the side passed
 func (pos *Position) legalEnPassant(side rune) (enPassant []Move) {
-	// Check if there is posible target square
-	// Check if a pawn is attacking that target square
-	// Check the posible capture/move does not put in check the king (pinned in direction)
 	if pos.enPassantTarget == 0 {
 		return
 	}
@@ -314,7 +310,40 @@ func (pos *Position) legalEnPassant(side rune) (enPassant []Move) {
 			}
 		}
 	} else {
-    // TODO implement for black
+		northWeastPawn := pos.bitboards[BLACK_PAWN] & (pos.enPassantTarget & ^(pos.enPassantTarget & files[7]) << 7)
+		northEastPawn := pos.bitboards[BLACK_PAWN] & (pos.enPassantTarget & ^(pos.enPassantTarget & files[0]) << 9)
+
+		for _, sq := range (northEastPawn | northWeastPawn).ToStringSlice() {
+			p, _ := pos.PieceAt(sq)
+			legalEP := true
+
+			// Validate pawn not pinned except direction is equal to capture direction
+			if isPinned(p.Square(), BLACK, pos) {
+				pinnedAlongEpCaptureDirection := (getDirection(pos.bitboards[BLACK_KING], p.Square()) != getDirection(pos.enPassantTarget, p.Square()))
+				if !pinnedAlongEpCaptureDirection {
+					legalEP = false
+				}
+			}
+			// Validate if king is in check can block the attack
+			// Get the checker if its 1 check if can block the check
+			if pos.Check(BLACK) {
+				checkingPieces := pos.CheckingPieces(BLACK)
+
+				if len(checkingPieces) == 1 {
+					checkerKingPath := getRayPath(checkingPieces[0].Square(), pos.bitboards[BLACK_KING])
+					if checkerKingPath&pos.enPassantTarget == 0 {
+						legalEP = false
+					}
+				} else {
+					legalEP = false
+				}
+			}
+
+			if legalEP {
+				// Add the move
+				enPassant = append(enPassant, Move{from: p.Square().ToStringSlice()[0], to: pos.enPassantTarget.ToStringSlice()[0], piece: p.role(), moveType: EN_PASSANT})
+			}
+		}
 	}
 	return
 }
@@ -335,14 +364,13 @@ func (pos *Position) ToFen() (fen string) {
 
 // Print prints the Position to the terminal from white's view perspective
 func (pos *Position) Print() {
-	// TODO would be nicer if i cann a add the square grid reference in a prettier
-	// way for the terminal and the unicode chess pieces characters
-	board := [64]rune{} // Char array. Note: strings are represented as ascii/unicode
+	// TODO add coordinates/unicode chars for pieces
+	board := [64]rune{}
 	for i := 0; i < 64; i++ {
 		board[i] = ' '
 	}
 
-	pieceSymbol := [12]rune{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'k', 'p'}
+	pieceSymbol := [12]rune{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'}
 	for pieceType, bitboard := range pos.bitboards {
 		for i := 0; i < len(board); i++ {
 			if bitboard&(0b1<<i) > 0 {
@@ -410,22 +438,11 @@ func squareToBitboard(coordinates []string) (bitboard Bitboard) {
 
 // From creates a new Position struct from a fen string
 func From(fen string) (pos *Position) {
-	pos = EmptyPosition()
-
 	// FIX this does not validate the fen string at all!!!!!!
-
-	// Steps to build the struct from a fen string
-	// Split the fen string into the fields
-	// Lowercase -> BLACK PIECES
-	// Upercase -> WHITE PIECES
-	// starts from last rank and finish on first rank (from whites perspective view)
-	// rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
-	// Parts of the fen string
-	// PIECES / SIDE TO MOVE / CASTLE RIGHTS / EN PASSANT TARGET (the hyphen here) / HALFMOVE CLOCK / FULL MOVE NUMBER
+	pos = EmptyPosition()
 	elements := strings.Split(fen, " ")
 
-	// Fill pieces
-	// NOTE: I needed to reverse the order, becuase fen order goes from a8 -> h8, a7 -> h7, ....
+  // NOTE: Order is reversed to match the square mapping in bitboards
 	currentSquare := 56
 	for _, rank := range strings.Split(elements[0], "/") {
 		for _, piece := range strings.Split(rank, "") {

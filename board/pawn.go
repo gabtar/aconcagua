@@ -36,10 +36,16 @@ func (p *Pawn) Moves(pos *Position) (moves Bitboard) {
   posiblesMoves := Bitboard(0)
   kingBB := pos.KingPosition(p.color)
 
+  // FIX up to the nearest blocker!!!!!
+  // Restringir el segundo si el primero esta ocupado!
   if p.color == WHITE {
-    posiblesMoves = p.square << 8 | (p.square & ranks[1]) << 16
+    singleMove := p.square << 8 & pos.EmptySquares()
+    firstPawnMoveAvailable := (p.square & ranks[1]) << 16 & (singleMove << 8) & pos.EmptySquares()
+    posiblesMoves = singleMove | firstPawnMoveAvailable
   } else {
-    posiblesMoves = p.square >> 8 | (p.square & ranks[6]) >> 16
+    singleMove := p.square >> 8 & pos.EmptySquares()
+    firstPawnMoveAvailable := (p.square & ranks[6]) >> 16 & (singleMove >> 8) & pos.EmptySquares()
+    posiblesMoves = singleMove | firstPawnMoveAvailable
   }
   moves = posibleCaptures | posiblesMoves
 
