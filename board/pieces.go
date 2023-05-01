@@ -31,9 +31,7 @@ const (
 
 // rays contains all precalculated rays for a given square in all possible 8 directions
 // useful with calculating attacks/moves on sliding pieces(Rook, Bishop, Queens)
-// https://gekomad.github.io/Cinnamon/BitboardCalculator/
-// Not sure if this is cheaper/faster than calculate them on the fly for the engine?
-// NOTE -> USE layout02!!!!!!
+// https://gekomad.github.io/Cinnamon/BitboardCalculator/?type=2
 var raysAttacks [8][64]Bitboard = [8][64]Bitboard{
 	NORTH: {0x101010101010100, 0x202020202020200, 0x404040404040400, 0x808080808080800,
 		0x1010101010101000, 0x2020202020202000, 0x4040404040404000, 0x8080808080808000,
@@ -224,8 +222,7 @@ func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
 // raysDirection returns the rays along the direction passed that intersects the
 // piece in the square passed
 func raysDirection(square Bitboard, direction uint64) Bitboard {
-	rays := Bitboard(0) | square
-	rays |= raysAttacks[direction][bits.TrailingZeros64(uint64(square))]
+	rays := raysAttacks[direction][bits.TrailingZeros64(uint64(square))] | square
 
 	// Need to complement the opposite of the direction passed
 	switch direction {
@@ -254,4 +251,39 @@ func getRayPath(from Bitboard, to Bitboard) (rayPath Bitboard) {
 	toDirection := getDirection(from, to)
 	rayPath = (raysAttacks[fromDirection][bits.TrailingZeros64(uint64(from))] & raysAttacks[toDirection][bits.TrailingZeros64(uint64(to))])
 	return
+}
+
+// pinRestrictedDirection returns a bitboard with the restricted direction of moves
+func pinRestrictedDirection(piece Bitboard, side rune, pos *Position) (restrictedDirection Bitboard) {
+  restrictedDirection = ALL_SQUARES // No initial restrictions
+  kingBB := pos.KingPosition(side)
+
+	if isPinned(piece, side, pos) {
+		direction := getDirection(kingBB, piece)
+		allowedMovesDirection := raysDirection(kingBB, direction)
+		restrictedDirection = allowedMovesDirection
+	}
+  return
+}
+
+// checkRestrictedMoves returns a bitboard with the allowed squares to block
+// the path or capture the checking piece if in check
+func checkRestrictedMoves(piece Bitboard, side rune, pos *Position) (allowedSquares Bitboard){
+  checkingPieces := pos.CheckingPieces(side)
+
+  switch {
+  case len(checkingPieces) == 0:
+    // No restriction
+    allowedSquares = ALL_SQUARES
+  case len(checkingPieces) == 1:
+    // Capture or block the path
+    checker := checkingPieces[0]
+
+    if checker.IsSliding() {
+      allowedSquares |= getRayPath(checker.Square(), pos.KingPosition(side))
+    }
+    allowedSquares |= checker.Square()
+  }
+  // If there are more than 2 CheckingPieces it cant move at all (default allowedSquares value = 0)
+  return
 }

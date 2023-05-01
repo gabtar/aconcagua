@@ -56,12 +56,11 @@ var pieceReference = map[string]int{
 
 // Position contains all information about a chess position
 type Position struct {
-	// TODO, add all fields of a fen string to the position, so its easy to serialize to fen
 	// bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
 	bitboards       [12]Bitboard
 	turn            rune
 	castlingRights  string
-	enPassantTarget Bitboard // TODO, not sure to save as a bitboard or a coordinate string
+	enPassantTarget Bitboard
 	halfmoveClock   int
 	fullmoveNumber  int
 }
@@ -121,10 +120,7 @@ func (pos *Position) CheckingPieces(side rune) (pieces []Piece) {
 		return
 	}
 
-	kingSq := pos.bitboards[WHITE_KING]
-	if side != WHITE {
-		kingSq = pos.bitboards[BLACK_KING]
-	}
+  kingSq := pos.KingPosition(side)
 	// iterate over all opponent pieces an add the ones that are attacking the king
 	for _, sq := range pos.Pieces(opponentSide(side)).ToStringSlice() {
 		piece, _ := pos.PieceAt(sq)
@@ -150,11 +146,7 @@ func (pos *Position) Pieces(side rune) (pieces Bitboard) {
 
 // check returns if the side passed is in check
 func (pos *Position) Check(side rune) (inCheck bool) {
-	king := WHITE_KING
-	if side == BLACK {
-		king = BLACK_KING
-	}
-	kingPos := pos.bitboards[king]
+  kingPos := pos.KingPosition(side)
 
 	if (kingPos & pos.AttackedSquares(opponentSide(side))) > 0 {
 		inCheck = true
@@ -185,7 +177,6 @@ func (pos Position) RemovePiece(piece Bitboard) Position {
 }
 
 // LegalMoves returns an slice of Move of all legal moves for the side passed
-// This will be the input for the search function when generating the search tree!!!!
 func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
 	// TODO, not properly tested yet!!!
 	// Need to check if this work as expected for any position!!!
@@ -226,19 +217,6 @@ func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
 
 // legalCastles returns the castles moves the passed side can make
 func (pos *Position) legalCastles(side rune) (castle []Move) {
-	// Castling rules:
-	// Neither the king nor the rook has previously moved. - Is checked in the pos.castlingRights
-	// Need to check on the fly to see if its is legal
-	// The king is not currently in check.
-	// There are no pieces between the king and the rook.
-	// The king does not pass through or finish on a square that is attacked by an enemy piece.
-
-	// If its in the fen string, then its posible, so check if its legal
-	// Castles KQkq -> KQ white, kq black
-	// Need to check if not in check, or if the squares the king will pass over are not attacked
-	// I can use a fixed bitboard for each square of the king and check vs attacks bitmap
-	// Also check if the squares are not occupied by pieces
-	// Array of castles squares [WHITE_SHORT, WHITE_LONG, black_short, black_long]
 	castlePathsBB := []Bitboard{0x60, 0xE, 0x6000000000000000, 0xE00000000000000}
 	passingKingPathBB := []Bitboard{0x60, 0xC, 0x6000000000000000, 0xC00000000000000}
 
@@ -270,89 +248,66 @@ func (pos *Position) legalCastles(side rune) (castle []Move) {
 
 // legalEnPassant returns if there are any legal en passant move for the side passed
 func (pos *Position) legalEnPassant(side rune) (enPassant []Move) {
-	if pos.enPassantTarget == 0 {
+  epTarget := pos.enPassantTarget
+
+	if epTarget == 0 {
 		return
 	}
 
-	if side == WHITE {
-		southWeastPawn := pos.bitboards[WHITE_PAWN] & (pos.enPassantTarget & ^(pos.enPassantTarget & files[7]) >> 7)
-		southEastPawn := pos.bitboards[WHITE_PAWN] & (pos.enPassantTarget & ^(pos.enPassantTarget & files[0]) >> 9)
+  var posiblesCapturers Bitboard
+  if side == WHITE {
+    posiblesCapturers = pos.bitboards[WHITE_PAWN] & posiblesEpCapturers(epTarget, side)
+  } else {
+    posiblesCapturers = pos.bitboards[BLACK_PAWN] & posiblesEpCapturers(epTarget, side)
+  }
 
-		for _, sq := range (southEastPawn | southWeastPawn).ToStringSlice() {
-			p, _ := pos.PieceAt(sq)
-			legalEP := true
+  for _, sq := range posiblesCapturers.ToStringSlice() {
+    p, _ := pos.PieceAt(sq)
+		
+    enPassantAvailable := epTarget &
+                          pinRestrictedDirection(p.Square(), p.Color(), pos) & 
+                          checkRestrictedMoves(p.Square(), p.Color(), pos)
 
-			// Validate pawn not pinned except direction is equal to capture direction
-			if isPinned(p.Square(), WHITE, pos) {
-				pinnedAlongEpCaptureDirection := (getDirection(pos.bitboards[WHITE_KING], p.Square()) != getDirection(pos.enPassantTarget, p.Square()))
-				if !pinnedAlongEpCaptureDirection {
-					legalEP = false
-				}
-			}
-			// Validate if king is in check can block the attack
-			// Get the checker if its 1 check if can block the check
-			if pos.Check(WHITE) {
-				checkingPieces := pos.CheckingPieces(WHITE)
-
-				if len(checkingPieces) == 1 {
-					checkerKingPath := getRayPath(checkingPieces[0].Square(), pos.bitboards[WHITE_KING])
-					if checkerKingPath&pos.enPassantTarget == 0 {
-						legalEP = false
-					}
-				} else {
-					legalEP = false
-				}
-			}
-
-			if legalEP {
-				// Add the move
-				enPassant = append(enPassant, Move{from: p.Square().ToStringSlice()[0], to: pos.enPassantTarget.ToStringSlice()[0], piece: p.role(), moveType: EN_PASSANT})
-			}
-		}
-	} else {
-		northWeastPawn := pos.bitboards[BLACK_PAWN] & (pos.enPassantTarget & ^(pos.enPassantTarget & files[7]) << 7)
-		northEastPawn := pos.bitboards[BLACK_PAWN] & (pos.enPassantTarget & ^(pos.enPassantTarget & files[0]) << 9)
-
-		for _, sq := range (northEastPawn | northWeastPawn).ToStringSlice() {
-			p, _ := pos.PieceAt(sq)
-			legalEP := true
-
-			// Validate pawn not pinned except direction is equal to capture direction
-			if isPinned(p.Square(), BLACK, pos) {
-				pinnedAlongEpCaptureDirection := (getDirection(pos.bitboards[BLACK_KING], p.Square()) != getDirection(pos.enPassantTarget, p.Square()))
-				if !pinnedAlongEpCaptureDirection {
-					legalEP = false
-				}
-			}
-			// Validate if king is in check can block the attack
-			// Get the checker if its 1 check if can block the check
-			if pos.Check(BLACK) {
-				checkingPieces := pos.CheckingPieces(BLACK)
-
-				if len(checkingPieces) == 1 {
-					checkerKingPath := getRayPath(checkingPieces[0].Square(), pos.bitboards[BLACK_KING])
-					if checkerKingPath&pos.enPassantTarget == 0 {
-						legalEP = false
-					}
-				} else {
-					legalEP = false
-				}
-			}
-
-			if legalEP {
-				// Add the move
-				enPassant = append(enPassant, Move{from: p.Square().ToStringSlice()[0], to: pos.enPassantTarget.ToStringSlice()[0], piece: p.role(), moveType: EN_PASSANT})
-			}
-		}
-	}
+    if enPassantAvailable > 0 {
+      enPassant = append(enPassant, Move{from: p.Square().ToStringSlice()[0], to: pos.enPassantTarget.ToStringSlice()[0], piece: p.role(), moveType: EN_PASSANT})
+    }
+  }
 	return
+}
+
+// posiblesEpCapturers returns the bitboard of the pawns that are attacking
+// the en passant target square passed
+func posiblesEpCapturers(target Bitboard, side rune) (squares Bitboard) {
+  if side == WHITE {
+    squares |= (target & ^(target & files[7]) >> 7)
+    squares |= (target & ^(target & files[0]) >> 9)
+  } else {
+    squares |= (target & ^(target & files[7]) << 7)
+    squares |= (target & ^(target & files[0]) << 9)
+  }
+  return
 }
 
 // TODO update position
 // MakeMove updates the position by making the move passed as parameter
-func (pos *Position) MakeMove(move *Move) (newPosition *Position) {
+func (pos *Position) MakeMove(move *Move) (newPosition Position) {
 	// TODO perform the move
-	// TODO update position eg king has moved so no castle, ep squares leaved behind, etc
+
+  // TODO
+  // Remove piece from origin
+  // Add piece to destination
+
+  // Special moves:
+  // EnPassant removes captured pawn
+  // Captures removes destination piece
+  // Double pawn moves set en passant target
+  // Castle also moves the rook to destination
+  // Promotion set promoted piece in destination
+
+  // Update position status
+  // clear EnPassant target if was setted
+  // if king or rook moved, cancel castle
+  // Turn to move
 	return
 }
 
@@ -442,7 +397,7 @@ func From(fen string) (pos *Position) {
 	pos = EmptyPosition()
 	elements := strings.Split(fen, " ")
 
-  // NOTE: Order is reversed to match the square mapping in bitboards
+	// NOTE: Order is reversed to match the square mapping in bitboards
 	currentSquare := 56
 	for _, rank := range strings.Split(elements[0], "/") {
 		for _, piece := range strings.Split(rank, "") {

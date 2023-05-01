@@ -37,34 +37,9 @@ func (r *Rook) Attacks(pos *Position) (attacks Bitboard) {
 
 // Moves returns a bitboard with the legal squares the Rook can move to in a chess position
 func (r *Rook) Moves(pos *Position) (moves Bitboard) {
-	posiblesMoves := r.Attacks(pos) & ^pos.Pieces(r.color)
-	moves |= posiblesMoves
-	kingBB := pos.KingPosition(r.color) // King bitboard position
-
-	// If Rook is pinned only allow moves along the pinned direction
-	if isPinned(r.square, r.color, pos) && !pos.Check(r.color) {
-		direction := getDirection(kingBB, r.square)
-		allowedMovesDirection := raysDirection(kingBB, direction)
-		moves &= allowedMovesDirection
-	}
-
-	if pos.Check(r.color) {
-		checkingPieces := pos.CheckingPieces(r.color)
-
-		if len(checkingPieces) == 1 {
-			checker := checkingPieces[0]
-      checkerKingPath := Bitboard(0)
-
-			if checker.IsSliding() {
-        checkerKingPath = getRayPath(checker.Square(), kingBB)
-			}
-      // Check if can capture the checker or block the path
-			moves &= (checker.Square() | checkerKingPath) & posiblesMoves
-		} else {
-			// Double check -> cannot avoid check by capture/blocking
-			moves = Bitboard(0)
-		}
-	}
+	moves = r.Attacks(pos) & ^pos.Pieces(r.color) & 
+          pinRestrictedDirection(r.square, r.color, pos) &
+          checkRestrictedMoves(r.square, r.color, pos)
 	return
 }
 

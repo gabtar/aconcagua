@@ -38,31 +38,13 @@ func (k *Knight) Attacks(pos *Position) (attacks Bitboard) {
 
 // Moves returns a bitboard with the legal squares the Knight can move to in a chess position
 func (k *Knight) Moves(pos *Position) (moves Bitboard) {
-	posiblesMoves := k.Attacks(pos) & ^pos.Pieces(k.color)
-  moves |= posiblesMoves
-	kingBB := pos.KingPosition(k.color) // King bitboard position
   // If the knight is pinned it can move at all
   if isPinned(k.square, k.color, pos) {
-    moves = Bitboard(0)
+    return Bitboard(0)
   }
 
-	if pos.Check(k.color) {
-		checkingPieces := pos.CheckingPieces(k.color)
-
-		if len(checkingPieces) == 1 {
-			checker := checkingPieces[0]
-      checkerKingPath := Bitboard(0)
-
-			if checker.IsSliding() {
-        checkerKingPath = getRayPath(checker.Square(), kingBB)
-			}
-      // Check if can capture the checker or block the path
-			moves &= (checker.Square() | checkerKingPath) & posiblesMoves
-		} else {
-			// Double check -> cannot avoid check by capture/blocking
-			moves = Bitboard(0)
-		}
-	}
+	moves = k.Attacks(pos) & ^pos.Pieces(k.color) &
+          checkRestrictedMoves(k.square, k.color, pos)
   return
 }
 

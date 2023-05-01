@@ -11,14 +11,6 @@ type Pawn struct {
 // -------------
 // Attacks returns all squares that a Pawn attacks in a chess board
 func (p *Pawn) Attacks(pos *Position) (attacks Bitboard) {
-	//  Bitwise displacements for all possible Pawns attacks
-	//   ------------------
-	//   | <<9 |     | <<7 |  White pawns
-	//   ------------------
-	//   |     |  P  |     |
-	//   ------------------
-	//   | >>7 |     | >>9 |  Black pawns
-	//   ------------------
 	notInHFile := p.square & ^(p.square & files[7])
 	notInAFile := p.square & ^(p.square & files[0])
 
@@ -34,10 +26,7 @@ func (p *Pawn) Attacks(pos *Position) (attacks Bitboard) {
 func (p *Pawn) Moves(pos *Position) (moves Bitboard) {
   posibleCaptures := p.Attacks(pos) & pos.Pieces(opponentSide(p.color))
   posiblesMoves := Bitboard(0)
-  kingBB := pos.KingPosition(p.color)
 
-  // FIX up to the nearest blocker!!!!!
-  // Restringir el segundo si el primero esta ocupado!
   if p.color == WHITE {
     singleMove := p.square << 8 & pos.EmptySquares()
     firstPawnMoveAvailable := (p.square & ranks[1]) << 16 & (singleMove << 8) & pos.EmptySquares()
@@ -47,34 +36,10 @@ func (p *Pawn) Moves(pos *Position) (moves Bitboard) {
     firstPawnMoveAvailable := (p.square & ranks[6]) >> 16 & (singleMove >> 8) & pos.EmptySquares()
     posiblesMoves = singleMove | firstPawnMoveAvailable
   }
-  moves = posibleCaptures | posiblesMoves
 
-  // Restrict moves!
-  // If the piece is pinned then can only move along the pinned direction
-	if isPinned(p.square, p.color, pos) {
-		direction := getDirection(kingBB, p.square)
-		allowedMovesDirection := raysDirection(kingBB, direction)
-		moves &= allowedMovesDirection
-	}
-
-  // If the king is in check can only capture the checking piece or block the check
-	if pos.Check(p.color) {
-		checkingPieces := pos.CheckingPieces(p.color)
-
-		if len(checkingPieces) == 1 {
-			checker := checkingPieces[0]
-      checkerKingPath := Bitboard(0)
-
-			if checker.IsSliding() {
-        checkerKingPath = getRayPath(checker.Square(), kingBB)
-			}
-      // Check if can capture the checker or block the path
-			moves &= (checker.Square() | checkerKingPath) & posiblesMoves
-		} else {
-			// Double check -> cannot avoid check by capture/blocking
-			moves = Bitboard(0)
-		}
-	}
+  moves = (posibleCaptures | posiblesMoves) &
+          pinRestrictedDirection(p.square, p.color, pos) &
+          checkRestrictedMoves(p.square, p.color, pos)
   return
 }
 

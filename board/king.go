@@ -11,14 +11,6 @@ type King struct {
 // -------------
 // Attacks returns all squares that a King attacks in a chess board
 func (k *King) Attacks(pos *Position) (attacks Bitboard) {
-	//  Bitwise displacements for all possible King attacks
-	//   ------------------
-	//   | <<9 | <<8 | <<7 |
-	//   ------------------
-	//   | <<1 |  K  | >>1 |
-	//   ------------------
-	//   | >>7 | >>8 | >>9 |
-	//   ------------------
 	notInHFile := k.square & ^(k.square & files[7])
 	notInAFile := k.square & ^(k.square & files[0])
 

@@ -9,7 +9,7 @@ type Bishop struct {
 }
 
 // -------------
-// BISHOP ♖
+// BISHOP ♗
 // -------------
 // Attacks returns all squares that a Bishop attacks in a chess board
 func (b *Bishop) Attacks(pos *Position) (attacks Bitboard) {
@@ -37,33 +37,9 @@ func (b *Bishop) Attacks(pos *Position) (attacks Bitboard) {
 
 // Moves returns a bitboard with the legal squares the Bishop can move to in a chess position
 func (b *Bishop) Moves(pos *Position) (moves Bitboard) {
-	posiblesMoves := b.Attacks(pos) & ^pos.Pieces(b.color)
-	moves |= posiblesMoves
-	kingBB := pos.KingPosition(b.color)
-
-	if isPinned(b.square, b.color, pos) {
-		direction := getDirection(kingBB, b.square)
-		allowedMovesDirection := raysDirection(kingBB, direction)
-		moves &= allowedMovesDirection
-	}
-
-	if pos.Check(b.color) {
-		checkingPieces := pos.CheckingPieces(b.color)
-
-		if len(checkingPieces) == 1 {
-			checker := checkingPieces[0]
-      checkerKingPath := Bitboard(0)
-
-			if checker.IsSliding() {
-        checkerKingPath = getRayPath(checker.Square(), kingBB)
-			}
-      // Check if can capture the checker or block the path
-			moves &= (checker.Square() | checkerKingPath) & posiblesMoves
-		} else {
-			// Double check -> cannot avoid check by capture/blocking
-			moves = Bitboard(0)
-		}
-	}
+	moves = b.Attacks(pos) & ^pos.Pieces(b.color) & 
+          pinRestrictedDirection(b.square, b.color, pos) &
+          checkRestrictedMoves(b.square, b.color, pos)
 	return
 }
 
