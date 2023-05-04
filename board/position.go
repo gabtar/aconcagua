@@ -120,7 +120,7 @@ func (pos *Position) CheckingPieces(side rune) (pieces []Piece) {
 		return
 	}
 
-  kingSq := pos.KingPosition(side)
+	kingSq := pos.KingPosition(side)
 	// iterate over all opponent pieces an add the ones that are attacking the king
 	for _, sq := range pos.Pieces(opponentSide(side)).ToStringSlice() {
 		piece, _ := pos.PieceAt(sq)
@@ -146,7 +146,7 @@ func (pos *Position) Pieces(side rune) (pieces Bitboard) {
 
 // check returns if the side passed is in check
 func (pos *Position) Check(side rune) (inCheck bool) {
-  kingPos := pos.KingPosition(side)
+	kingPos := pos.KingPosition(side)
 
 	if (kingPos & pos.AttackedSquares(opponentSide(side))) > 0 {
 		inCheck = true
@@ -178,8 +178,6 @@ func (pos Position) RemovePiece(piece Bitboard) Position {
 
 // LegalMoves returns an slice of Move of all legal moves for the side passed
 func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
-	// TODO, not properly tested yet!!!
-	// Need to check if this work as expected for any position!!!
 	opponentPieces := pos.Pieces(opponentSide(side))
 	piecesSq := pos.Pieces(side).ToStringSlice()
 
@@ -248,101 +246,240 @@ func (pos *Position) legalCastles(side rune) (castle []Move) {
 
 // legalEnPassant returns if there are any legal en passant move for the side passed
 func (pos *Position) legalEnPassant(side rune) (enPassant []Move) {
-  epTarget := pos.enPassantTarget
+	epTarget := pos.enPassantTarget
 
 	if epTarget == 0 {
 		return
 	}
 
-  var posiblesCapturers Bitboard
-  if side == WHITE {
-    posiblesCapturers = pos.bitboards[WHITE_PAWN] & posiblesEpCapturers(epTarget, side)
-  } else {
-    posiblesCapturers = pos.bitboards[BLACK_PAWN] & posiblesEpCapturers(epTarget, side)
-  }
+	posiblesCapturers := posiblesEpCapturers(epTarget, side, pos)
+	for _, sq := range posiblesCapturers.ToStringSlice() {
+		p, _ := pos.PieceAt(sq)
 
-  for _, sq := range posiblesCapturers.ToStringSlice() {
-    p, _ := pos.PieceAt(sq)
-		
-    enPassantAvailable := epTarget &
-                          pinRestrictedDirection(p.Square(), p.Color(), pos) & 
-                          checkRestrictedMoves(p.Square(), p.Color(), pos)
+		enPassantAvailable := epTarget &
+			pinRestrictedDirection(p.Square(), p.Color(), pos) &
+			checkRestrictedMoves(p.Square(), p.Color(), pos)
 
-    if enPassantAvailable > 0 {
-      enPassant = append(enPassant, Move{from: p.Square().ToStringSlice()[0], to: pos.enPassantTarget.ToStringSlice()[0], piece: p.role(), moveType: EN_PASSANT})
-    }
-  }
+		if enPassantAvailable > 0 {
+			enPassant = append(enPassant, Move{from: p.Square().ToStringSlice()[0], to: pos.enPassantTarget.ToStringSlice()[0], piece: p.role(), moveType: EN_PASSANT})
+		}
+	}
 	return
 }
 
-// posiblesEpCapturers returns the bitboard of the pawns that are attacking
+// posiblesEpCapturers returns a bitboard with the pawns that are attacking
 // the en passant target square passed
-func posiblesEpCapturers(target Bitboard, side rune) (squares Bitboard) {
-  if side == WHITE {
-    squares |= (target & ^(target & files[7]) >> 7)
-    squares |= (target & ^(target & files[0]) >> 9)
-  } else {
-    squares |= (target & ^(target & files[7]) << 7)
-    squares |= (target & ^(target & files[0]) << 9)
-  }
-  return
-}
-
-// TODO update position
-// MakeMove updates the position by making the move passed as parameter
-func (pos *Position) MakeMove(move *Move) (newPosition Position) {
-	// TODO perform the move
-
-  // TODO
-  // Remove piece from origin
-  // Add piece to destination
-
-  // Special moves:
-  // EnPassant removes captured pawn
-  // Captures removes destination piece
-  // Double pawn moves set en passant target
-  // Castle also moves the rook to destination
-  // Promotion set promoted piece in destination
-
-  // Update position status
-  // clear EnPassant target if was setted
-  // if king or rook moved, cancel castle
-  // Turn to move
+func posiblesEpCapturers(target Bitboard, side rune, pos *Position) (squares Bitboard) {
+	if side == WHITE {
+		squares = (target & ^(target & files[7]) >> 7) |
+			(target & ^(target & files[0]) >> 9)
+		squares &= pos.bitboards[WHITE_PAWN]
+	} else {
+		squares |= (target & ^(target & files[7]) << 7) |
+			(target & ^(target & files[0]) << 9)
+		squares &= pos.bitboards[BLACK_PAWN]
+	}
 	return
 }
 
-// TODO return fen string from Position struct
-// ToFen returns the fen string of the position (struct)
+// MakeMove updates the position by making the move passed as parameter
+func (pos *Position) MakeMove(move *Move) (newPos Position) {
+	// TODO/FIX validate the move is legal?!!!!!!
+	// TODO REFACTOR!!!
+	// Remove piece from origin
+	pieceToAdd := move.piece
+	newPos = pos.RemovePiece(squareToBitboard([]string{move.from}))
+	// clear EnPassant target if was setted
+	newPos.enPassantTarget &= 0
+
+	// fullmoveNumber+1 if it's black turn
+	if pos.turn == BLACK {
+		newPos.fullmoveNumber++
+	}
+	newPos.halfmoveClock++
+
+	// Check for special moves:
+	switch move.moveType {
+	case NORMAL:
+		// Reset halfmoveClock also resets with single pawn push
+		if move.piece == WHITE_PAWN || move.piece == BLACK_PAWN {
+			newPos.halfmoveClock = 0
+		}
+		updateCastleRights(&newPos, move)
+	case PAWN_DOUBLE_PUSH:
+		// TODO/FIX need to generate the dobule push type when moving a pawn in move generation function
+		// Add ep target sq
+		if move.piece == WHITE_PAWN {
+			newPos.enPassantTarget = squareToBitboard([]string{move.to}) >> 8
+		} else {
+			newPos.enPassantTarget = squareToBitboard([]string{move.to}) << 8
+		}
+		newPos.halfmoveClock = 0
+	case CAPTURE:
+		// Remove piece at destination
+		newPos = newPos.RemovePiece(squareToBitboard([]string{move.from}))
+		// Reset halfmoveClock
+		newPos.halfmoveClock = 0
+		updateCastleRights(&newPos, move)
+	case PROMOTION:
+		// change piece to add to the board
+		pieceToAdd = move.promotedTo
+		// Reset halfmoveClock
+		newPos.halfmoveClock = 0
+	case CASTLE:
+		// TODO i need to figure out another way of implement this
+		newPos = moveRookOnCastleMove(newPos, move)
+		// Update castle rights
+		updateCastleRights(&newPos, move)
+	case EN_PASSANT:
+		// Remove the captured pawn
+		// Es hacia abajo(blancas) / arriba (negras) del epTarget
+		if move.piece == WHITE_PAWN {
+			newPos = newPos.RemovePiece(pos.enPassantTarget >> 8)
+		} else {
+			newPos = newPos.RemovePiece(pos.enPassantTarget << 8)
+		}
+		// Reset halfmoveClock
+		newPos.halfmoveClock = 0
+	}
+
+	// Update Turn/color to move
+	newPos.turn = opponentSide(newPos.turn)
+	// Add piece to destination sqaure
+	newPos.AddPiece(pieceToAdd, move.to)
+	return
+}
+
+func moveRookOnCastleMove(newPos Position, move *Move) Position {
+	// Move the rook
+	// Si el rey mueve hacia la derecha -> torre en h1/h8
+	// Kingside castling
+	// Si el rey mueve hacia la izuqierda -> torren en a1/a8
+	// Kingside castling black
+	if move.piece == WHITE_KING {
+		if move.to == "g1" {
+			newPos = newPos.RemovePiece(squareToBitboard([]string{"h1"}))
+			newPos.AddPiece(WHITE_ROOK, "f1")
+		} else {
+			newPos = newPos.RemovePiece(squareToBitboard([]string{"a1"}))
+			newPos.AddPiece(WHITE_ROOK, "c1")
+		}
+	} else {
+
+		if move.to == "g8" {
+			newPos = newPos.RemovePiece(squareToBitboard([]string{"h8"}))
+			newPos.AddPiece(BLACK_ROOK, "f8")
+		} else {
+			newPos = newPos.RemovePiece(squareToBitboard([]string{"a8"}))
+			newPos.AddPiece(BLACK_ROOK, "c8")
+		}
+	}
+	return newPos
+}
+
+// updateCastleRights updates the castle rigths based on the move passed if the
+// rook or the king has been moved
+func updateCastleRights(pos *Position, move *Move) {
+	currentRights := pos.castlingRights
+	switch move.piece {
+	case WHITE_KING:
+		currentRights = strings.Replace(currentRights, "K", "", 1)
+		currentRights = strings.Replace(currentRights, "Q", "", 1)
+	case WHITE_ROOK:
+		if move.from == "h1" {
+			currentRights = strings.Replace(currentRights, "K", "", 1)
+		} else {
+			currentRights = strings.Replace(currentRights, "Q", "", 1)
+		}
+	case BLACK_KING:
+		currentRights = strings.Replace(currentRights, "k", "", 1)
+		currentRights = strings.Replace(currentRights, "q", "", 1)
+	case BLACK_ROOK:
+		if move.from == "h8" {
+			currentRights = strings.Replace(currentRights, "k", "", 1)
+		} else {
+			currentRights = strings.Replace(currentRights, "q", "", 1)
+		}
+	}
+	if currentRights == "" {
+		currentRights = "-"
+	}
+	pos.castlingRights = currentRights
+}
+
+// ToFen serializes the position as a fen string
 func (pos *Position) ToFen() (fen string) {
+	squares := toRuneArray(pos)
+
+	for rank := 7; rank >= 0; rank-- {
+		blankSquares := 0
+		currentFenSqNumber := 8*(rank+1) - 8 // Fen string is read from a8 -> h8, a7 -> h7, ..., so i have to reverse the order
+
+		for file := 0; file < 8; file++ {
+			piece := squares[currentFenSqNumber+file]
+			if piece == rune(0) {
+				blankSquares++
+				continue
+			}
+			if blankSquares > 0 {
+				fen += string(rune(blankSquares + 48))
+			}
+			fen += string(piece)
+			blankSquares = 0
+		}
+		if blankSquares > 0 {
+			fen += string(rune(blankSquares + 48))
+		}
+		// En todos menos el ultimo
+		if rank != 0 {
+			fen += "/"
+		}
+	}
+	fen += " " + string(pos.turn)
+	fen += " " + pos.castlingRights
+	if pos.enPassantTarget > 0 {
+		fen += " " + pos.enPassantTarget.ToStringSlice()[0]
+	} else {
+		fen += " " + "-"
+	}
+	fen += " " + strconv.Itoa(pos.halfmoveClock)
+	fen += " " + strconv.Itoa(pos.fullmoveNumber)
 	return
 }
 
 // Print prints the Position to the terminal from white's view perspective
 func (pos *Position) Print() {
 	// TODO add coordinates/unicode chars for pieces
-	board := [64]rune{}
-	for i := 0; i < 64; i++ {
-		board[i] = ' '
-	}
-
-	pieceSymbol := [12]rune{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'}
-	for pieceType, bitboard := range pos.bitboards {
-		for i := 0; i < len(board); i++ {
-			if bitboard&(0b1<<i) > 0 {
-				board[i] = pieceSymbol[pieceType]
-			}
-		}
-	}
+	board := toRuneArray(pos)
 
 	currentSq := 63
 	fmt.Println("\n  -------------------------------") // Break line
 	for rank := 7; rank >= 0; rank-- {
 		for file := 7; file >= 0; file-- {
-			fmt.Print(" | " + string(board[currentSq-file]))
+			piece := board[currentSq-file]
+			if piece == rune(0) { // Default rune char
+				piece = ' '
+			}
+			fmt.Print(" | " + string(piece))
 		}
 		fmt.Println(" |\n  -------------------------------") // Break line
 		currentSq -= 8
 	}
+}
+
+// toRuneArray returns an array of 64 runes with the position of the pieces
+// in the board using Little endian rank-file mapping
+func toRuneArray(pos *Position) [64]rune {
+	squares := [64]rune{}
+	pieceSymbol := [12]rune{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'}
+	for pieceType, bitboard := range pos.bitboards {
+		for i := 0; i < len(squares); i++ {
+			if bitboard&(0b1<<i) > 0 {
+				squares[i] = pieceSymbol[pieceType]
+			}
+		}
+	}
+	return squares
 }
 
 // Utility functions
@@ -431,6 +568,6 @@ func InitialPosition() (pos *Position) {
 
 // EmptyPosition returns an empty Position struct
 func EmptyPosition() (pos *Position) {
-	pos = &Position{turn: WHITE}
+	pos = &Position{}
 	return
 }

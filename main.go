@@ -14,10 +14,16 @@ func main() {
 	legalMoves := pos.LegalMoves(board.WHITE)
 	fmt.Println()
 	fmt.Println("Moves for white: ", len(legalMoves))
+	//
+ //  // Show all moves
+	// for _, move := range pos.LegalMoves(board.WHITE) {
+	// 	fmt.Println(move)
+	// }
+  fmt.Println("Fen: " + pos.ToFen())
+  move := legalMoves[0]
+  fmt.Println("MOVE: ", move)
 
-  // Show all moves
-	for _, move := range pos.LegalMoves(board.WHITE) {
-		fmt.Println(move)
-	}
-
+  newPos := pos.MakeMove(&move)
+  newPos.Print()
+  fmt.Println("Fen: " + newPos.ToFen())
 }

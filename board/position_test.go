@@ -213,3 +213,14 @@ func TestLegalMovesOnMultiplePinsWithCheckTwo(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestFenSerializationFromPosition(t *testing.T) {
+  pos := InitialPosition()
+
+  expected := "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" 
+  got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

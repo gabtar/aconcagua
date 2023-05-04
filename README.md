@@ -12,7 +12,7 @@ Chess engine in go - WIP
 ### TODO, Move generation:
 - [x] From a given position return all posibles next moves/positions for a given side(will be used later for searching best move)
     - [x] Tests if given a position returns all availables moves correctly
-- [ ] Function to update the position(struct) when passing a legal move 
+- [x] Function to update the position(struct) when passing a legal move 
 - [ ] Detect on a given position
     - [ ] Checkmate
     - [ ] Stealmate

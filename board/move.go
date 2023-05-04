@@ -3,10 +3,11 @@ package board
 // Type of move
 const(
   NORMAL = 1    // Normal push to an empty sqaure
-  CAPTURE = 2
-  EN_PASSANT = 3
-  CASTLE = 4
-  PROMOTION = 5
+  PAWN_DOUBLE_PUSH = 2
+  CAPTURE = 3
+  EN_PASSANT = 4
+  CASTLE = 5
+  PROMOTION = 6
 )
 
 // Represents a move of chess
