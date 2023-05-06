@@ -246,7 +246,6 @@ func raysDirection(square Bitboard, direction uint64) Bitboard {
 // getRayPath returns a Bitboard with the path between 2 bitboards pieces
 // (not including the 2 pieces)
 func getRayPath(from Bitboard, to Bitboard) (rayPath Bitboard) {
-	// TODO need to validate direction
 	fromDirection := getDirection(to, from)
 	toDirection := getDirection(from, to)
 	rayPath = (raysAttacks[fromDirection][bits.TrailingZeros64(uint64(from))] & raysAttacks[toDirection][bits.TrailingZeros64(uint64(to))])

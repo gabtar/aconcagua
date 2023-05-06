@@ -447,6 +447,46 @@ func (pos *Position) ToFen() (fen string) {
 	return
 }
 
+// Checkmate returns if the passed side is in checkmate on the current position
+func (pos *Position) Checkmate(side rune) (checkmate bool){
+  if len(pos.LegalMoves(side)) == 0 && pos.Check(side) {
+    checkmate = true
+  } else {
+    checkmate = false
+  }
+  return
+}
+
+// Stealmate returns if the passed side is in stealmate on the current position
+func (pos *Position) Stealmate(side rune) (stealmate bool) {
+  // Cannot be in check, and cannot have any legal moves
+  if len(pos.LegalMoves(side)) == 0 && !pos.Check(side) {
+    stealmate = true
+  } else {
+    stealmate = false
+  }
+  return
+}
+
+func (pos *Position) InsuficientMaterial() (insuficientMaterial bool) {
+  // Material on each side (according to FIDE rules):
+  // - lone king 
+  // - king and bishop
+  // - king and knight
+
+  // Count material for each side
+  whiteMaterial := pos.Pieces(WHITE)
+  blackMaterial := pos.Pieces(BLACK)
+
+  // Check if is one of any of the 3 cases above
+  if whiteMaterial == pos.bitboards[WHITE_KING] && blackMaterial == pos.bitboards[BLACK_KING] {
+    return true
+  }
+
+  // TODO metodo en el bitboard para contar la cantidad de piezas/bits
+  return
+}
+
 // Print prints the Position to the terminal from white's view perspective
 func (pos *Position) Print() {
 	// TODO add coordinates/unicode chars for pieces

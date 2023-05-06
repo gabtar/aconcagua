@@ -14,8 +14,8 @@ Chess engine in go - WIP
     - [x] Tests if given a position returns all availables moves correctly
 - [x] Function to update the position(struct) when passing a legal move 
 - [ ] Detect on a given position
-    - [ ] Checkmate
-    - [ ] Stealmate
+    - [x] Checkmate
+    - [x] Stealmate
     - [ ] Threefold repetition
     - [ ] 50 move rule
     - [ ] Insuficient material

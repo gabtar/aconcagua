@@ -47,7 +47,6 @@ var ranks [8]Bitboard = [8]Bitboard{
   0x00000000000000FF << 56,
 }
 
-// TODO, I need to map diagonals in the same way as files and ranks
 const ALL_SQUARES Bitboard = 0xFFFFFFFFFFFFFFFF
 
 const a1h8diagonal Bitboard = 0x8040201008040201
