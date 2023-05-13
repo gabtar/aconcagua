@@ -3,7 +3,6 @@ package board
 
 import (
 	"math"
-	"math/bits"
 )
 
 // Piece is the interface that has all methods for chess pieces
@@ -119,7 +118,7 @@ var raysAttacks [8][64]Bitboard = [8][64]Bitboard{
 func isPinned(piece Bitboard, side rune, pos *Position) bool {
 	// TODO, quedo medio fea..., pero funciona bien
 	kingBB := pos.KingPosition(side)
-	// FIX: Es necesario poruqe en algunos test no hay rey en la posicion
+	// FIX: Es necesario porque en algunos test no hay rey en la posicion
 	if kingBB == 0 {
 		return false
 	}
@@ -129,41 +128,37 @@ func isPinned(piece Bitboard, side rune, pos *Position) bool {
 		return false
 	}
 	// Ray from king to piece
-	possibleAttackers := raysAttacks[pinDirection][bits.TrailingZeros64(uint64(kingBB))]
+	possibleAttackers := raysAttacks[pinDirection][bsf(kingBB)]
 
 	// Get the pieces along that line
 	piecesInLine := possibleAttackers & ^pos.EmptySquares()
-	if piecesInLine < 1 { // NULL bitboard
+	if piecesInLine.count() <= 1 { // Not enought pieces for a pin
 		return false
 	}
 
 	// Get the first 2 pieces along the direction
 	switch pinDirection {
 	case NORTH, EAST, NORTHEAST, NORTHWEST:
-		firstBB := Bitboard(0b1 << bits.TrailingZeros64(uint64(piecesInLine)))
-		secondBB := Bitboard(0b1 << bits.TrailingZeros64(uint64(piecesInLine & ^firstBB)))
+		firstBB := bitboardFromIndex(bsf(piecesInLine))
+		secondBB := bitboardFromIndex(bsf(piecesInLine & ^firstBB))
+		// secondBB := Bitboard(0b1 << bits.TrailingZeros64(uint64(piecesInLine & ^firstBB)))
+    pieceOne, _ := pos.PieceAt(squareMap[bsf(firstBB)])
+    pieceTwo, _ := pos.PieceAt(squareMap[bsf(secondBB)])
 
-		if (firstBB|secondBB) > 0 && secondBB != 0 {
-			pieceOne, _ := pos.PieceAt(firstBB.ToStringSlice()[0])
-			pieceTwo, _ := pos.PieceAt(secondBB.ToStringSlice()[0])
-
-			if pieceOne.Color() != pieceTwo.Color() {
-				return true
-			}
-		}
+    if pieceOne.Color() != pieceTwo.Color() {
+      return true
+    }
 
 	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
-		firstBB := Bitboard((0x1 << 63) >> bits.LeadingZeros64(uint64(piecesInLine)))
-		secondBB := Bitboard((0x1 << 63) >> bits.LeadingZeros64(uint64(piecesInLine & ^firstBB)))
+		firstBB := bitboardFromIndex(63 - bsr(piecesInLine))
+		secondBB := bitboardFromIndex(63 - bsr(piecesInLine & ^firstBB))
 
-		if (firstBB|secondBB) > 0 && secondBB != 0 {
-			pieceOne, _ := pos.PieceAt(firstBB.ToStringSlice()[0])
-			pieceTwo, _ := pos.PieceAt(secondBB.ToStringSlice()[0])
+    pieceOne, _ := pos.PieceAt(squareMap[bsf(firstBB)])
+    pieceTwo, _ := pos.PieceAt(squareMap[bsf(secondBB)])
 
-			if pieceOne.Color() != pieceTwo.Color() {
-				return true
-			}
-		}
+    if pieceOne.Color() != pieceTwo.Color() {
+      return true
+    }
 	}
 	return false
 }
@@ -187,12 +182,8 @@ func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
 	//   ----------------------
 	//   | -1-1 | +1+0 | -1+1 |
 	//   ----------------------
-	filePiece1 := bits.TrailingZeros64(uint64(piece1)) % 8
-	filePiece2 := bits.TrailingZeros64(uint64(piece2)) % 8
-	rankPiece1 := bits.TrailingZeros64(uint64(piece1)) / 8
-	rankPiece2 := bits.TrailingZeros64(uint64(piece2)) / 8
-	fileDiff := filePiece1 - filePiece2
-	rankDiff := rankPiece1 - rankPiece2
+  fileDiff := (bsf(piece1) % 8) - (bsf(piece2) % 8)
+  rankDiff := (bsf(piece1) / 8) - (bsf(piece2) / 8)
 	absFileDiff := math.Abs(float64(fileDiff))
 	absRankDiff := math.Abs(float64(rankDiff))
 
@@ -222,22 +213,22 @@ func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
 // raysDirection returns the rays along the direction passed that intersects the
 // piece in the square passed
 func raysDirection(square Bitboard, direction uint64) Bitboard {
-	rays := raysAttacks[direction][bits.TrailingZeros64(uint64(square))] | square
+	rays := raysAttacks[direction][bsf(square)] | square
 
 	// Need to complement the opposite of the direction passed
 	switch direction {
 	case NORTH:
-		rays |= raysAttacks[SOUTH][bits.TrailingZeros64(uint64(square))]
+		rays |= raysAttacks[SOUTH][bsf(square)]
 	case NORTHEAST:
-		rays |= raysAttacks[SOUTHWEST][bits.TrailingZeros64(uint64(square))]
+		rays |= raysAttacks[SOUTHWEST][bsf(square)]
 	case EAST:
-		rays |= raysAttacks[WEST][bits.TrailingZeros64(uint64(square))]
+		rays |= raysAttacks[WEST][bsf(square)]
 	case SOUTHEAST:
-		rays |= raysAttacks[NORTHWEST][bits.TrailingZeros64(uint64(square))]
+		rays |= raysAttacks[NORTHWEST][bsf(square)]
 	case SOUTH:
-		rays |= raysAttacks[NORTH][bits.TrailingZeros64(uint64(square))]
+		rays |= raysAttacks[NORTH][bsf(square)]
 	case SOUTHWEST:
-		rays |= raysAttacks[NORTHEAST][bits.TrailingZeros64(uint64(square))]
+		rays |= raysAttacks[NORTHEAST][bsf(square)]
 	}
 
 	return rays
@@ -248,7 +239,7 @@ func raysDirection(square Bitboard, direction uint64) Bitboard {
 func getRayPath(from Bitboard, to Bitboard) (rayPath Bitboard) {
 	fromDirection := getDirection(to, from)
 	toDirection := getDirection(from, to)
-	rayPath = (raysAttacks[fromDirection][bits.TrailingZeros64(uint64(from))] & raysAttacks[toDirection][bits.TrailingZeros64(uint64(to))])
+	rayPath = (raysAttacks[fromDirection][bsf(from)] & raysAttacks[toDirection][bsf(to)])
 	return
 }
 

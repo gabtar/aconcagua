@@ -287,3 +287,46 @@ func TestBlackIsNotInStealmate(t *testing.T) {
 }
 
 
+func TestInsuficientMaterialKingVsKing(t *testing.T) {
+  pos := From("8/8/3k4/8/1K6/8/8/8 w - - 0 1")
+
+  expected := true
+  got := pos.InsuficientMaterial()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestInsuficientMaterialKingAndKnightVsKing(t *testing.T) {
+  pos := From("8/8/3k4/8/1K6/1N6/8/8 w - - 0 1")
+
+  expected := true
+  got := pos.InsuficientMaterial()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestInsuficientMaterialKingAndBishopVsKingAndKnight(t *testing.T) {
+  pos := From("K7/8/3B4/4n3/8/8/7k/8 w - - 0 1")
+
+  expected := true
+  got := pos.InsuficientMaterial()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestNotInsuficientMaterial(t *testing.T) {
+  pos := From("8/6R1/8/8/8/8/K6k/8 w - - 0 1")
+
+  expected := false
+  got := pos.InsuficientMaterial()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

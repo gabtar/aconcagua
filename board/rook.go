@@ -1,7 +1,5 @@
 package board
 
-import "math/bits"
-
 // Rook models a rook piece in chess
 type Rook struct {
 	color  rune
@@ -16,20 +14,19 @@ func (r *Rook) Attacks(pos *Position) (attacks Bitboard) {
 	blockers := ^pos.EmptySquares()
 
 	for _, direction := range []uint64{NORTH, EAST, SOUTH, WEST} {
-		attacks |= raysAttacks[direction][bits.TrailingZeros64(uint64(r.square))]
-		blockersInDirection := blockers & raysAttacks[direction][bits.TrailingZeros64(uint64(r.square))]
+		attacks |= raysAttacks[direction][bsf(r.square)]
+		blockersInDirection := blockers & raysAttacks[direction][bsf(r.square)]
 		nearestBlocker := Bitboard(0)
 
 		switch direction {
 		case NORTH, EAST:
-			nearestBlocker = Bitboard(0b1 << bits.TrailingZeros64(uint64(blockersInDirection)))
+			nearestBlocker = bitboardFromIndex(bsf(blockersInDirection))
 		case SOUTH, WEST:
-			nearestBlocker = Bitboard((0x1 << 63) >> bits.LeadingZeros64(uint64(blockersInDirection)))
+			nearestBlocker = bitboardFromIndex(63 - bsr(blockersInDirection))
 		}
 
-		// Need this becuase if its zero, LeadingZeros returns the length of uint64 and goes out of bounds
 		if nearestBlocker > 0 {
-			attacks &= ^raysAttacks[direction][bits.TrailingZeros64(uint64(nearestBlocker))]
+			attacks &= ^raysAttacks[direction][bsf(nearestBlocker)]
 		}
 	}
 	return

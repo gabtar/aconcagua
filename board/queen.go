@@ -1,7 +1,5 @@
 package board
 
-import "math/bits"
-
 // Queen models a queen piece in chess
 type Queen struct {
 	color  rune
@@ -16,20 +14,20 @@ func (q *Queen) Attacks(pos *Position) (attacks Bitboard) {
 	blockers := ^pos.EmptySquares()
 
 	for _, direction := range []uint64{NORTH, NORTHEAST, EAST, SOUTHEAST, SOUTH, SOUTHWEST, WEST, NORTHWEST} {
-		attacks |= raysAttacks[direction][bits.TrailingZeros64(uint64(q.square))]
-		blockersInDirection := blockers & raysAttacks[direction][bits.TrailingZeros64(uint64(q.square))]
+		attacks |= raysAttacks[direction][bsf(q.square)]
+		blockersInDirection := blockers & raysAttacks[direction][bsf(q.square)]
 		nearestBlocker := Bitboard(0)
 
 		switch direction {
 		case NORTH, EAST, NORTHEAST, NORTHWEST:
-			nearestBlocker = Bitboard(0b1 << bits.TrailingZeros64(uint64(blockersInDirection)))
+			nearestBlocker = bitboardFromIndex(bsf(blockersInDirection))
 		case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
-			nearestBlocker = Bitboard((0x1 << 63) >> bits.LeadingZeros64(uint64(blockersInDirection)))
+			nearestBlocker = bitboardFromIndex(63 - bsr(blockersInDirection))
 		}
 
 		// Need this becuase if its zero, LeadingZeros returns the length of uint64 and goes out of bounds
 		if nearestBlocker > 0 {
-			attacks &= ^raysAttacks[direction][bits.TrailingZeros64(uint64(nearestBlocker))]
+			attacks &= ^raysAttacks[direction][bsf(nearestBlocker)]
 		}
 	}
 	return

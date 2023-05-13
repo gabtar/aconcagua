@@ -1,7 +1,5 @@
 package board
 
-import "math/bits"
-
 // Bishop models a bishop piece in chess
 type Bishop struct {
 	color  rune
@@ -16,20 +14,19 @@ func (b *Bishop) Attacks(pos *Position) (attacks Bitboard) {
 	blockers := ^pos.EmptySquares()
 
 	for _, direction := range []uint64{NORTHEAST, SOUTHEAST, SOUTHWEST, NORTHWEST} {
-		attacks |= raysAttacks[direction][bits.TrailingZeros64(uint64(b.square))]
-		blockersInDirection := blockers & raysAttacks[direction][bits.TrailingZeros64(uint64(b.square))]
+		attacks |= raysAttacks[direction][bsf(b.square)]
+		blockersInDirection := blockers & raysAttacks[direction][bsf(b.square)]
 		nearestBlocker := Bitboard(0)
 
 		switch direction {
 		case NORTHEAST, NORTHWEST:
-			nearestBlocker = Bitboard(0b1 << bits.TrailingZeros64(uint64(blockersInDirection)))
+			nearestBlocker = bitboardFromIndex(bsf(blockersInDirection))
 		case SOUTHEAST, SOUTHWEST:
-			nearestBlocker = Bitboard((0x1 << 63) >> bits.LeadingZeros64(uint64(blockersInDirection)))
+			nearestBlocker = bitboardFromIndex(63 - bsr(blockersInDirection))
 		}
 
-		// Need this becuase if its zero, LeadingZeros returns the length of uint64 and goes out of bounds
 		if nearestBlocker > 0 {
-			attacks &= ^raysAttacks[direction][bits.TrailingZeros64(uint64(nearestBlocker))]
+			attacks &= ^raysAttacks[direction][bsf(nearestBlocker)]
 		}
 	}
 	return

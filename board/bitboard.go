@@ -2,6 +2,7 @@ package board
 
 import (
 	"fmt"
+	"math/bits"
 	"strconv"
 	"strings"
 )
@@ -49,20 +50,16 @@ var ranks [8]Bitboard = [8]Bitboard{
 
 const ALL_SQUARES Bitboard = 0xFFFFFFFFFFFFFFFF
 
-const a1h8diagonal Bitboard = 0x8040201008040201
-const h1a8antidiagonal Bitboard = 0x0102040810204080
-const lightSquares Bitboard = 0x55AA55AA55AA55AA
-const darkSquares Bitboard = 0xAA55AA55AA55AA55
 // Bitboard represents a bitboard as a 64bit integer
 type Bitboard uint64
 
-type Printer interface {
-	Print()
-}
-
-type BitboardConverter interface {
-  ToStringSlice() (squares []string)
-}
+// type Printer interface {
+// 	Print()
+// }
+//
+// type BitboardConverter interface {
+//   ToStringSlice() (squares []string)
+// }
 
 // Print draws a Bitboard in the terminal in a 'prettier' way
 func (b Bitboard) Print() {
@@ -86,16 +83,49 @@ func reverseArray(arr []string) []string {
 	return arr
 }
 
+// count returns the number of non zero bits in a bitboard
+func (b Bitboard) count() int {
+  count := 0
+  for b > 0 {
+    b &= ^(0b1 << bsf(b))
+    count++
+  }
+
+  return count
+}
 
 // ToStringSlice returns an slice of (string)coordinates with the squares occupied
 // in the bitboard
 func (b Bitboard) ToStringSlice() (squares []string){
-	binaryString := strconv.FormatUint(uint64(b), 2)
+  for b > 0 {
+    squares = append(squares, squareMap[bsf(b)])
+    b -= (1 << bsf(b))
+  }
+  return
+}
 
-  for i := len(binaryString)-1; i >= 0; i-- {
-    if binaryString[i] == '1' {
-      squares = append(squares, squareMap[len(binaryString) - i - 1])
-    }
+// FROM -> https://www.chessprogramming.org/BitScan
+
+// bsf (bit scan forward) returns the bit-index of the least significant 1 
+// bit (LS1B) in an integer Bitboard(uint64)
+func bsf(bitboard Bitboard) int {
+  return bits.TrailingZeros64(uint64(bitboard))
+}
+
+// bsr (bit scan reverse) returns the bit-index of the most significant 1 
+// bit (MS1B) in an integer Bitboard(uint64)
+func bsr(bitboard Bitboard) int {
+  return bits.LeadingZeros64(uint64(bitboard))
+}
+
+// bitboardFromIndex is a factory that returns a bitboard from an index square
+func bitboardFromIndex(index int) (bitboard Bitboard){
+  // NOTE: Since bitscan cannot be used with empty sets i use this guard clause to
+  // ensure returning a valid bitboard for the engine
+  if index > 63 || index < 0 {
+    bitboard = Bitboard(0)
+  } else {
+    bitboard = Bitboard(0b1 << index)
   }
   return
 }

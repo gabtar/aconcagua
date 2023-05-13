@@ -13,10 +13,9 @@ Chess engine in go - WIP
 - [x] From a given position return all posibles next moves/positions for a given side(will be used later for searching best move)
     - [x] Tests if given a position returns all availables moves correctly
 - [x] Function to update the position(struct) when passing a legal move 
-- [ ] Detect on a given position
+- [x] Detect on a given position
     - [x] Checkmate
     - [x] Stealmate
-    - [ ] Threefold repetition
-    - [ ] 50 move rule
-    - [ ] Insuficient material
-
+    - [x] Insuficient material
+    - [x] 50 move rule (It's not automatically draw).
+- [ ] Threefold repetition - Insuficient information on the position struct. I need to store the previous positions fens to check if there is a repetition.
