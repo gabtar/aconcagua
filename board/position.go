@@ -70,7 +70,7 @@ func (pos *Position) PieceAt(square string) (piece Piece, e error) {
 	bitboardSquare := squareToBitboard([]string{square})
 
 	for role, bitboard := range pos.bitboards {
-		if bitboard & bitboardSquare > 0 {
+		if bitboard&bitboardSquare > 0 {
 			piece = makePiece(role, bitboardSquare)
 		}
 	}
@@ -176,6 +176,16 @@ func (pos Position) RemovePiece(piece Bitboard) Position {
 	return newPos
 }
 
+// NumberOfPieces return the number of pieces of the type passed
+func (pos *Position) NumberOfPieces(pieceType int) int {
+	return pos.bitboards[pieceType].count()
+}
+
+// ToMove returns the side to move in the current position
+func (pos *Position) ToMove() rune {
+  return pos.turn
+}
+
 // LegalMoves returns an slice of Move of all legal moves for the side passed
 func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
 	opponentPieces := pos.Pieces(opponentSide(side))
@@ -186,13 +196,13 @@ func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
 		destinations := piece.Moves(pos).ToStringSlice()
 
 		// MOVES / CAPTURES / PROMOTIONS
-    // TODO pawn double push move
+		// TODO pawn double push move
 		for _, to := range destinations {
 			pieceBB := piece.Square()
 			isWhitePawn := pieceBB&pos.bitboards[WHITE_PAWN] > 0
 			isBlackPawn := pieceBB&pos.bitboards[BLACK_PAWN] > 0
 
-			if opponentPieces&pieceBB > 0 {
+			if opponentPieces&squareToBitboard([]string{to}) > 0 {
 				legalMoves = append(legalMoves, Move{from: from, to: to, piece: piece.role(), moveType: CAPTURE})
 			} else if isWhitePawn && (from[1] == '7') {
 				for _, promotedRole := range []int{WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN} {
@@ -285,11 +295,9 @@ func posiblesEpCapturers(target Bitboard, side rune, pos *Position) (squares Bit
 
 // MakeMove updates the position by making the move passed as parameter
 func (pos *Position) MakeMove(move *Move) (newPos Position) {
-	// TODO/FIX validate the move is legal?!!!!!!
-	// TODO REFACTOR!!!
-	// Remove piece from origin
 	pieceToAdd := move.piece
 	newPos = pos.RemovePiece(squareToBitboard([]string{move.from}))
+
 	// clear EnPassant target if was setted
 	newPos.enPassantTarget &= 0
 
@@ -318,7 +326,7 @@ func (pos *Position) MakeMove(move *Move) (newPos Position) {
 		newPos.halfmoveClock = 0
 	case CAPTURE:
 		// Remove piece at destination
-		newPos = newPos.RemovePiece(squareToBitboard([]string{move.from}))
+		newPos = newPos.RemovePiece(squareToBitboard([]string{move.to}))
 		// Reset halfmoveClock
 		newPos.halfmoveClock = 0
 		updateCastleRights(&newPos, move)
@@ -449,81 +457,81 @@ func (pos *Position) ToFen() (fen string) {
 }
 
 // Checkmate returns if the passed side is in checkmate on the current position
-func (pos *Position) Checkmate(side rune) (checkmate bool){
-  if len(pos.LegalMoves(side)) == 0 && pos.Check(side) {
-    checkmate = true
-  } else {
-    checkmate = false
-  }
-  return
+func (pos *Position) Checkmate(side rune) (checkmate bool) {
+	if len(pos.LegalMoves(side)) == 0 && pos.Check(side) {
+		checkmate = true
+	} else {
+		checkmate = false
+	}
+	return
 }
 
 // Stealmate returns if the passed side is in stealmate on the current position
 func (pos *Position) Stealmate(side rune) (stealmate bool) {
-  // Cannot be in check, and cannot have any legal moves
-  if len(pos.LegalMoves(side)) == 0 && !pos.Check(side) {
-    stealmate = true
-  } else {
-    stealmate = false
-  }
-  return
+	// Cannot be in check, and cannot have any legal moves
+	if len(pos.LegalMoves(side)) == 0 && !pos.Check(side) {
+		stealmate = true
+	} else {
+		stealmate = false
+	}
+	return
 }
 
 func (pos *Position) InsuficientMaterial() bool {
-  // Insuficient material on each side (according to FIDE rules):
-  // - lone king 
-  // - king and bishop
-  // - king and knight
-  insuficientMaterialWhite := pos.Pieces(WHITE) == pos.KingPosition(WHITE) ||
-                              onlyKingAndBishop(pos, WHITE) ||
-                              onlyKingAndKnight(pos, WHITE)
-  insuficientMaterialBlack := pos.Pieces(BLACK) == pos.KingPosition(BLACK) ||
-                              onlyKingAndBishop(pos, BLACK) ||
-                              onlyKingAndKnight(pos, BLACK)
+	// Insuficient material on each side (according to FIDE rules):
+	// - lone king
+	// - king and bishop
+	// - king and knight
+	insuficientMaterialWhite := pos.Pieces(WHITE) == pos.KingPosition(WHITE) ||
+		onlyKingAndBishop(pos, WHITE) ||
+		onlyKingAndKnight(pos, WHITE)
+	insuficientMaterialBlack := pos.Pieces(BLACK) == pos.KingPosition(BLACK) ||
+		onlyKingAndBishop(pos, BLACK) ||
+		onlyKingAndKnight(pos, BLACK)
 
-  return insuficientMaterialWhite && insuficientMaterialBlack
+	return insuficientMaterialWhite && insuficientMaterialBlack
 }
 
 // onlyKingAndKnight returns if in the passed position there is only a king piece
 // and a knight piece for the side passed
-func onlyKingAndKnight(pos *Position, side rune) bool{
-  if pos.knights(side).count() > 1 {
-    return false
-  }
-  return pos.Pieces(side) == (pos.knights(side) | pos.KingPosition(side))
+func onlyKingAndKnight(pos *Position, side rune) bool {
+	if pos.knights(side).count() > 1 {
+		return false
+	}
+	return pos.Pieces(side) == (pos.knights(side) | pos.KingPosition(side))
 }
 
 // knights returns the bitboards with the knights of the side passed
 func (pos *Position) knights(side rune) Bitboard {
-  if side == WHITE {
-    return pos.bitboards[WHITE_KNIGHT]
-  } else {
-    return pos.bitboards[BLACK_KNIGHT]
-  }
+	if side == WHITE {
+		return pos.bitboards[WHITE_KNIGHT]
+	} else {
+		return pos.bitboards[BLACK_KNIGHT]
+	}
 }
 
 // onlyKingAndBishop returns if in the passed position there is only a king piece
 // and a bishop piece for the side passed
 func onlyKingAndBishop(pos *Position, side rune) bool {
-  if pos.bishops(side).count() > 1 {
-    return false
-  }
-  return pos.Pieces(side) == (pos.bishops(side) | pos.KingPosition(side))
+	if pos.bishops(side).count() > 1 {
+		return false
+	}
+	return pos.Pieces(side) == (pos.bishops(side) | pos.KingPosition(side))
 }
 
 // bishops returns the bitboards with the bishops of the side passed
 func (pos *Position) bishops(side rune) Bitboard {
-  if side == WHITE {
-    return pos.bitboards[WHITE_BISHOP]
-  } else {
-    return pos.bitboards[BLACK_BISHOP]
-  }
+	if side == WHITE {
+		return pos.bitboards[WHITE_BISHOP]
+	} else {
+		return pos.bitboards[BLACK_BISHOP]
+	}
 }
 
 // drawAvailableBy50MoveRule returns whenever if possible to claim draw by the
 // 50 move rule
 func (pos *Position) drawAvailableBy50MoveRule() bool {
-  return pos.halfmoveClock >= 50
+	return pos.halfmoveClock >= 50
 }
 
 // Print prints the Position to the terminal from white's view perspective

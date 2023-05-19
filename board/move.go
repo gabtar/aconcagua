@@ -1,5 +1,7 @@
 package board
 
+import "fmt"
+
 // Type of move
 const(
   NORMAL = 1    // Normal push to an empty sqaure
@@ -17,4 +19,12 @@ type Move struct {
   piece int
   promotedTo int
   moveType int
+}
+
+// String returns the move string
+func (m Move) String() string {
+  return fmt.Sprintf(
+    "%s -> %s",
+    m.from, 
+    m.to)
 }

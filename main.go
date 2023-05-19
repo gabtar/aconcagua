@@ -1,29 +1,34 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 
 	"github.com/gabtar/aconcagua/board"
+	"github.com/gabtar/aconcagua/search"
 )
 
 func main() {
-  initialPos := "r3r1k1/pp3pbp/1qp1b1p1/2B5/2BP4/Q1n2N2/P4PPP/3R1K1R w - - 4 18" // 41 legal moves for white
-	pos := board.From(initialPos)
-	pos.Print()
 
-	legalMoves := pos.LegalMoves(board.WHITE)
-	fmt.Println()
-	fmt.Println("Moves for white: ", len(legalMoves))
-	//
- //  // Show all moves
-	// for _, move := range pos.LegalMoves(board.WHITE) {
-	// 	fmt.Println(move)
-	// }
-  fmt.Println("Fen: " + pos.ToFen())
-  move := legalMoves[0]
-  fmt.Println("MOVE: ", move)
+	fenPtr := flag.String("fen", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "A valid fen string")
+	depthPtr := flag.Int("depth", 3, "The numbers of moves to look ahead in the position")
+	flag.Parse()
 
-  newPos := pos.MakeMove(&move)
-  newPos.Print()
-  fmt.Println("Fen: " + newPos.ToFen())
+	// Load position
+	pos := board.From(*fenPtr)
+
+	// Start minmax in engine
+	bestMoveScore, bestMoveTrace := search.BestMove(pos, *depthPtr)
+
+	// Print best move trace
+	fmt.Println("Score: ", bestMoveScore)
+	for i, move := range bestMoveTrace {
+		if i%2 == 0 {
+			fmt.Print(i / 2)
+			fmt.Print(": ")
+		}
+		fmt.Print(move)
+		fmt.Print(", ")
+	}
+
 }

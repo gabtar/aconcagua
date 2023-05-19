@@ -1,6 +1,8 @@
 package board
 
-import "testing"
+import (
+	"testing"
+)
 
 // Position tests
 
@@ -325,6 +327,21 @@ func TestNotInsuficientMaterial(t *testing.T) {
 
   expected := false
   got := pos.InsuficientMaterial()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+
+func TestCaptureUpdatesPosition(t *testing.T) {
+  pos := From("7k/8/8/8/3p4/4P3/8/7K w - - 0 1")
+  move := &Move{from: "e3", to: "d4", piece: WHITE_PAWN, moveType: CAPTURE}
+
+  newPos := pos.MakeMove(move)
+
+  expected := "7k/8/8/8/3P4/8/8/7K b - - 0 1"
+  got :=  newPos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
