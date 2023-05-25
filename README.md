@@ -23,7 +23,6 @@ Score:  330
 ### TODO:
 
 #### Move generation:
-- [ ] Fix some specific move errors. Eg. In a situation a pawn can capture diagonally and also foward(?). There may be anothers
 - [ ] Threefold repetition - Insuficient information on the position struct. I need to store the previous positions fens to check if there is a repetition.
 
 #### Evaluation:

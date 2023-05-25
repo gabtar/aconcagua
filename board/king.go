@@ -52,3 +52,34 @@ func (k *King) role() int {
     return BLACK_KING
   }
 }
+
+// validMoves returns an slice of the valid moves for the King in the position
+func (k *King) validMoves(pos *Position) (moves []Move) {
+  destinationsBB := k.Moves(pos)
+  opponentPieces := pos.Pieces(opponentSide(k.color))
+  piece := WHITE_KING
+  if k.color == BLACK {
+    piece = BLACK_KING
+  }
+
+  for destinationsBB > 0 {
+    square := Bitboard(0b1 << bsf(destinationsBB))
+    if opponentPieces & square > 0 {
+      moves = append(moves, Move{
+        from: squareMap[bsf(k.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: CAPTURE,
+      })
+    } else {
+      moves = append(moves, Move{
+        from: squareMap[bsf(k.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: NORMAL,
+      })
+    }
+    destinationsBB ^= Bitboard(square)
+  }
+  return
+}

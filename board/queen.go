@@ -64,3 +64,34 @@ func (q *Queen) role() int {
     return BLACK_QUEEN
   }
 }
+
+// validMoves returns an slice of the valid moves for the Queen in the position
+func (q *Queen) validMoves(pos *Position) (moves []Move){
+  destinationsBB := q.Moves(pos)
+  opponentPieces := pos.Pieces(opponentSide(q.color))
+  piece := WHITE_QUEEN
+  if q.color == BLACK {
+    piece = BLACK_QUEEN
+  }
+
+  for destinationsBB > 0 {
+    square := Bitboard(0b1 << bsf(destinationsBB))
+    if opponentPieces & square > 0 {
+      moves = append(moves, Move{
+        from: squareMap[bsf(q.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: CAPTURE,
+      })
+    } else {
+      moves = append(moves, Move{
+        from: squareMap[bsf(q.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: NORMAL,
+      })
+    }
+    destinationsBB ^= Bitboard(square)
+  }
+  return
+}

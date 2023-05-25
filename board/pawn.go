@@ -66,3 +66,61 @@ func (p *Pawn) role() int {
     return BLACK_PAWN
   }
 }
+
+// validMoves returns an slice of the valid moves for the Pawn in the position
+func (p *Pawn) validMoves(pos *Position) (moves []Move){
+  destinationsBB := p.Moves(pos)
+  opponentPieces := pos.Pieces(opponentSide(p.color))
+  piece := WHITE_PAWN
+  doublePushFrom := ranks[1]
+  doublePushRank := ranks[3]
+  queeningRank := ranks[7]
+  promotions := []int{WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN}
+  if p.color == BLACK {
+    queeningRank = ranks[0]
+    doublePushFrom = ranks[6]
+    doublePushRank = ranks[4]
+    piece = BLACK_PAWN
+    promotions = []int{BLACK_KNIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN}
+  }
+
+  for destinationsBB > 0 {
+    destSq := Bitboard(0b1 << bsf(destinationsBB))
+
+    switch {
+    case (opponentPieces & destSq) > 0:
+      moves = append(moves, Move{
+        from: squareMap[bsf(p.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: CAPTURE,
+      })
+    case (destSq & doublePushRank) > 0 && (p.square & doublePushFrom) > 0:
+      moves = append(moves, Move{
+        from: squareMap[bsf(p.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: PAWN_DOUBLE_PUSH,
+      })
+    case (destSq & queeningRank) > 0:
+			for _, promotedRole := range promotions {
+      moves = append(moves, Move{
+        from: squareMap[bsf(p.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        promotedTo: promotedRole,
+        moveType: PROMOTION,
+      })
+      }
+    default:
+      moves = append(moves, Move{
+        from: squareMap[bsf(p.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: NORMAL,
+      })
+    }
+    destinationsBB ^= destSq
+  }
+  return
+}

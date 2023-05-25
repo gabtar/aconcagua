@@ -188,35 +188,12 @@ func (pos *Position) ToMove() rune {
 
 // LegalMoves returns an slice of Move of all legal moves for the side passed
 func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
-	opponentPieces := pos.Pieces(opponentSide(side))
 	piecesSq := pos.Pieces(side).ToStringSlice()
 
-	for _, from := range piecesSq {
-		piece, _ := pos.PieceAt(from)
-		destinations := piece.Moves(pos).ToStringSlice()
-
-		// MOVES / CAPTURES / PROMOTIONS
-		// TODO pawn double push move
-		for _, to := range destinations {
-			pieceBB := piece.Square()
-			isWhitePawn := pieceBB&pos.bitboards[WHITE_PAWN] > 0
-			isBlackPawn := pieceBB&pos.bitboards[BLACK_PAWN] > 0
-
-			if opponentPieces&squareToBitboard([]string{to}) > 0 {
-				legalMoves = append(legalMoves, Move{from: from, to: to, piece: piece.role(), moveType: CAPTURE})
-			} else if isWhitePawn && (from[1] == '7') {
-				for _, promotedRole := range []int{WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN} {
-					legalMoves = append(legalMoves, Move{from: from, to: to, piece: piece.role(), moveType: PROMOTION, promotedTo: promotedRole})
-				}
-			} else if isBlackPawn && (from[1] == '2') {
-				for _, promotedRole := range []int{BLACK_KNIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN} {
-					legalMoves = append(legalMoves, Move{from: from, to: to, piece: piece.role(), moveType: PROMOTION, promotedTo: promotedRole})
-				}
-			} else {
-				legalMoves = append(legalMoves, Move{from: from, to: to, piece: piece.role(), moveType: NORMAL})
-			}
-		}
-	}
+  for _, from := range piecesSq {
+    piece, _ := pos.PieceAt(from)
+    legalMoves = append(legalMoves, piece.validMoves(pos)...)
+  }
 	// CASTLE
 	legalMoves = append(legalMoves, pos.legalCastles(side)...)
 	// EN PASSANT
@@ -255,7 +232,7 @@ func (pos *Position) legalCastles(side rune) (castle []Move) {
 	return
 }
 
-// legalEnPassant returns if there are any legal en passant move for the side passed
+// legalEnPassant returns the en passant moves in the position
 func (pos *Position) legalEnPassant(side rune) (enPassant []Move) {
 	epTarget := pos.enPassantTarget
 

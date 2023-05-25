@@ -13,6 +13,7 @@ type Piece interface {
 	Color() rune
 	IsSliding() bool
   role() int
+  validMoves(pos *Position) []Move
 }
 
 // Constants for orthogonal directions in the board

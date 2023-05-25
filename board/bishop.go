@@ -63,3 +63,34 @@ func (b *Bishop) role() int {
     return BLACK_BISHOP
   }
 }
+
+// validMoves returns an slice of the valid moves for the Bishop in the position
+func (b *Bishop) validMoves(pos *Position) (moves []Move){
+  destinationsBB := b.Moves(pos)
+  opponentPieces := pos.Pieces(opponentSide(b.color))
+  piece := WHITE_BISHOP
+  if b.color == BLACK {
+    piece = BLACK_BISHOP
+  }
+
+  for destinationsBB > 0 {
+    square := Bitboard(0b1 << bsf(destinationsBB))
+    if opponentPieces & square > 0 {
+      moves = append(moves, Move{
+        from: squareMap[bsf(b.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: CAPTURE,
+      })
+    } else {
+      moves = append(moves, Move{
+        from: squareMap[bsf(b.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: NORMAL,
+      })
+    }
+    destinationsBB ^= Bitboard(square)
+  }
+  return
+}

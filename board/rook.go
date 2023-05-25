@@ -63,3 +63,34 @@ func (r *Rook) role() int {
     return BLACK_ROOK
   }
 }
+
+// validMoves returns an slice of the valid moves for the Rook in the position
+func (r *Rook) validMoves(pos *Position) (moves []Move){
+  destinationsBB := r.Moves(pos)
+  opponentPieces := pos.Pieces(opponentSide(r.color))
+  piece := WHITE_ROOK
+  if r.color == BLACK {
+    piece = BLACK_ROOK
+  }
+
+  for destinationsBB > 0 {
+    square := Bitboard(0b1 << bsf(destinationsBB))
+    if opponentPieces & square > 0 {
+      moves = append(moves, Move{
+        from: squareMap[bsf(r.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: CAPTURE,
+      })
+    } else {
+      moves = append(moves, Move{
+        from: squareMap[bsf(r.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: NORMAL,
+      })
+    }
+    destinationsBB ^= Bitboard(square)
+  }
+  return
+}

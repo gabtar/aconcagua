@@ -22,7 +22,6 @@ func minmax(pos board.Position, depth int, white bool, moveTrace []board.Move) (
 			newPos := pos.MakeMove(&move)
       newMoves := append(moveTrace, move)
       newScore, newMoveTrace := minmax(newPos, depth - 1, false, newMoves)
-
       if newScore > score {
         score = newScore
         moves = newMoveTrace
@@ -41,7 +40,6 @@ func minmax(pos board.Position, depth int, white bool, moveTrace []board.Move) (
       }
 		}
 	}
-
 	return
 }
 

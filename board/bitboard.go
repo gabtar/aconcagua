@@ -53,14 +53,6 @@ const ALL_SQUARES Bitboard = 0xFFFFFFFFFFFFFFFF
 // Bitboard represents a bitboard as a 64bit integer
 type Bitboard uint64
 
-// type Printer interface {
-// 	Print()
-// }
-//
-// type BitboardConverter interface {
-//   ToStringSlice() (squares []string)
-// }
-
 // Print draws a Bitboard in the terminal in a 'prettier' way
 func (b Bitboard) Print() {
 	binary := strconv.FormatUint(uint64(b), 2)
@@ -103,8 +95,6 @@ func (b Bitboard) ToStringSlice() (squares []string){
   }
   return
 }
-
-// FROM -> https://www.chessprogramming.org/BitScan
 
 // bsf (bit scan forward) returns the bit-index of the least significant 1 
 // bit (LS1B) in an integer Bitboard(uint64)

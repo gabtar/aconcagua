@@ -65,3 +65,16 @@ func TestKingMovesWhenInCheck(t *testing.T) {
 	}
 }
 
+func TestKingValidMoves(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(WHITE_KING, "e1")
+	pos.AddPiece(BLACK_ROOK, "h1")
+	king, _ := pos.PieceAt("e1")
+
+	expected := 3
+	got := len(king.validMoves(pos))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

@@ -11,19 +11,6 @@ type Knight struct {
 // -------------
 // Attacks returns all squares that a Knight attacks in a chess board
 func (k *Knight) Attacks(pos *Position) (attacks Bitboard) {
-	//  Bitwise displacements for all possible Knight attacks
-	//   -------------------------------
-	//   |     |<<15 |     |<<17 |     |
-	//   -------------------------------
-	//   |<<10 |     |     |     | <<6 |
-	//   -------------------------------
-	//   |     |     |  K  |     |     |
-	//   -------------------------------
-	//   |>>6  |     |     |     | >>10|
-	//   -------------------------------
-	//   |     |>>15 |     |>>17 |     |
-	//   -------------------------------
-
 	// Removes moves when in corner squares
 	notInHFile := k.square & ^(k.square & files[7])
 	notInAFile := k.square & ^(k.square & files[0])
@@ -71,4 +58,35 @@ func (k *Knight) role() int {
   } else {
     return BLACK_KNIGHT
   }
+}
+
+// validMoves returns an slice of the valid moves for the Knight in the position
+func (k *Knight) validMoves(pos *Position) (moves []Move){
+  destinationsBB := k.Moves(pos)
+  opponentPieces := pos.Pieces(opponentSide(k.color))
+  piece := WHITE_KNIGHT
+  if k.color == BLACK {
+    piece = BLACK_KNIGHT
+  }
+
+  for destinationsBB > 0 {
+    square := Bitboard(0b1 << bsf(destinationsBB))
+    if opponentPieces & square > 0 {
+      moves = append(moves, Move{
+        from: squareMap[bsf(k.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: CAPTURE,
+      })
+    } else {
+      moves = append(moves, Move{
+        from: squareMap[bsf(k.square)],
+        to: squareMap[bsf(destinationsBB)],
+        piece: piece,
+        moveType: NORMAL,
+      })
+    }
+    destinationsBB ^= Bitboard(square)
+  }
+  return
 }
