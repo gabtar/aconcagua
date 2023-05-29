@@ -12,8 +12,8 @@ type Piece interface {
 	Square() Bitboard
 	Color() rune
 	IsSliding() bool
-  role() int
-  validMoves(pos *Position) []Move
+	role() int
+	validMoves(pos *Position) []Move
 }
 
 // Constants for orthogonal directions in the board
@@ -142,24 +142,28 @@ func isPinned(piece Bitboard, side rune, pos *Position) bool {
 	case NORTH, EAST, NORTHEAST, NORTHWEST:
 		firstBB := bitboardFromIndex(bsf(piecesInLine))
 		secondBB := bitboardFromIndex(bsf(piecesInLine & ^firstBB))
-		// secondBB := Bitboard(0b1 << bits.TrailingZeros64(uint64(piecesInLine & ^firstBB)))
-    pieceOne, _ := pos.PieceAt(squareMap[bsf(firstBB)])
-    pieceTwo, _ := pos.PieceAt(squareMap[bsf(secondBB)])
 
-    if pieceOne.Color() != pieceTwo.Color() {
-      return true
-    }
+		pieceOne, _ := pos.PieceAt(squareMap[bsf(firstBB)])
+		pieceTwo, _ := pos.PieceAt(squareMap[bsf(secondBB)])
+
+    withoutPinnedPiece := pos.RemovePiece(firstBB)
+
+		if pieceOne.Color() != pieceTwo.Color() && (pieceTwo.Attacks(&withoutPinnedPiece) & kingBB) > 0 {
+			return true
+		}
 
 	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
 		firstBB := bitboardFromIndex(63 - bsr(piecesInLine))
 		secondBB := bitboardFromIndex(63 - bsr(piecesInLine & ^firstBB))
 
-    pieceOne, _ := pos.PieceAt(squareMap[bsf(firstBB)])
-    pieceTwo, _ := pos.PieceAt(squareMap[bsf(secondBB)])
+		pieceOne, _ := pos.PieceAt(squareMap[bsf(firstBB)])
+		pieceTwo, _ := pos.PieceAt(squareMap[bsf(secondBB)])
 
-    if pieceOne.Color() != pieceTwo.Color() {
-      return true
-    }
+    withoutPinnedPiece := pos.RemovePiece(firstBB)
+
+		if pieceOne.Color() != pieceTwo.Color() && (pieceTwo.Attacks(&withoutPinnedPiece) & kingBB) > 0{
+			return true
+		}
 	}
 	return false
 }
@@ -183,8 +187,8 @@ func getDirection(piece1 Bitboard, piece2 Bitboard) (dir uint64) {
 	//   ----------------------
 	//   | -1-1 | +1+0 | -1+1 |
 	//   ----------------------
-  fileDiff := (bsf(piece1) % 8) - (bsf(piece2) % 8)
-  rankDiff := (bsf(piece1) / 8) - (bsf(piece2) / 8)
+	fileDiff := (bsf(piece1) % 8) - (bsf(piece2) % 8)
+	rankDiff := (bsf(piece1) / 8) - (bsf(piece2) / 8)
 	absFileDiff := math.Abs(float64(fileDiff))
 	absRankDiff := math.Abs(float64(rankDiff))
 
@@ -246,35 +250,35 @@ func getRayPath(from Bitboard, to Bitboard) (rayPath Bitboard) {
 
 // pinRestrictedDirection returns a bitboard with the restricted direction of moves
 func pinRestrictedDirection(piece Bitboard, side rune, pos *Position) (restrictedDirection Bitboard) {
-  restrictedDirection = ALL_SQUARES // No initial restrictions
-  kingBB := pos.KingPosition(side)
+	restrictedDirection = ALL_SQUARES // No initial restrictions
+	kingBB := pos.KingPosition(side)
 
 	if isPinned(piece, side, pos) {
 		direction := getDirection(kingBB, piece)
 		allowedMovesDirection := raysDirection(kingBB, direction)
 		restrictedDirection = allowedMovesDirection
 	}
-  return
+	return
 }
 
 // checkRestrictedMoves returns a bitboard with the allowed squares to block
 // the path or capture the checking piece if in check
-func checkRestrictedMoves(piece Bitboard, side rune, pos *Position) (allowedSquares Bitboard){
-  checkingPieces := pos.CheckingPieces(side)
+func checkRestrictedMoves(piece Bitboard, side rune, pos *Position) (allowedSquares Bitboard) {
+	checkingPieces := pos.CheckingPieces(side)
 
-  switch {
-  case len(checkingPieces) == 0:
-    // No restriction
-    allowedSquares = ALL_SQUARES
-  case len(checkingPieces) == 1:
-    // Capture or block the path
-    checker := checkingPieces[0]
+	switch {
+	case len(checkingPieces) == 0:
+		// No restriction
+		allowedSquares = ALL_SQUARES
+	case len(checkingPieces) == 1:
+		// Capture or block the path
+		checker := checkingPieces[0]
 
-    if checker.IsSliding() {
-      allowedSquares |= getRayPath(checker.Square(), pos.KingPosition(side))
-    }
-    allowedSquares |= checker.Square()
-  }
-  // If there are more than 2 CheckingPieces it cant move at all (default allowedSquares value = 0)
-  return
+		if checker.IsSliding() {
+			allowedSquares |= getRayPath(checker.Square(), pos.KingPosition(side))
+		}
+		allowedSquares |= checker.Square()
+	}
+	// If there are more than 2 CheckingPieces it cant move at all (default allowedSquares value = 0)
+	return
 }

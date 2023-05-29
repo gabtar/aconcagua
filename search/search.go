@@ -9,35 +9,44 @@ import (
 
 // minmax searchs the best move in the position using the minmax algorithm
 func minmax(pos board.Position, depth int, white bool, moveTrace []board.Move) (score float64, moves []board.Move) {
+	if pos.Checkmate(pos.ToMove()) {
+		score = math.Inf(1)
+		if pos.ToMove() == board.BLACK {
+			math.Inf(-1)
+		}
+		moves = moveTrace
+		return
+	}
+
 	if depth == 0 {
 		score = evaluation.Evaluate(pos)
-    moves = moveTrace
+		moves = moveTrace
 		return
 	}
 
 	if white {
 		score = math.Inf(-1)
 
-		for _, move := range pos.LegalMoves(board.WHITE) {
+		for _, move := range pos.LegalMoves(pos.ToMove()) {
 			newPos := pos.MakeMove(&move)
-      newMoves := append(moveTrace, move)
-      newScore, newMoveTrace := minmax(newPos, depth - 1, false, newMoves)
-      if newScore > score {
-        score = newScore
-        moves = newMoveTrace
-      }
+			newMoves := append(moveTrace, move)
+			newScore, newMoveTrace := minmax(newPos, depth-1, false, newMoves)
+			if newScore > score {
+				score = newScore
+				moves = newMoveTrace
+			}
 		}
 	} else {
 		score = math.Inf(1)
 
-		for _, move := range pos.LegalMoves(board.BLACK) {
+		for _, move := range pos.LegalMoves(pos.ToMove()) {
 			newPos := pos.MakeMove(&move)
-      newMoves := append(moveTrace, move)
-      newScore, newMoveTrace := minmax(newPos, depth - 1, true, newMoves)
-      if newScore < score {
-        score = newScore
-        moves = newMoveTrace
-      }
+			newMoves := append(moveTrace, move)
+			newScore, newMoveTrace := minmax(newPos, depth-1, true, newMoves)
+			if newScore < score {
+				score = newScore
+				moves = newMoveTrace
+			}
 		}
 	}
 	return

@@ -29,14 +29,16 @@ const (
 )
 
 // Maps squares to uint64 (the index of the array is the bit position on a bitboard that represents that square)
-var squareMap = []string{"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+var squareMap = []string{
+	"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 	"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
 	"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
 	"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
 	"a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
 	"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
 	"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
-	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"}
+	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
+}
 
 // Reference for fen string conversion to internal struct
 var pieceReference = map[string]int{
@@ -183,17 +185,17 @@ func (pos *Position) NumberOfPieces(pieceType int) int {
 
 // ToMove returns the side to move in the current position
 func (pos *Position) ToMove() rune {
-  return pos.turn
+	return pos.turn
 }
 
 // LegalMoves returns an slice of Move of all legal moves for the side passed
 func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
 	piecesSq := pos.Pieces(side).ToStringSlice()
 
-  for _, from := range piecesSq {
-    piece, _ := pos.PieceAt(from)
-    legalMoves = append(legalMoves, piece.validMoves(pos)...)
-  }
+	for _, from := range piecesSq {
+		piece, _ := pos.PieceAt(from)
+		legalMoves = append(legalMoves, piece.validMoves(pos)...)
+	}
 	// CASTLE
 	legalMoves = append(legalMoves, pos.legalCastles(side)...)
 	// EN PASSANT
