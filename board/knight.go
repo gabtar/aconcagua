@@ -46,7 +46,7 @@ func (k *Knight) Color() rune {
 }
 
 // Returns if the piece is an sliding piece(bishops, rooks, queens)
-// TODO refactor to a function instead of part of the interface?
+// TODO: refactor to a function instead of part of the interface?
 func (k *Knight) IsSliding() bool {
 	return false
 }

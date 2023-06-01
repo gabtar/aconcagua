@@ -17,7 +17,7 @@ func TestCheckingPieces(t *testing.T) {
 
 	included := false
 	for _, piece := range expected {
-		// TODO, need to check properly equality on interfaces!
+		// TODO: need to check properly equality on interfaces!
 		if piece.Attacks(pos) == got.Attacks(pos) {
 			included = true
 		}
@@ -227,7 +227,7 @@ func TestFenSerializationFromPosition(t *testing.T) {
 	}
 }
 
-// TODO checkmate and stealmate position tests!!!!
+// TODO: checkmate and stealmate position tests!!!!
 func TestBlackIsInCheckmate(t *testing.T) {
 
   pos := From("4R2k/r5pp/8/8/8/8/PPP5/1K6 b - - 0 1")

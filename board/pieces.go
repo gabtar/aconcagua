@@ -117,7 +117,7 @@ var raysAttacks [8][64]Bitboard = [8][64]Bitboard{
 
 // isPinned returns if the passed piece is pinned in the passed position
 func isPinned(piece Bitboard, side rune, pos *Position) bool {
-	// TODO, quedo medio fea..., pero funciona bien
+  // TODO: quedo medio fea..., pero funciona bien
 	kingBB := pos.KingPosition(side)
 	// FIX: Es necesario porque en algunos test no hay rey en la posicion
 	if kingBB == 0 {

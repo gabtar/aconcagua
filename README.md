@@ -17,6 +17,8 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 #### Move generation:
 - [x] Fix pin detection
 - [x] Fix sometimes a black pawn in edges returns illegal moves
+- [ ] Fix illegal black castle in some games aconcagua vs aconcagua!!!
+- [ ] Fix long castle for white, not updates black to move
 - [ ] Threefold repetition.
 
 #### Evaluation:

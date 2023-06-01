@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/gabtar/aconcagua/board"
@@ -85,14 +86,18 @@ func Start() {
 				fen := strings.Join(parts[2:], " ")
 				pos = board.From(fen)
 			}
+      hasMoves, _ := regexp.MatchString("moves", command)
 
-			if len(parts) > 2 && parts[2] == "moves" {
-				moves := parts[3:]
+			if hasMoves {
+        // Match de moves para adelante
+        re := regexp.MustCompile("(?:moves )(.+)")
+        movesList := re.FindString(command)
+        moves := strings.Split(movesList, " ")
 				for _, move := range moves {
 					// Find the move that matches the uci command and perform on the position
 					for _, legalMove := range pos.LegalMoves(pos.ToMove()) {
 						if legalMove.ToUci() == move {
-							// TODO, check other ways to dereference
+							// TODO: check other ways to dereference
 							pos = func(p board.Position) *board.Position { return &p }(pos.MakeMove(&legalMove))
 						}
 					}
@@ -139,8 +144,8 @@ func Start() {
 			// * infinite
 			// 	search until the "stop" command. Do not exit the search without being told so in this mode!
 
-			// TODO fixed depth for now
-			_, bestMove := search.BestMove(pos, 3)
+      // TODO: fixed depth for now
+			_, bestMove := search.BestMove(pos, 4)
 			fmt.Println("bestmove", bestMove[0].ToUci())
 		default:
 			fmt.Println("Invalid command:", command)

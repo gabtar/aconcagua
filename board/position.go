@@ -295,7 +295,6 @@ func (pos *Position) MakeMove(move *Move) (newPos Position) {
 		}
 		updateCastleRights(&newPos, move)
 	case PAWN_DOUBLE_PUSH:
-		// TODO/FIX need to generate the dobule push type when moving a pawn in move generation function
 		// Add ep target sq
 		if move.piece == WHITE_PAWN {
 			newPos.enPassantTarget = squareToBitboard([]string{move.to}) >> 8
@@ -315,7 +314,7 @@ func (pos *Position) MakeMove(move *Move) (newPos Position) {
 		// Reset halfmoveClock
 		newPos.halfmoveClock = 0
 	case CASTLE:
-		// TODO i need to figure out another way of implement this
+    // TODO: i need to figure out another way of implement this
 		newPos = moveRookOnCastleMove(newPos, move)
 		// Update castle rights
 		updateCastleRights(&newPos, move)
@@ -515,7 +514,7 @@ func (pos *Position) drawAvailableBy50MoveRule() bool {
 
 // Print prints the Position to the terminal from white's view perspective
 func (pos *Position) Print() {
-	// TODO add coordinates/unicode chars for pieces
+  // TODO: add coordinates/unicode chars for pieces
 	board := toRuneArray(pos)
 
 	currentSq := 63

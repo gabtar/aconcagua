@@ -32,6 +32,15 @@ var pieceScoreMap = map[int]float64{
 // Evaluate scores out the position in centipawns for a given a position of the board
 // TODO: Add piece value based on piece-square tables
 func Evaluate(pos board.Position) (score float64) {
+  // Set checkmate as 10 kings value
+  // TODO: should evaluate checkmate in number of moves. eg mate in 2 is better than a mate in 3
+  if pos.Checkmate(board.WHITE) {
+    return - 10 * pieceScoreMap[board.WHITE_KING]
+  }
+  if pos.Checkmate(board.BLACK) {
+    return 10 * pieceScoreMap[board.BLACK_KING]
+  }
+
   // Sum the score of the pieces of the side and then subtract them
   whiteMaterial := calculateMaterial(pos, board.WHITE)
   blackMaterial := calculateMaterial(pos, board.BLACK)
