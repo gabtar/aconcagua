@@ -24,7 +24,7 @@ func (k *King) Attacks(pos *Position) (attacks Bitboard) {
 func (k *King) Moves(pos *Position) (moves Bitboard) {
 	// King can only move to an empty square or capture an opponent piece not defended by
 	// opposite side
-  withoutKing := pos.RemovePiece(k.square)
+	withoutKing := pos.RemovePiece(k.square)
 	moves = k.Attacks(pos) & ^withoutKing.AttackedSquares(opponentSide(k.color)) & ^pos.Pieces(k.color)
 	return
 }
@@ -46,40 +46,40 @@ func (k *King) IsSliding() bool {
 
 // role Returns the role of the piece in the board
 func (k *King) role() int {
-  if k.color == WHITE {
-    return WHITE_KING
-  } else {
-    return BLACK_KING
-  }
+	if k.color == WHITE {
+		return WHITE_KING
+	} else {
+		return BLACK_KING
+	}
 }
 
 // validMoves returns an slice of the valid moves for the King in the position
 func (k *King) validMoves(pos *Position) (moves []Move) {
-  destinationsBB := k.Moves(pos)
-  opponentPieces := pos.Pieces(opponentSide(k.color))
-  piece := WHITE_KING
-  if k.color == BLACK {
-    piece = BLACK_KING
-  }
+	destinationsBB := k.Moves(pos)
+	opponentPieces := pos.Pieces(opponentSide(k.color))
+	piece := WHITE_KING
+	if k.color == BLACK {
+		piece = BLACK_KING
+	}
 
-  for destinationsBB > 0 {
-    square := Bitboard(0b1 << bsf(destinationsBB))
-    if opponentPieces & square > 0 {
-      moves = append(moves, Move{
-        from: squareMap[bsf(k.square)],
-        to: squareMap[bsf(destinationsBB)],
-        piece: piece,
-        moveType: CAPTURE,
-      })
-    } else {
-      moves = append(moves, Move{
-        from: squareMap[bsf(k.square)],
-        to: squareMap[bsf(destinationsBB)],
-        piece: piece,
-        moveType: NORMAL,
-      })
-    }
-    destinationsBB ^= Bitboard(square)
-  }
-  return
+	for destinationsBB > 0 {
+		square := Bitboard(0b1 << bsf(destinationsBB))
+		if opponentPieces&square > 0 {
+			moves = append(moves, Move{
+				from:     squareMap[bsf(k.square)],
+				to:       squareMap[bsf(destinationsBB)],
+				piece:    piece,
+				moveType: CAPTURE,
+			})
+		} else {
+			moves = append(moves, Move{
+				from:     squareMap[bsf(k.square)],
+				to:       squareMap[bsf(destinationsBB)],
+				piece:    piece,
+				moveType: NORMAL,
+			})
+		}
+		destinationsBB ^= Bitboard(square)
+	}
+	return
 }

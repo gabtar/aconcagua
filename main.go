@@ -30,6 +30,6 @@ func main() {
 	// 	fmt.Print(", ")
 	// }
 
-  // Runs the engine uci linstening mode
-  engine.Start()
+	// Runs the engine uci linstening mode
+	engine.Start()
 }

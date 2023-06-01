@@ -184,7 +184,7 @@ func TestLegalMovesOnAPositionIllegalLongCastle(t *testing.T) {
 }
 
 func TestLegalMovesOnAPositionWithDoubleEnPassantCaptures(t *testing.T) {
-  pos := From("6k1/5bpp/8/1PpPN3/8/8/6PP/6K1 w - c6 0 1")
+	pos := From("6k1/5bpp/8/1PpPN3/8/8/6PP/6K1 w - c6 0 1")
 
 	expected := 19
 	got := len(pos.LegalMoves(WHITE))
@@ -195,7 +195,7 @@ func TestLegalMovesOnAPositionWithDoubleEnPassantCaptures(t *testing.T) {
 }
 
 func TestLegalMovesOnMultiplePinsWithCheck(t *testing.T) {
-  pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/1R4K1 b - - 0 1")
+	pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/1R4K1 b - - 0 1")
 
 	expected := 5
 	got := len(pos.LegalMoves(BLACK))
@@ -206,7 +206,7 @@ func TestLegalMovesOnMultiplePinsWithCheck(t *testing.T) {
 }
 
 func TestLegalMovesOnMultiplePinsWithCheckTwo(t *testing.T) {
-  pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/2R3K1 b - - 0 1")
+	pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/2R3K1 b - - 0 1")
 
 	expected := 4 // 3 of king 1 block of the knight
 	got := len(pos.LegalMoves(BLACK))
@@ -217,10 +217,10 @@ func TestLegalMovesOnMultiplePinsWithCheckTwo(t *testing.T) {
 }
 
 func TestFenSerializationFromPosition(t *testing.T) {
-  pos := InitialPosition()
+	pos := InitialPosition()
 
-  expected := "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" 
-  got := pos.ToFen()
+	expected := "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+	got := pos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -230,10 +230,10 @@ func TestFenSerializationFromPosition(t *testing.T) {
 // TODO: checkmate and stealmate position tests!!!!
 func TestBlackIsInCheckmate(t *testing.T) {
 
-  pos := From("4R2k/r5pp/8/8/8/8/PPP5/1K6 b - - 0 1")
+	pos := From("4R2k/r5pp/8/8/8/8/PPP5/1K6 b - - 0 1")
 
-  expected := true
-  got := pos.Checkmate(BLACK)
+	expected := true
+	got := pos.Checkmate(BLACK)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -242,10 +242,10 @@ func TestBlackIsInCheckmate(t *testing.T) {
 
 func TestBlackIsNotInCheckmate(t *testing.T) {
 
-  pos := From("4R2k/r5pp/8/8/8/1b6/PPP5/1K6 b - - 0 1")
+	pos := From("4R2k/r5pp/8/8/8/1b6/PPP5/1K6 b - - 0 1")
 
-  expected := false
-  got := pos.Checkmate(BLACK)
+	expected := false
+	got := pos.Checkmate(BLACK)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -254,10 +254,10 @@ func TestBlackIsNotInCheckmate(t *testing.T) {
 
 func TestBlackIsNotInCheckmate2(t *testing.T) {
 
-  pos := From("4R2k/6pp/8/1b6/8/8/PPP5/1K6 b - - 0 1")
+	pos := From("4R2k/6pp/8/1b6/8/8/PPP5/1K6 b - - 0 1")
 
-  expected := false
-  got := pos.Checkmate(BLACK)
+	expected := false
+	got := pos.Checkmate(BLACK)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -266,10 +266,10 @@ func TestBlackIsNotInCheckmate2(t *testing.T) {
 
 func TestBlackIsInStealmate(t *testing.T) {
 
-  pos := From("7k/6pn/6P1/3B4/7Q/7p/PPP4R/1K6 b - - 0 1")
+	pos := From("7k/6pn/6P1/3B4/7Q/7p/PPP4R/1K6 b - - 0 1")
 
-  expected := true
-  got := pos.Stealmate(BLACK)
+	expected := true
+	got := pos.Stealmate(BLACK)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -278,22 +278,21 @@ func TestBlackIsInStealmate(t *testing.T) {
 
 func TestBlackIsNotInStealmate(t *testing.T) {
 
-  pos := From("7k/6pn/6P1/3B4/p6Q/7p/PPP4R/1K6 b - - 0 1")
+	pos := From("7k/6pn/6P1/3B4/p6Q/7p/PPP4R/1K6 b - - 0 1")
 
-  expected := false
-  got := pos.Stealmate(BLACK)
+	expected := false
+	got := pos.Stealmate(BLACK)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
 
-
 func TestInsuficientMaterialKingVsKing(t *testing.T) {
-  pos := From("8/8/3k4/8/1K6/8/8/8 w - - 0 1")
+	pos := From("8/8/3k4/8/1K6/8/8/8 w - - 0 1")
 
-  expected := true
-  got := pos.InsuficientMaterial()
+	expected := true
+	got := pos.InsuficientMaterial()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -301,10 +300,10 @@ func TestInsuficientMaterialKingVsKing(t *testing.T) {
 }
 
 func TestInsuficientMaterialKingAndKnightVsKing(t *testing.T) {
-  pos := From("8/8/3k4/8/1K6/1N6/8/8 w - - 0 1")
+	pos := From("8/8/3k4/8/1K6/1N6/8/8 w - - 0 1")
 
-  expected := true
-  got := pos.InsuficientMaterial()
+	expected := true
+	got := pos.InsuficientMaterial()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -312,10 +311,10 @@ func TestInsuficientMaterialKingAndKnightVsKing(t *testing.T) {
 }
 
 func TestInsuficientMaterialKingAndBishopVsKingAndKnight(t *testing.T) {
-  pos := From("K7/8/3B4/4n3/8/8/7k/8 w - - 0 1")
+	pos := From("K7/8/3B4/4n3/8/8/7k/8 w - - 0 1")
 
-  expected := true
-  got := pos.InsuficientMaterial()
+	expected := true
+	got := pos.InsuficientMaterial()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -323,25 +322,24 @@ func TestInsuficientMaterialKingAndBishopVsKingAndKnight(t *testing.T) {
 }
 
 func TestNotInsuficientMaterial(t *testing.T) {
-  pos := From("8/6R1/8/8/8/8/K6k/8 w - - 0 1")
+	pos := From("8/6R1/8/8/8/8/K6k/8 w - - 0 1")
 
-  expected := false
-  got := pos.InsuficientMaterial()
+	expected := false
+	got := pos.InsuficientMaterial()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
 
-
 func TestCaptureUpdatesPosition(t *testing.T) {
-  pos := From("7k/8/8/8/3p4/4P3/8/7K w - - 0 1")
-  move := &Move{from: "e3", to: "d4", piece: WHITE_PAWN, moveType: CAPTURE}
+	pos := From("7k/8/8/8/3p4/4P3/8/7K w - - 0 1")
+	move := &Move{from: "e3", to: "d4", piece: WHITE_PAWN, moveType: CAPTURE}
 
-  newPos := pos.MakeMove(move)
+	newPos := pos.MakeMove(move)
 
-  expected := "7k/8/8/8/3P4/8/8/7K b - - 0 1"
-  got :=  newPos.ToFen()
+	expected := "7k/8/8/8/3P4/8/8/7K b - - 0 1"
+	got := newPos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

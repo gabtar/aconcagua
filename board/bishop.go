@@ -34,9 +34,9 @@ func (b *Bishop) Attacks(pos *Position) (attacks Bitboard) {
 
 // Moves returns a bitboard with the legal squares the Bishop can move to in a chess position
 func (b *Bishop) Moves(pos *Position) (moves Bitboard) {
-	moves = b.Attacks(pos) & ^pos.Pieces(b.color) & 
-          pinRestrictedDirection(b.square, b.color, pos) &
-          checkRestrictedMoves(b.square, b.color, pos)
+	moves = b.Attacks(pos) & ^pos.Pieces(b.color) &
+		pinRestrictedDirection(b.square, b.color, pos) &
+		checkRestrictedMoves(b.square, b.color, pos)
 	return
 }
 
@@ -57,40 +57,40 @@ func (b *Bishop) IsSliding() bool {
 
 // role Returns the role of the piece in the board
 func (b *Bishop) role() int {
-  if b.color == WHITE {
-    return WHITE_BISHOP
-  } else {
-    return BLACK_BISHOP
-  }
+	if b.color == WHITE {
+		return WHITE_BISHOP
+	} else {
+		return BLACK_BISHOP
+	}
 }
 
 // validMoves returns an slice of the valid moves for the Bishop in the position
-func (b *Bishop) validMoves(pos *Position) (moves []Move){
-  destinationsBB := b.Moves(pos)
-  opponentPieces := pos.Pieces(opponentSide(b.color))
-  piece := WHITE_BISHOP
-  if b.color == BLACK {
-    piece = BLACK_BISHOP
-  }
+func (b *Bishop) validMoves(pos *Position) (moves []Move) {
+	destinationsBB := b.Moves(pos)
+	opponentPieces := pos.Pieces(opponentSide(b.color))
+	piece := WHITE_BISHOP
+	if b.color == BLACK {
+		piece = BLACK_BISHOP
+	}
 
-  for destinationsBB > 0 {
-    square := Bitboard(0b1 << bsf(destinationsBB))
-    if opponentPieces & square > 0 {
-      moves = append(moves, Move{
-        from: squareMap[bsf(b.square)],
-        to: squareMap[bsf(destinationsBB)],
-        piece: piece,
-        moveType: CAPTURE,
-      })
-    } else {
-      moves = append(moves, Move{
-        from: squareMap[bsf(b.square)],
-        to: squareMap[bsf(destinationsBB)],
-        piece: piece,
-        moveType: NORMAL,
-      })
-    }
-    destinationsBB ^= Bitboard(square)
-  }
-  return
+	for destinationsBB > 0 {
+		square := Bitboard(0b1 << bsf(destinationsBB))
+		if opponentPieces&square > 0 {
+			moves = append(moves, Move{
+				from:     squareMap[bsf(b.square)],
+				to:       squareMap[bsf(destinationsBB)],
+				piece:    piece,
+				moveType: CAPTURE,
+			})
+		} else {
+			moves = append(moves, Move{
+				from:     squareMap[bsf(b.square)],
+				to:       squareMap[bsf(destinationsBB)],
+				piece:    piece,
+				moveType: NORMAL,
+			})
+		}
+		destinationsBB ^= Bitboard(square)
+	}
+	return
 }

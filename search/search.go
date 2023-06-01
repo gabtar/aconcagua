@@ -26,12 +26,12 @@ func minmax(pos board.Position, depth int, alpha float64, beta float64, moveTrac
 				score = newScore
 				moves = newMoveTrace
 			}
-      if score > alpha {
-        alpha = score
-      }
-      if beta <= alpha {
-        break
-      }
+			if score > alpha {
+				alpha = score
+			}
+			if beta <= alpha {
+				break
+			}
 		}
 	} else {
 		score = math.Inf(1)
@@ -44,12 +44,12 @@ func minmax(pos board.Position, depth int, alpha float64, beta float64, moveTrac
 				score = newScore
 				moves = newMoveTrace
 			}
-      if score < beta {
-        beta = score
-      }
-      if beta <= alpha {
-        break
-      }
+			if score < beta {
+				beta = score
+			}
+			if beta <= alpha {
+				break
+			}
 		}
 	}
 	return
