@@ -6,10 +6,10 @@ import "fmt"
 const (
 	NORMAL           = 1 // Normal push to an empty sqaure
 	PAWN_DOUBLE_PUSH = 2
-	CAPTURE          = 3
+	CASTLE           = 3
 	EN_PASSANT       = 4
-	CASTLE           = 5
-	PROMOTION        = 6
+	PROMOTION        = 5
+	CAPTURE          = 6
 )
 
 // Represents a move of chess

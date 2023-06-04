@@ -14,19 +14,19 @@ func (b *Bishop) Attacks(pos *Position) (attacks Bitboard) {
 	blockers := ^pos.EmptySquares()
 
 	for _, direction := range []uint64{NORTHEAST, SOUTHEAST, SOUTHWEST, NORTHWEST} {
-		attacks |= raysAttacks[direction][bsf(b.square)]
-		blockersInDirection := blockers & raysAttacks[direction][bsf(b.square)]
+		attacks |= raysAttacks[direction][Bsf(b.square)]
+		blockersInDirection := blockers & raysAttacks[direction][Bsf(b.square)]
 		nearestBlocker := Bitboard(0)
 
 		switch direction {
 		case NORTHEAST, NORTHWEST:
-			nearestBlocker = bitboardFromIndex(bsf(blockersInDirection))
+			nearestBlocker = BitboardFromIndex(Bsf(blockersInDirection))
 		case SOUTHEAST, SOUTHWEST:
-			nearestBlocker = bitboardFromIndex(63 - bsr(blockersInDirection))
+			nearestBlocker = BitboardFromIndex(63 - Bsr(blockersInDirection))
 		}
 
 		if nearestBlocker > 0 {
-			attacks &= ^raysAttacks[direction][bsf(nearestBlocker)]
+			attacks &= ^raysAttacks[direction][Bsf(nearestBlocker)]
 		}
 	}
 	return
@@ -74,18 +74,18 @@ func (b *Bishop) validMoves(pos *Position) (moves []Move) {
 	}
 
 	for destinationsBB > 0 {
-		square := Bitboard(0b1 << bsf(destinationsBB))
+		square := Bitboard(0b1 << Bsf(destinationsBB))
 		if opponentPieces&square > 0 {
 			moves = append(moves, Move{
-				from:     squareMap[bsf(b.square)],
-				to:       squareMap[bsf(destinationsBB)],
+				from:     squareMap[Bsf(b.square)],
+				to:       squareMap[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: CAPTURE,
 			})
 		} else {
 			moves = append(moves, Move{
-				from:     squareMap[bsf(b.square)],
-				to:       squareMap[bsf(destinationsBB)],
+				from:     squareMap[Bsf(b.square)],
+				to:       squareMap[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: NORMAL,
 			})

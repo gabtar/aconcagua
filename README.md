@@ -17,16 +17,15 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 #### Move generation:
 - [x] Fix pin detection
 - [x] Fix sometimes a black pawn in edges returns illegal moves
-- [ ] Fix illegal black castle in some games aconcagua vs aconcagua!!!
-- [ ] Fix long castle for white, not updates black to move
 - [ ] Threefold repetition.
 
 #### Evaluation:
-- [ ] Add piece square tables to evaluation
+- [x] Add piece square tables to evaluation
 
 #### Search:
-- [ ] Add alpha-beta prunning
+- [x] Add alpha-beta prunning
 - [ ] Add check, stealmate, etc detection while searching
 
 ### Engine
-- [ ] Fix - Panic before checkmate
+- [x] Fix - Panic before checkmate
+- [ ] Handle uci commands in async mode

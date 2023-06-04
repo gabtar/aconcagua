@@ -31,6 +31,8 @@ import (
 
 // Start enables the uci protocol comunication with the chess engine for gui interfaces
 func Start() {
+  // TODO: use go routines/async comunication with the engine
+  // uci protocol says: * the engine must always be able to process input from stdin, even while thinking.
 	reader := bufio.NewReader(os.Stdin)
 
 	// New Engine position
@@ -145,6 +147,7 @@ func Start() {
 			// 	search until the "stop" command. Do not exit the search without being told so in this mode!
 
 			// TODO: fixed depth for now
+			// Maybe i can make a depth based on the number of pieces in the board
 			_, bestMove := search.BestMove(pos, 4)
 			fmt.Println("bestmove", bestMove[0].ToUci())
 		default:

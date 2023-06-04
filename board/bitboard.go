@@ -79,7 +79,7 @@ func reverseArray(arr []string) []string {
 func (b Bitboard) count() int {
 	count := 0
 	for b > 0 {
-		b &= ^(0b1 << bsf(b))
+		b &= ^(0b1 << Bsf(b))
 		count++
 	}
 
@@ -90,26 +90,26 @@ func (b Bitboard) count() int {
 // in the bitboard
 func (b Bitboard) ToStringSlice() (squares []string) {
 	for b > 0 {
-		squares = append(squares, squareMap[bsf(b)])
-		b -= (1 << bsf(b))
+		squares = append(squares, squareMap[Bsf(b)])
+		b -= (1 << Bsf(b))
 	}
 	return
 }
 
 // bsf (bit scan forward) returns the bit-index of the least significant 1
 // bit (LS1B) in an integer Bitboard(uint64)
-func bsf(bitboard Bitboard) int {
+func Bsf(bitboard Bitboard) int {
 	return bits.TrailingZeros64(uint64(bitboard))
 }
 
 // bsr (bit scan reverse) returns the bit-index of the most significant 1
 // bit (MS1B) in an integer Bitboard(uint64)
-func bsr(bitboard Bitboard) int {
+func Bsr(bitboard Bitboard) int {
 	return bits.LeadingZeros64(uint64(bitboard))
 }
 
 // bitboardFromIndex is a factory that returns a bitboard from an index square
-func bitboardFromIndex(index int) (bitboard Bitboard) {
+func BitboardFromIndex(index int) (bitboard Bitboard) {
 	// NOTE: Since bitscan cannot be used with empty sets i use this guard clause to
 	// ensure returning a valid bitboard for the engine
 	if index > 63 || index < 0 {

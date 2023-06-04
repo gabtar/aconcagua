@@ -3,6 +3,7 @@ package board
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -178,6 +179,15 @@ func (pos Position) RemovePiece(piece Bitboard) Position {
 	return newPos
 }
 
+// Bitboards returns all the bitboards for the passed side
+func (pos *Position) Bitboards(side rune) (bitboards []Bitboard) {
+	bitboards = pos.bitboards[:6]
+	if side == BLACK {
+		bitboards = pos.bitboards[6:]
+	}
+	return
+}
+
 // NumberOfPieces return the number of pieces of the type passed
 func (pos *Position) NumberOfPieces(pieceType int) int {
 	return pos.bitboards[pieceType].count()
@@ -200,6 +210,12 @@ func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
 	legalMoves = append(legalMoves, pos.legalCastles(side)...)
 	// EN PASSANT
 	legalMoves = append(legalMoves, pos.legalEnPassant(side)...)
+
+	// TODO: Move ordering. Captures are more likely to generate cutoff in the search
+	// Need to find how to evaluate how good a move is to generate cutoff...
+	sort.Slice(legalMoves, func(i, j int) bool {
+		return legalMoves[i].moveType > legalMoves[j].moveType
+	})
 	return
 }
 
@@ -255,6 +271,17 @@ func (pos *Position) legalEnPassant(side rune) (enPassant []Move) {
 		}
 	}
 	return
+}
+
+// Endgame criteria
+// Both sides have no queens or
+// TODO: Every side which has a queen has additionally no other pieces or one minorpiece maximum.
+func (pos *Position) IsEndgame() bool {
+	// Both sides no queen
+	if (pos.bitboards[WHITE_QUEEN] | pos.bitboards[BLACK_QUEEN]) > 0 {
+		return false
+	}
+	return true
 }
 
 // posiblesEpCapturers returns a bitboard with the pawns that are attacking

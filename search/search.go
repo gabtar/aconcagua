@@ -7,8 +7,8 @@ import (
 	"github.com/gabtar/aconcagua/evaluation"
 )
 
-// negamaxAlphaBeta returns the bestMove score and the move sequence
-func minmax(pos board.Position, depth int, alpha float64, beta float64, moveTrace []board.Move) (score float64, moves []board.Move) {
+// minmax returns the bestMove score and the move sequence
+func minmax(pos board.Position, depth int, alpha int, beta int, moveTrace []board.Move) (score int, moves []board.Move) {
 	if depth == 0 || pos.Checkmate(board.WHITE) || pos.Checkmate(board.BLACK) {
 		score = evaluation.Evaluate(pos)
 		moves = moveTrace
@@ -16,7 +16,7 @@ func minmax(pos board.Position, depth int, alpha float64, beta float64, moveTrac
 	}
 
 	if pos.ToMove() == board.WHITE {
-		score = math.Inf(-1)
+		score = math.MinInt
 
 		for _, move := range pos.LegalMoves(pos.ToMove()) {
 			newPos := pos.MakeMove(&move)
@@ -34,7 +34,7 @@ func minmax(pos board.Position, depth int, alpha float64, beta float64, moveTrac
 			}
 		}
 	} else {
-		score = math.Inf(1)
+		score = math.MaxInt
 
 		for _, move := range pos.LegalMoves(pos.ToMove()) {
 			newPos := pos.MakeMove(&move)
@@ -57,8 +57,8 @@ func minmax(pos board.Position, depth int, alpha float64, beta float64, moveTrac
 
 // BestMove returns the best move sequence in the position (for the current side)
 // with its score evaluation.
-func BestMove(pos *board.Position, depth int) (bestMoveScore float64, bestMoves []board.Move) {
-	bestMoveScore, bestMoves = minmax(*pos, depth, math.Inf(-1), math.Inf(1), bestMoves)
+func BestMove(pos *board.Position, depth int) (bestMoveScore int, bestMoves []board.Move) {
+	bestMoveScore, bestMoves = minmax(*pos, depth, math.MinInt, math.MaxInt, bestMoves)
 
 	return
 }

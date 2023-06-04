@@ -14,20 +14,20 @@ func (q *Queen) Attacks(pos *Position) (attacks Bitboard) {
 	blockers := ^pos.EmptySquares()
 
 	for _, direction := range []uint64{NORTH, NORTHEAST, EAST, SOUTHEAST, SOUTH, SOUTHWEST, WEST, NORTHWEST} {
-		attacks |= raysAttacks[direction][bsf(q.square)]
-		blockersInDirection := blockers & raysAttacks[direction][bsf(q.square)]
+		attacks |= raysAttacks[direction][Bsf(q.square)]
+		blockersInDirection := blockers & raysAttacks[direction][Bsf(q.square)]
 		nearestBlocker := Bitboard(0)
 
 		switch direction {
 		case NORTH, EAST, NORTHEAST, NORTHWEST:
-			nearestBlocker = bitboardFromIndex(bsf(blockersInDirection))
+			nearestBlocker = BitboardFromIndex(Bsf(blockersInDirection))
 		case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
-			nearestBlocker = bitboardFromIndex(63 - bsr(blockersInDirection))
+			nearestBlocker = BitboardFromIndex(63 - Bsr(blockersInDirection))
 		}
 
 		// Need this becuase if its zero, LeadingZeros returns the length of uint64 and goes out of bounds
 		if nearestBlocker > 0 {
-			attacks &= ^raysAttacks[direction][bsf(nearestBlocker)]
+			attacks &= ^raysAttacks[direction][Bsf(nearestBlocker)]
 		}
 	}
 	return
@@ -75,18 +75,18 @@ func (q *Queen) validMoves(pos *Position) (moves []Move) {
 	}
 
 	for destinationsBB > 0 {
-		square := Bitboard(0b1 << bsf(destinationsBB))
+		square := Bitboard(0b1 << Bsf(destinationsBB))
 		if opponentPieces&square > 0 {
 			moves = append(moves, Move{
-				from:     squareMap[bsf(q.square)],
-				to:       squareMap[bsf(destinationsBB)],
+				from:     squareMap[Bsf(q.square)],
+				to:       squareMap[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: CAPTURE,
 			})
 		} else {
 			moves = append(moves, Move{
-				from:     squareMap[bsf(q.square)],
-				to:       squareMap[bsf(destinationsBB)],
+				from:     squareMap[Bsf(q.square)],
+				to:       squareMap[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: NORMAL,
 			})

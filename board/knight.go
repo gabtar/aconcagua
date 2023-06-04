@@ -70,18 +70,18 @@ func (k *Knight) validMoves(pos *Position) (moves []Move) {
 	}
 
 	for destinationsBB > 0 {
-		square := Bitboard(0b1 << bsf(destinationsBB))
+		square := Bitboard(0b1 << Bsf(destinationsBB))
 		if opponentPieces&square > 0 {
 			moves = append(moves, Move{
-				from:     squareMap[bsf(k.square)],
-				to:       squareMap[bsf(destinationsBB)],
+				from:     squareMap[Bsf(k.square)],
+				to:       squareMap[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: CAPTURE,
 			})
 		} else {
 			moves = append(moves, Move{
-				from:     squareMap[bsf(k.square)],
-				to:       squareMap[bsf(destinationsBB)],
+				from:     squareMap[Bsf(k.square)],
+				to:       squareMap[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: NORMAL,
 			})
