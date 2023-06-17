@@ -1,6 +1,8 @@
 package board
 
-import "testing"
+import (
+	"testing"
+)
 
 // Bishop moves tests
 func TestBishopAttacksOnEmptyBoard(t *testing.T) {

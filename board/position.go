@@ -358,7 +358,7 @@ func (pos *Position) MakeMove(move *Move) (newPos Position) {
 	}
 
 	// Update Turn/color to move
-	newPos.turn = opponentSide(newPos.turn)
+	newPos.turn = opponentSide(pos.turn)
 	// Add piece to destination sqaure
 	newPos.AddPiece(pieceToAdd, move.to)
 	return

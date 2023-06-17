@@ -153,10 +153,12 @@ func kingScore(bitboard board.Bitboard, side rune, endGame bool) (score int) {
 	bitScanFunction := getBitscanFunction(side)
 	score += pieceScoreMap[KING]
 
-	if endGame {
-		score += kingEndGameBonus[bitScanFunction(bitboard)]
-	} else {
-		score += kingMiddleGameBonus[bitScanFunction(bitboard)]
+	if bitboard > 0 {
+		if endGame {
+			score += kingEndGameBonus[bitScanFunction(bitboard)]
+		} else {
+			score += kingMiddleGameBonus[bitScanFunction(bitboard)]
+		}
 	}
 	return
 }
@@ -195,7 +197,7 @@ func bishopScore(bitboard board.Bitboard, side rune) (score int) {
 	for bitboard > 0 {
 		bishop := board.BitboardFromIndex(board.Bsf(bitboard))
 		score += pieceScoreMap[BISHOP]
-		score += rookBonus[bitScanFunction(bishop)]
+		score += bishopBonus[bitScanFunction(bishop)]
 
 		bitboard &= ^bishop
 	}
@@ -209,7 +211,7 @@ func knightScore(bitboard board.Bitboard, side rune) (score int) {
 	for bitboard > 0 {
 		knight := board.BitboardFromIndex(board.Bsf(bitboard))
 		score += pieceScoreMap[KNIGHT]
-		score += rookBonus[bitScanFunction(knight)]
+		score += knightBonus[bitScanFunction(knight)]
 
 		bitboard &= ^knight
 	}

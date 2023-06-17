@@ -83,13 +83,12 @@ func Uci(cmd chan string, output chan string) {
 			// TODO: set flag on engine that its calculating
 			// TODO: parse depth, time, other paramterts
 			score, bestMove := search.BestMove(pos, 4)
-			output <- "bestmove " + bestMove[0].ToUci()
 			output <- "info score cp " + strconv.Itoa(score)
+			output <- "bestmove " + bestMove.ToUci()
 
 			// TODO:  ----------- only for testing internal state via uci command line ----------------
 		case "printboard":
 			pos.Print()
-
 		default:
 			output <- "invalid command"
 		}

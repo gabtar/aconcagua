@@ -133,9 +133,19 @@ func TestBlackPawnInA4Moves(t *testing.T) {
 	expected := squareToBitboard(expectedSquares)
 	got := pawn.Moves(pos)
 
-	// for _, move := range pawn.validMoves(pos) {
-	// 	fmt.Println(move)
-	// }
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnIsNotPinnedIfCapturesThePinnedPiece(t *testing.T) {
+	pos := From("r1bqkbnr/7p/2p1p1p1/p1pp1p1Q/P4P2/3PP3/1PPBN1PP/RN3RK1 b kq - 1 9")
+	pawn, _ := pos.PieceAt("g6")
+
+	expectedSquares := []string{"h5"}
+
+	expected := squareToBitboard(expectedSquares)
+	got := pawn.Moves(pos)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
