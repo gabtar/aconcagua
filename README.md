@@ -24,7 +24,7 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 #### Evaluation:
 - [x] Add piece square tables to evaluation
 - [ ] Mobility
-- [ ] Trapped pieces
+- [ ] Tapered Eval
 
 #### Search:
 - [x] Add alpha-beta prunning

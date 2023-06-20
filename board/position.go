@@ -59,8 +59,8 @@ var pieceReference = map[string]int{
 
 // Position contains all information about a chess position
 type Position struct {
-	// bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
-	bitboards       [12]Bitboard
+	// Bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
+	Bitboards       [12]Bitboard
 	turn            rune
 	castlingRights  string
 	enPassantTarget Bitboard
@@ -72,7 +72,7 @@ type Position struct {
 func (pos *Position) PieceAt(square string) (piece Piece, e error) {
 	bitboardSquare := squareToBitboard([]string{square})
 
-	for role, bitboard := range pos.bitboards {
+	for role, bitboard := range pos.Bitboards {
 		if bitboard&bitboardSquare > 0 {
 			piece = makePiece(role, bitboardSquare)
 		}
@@ -86,7 +86,7 @@ func (pos *Position) PieceAt(square string) (piece Piece, e error) {
 // addPiece adds a new Piece to the Position
 func (pos *Position) AddPiece(role int, square string) {
 	bitboardSquare := squareToBitboard([]string{square})
-	pos.bitboards[role] |= bitboardSquare
+	pos.Bitboards[role] |= bitboardSquare
 }
 
 // emptySquares returns a Bitboard with the empty sqaures of the position
@@ -94,7 +94,7 @@ func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 	// Set all as empty
 	emptySquares = 0xFFFFFFFFFFFFFFFF
 
-	for _, bitboard := range pos.bitboards {
+	for _, bitboard := range pos.Bitboards {
 		emptySquares &= ^bitboard
 	}
 	return
@@ -108,7 +108,7 @@ func (pos *Position) AttackedSquares(side rune) (attackedSquares Bitboard) {
 	}
 
 	for currentBitboard := startingBitboard; currentBitboard-startingBitboard < 6; currentBitboard++ {
-		for _, square := range pos.bitboards[currentBitboard].ToStringSlice() {
+		for _, square := range pos.Bitboards[currentBitboard].ToStringSlice() {
 			piece, _ := pos.PieceAt(square)
 			attackedSquares |= piece.Attacks(pos)
 		}
@@ -142,7 +142,7 @@ func (pos *Position) Pieces(side rune) (pieces Bitboard) {
 		startingBitboard = 6
 	}
 	for currentBitboard := startingBitboard; currentBitboard-startingBitboard < 6; currentBitboard++ {
-		pieces |= pos.bitboards[currentBitboard]
+		pieces |= pos.Bitboards[currentBitboard]
 	}
 	return
 }
@@ -160,9 +160,9 @@ func (pos *Position) Check(side rune) (inCheck bool) {
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side rune) (king Bitboard) {
 	if side == WHITE {
-		king = pos.bitboards[WHITE_KING]
+		king = pos.Bitboards[WHITE_KING]
 	} else {
-		king = pos.bitboards[BLACK_KING]
+		king = pos.Bitboards[BLACK_KING]
 	}
 	return
 }
@@ -171,26 +171,17 @@ func (pos *Position) KingPosition(side rune) (king Bitboard) {
 func (pos Position) RemovePiece(piece Bitboard) Position {
 	newPos := pos
 
-	for role, bitboard := range newPos.bitboards {
+	for role, bitboard := range newPos.Bitboards {
 		if bitboard&piece > 0 {
-			newPos.bitboards[role] &= ^piece
+			newPos.Bitboards[role] &= ^piece
 		}
 	}
 	return newPos
 }
 
-// Bitboards returns all the bitboards for the passed side
-func (pos *Position) Bitboards(side rune) (bitboards []Bitboard) {
-	bitboards = pos.bitboards[:6]
-	if side == BLACK {
-		bitboards = pos.bitboards[6:]
-	}
-	return
-}
-
 // NumberOfPieces return the number of pieces of the type passed
 func (pos *Position) NumberOfPieces(pieceType int) int {
-	return pos.bitboards[pieceType].count()
+	return pos.Bitboards[pieceType].count()
 }
 
 // ToMove returns the side to move in the current position
@@ -278,7 +269,7 @@ func (pos *Position) legalEnPassant(side rune) (enPassant []Move) {
 // TODO: Every side which has a queen has additionally no other pieces or one minorpiece maximum.
 func (pos *Position) IsEndgame() bool {
 	// Both sides no queen
-	if (pos.bitboards[WHITE_QUEEN] | pos.bitboards[BLACK_QUEEN]) > 0 {
+	if (pos.Bitboards[WHITE_QUEEN] | pos.Bitboards[BLACK_QUEEN]) > 0 {
 		return false
 	}
 	return true
@@ -290,11 +281,11 @@ func posiblesEpCapturers(target Bitboard, side rune, pos *Position) (squares Bit
 	if side == WHITE {
 		squares = (target & ^(target & files[7]) >> 7) |
 			(target & ^(target & files[0]) >> 9)
-		squares &= pos.bitboards[WHITE_PAWN]
+		squares &= pos.Bitboards[WHITE_PAWN]
 	} else {
 		squares |= (target & ^(target & files[7]) << 7) |
 			(target & ^(target & files[0]) << 9)
-		squares &= pos.bitboards[BLACK_PAWN]
+		squares &= pos.Bitboards[BLACK_PAWN]
 	}
 	return
 }
@@ -509,9 +500,9 @@ func onlyKingAndKnight(pos *Position, side rune) bool {
 // knights returns the bitboards with the knights of the side passed
 func (pos *Position) knights(side rune) Bitboard {
 	if side == WHITE {
-		return pos.bitboards[WHITE_KNIGHT]
+		return pos.Bitboards[WHITE_KNIGHT]
 	} else {
-		return pos.bitboards[BLACK_KNIGHT]
+		return pos.Bitboards[BLACK_KNIGHT]
 	}
 }
 
@@ -527,9 +518,9 @@ func onlyKingAndBishop(pos *Position, side rune) bool {
 // bishops returns the bitboards with the bishops of the side passed
 func (pos *Position) bishops(side rune) Bitboard {
 	if side == WHITE {
-		return pos.bitboards[WHITE_BISHOP]
+		return pos.Bitboards[WHITE_BISHOP]
 	} else {
-		return pos.bitboards[BLACK_BISHOP]
+		return pos.Bitboards[BLACK_BISHOP]
 	}
 }
 
@@ -564,7 +555,7 @@ func (pos *Position) Print() {
 func toRuneArray(pos *Position) [64]rune {
 	squares := [64]rune{}
 	pieceSymbol := [12]rune{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'}
-	for pieceType, bitboard := range pos.bitboards {
+	for pieceType, bitboard := range pos.Bitboards {
 		for i := 0; i < len(squares); i++ {
 			if bitboard&(0b1<<i) > 0 {
 				squares[i] = pieceSymbol[pieceType]
@@ -632,7 +623,7 @@ func From(fen string) (pos *Position) {
 		for _, piece := range strings.Split(rank, "") {
 			switch piece {
 			case "k", "q", "r", "b", "n", "p", "K", "Q", "R", "B", "N", "P":
-				pos.bitboards[pieceReference[piece]] |= (0b1 << currentSquare)
+				pos.Bitboards[pieceReference[piece]] |= (0b1 << currentSquare)
 				currentSquare++
 			default:
 				currentSquare += int(piece[0]) - 48 // Updates square number

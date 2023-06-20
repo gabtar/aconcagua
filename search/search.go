@@ -30,6 +30,7 @@ import (
 func negamax(pos board.Position, depth int, maxDepth int, alpha int, beta int, bestMove *board.Move) (score int) {
 	// FIX: not working properly -> check with queen sac test!
 	if depth == 0 || pos.Checkmate(board.WHITE) || pos.Checkmate(board.BLACK) {
+		// Color modifier for evaluation
 		color := 1
 		if pos.ToMove() == board.BLACK {
 			color = -1
@@ -58,11 +59,11 @@ func negamax(pos board.Position, depth int, maxDepth int, alpha int, beta int, b
 				*bestMove = move
 			}
 		}
-		if score > alpha {
-			alpha = score
+		if newScore > alpha {
+			alpha = newScore
 		}
-		if beta <= alpha {
-			break
+		if alpha >= beta {
+			return
 		}
 	}
 
@@ -121,11 +122,11 @@ func minmax(pos board.Position, depth int, alpha int, beta int, moveTrace []boar
 // with its score evaluation.
 func BestMove(pos *board.Position, depth int) (bestMoveScore int, bestMove board.Move) {
 
-	bestMoveScore = negamax(*pos, depth, depth, math.MinInt, math.MaxInt, &bestMove)
+	// bestMoveScore = negamax(*pos, depth, depth, math.MinInt, math.MaxInt, &bestMove)
 
-	// var mvs []board.Move
-	// bestMoveScore, bm := minmax(*pos, depth, math.MinInt, math.MaxInt, mvs)
-	// bestMove = bm[0]
+	var mvs []board.Move
+	bestMoveScore, bm := minmax(*pos, depth, math.MinInt, math.MaxInt, mvs)
+	bestMove = bm[0]
 
 	return
 }
