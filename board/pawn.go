@@ -90,23 +90,23 @@ func (p *Pawn) validMoves(pos *Position) (moves []Move) {
 		switch {
 		case (opponentPieces & destSq) > 0:
 			moves = append(moves, Move{
-				from:     squareMap[Bsf(p.square)],
-				to:       squareMap[Bsf(destinationsBB)],
+				from:     squareReference[Bsf(p.square)],
+				to:       squareReference[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: CAPTURE,
 			})
 		case (destSq&doublePushTo) > 0 && (p.square&doublePushFrom) > 0:
 			moves = append(moves, Move{
-				from:     squareMap[Bsf(p.square)],
-				to:       squareMap[Bsf(destinationsBB)],
+				from:     squareReference[Bsf(p.square)],
+				to:       squareReference[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: PAWN_DOUBLE_PUSH,
 			})
 		case (destSq & queeningRank) > 0:
 			for _, promotedRole := range promotions {
 				moves = append(moves, Move{
-					from:       squareMap[Bsf(p.square)],
-					to:         squareMap[Bsf(destinationsBB)],
+					from:       squareReference[Bsf(p.square)],
+					to:         squareReference[Bsf(destinationsBB)],
 					piece:      piece,
 					promotedTo: promotedRole,
 					moveType:   PROMOTION,
@@ -114,8 +114,8 @@ func (p *Pawn) validMoves(pos *Position) (moves []Move) {
 			}
 		default:
 			moves = append(moves, Move{
-				from:     squareMap[Bsf(p.square)],
-				to:       squareMap[Bsf(destinationsBB)],
+				from:     squareReference[Bsf(p.square)],
+				to:       squareReference[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: NORMAL,
 			})

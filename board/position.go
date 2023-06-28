@@ -29,8 +29,9 @@ const (
 	BLACK_PAWN   int = 11
 )
 
-// Maps squares to uint64 (the index of the array is the bit position on a bitboard that represents that square)
-var squareMap = []string{
+// squareReference maps an integer(the index of the array) with the
+// corresponding square by using the notation of Little-Endian Rank-File Mapping
+var squareReference = []string{
 	"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 	"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
 	"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
@@ -62,7 +63,7 @@ type Position struct {
 	// Bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
 	Bitboards       [12]Bitboard
 	turn            rune
-	castlingRights  string
+	castlingRights  castling
 	enPassantTarget Bitboard
 	halfmoveClock   int
 	fullmoveNumber  int
@@ -78,7 +79,7 @@ func (pos *Position) PieceAt(square string) (piece Piece, e error) {
 		}
 	}
 	if piece == nil {
-		e = errors.New("No piece")
+		e = errors.New("no piece")
 	}
 	return
 }
@@ -222,19 +223,20 @@ func (pos *Position) legalCastles(side rune) (castle []Move) {
 	if side == WHITE {
 		canCastleShort := castlePathsBB[0]&(^pos.EmptySquares()|pos.AttackedSquares(opponentSide(side))) == 0
 		canCastleLong := (castlePathsBB[1] & ^pos.EmptySquares())|(passingKingPathBB[1]&pos.AttackedSquares(opponentSide(side))) == 0
-		if strings.Contains(pos.castlingRights, "K") && canCastleShort {
+
+		if pos.castlingRights.canCastle(SHORT_CASTLE_WHITE) && canCastleShort {
 			castle = append(castle, Move{from: "e1", to: "g1", piece: WHITE_KING, moveType: CASTLE})
 		}
-		if strings.Contains(pos.castlingRights, "Q") && canCastleLong {
+		if pos.castlingRights.canCastle(LONG_CASTLE_WHITE) && canCastleLong {
 			castle = append(castle, Move{from: "e1", to: "c1", piece: WHITE_KING, moveType: CASTLE})
 		}
 	} else {
 		canCastleShort := castlePathsBB[2]&(^pos.EmptySquares()|pos.AttackedSquares(opponentSide(side))) == 0
 		canCastleLong := (castlePathsBB[3] & ^pos.EmptySquares())|(passingKingPathBB[3]&pos.AttackedSquares(opponentSide(side))) == 0
-		if strings.Contains(pos.castlingRights, "k") && canCastleShort {
+		if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) && canCastleShort {
 			castle = append(castle, Move{from: "e8", to: "g8", piece: BLACK_KING, moveType: CASTLE})
 		}
-		if strings.Contains(pos.castlingRights, "q") && canCastleLong {
+		if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) && canCastleLong {
 			castle = append(castle, Move{from: "e8", to: "c8", piece: BLACK_KING, moveType: CASTLE})
 		}
 	}
@@ -385,31 +387,24 @@ func moveRookOnCastleMove(newPos Position, move *Move) Position {
 // updateCastleRights updates the castle rigths based on the move passed if the
 // rook or the king has been moved
 func updateCastleRights(pos *Position, move *Move) {
-	currentRights := pos.castlingRights
 	switch move.piece {
 	case WHITE_KING:
-		currentRights = strings.Replace(currentRights, "K", "", 1)
-		currentRights = strings.Replace(currentRights, "Q", "", 1)
+		pos.castlingRights.remove(SHORT_CASTLE_WHITE | LONG_CASTLE_WHITE)
 	case WHITE_ROOK:
 		if move.from == "h1" {
-			currentRights = strings.Replace(currentRights, "K", "", 1)
+			pos.castlingRights.remove(SHORT_CASTLE_WHITE)
 		} else {
-			currentRights = strings.Replace(currentRights, "Q", "", 1)
+			pos.castlingRights.remove(LONG_CASTLE_WHITE)
 		}
 	case BLACK_KING:
-		currentRights = strings.Replace(currentRights, "k", "", 1)
-		currentRights = strings.Replace(currentRights, "q", "", 1)
+		pos.castlingRights.remove(LONG_CASTLE_WHITE | LONG_CASTLE_WHITE)
 	case BLACK_ROOK:
 		if move.from == "h8" {
-			currentRights = strings.Replace(currentRights, "k", "", 1)
+			pos.castlingRights.remove(SHORT_CASTLE_BLACK)
 		} else {
-			currentRights = strings.Replace(currentRights, "q", "", 1)
+			pos.castlingRights.remove(LONG_CASTLE_BLACK)
 		}
 	}
-	if currentRights == "" {
-		currentRights = "-"
-	}
-	pos.castlingRights = currentRights
 }
 
 // ToFen serializes the position as a fen string
@@ -441,7 +436,7 @@ func (pos *Position) ToFen() (fen string) {
 		}
 	}
 	fen += " " + string(pos.turn)
-	fen += " " + pos.castlingRights
+	fen += " " + pos.castlingRights.toFen()
 	if pos.enPassantTarget > 0 {
 		fen += " " + pos.enPassantTarget.ToStringSlice()[0]
 	} else {
@@ -632,7 +627,7 @@ func From(fen string) (pos *Position) {
 		currentSquare -= 16
 	}
 	pos.turn = rune(elements[1][0])
-	pos.castlingRights = elements[2] // Fen string not implies its a legal move. Only says its available
+	pos.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
 	// FIX can be null square '-' and goes segmentation fault/panic!
 	if elements[3] != "-" {
 		pos.enPassantTarget = squareToBitboard([]string{elements[3]})

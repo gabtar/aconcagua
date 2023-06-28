@@ -143,8 +143,8 @@ func isPinned(piece Bitboard, side rune, pos *Position) bool {
 		firstBB := BitboardFromIndex(Bsf(piecesInLine))
 		secondBB := BitboardFromIndex(Bsf(piecesInLine & ^firstBB))
 
-		pieceOne, _ := pos.PieceAt(squareMap[Bsf(firstBB)])
-		pieceTwo, _ := pos.PieceAt(squareMap[Bsf(secondBB)])
+		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
+		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
 
 		withoutPinnedPiece := pos.RemovePiece(firstBB)
 
@@ -156,8 +156,8 @@ func isPinned(piece Bitboard, side rune, pos *Position) bool {
 		firstBB := BitboardFromIndex(63 - Bsr(piecesInLine))
 		secondBB := BitboardFromIndex(63 - Bsr(piecesInLine & ^firstBB))
 
-		pieceOne, _ := pos.PieceAt(squareMap[Bsf(firstBB)])
-		pieceTwo, _ := pos.PieceAt(squareMap[Bsf(secondBB)])
+		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
+		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
 
 		withoutPinnedPiece := pos.RemovePiece(firstBB)
 
@@ -234,10 +234,10 @@ func raysDirection(square Bitboard, direction uint64) Bitboard {
 		rays |= raysAttacks[NORTH][Bsf(square)]
 	case SOUTHWEST:
 		rays |= raysAttacks[NORTHEAST][Bsf(square)]
-  case WEST:
-    rays |= raysAttacks[EAST][Bsf(square)]
-  case NORTHWEST:
-    rays |= raysAttacks[SOUTHEAST][Bsf(square)]
+	case WEST:
+		rays |= raysAttacks[EAST][Bsf(square)]
+	case NORTHWEST:
+		rays |= raysAttacks[SOUTHEAST][Bsf(square)]
 	}
 
 	return rays

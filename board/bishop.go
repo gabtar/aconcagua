@@ -77,15 +77,15 @@ func (b *Bishop) validMoves(pos *Position) (moves []Move) {
 		square := Bitboard(0b1 << Bsf(destinationsBB))
 		if opponentPieces&square > 0 {
 			moves = append(moves, Move{
-				from:     squareMap[Bsf(b.square)],
-				to:       squareMap[Bsf(destinationsBB)],
+				from:     squareReference[Bsf(b.square)],
+				to:       squareReference[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: CAPTURE,
 			})
 		} else {
 			moves = append(moves, Move{
-				from:     squareMap[Bsf(b.square)],
-				to:       squareMap[Bsf(destinationsBB)],
+				from:     squareReference[Bsf(b.square)],
+				to:       squareReference[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: NORMAL,
 			})

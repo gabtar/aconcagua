@@ -78,15 +78,15 @@ func (q *Queen) validMoves(pos *Position) (moves []Move) {
 		square := Bitboard(0b1 << Bsf(destinationsBB))
 		if opponentPieces&square > 0 {
 			moves = append(moves, Move{
-				from:     squareMap[Bsf(q.square)],
-				to:       squareMap[Bsf(destinationsBB)],
+				from:     squareReference[Bsf(q.square)],
+				to:       squareReference[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: CAPTURE,
 			})
 		} else {
 			moves = append(moves, Move{
-				from:     squareMap[Bsf(q.square)],
-				to:       squareMap[Bsf(destinationsBB)],
+				from:     squareReference[Bsf(q.square)],
+				to:       squareReference[Bsf(destinationsBB)],
 				piece:    piece,
 				moveType: NORMAL,
 			})
