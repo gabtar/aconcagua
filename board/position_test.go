@@ -1,6 +1,7 @@
 package board
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -340,6 +341,38 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 
 	expected := "7k/8/8/8/3P4/8/8/7K b - - 0 1"
 	got := newPos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+// TODO: Test moves sequences that generates the same position gets the same zorbitst hash
+func TestZobristUpdate(t *testing.T) {
+	pos := InitialPosition()
+
+	// Normal order 1 2 3 4
+	move1 := &Move{from: "g1", to: "f3", piece: WHITE_PAWN, moveType: NORMAL}
+	move2 := &Move{from: "b8", to: "c6", piece: BLACK_PAWN, moveType: NORMAL}
+	move3 := &Move{from: "b1", to: "c3", piece: WHITE_KNIGHT, moveType: NORMAL}
+	move4 := &Move{from: "g8", to: "f6", piece: BLACK_KNIGHT, moveType: NORMAL}
+
+	pos1 := pos.MakeMove(move1)
+	pos2 := pos1.MakeMove(move2)
+	pos3 := pos2.MakeMove(move3)
+	pos4 := pos3.MakeMove(move4)
+
+	// Invert move order 3 4 1 2 -> Gets the same fen -> "r1bqkb1r/pppppppp/2n2n2/8/8/2N2N2/PPPPPPPP/R1BQKB1R w KQkq - 2 3"
+	pos5 := pos.MakeMove(move3)
+	pos6 := pos5.MakeMove(move4)
+	pos7 := pos6.MakeMove(move1)
+	pos8 := pos7.MakeMove(move2)
+
+	fmt.Println(pos4.ToFen())
+	fmt.Println(pos8.ToFen())
+
+	expected := pos4.Zobrist
+	got := pos8.Zobrist
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

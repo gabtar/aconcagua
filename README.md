@@ -15,8 +15,8 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 ### TODO:
 
 #### Move generation:
-- [ ] Fix pawn move(capture i think) when on an absolute pin(king - pawn)
 - [ ] Refactor move encode
+- [ ] unmakeMove method on position
 - [ ] Add undo move in the position
 - [ ] Refactor move generator
 - [ ] Improve move ordering
@@ -28,7 +28,7 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 #### Search:
 - [x] Add alpha-beta prunning
-- [ ] Use negamax algorithm
+- [x] Use negamax algorithm
 - [ ] Transposition table
 - [ ] Iterative deepening
 - [ ] Aspiration windows
@@ -37,4 +37,4 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 ### Engine
 - [ ] Create an engine struct with main parameters(current best move, depth, etc)
 - [ ] Add remaining uci commands
-- [ ] Detect threefold repetition
+- [ ] Detect threefold repetition - use zobrist hash
