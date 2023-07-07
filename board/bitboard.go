@@ -69,6 +69,13 @@ func (b Bitboard) count() int {
 	return count
 }
 
+// nextOne returns a bitboard with the first bit
+func (b *Bitboard) nextOne() (bb Bitboard) {
+	bb = BitboardFromIndex(Bsf(*b))
+	*b ^= bb
+	return
+}
+
 // ToStringSlice returns an slice of (string)coordinates with the squares occupied
 // in the bitboard
 func (b Bitboard) ToStringSlice() (squares []string) {

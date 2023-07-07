@@ -58,6 +58,7 @@ import (
 func negamax(pos board.Position, depth int, initialDepth int, alpha int, beta int, bestMove *board.Move) (score int) {
 
 	// Check if it's present on the transposition table and return the score
+	// TODO: Implement flags on transpositionTable
 	if ttScore, exists := tt.find(pos.Zobrist); exists {
 		return ttScore
 	}
@@ -105,59 +106,11 @@ func negamax(pos board.Position, depth int, initialDepth int, alpha int, beta in
 	return
 }
 
-// // minmax returns the bestMove score and the move sequence
-// func minmax(pos board.Position, depth int, alpha int, beta int, moveTrace []board.Move) (score int, moves []board.Move) {
-// 	if depth == 0 || pos.Checkmate(board.WHITE) || pos.Checkmate(board.BLACK) {
-// 		score = evaluation.Evaluate(pos)
-// 		moves = moveTrace
-// 		return
-// 	}
-//
-// 	if pos.ToMove() == board.WHITE {
-// 		score = math.MinInt
-//
-// 		for _, move := range pos.LegalMoves(pos.ToMove()) {
-// 			newPos := pos.MakeMove(&move)
-// 			newMoves := append(moveTrace, move)
-// 			newScore, newMoveTrace := minmax(newPos, depth-1, alpha, beta, newMoves)
-// 			if newScore > score {
-// 				score = newScore
-// 				moves = newMoveTrace
-// 			}
-// 			if score > alpha {
-// 				alpha = score
-// 			}
-// 			if beta <= alpha {
-// 				break
-// 			}
-// 		}
-// 	} else {
-// 		score = math.MaxInt
-//
-// 		for _, move := range pos.LegalMoves(pos.ToMove()) {
-// 			newPos := pos.MakeMove(&move)
-// 			newMoves := append(moveTrace, move)
-// 			newScore, newMoveTrace := minmax(newPos, depth-1, alpha, beta, newMoves)
-// 			if newScore < score {
-// 				score = newScore
-// 				moves = newMoveTrace
-// 			}
-// 			if score < beta {
-// 				beta = score
-// 			}
-// 			if beta <= alpha {
-// 				break
-// 			}
-// 		}
-// 	}
-// 	return
-// }
-
 // BestMove returns the best move sequence in the position (for the current side)
 // with its score evaluation.
 func BestMove(pos *board.Position, depth int) (bestMoveScore int, bestMove board.Move) {
 
-	min := math.MinInt + 1 // NOTE: Due to overflow issues i need to fix this way, now negamax works well
+	min := math.MinInt + 1 // NOTE: Due to overflow issues i need to use this way, now negamax works well
 	max := math.MaxInt
 
 	tt = newTranspositionTable()

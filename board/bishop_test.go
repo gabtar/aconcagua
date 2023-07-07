@@ -121,3 +121,22 @@ func TestBishpMovesWhenTheBishopIsPinned(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestBishopRefactoredMoves(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(WHITE_BISHOP, "d4")
+
+	bishop, _ := pos.PieceAt("d4")
+	bishopBB := bishop.Square()
+
+	expected := bishop.Moves(pos)
+	got := bishopLegalMoves(&bishopBB, pos, WHITE)
+
+	// expected.Print()
+	// got.Print()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+}

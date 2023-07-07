@@ -81,3 +81,15 @@ func TestPawnPromotion(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestMoveEncode(t *testing.T) {
+	move := MoveEncode(63, 9, BLACK_BISHOP, 0, NORMAL)
+
+	expected := NORMAL
+	got := move.moveType()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+}

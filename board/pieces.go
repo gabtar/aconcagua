@@ -268,6 +268,9 @@ func pinRestrictedDirection(piece Bitboard, side rune, pos *Position) (restricte
 // checkRestrictedMoves returns a bitboard with the allowed squares to block
 // the path or capture the checking piece if in check
 func checkRestrictedMoves(piece Bitboard, side rune, pos *Position) (allowedSquares Bitboard) {
+	// FIX: need to refactor witout using the piece struct...
+	// Need to return a bitboard of the checking piece...
+	// Need to find a way to detect the type of piece checking -> sliding or not...
 	checkingPieces := pos.CheckingPieces(side)
 
 	switch {

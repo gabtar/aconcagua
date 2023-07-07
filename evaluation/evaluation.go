@@ -14,6 +14,7 @@ import (
 // K = 20000
 
 // Matches the pos.Bitboards order
+// TODO: duplicated in the board package...
 const (
 	WHITE_KING = iota
 	WHITE_QUEEN

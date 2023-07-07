@@ -1,7 +1,6 @@
 package board
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -367,9 +366,6 @@ func TestZobristUpdate(t *testing.T) {
 	pos6 := pos5.MakeMove(move4)
 	pos7 := pos6.MakeMove(move1)
 	pos8 := pos7.MakeMove(move2)
-
-	fmt.Println(pos4.ToFen())
-	fmt.Println(pos8.ToFen())
 
 	expected := pos4.Zobrist
 	got := pos8.Zobrist

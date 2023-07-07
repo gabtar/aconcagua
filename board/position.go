@@ -142,7 +142,7 @@ func (pos *Position) CheckingPieces(side rune) (pieces []Piece) {
 	return
 }
 
-// pieces returns a Bitboard with the pieces of the color pased
+// Pieces returns a Bitboard with the pieces of the color pased
 func (pos *Position) Pieces(side rune) (pieces Bitboard) {
 	startingBitboard := 0
 	if side != WHITE {
@@ -154,7 +154,7 @@ func (pos *Position) Pieces(side rune) (pieces Bitboard) {
 	return
 }
 
-// check returns if the side passed is in check
+// Check returns if the side passed is in check
 func (pos *Position) Check(side rune) (inCheck bool) {
 	kingPos := pos.KingPosition(side)
 
