@@ -97,7 +97,7 @@ func (b *Bishop) validMoves(pos *Position) (moves []Move) {
 
 // getBishopMoves returns a move slice with all the legal moves of a bishop from the bitboard passed
 func getBishopMoves(b *Bitboard, pos *Position, side rune) (moves []move) {
-	movesBB := bishopLegalMoves(b, pos, side)
+	movesBB := bishopMoves(b, pos, side)
 	pieces := ^pos.EmptySquares()
 	from := Bsf(*b)
 	piece := WHITE_BISHOP
@@ -105,26 +105,26 @@ func getBishopMoves(b *Bitboard, pos *Position, side rune) (moves []move) {
 		piece = BLACK_BISHOP
 	}
 
-	to := movesBB.nextOne()
-	for to > 0 {
+	for movesBB > 0 {
+		to := movesBB.nextOne()
 		// bishop moves type only -> capture or normal
 		moveType := NORMAL
 		if to&pieces > 0 {
 			moveType = CAPTURE
 		}
 		moves = append(moves, MoveEncode(from, Bsf(to), piece, 0, moveType))
-		to = movesBB.nextOne()
 	}
 	return
 }
 
-// bishopLegalMoves returns a bitboard with the legal moves of the bishop from the bitboard passed
-func bishopLegalMoves(b *Bitboard, pos *Position, side rune) (moves Bitboard) {
+// bishopMoves returns a bitboard with the legal moves of the bishop from the bitboard passed
+func bishopMoves(b *Bitboard, pos *Position, side rune) (moves Bitboard) {
 	return bishopAttacks(b, pos) & ^pos.Pieces(side) &
 		pinRestrictedDirection(*b, side, pos) &
 		checkRestrictedMoves(*b, side, pos)
 }
 
+// bishopAttacks returns a bitboard with the attacks of a bishop from the bitboard passed
 func bishopAttacks(b *Bitboard, pos *Position) (attacks Bitboard) {
 	square := Bsf(*b)
 

@@ -248,6 +248,11 @@ func raysDirection(square Bitboard, direction uint64) Bitboard {
 func getRayPath(from Bitboard, to Bitboard) (rayPath Bitboard) {
 	fromDirection := getDirection(to, from)
 	toDirection := getDirection(from, to)
+
+	if fromDirection == INVALID || toDirection == INVALID {
+		return
+	}
+
 	rayPath = (raysAttacks[fromDirection][Bsf(from)] & raysAttacks[toDirection][Bsf(to)])
 	return
 }

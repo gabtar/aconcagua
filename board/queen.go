@@ -95,3 +95,25 @@ func (q *Queen) validMoves(pos *Position) (moves []Move) {
 	}
 	return
 }
+
+// getQueenMoves returns a move slice with all the legal moves of a queen from the bitboard passed
+func getQueenMoves(q *Bitboard, pos *Position, side rune) (moves []move) {
+	movesBB := bishopMoves(q, pos, side) | rookMoves(q, pos, side)
+	pieces := ^pos.EmptySquares()
+	from := Bsf(*q)
+	piece := WHITE_QUEEN
+	if side == BLACK {
+		piece = BLACK_QUEEN
+	}
+
+	for movesBB > 0 {
+		to := movesBB.nextOne()
+		// bishop moves type only -> capture or normal
+		moveType := NORMAL
+		if to&pieces > 0 {
+			moveType = CAPTURE
+		}
+		moves = append(moves, MoveEncode(from, Bsf(to), piece, 0, moveType))
+	}
+	return
+}

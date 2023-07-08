@@ -196,14 +196,47 @@ func (pos *Position) ToMove() rune {
 	return pos.turn
 }
 
+func (pos *Position) getBitboards(side rune) (bitboards []Bitboard) {
+	if side == WHITE {
+		bitboards = pos.Bitboards[0:6]
+	} else {
+		bitboards = pos.Bitboards[6:12]
+	}
+	return
+}
+
 // LegalMoves returns an slice of Move of all legal moves for the side passed
 func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
-	piecesSq := pos.Pieces(side).ToStringSlice()
+	// piecesSq := pos.Pieces(side).ToStringSlice()
 
-	for _, from := range piecesSq {
-		piece, _ := pos.PieceAt(from)
-		legalMoves = append(legalMoves, piece.validMoves(pos)...)
+	var refactoredMoves []move
+	bitboards := pos.getBitboards(side)
+
+	for piece, bb := range bitboards {
+		for bb > 0 {
+			pieceBB := bb.nextOne()
+			switch piece {
+			case 0:
+				refactoredMoves = append(refactoredMoves, getKingMoves(&pieceBB, pos, side)...)
+			case 1:
+				refactoredMoves = append(refactoredMoves, getQueenMoves(&pieceBB, pos, side)...)
+			case 2:
+				refactoredMoves = append(refactoredMoves, getRookMoves(&pieceBB, pos, side)...)
+			case 3:
+				refactoredMoves = append(refactoredMoves, getBishopMoves(&pieceBB, pos, side)...)
+			case 4:
+				refactoredMoves = append(refactoredMoves, getKnightMoves(&pieceBB, pos, side)...)
+			case 5:
+				refactoredMoves = append(refactoredMoves, getPawnMoves(&pieceBB, pos, side)...)
+			}
+		}
 	}
+	legalMoves = append(legalMoves, moveMapper(refactoredMoves)...)
+
+	// for _, from := range piecesSq {
+	// 	piece, _ := pos.PieceAt(from)
+	// 	legalMoves = append(legalMoves, piece.validMoves(pos)...)
+	// }
 	// CASTLE
 	legalMoves = append(legalMoves, pos.legalCastles(side)...)
 	// EN PASSANT
@@ -214,6 +247,22 @@ func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
 	sort.Slice(legalMoves, func(i, j int) bool {
 		return legalMoves[i].moveType > legalMoves[j].moveType
 	})
+	return
+}
+
+// FIX: refactor, internal method for testing new move encoding and refactoring
+func moveMapper(inputMoves []move) (outputMoves []Move) {
+	for _, move := range inputMoves {
+		newMove := Move{
+			from:       squareReference[move.from()],
+			to:         squareReference[move.to()],
+			piece:      move.piece(),
+			promotedTo: move.promotedTo(),
+			moveType:   move.moveType(),
+		}
+
+		outputMoves = append(outputMoves, newMove)
+	}
 	return
 }
 

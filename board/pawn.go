@@ -124,3 +124,73 @@ func (p *Pawn) validMoves(pos *Position) (moves []Move) {
 	}
 	return
 }
+
+// pawnMoves returns a bitboard with the squares the pawn can move from the position passed
+// TODO: refactor...
+func getPawnMoves(p *Bitboard, pos *Position, side rune) (moves []move) {
+	destinationsBB := pawnMoves(p, pos, side)
+	opponentPieces := pos.Pieces(opponentSide(side))
+	piece := WHITE_PAWN
+	doublePushFrom := ranks[1]
+	doublePushTo := ranks[3]
+	queeningRank := ranks[7]
+	promotions := []int{WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN}
+	if side == BLACK {
+		queeningRank = ranks[0]
+		doublePushFrom = ranks[6]
+		doublePushTo = ranks[4]
+		piece = BLACK_PAWN
+		promotions = []int{BLACK_KNIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN}
+	}
+
+	for destinationsBB > 0 {
+		destSq := destinationsBB.nextOne()
+
+		switch {
+		case (opponentPieces & destSq) > 0:
+			moves = append(moves, MoveEncode(Bsf(*p), Bsf(destSq), piece, 0, CAPTURE))
+		case (destSq&doublePushTo) > 0 && (*p&doublePushFrom) > 0:
+			moves = append(moves, MoveEncode(Bsf(*p), Bsf(destSq), piece, 0, PAWN_DOUBLE_PUSH))
+		case (destSq & queeningRank) > 0:
+			for _, promotedRole := range promotions {
+				moves = append(moves, MoveEncode(Bsf(*p), Bsf(destSq), piece, promotedRole, PROMOTION))
+			}
+		default:
+			moves = append(moves, MoveEncode(Bsf(*p), Bsf(destSq), piece, 0, NORMAL))
+		}
+	}
+	return
+}
+
+func pawnMoves(p *Bitboard, pos *Position, side rune) (moves Bitboard) {
+	posibleCaptures := pawnAttacks(p, pos, side) & pos.Pieces(opponentSide(side))
+	posiblesMoves := Bitboard(0)
+
+	if side == WHITE {
+		singleMove := *p << 8 & pos.EmptySquares()
+		firstPawnMoveAvailable := (*p & ranks[1]) << 16 & (singleMove << 8) & pos.EmptySquares()
+		posiblesMoves = singleMove | firstPawnMoveAvailable
+	} else {
+		singleMove := *p >> 8 & pos.EmptySquares()
+		firstPawnMoveAvailable := (*p & ranks[6]) >> 16 & (singleMove >> 8) & pos.EmptySquares()
+		posiblesMoves = singleMove | firstPawnMoveAvailable
+	}
+
+	moves = (posibleCaptures | posiblesMoves) &
+		pinRestrictedDirection(*p, side, pos) &
+		checkRestrictedMoves(*p, side, pos)
+	return
+}
+
+// pawnAttacks returns a bitboard with the squares the pawn attacks from the position passed
+func pawnAttacks(p *Bitboard, pos *Position, side rune) (attacks Bitboard) {
+	notInHFile := *p & ^(*p & files[7])
+	notInAFile := *p & ^(*p & files[0])
+
+	if side == WHITE {
+		attacks = notInAFile<<7 | notInHFile<<9
+	} else {
+		attacks = notInAFile>>9 | notInHFile>>7
+	}
+	return
+}

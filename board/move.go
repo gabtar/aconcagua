@@ -4,7 +4,7 @@ import "fmt"
 
 // Type of move
 const (
-	NORMAL           = iota
+	NORMAL = iota
 	PAWN_DOUBLE_PUSH
 	CASTLE
 	EN_PASSANT
@@ -31,22 +31,22 @@ func (m *move) from() int {
 
 // to returns the number of the destination square of the move
 func (m *move) to() int {
-	return int((*m & (0b111111 << 6 )) >> 6)
+	return int((*m & (0b111111 << 6)) >> 6)
 }
 
 // piece returns the piece which is being moved
 func (m *move) piece() int {
-	return int((*m & (0b1111 << 12 )) >> 12)
+	return int((*m & (0b1111 << 12)) >> 12)
 }
 
 // promotedTo returns the piece which is going to be replaced by the pawn
 func (m *move) promotedTo() int {
-	return int((*m & (0b1111 << 16 )) >> 16)
+	return int((*m & (0b1111 << 16)) >> 16)
 }
 
 // moveType returns the type of move
 func (m *move) moveType() int {
-	return int((*m & (0b1111 << 20 )) >> 20)
+	return int((*m & (0b1111 << 20)) >> 20)
 }
 
 func (m *move) ToUci() (uciString string) {
@@ -68,12 +68,12 @@ func (m *move) ToUci() (uciString string) {
 }
 
 // MoveEncode returns a move with the specified values
-func MoveEncode(from int, to int, piece int, promotedTo int, moveType int) (mov move){
+func MoveEncode(from int, to int, piece int, promotedTo int, moveType int) (mov move) {
 	mov |= move(from)
 	mov |= move(to << 6)
 	mov |= move(piece << 12)
-	mov |= move(promotedTo << 18)
-	mov |= move(moveType << 22)
+	mov |= move(promotedTo << 16)
+	mov |= move(moveType << 20)
 	return
 }
 
