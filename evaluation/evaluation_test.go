@@ -10,8 +10,8 @@ import (
 
 func TestSingleKingsOnEndGameEvaluation(t *testing.T) {
 	pos := board.EmptyPosition()
-	pos.AddPiece(board.BLACK_KING, "d4") // King on d4 +40
-	pos.AddPiece(board.WHITE_KING, "e1") // King on e1 -30
+	pos.AddPiece(board.BlackKing, "d4") // King on d4 +40
+	pos.AddPiece(board.WhiteKing, "e1") // King on e1 -30
 
 	expected := -70 // Black king is "better", because it's on the center
 	got := Evaluate(*pos)
@@ -23,7 +23,7 @@ func TestSingleKingsOnEndGameEvaluation(t *testing.T) {
 
 func TestWhitePawnNearQueening(t *testing.T) {
 	pos := board.EmptyPosition()
-	pos.AddPiece(board.WHITE_PAWN, "d7") // Pawn on 7rank +50
+	pos.AddPiece(board.WhitePawn, "d7") // Pawn on 7rank +50
 
 	expected := 150
 	got := Evaluate(*pos)
@@ -35,7 +35,7 @@ func TestWhitePawnNearQueening(t *testing.T) {
 
 func TestBlackPawnNearQueening(t *testing.T) {
 	pos := board.EmptyPosition()
-	pos.AddPiece(board.BLACK_PAWN, "a2") // Pawn on 2rank +50
+	pos.AddPiece(board.BlackPawn, "a2") // Pawn on 2rank +50
 
 	expected := -150 // Black is negative
 	got := Evaluate(*pos)

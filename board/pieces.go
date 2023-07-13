@@ -5,17 +5,6 @@ import (
 	"math"
 )
 
-// Piece is the interface that has all methods for chess pieces
-type Piece interface {
-	Attacks(pos *Position) Bitboard
-	Moves(pos *Position) Bitboard // Legal moves (not including castle or ep)
-	Square() Bitboard
-	Color() rune
-	IsSliding() bool
-	role() int
-	validMoves(pos *Position) []Move
-}
-
 // Constants for orthogonal directions in the board
 const (
 	NORTH     uint64 = 0
@@ -116,7 +105,7 @@ var raysAttacks [8][64]Bitboard = [8][64]Bitboard{
 }
 
 // isPinned returns if the passed piece is pinned in the passed position
-func isPinned(piece Bitboard, side rune, pos *Position) bool {
+func isPinned(piece Bitboard, side Color, pos *Position) bool {
 	// TODO: quedo medio fea..., pero funciona bien
 	kingBB := pos.KingPosition(side)
 	// FIX: Es necesario porque en algunos test no hay rey en la posicion
@@ -148,9 +137,13 @@ func isPinned(piece Bitboard, side rune, pos *Position) bool {
 
 		withoutPinnedPiece := pos.RemovePiece(firstBB)
 
-		if pieceOne.Color() != pieceTwo.Color() && (pieceTwo.Attacks(&withoutPinnedPiece)&kingBB) > 0 {
+		if pieceColor[pieceOne] != pieceColor[pieceTwo] &&
+			(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {
 			return true
 		}
+		// if pieceOne.Color() != pieceTwo.Color() && (pieceTwo.Attacks(&withoutPinnedPiece)&kingBB) > 0 {
+		// 	return true
+		// }
 
 	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
 		firstBB := BitboardFromIndex(63 - Bsr(piecesInLine))
@@ -161,7 +154,8 @@ func isPinned(piece Bitboard, side rune, pos *Position) bool {
 
 		withoutPinnedPiece := pos.RemovePiece(firstBB)
 
-		if pieceOne.Color() != pieceTwo.Color() && (pieceTwo.Attacks(&withoutPinnedPiece)&kingBB) > 0 {
+		if pieceColor[pieceOne] != pieceColor[pieceTwo] &&
+			(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {
 			return true
 		}
 	}
@@ -169,11 +163,11 @@ func isPinned(piece Bitboard, side rune, pos *Position) bool {
 }
 
 // opponentSide returns the opposite color of the passed
-func opponentSide(color rune) rune {
-	if color == BLACK {
-		return WHITE
+func opponentSide(color Color) Color {
+	if color == White {
+		return Black
 	}
-	return BLACK
+	return White
 }
 
 // getDirection returns the direction from piece2 towards piece1 (piece2 -> piece1)
@@ -258,7 +252,7 @@ func getRayPath(from Bitboard, to Bitboard) (rayPath Bitboard) {
 }
 
 // pinRestrictedDirection returns a bitboard with the restricted direction of moves
-func pinRestrictedDirection(piece Bitboard, side rune, pos *Position) (restrictedDirection Bitboard) {
+func pinRestrictedDirection(piece Bitboard, side Color, pos *Position) (restrictedDirection Bitboard) {
 	restrictedDirection = ALL_SQUARES // No initial restrictions
 	kingBB := pos.KingPosition(side)
 
@@ -272,25 +266,37 @@ func pinRestrictedDirection(piece Bitboard, side rune, pos *Position) (restricte
 
 // checkRestrictedMoves returns a bitboard with the allowed squares to block
 // the path or capture the checking piece if in check
-func checkRestrictedMoves(piece Bitboard, side rune, pos *Position) (allowedSquares Bitboard) {
+func checkRestrictedMoves(piece Bitboard, side Color, pos *Position) (allowedSquares Bitboard) {
 	// FIX: need to refactor witout using the piece struct...
 	// Need to return a bitboard of the checking piece...
 	// Need to find a way to detect the type of piece checking -> sliding or not...
 	checkingPieces := pos.CheckingPieces(side)
 
 	switch {
-	case len(checkingPieces) == 0:
+	case checkingPieces.count() == 0:
 		// No restriction
 		allowedSquares = ALL_SQUARES
-	case len(checkingPieces) == 1:
+	case checkingPieces.count() == 1:
 		// Capture or block the path
-		checker := checkingPieces[0]
+		checker := checkingPieces.nextOne()
+		piece, _ := pos.PieceAt(squareReference[Bsf(checker)])
 
-		if checker.IsSliding() {
-			allowedSquares |= getRayPath(checker.Square(), pos.KingPosition(side))
+		if isSliding(piece) {
+			allowedSquares |= getRayPath(checker, pos.KingPosition(side))
 		}
-		allowedSquares |= checker.Square()
+		allowedSquares |= checker
 	}
 	// If there are more than 2 CheckingPieces it cant move at all (default allowedSquares value = 0)
 	return
+}
+
+// isSliding returns a the passed Piece is an sliding piece(Queen, Rook or Bishop)
+func isSliding(piece Piece) bool {
+	// TODO: refactor, use a map instead?
+	if piece == WhiteQueen || piece == WhiteRook ||
+		piece == WhiteBishop || piece == BlackQueen ||
+		piece == BlackRook || piece == BlackBishop {
+		return true
+	}
+	return false
 }

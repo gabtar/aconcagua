@@ -63,10 +63,10 @@ func negamax(pos board.Position, depth int, initialDepth int, alpha int, beta in
 		return ttScore
 	}
 
-	if depth == 0 || pos.Checkmate(board.WHITE) || pos.Checkmate(board.BLACK) {
+	if depth == 0 || pos.Checkmate(board.White) || pos.Checkmate(board.Black) {
 		// Color modifier for evaluation
 		color := 1
-		if pos.ToMove() == board.BLACK {
+		if pos.ToMove() == board.Black {
 			color = -1
 		}
 

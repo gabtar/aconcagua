@@ -9,26 +9,48 @@ import (
 	"strings"
 )
 
+// TODO: extract to piece.go
+// Color is an int referencing the white or black player in chess
+type Color int
+
 const (
-	WHITE rune = 'w'
-	BLACK rune = 'b'
+	White Color = iota
+	Black
 )
 
-// References for pieces role/color for bitboards in position struct
+// Piece is an int that references piece role/color for bitboards in position struct
+type Piece int
+
 const (
-	WHITE_KING   int = 0
-	WHITE_QUEEN  int = 1
-	WHITE_ROOK   int = 2
-	WHITE_BISHOP int = 3
-	WHITE_KNIGHT int = 4
-	WHITE_PAWN   int = 5
-	BLACK_KING   int = 6
-	BLACK_QUEEN  int = 7
-	BLACK_ROOK   int = 8
-	BLACK_BISHOP int = 9
-	BLACK_KNIGHT int = 10
-	BLACK_PAWN   int = 11
+	WhiteKing Piece = iota
+	WhiteQueen
+	WhiteRook
+	WhiteBishop
+	WhiteKnight
+	WhitePawn
+	BlackKing
+	BlackQueen
+	BlackRook
+	BlackBishop
+	BlackKnight
+	BlackPawn
 )
+
+// pieceColor references a Piece type to a Color type
+var pieceColor = map[Piece]Color{
+	WhiteKing:   White,
+	WhiteQueen:  White,
+	WhiteRook:   White,
+	WhiteBishop: White,
+	WhiteKnight: White,
+	WhitePawn:   White,
+	BlackKing:   Black,
+	BlackQueen:  Black,
+	BlackRook:   Black,
+	BlackBishop: Black,
+	BlackKnight: Black,
+	BlackPawn:   Black,
+}
 
 // squareReference maps an integer(the index of the array) with the
 // corresponding square by using the notation of Little-Endian Rank-File Mapping
@@ -43,20 +65,20 @@ var squareReference = []string{
 	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
 }
 
-// Reference for fen string conversion to internal struct
-var pieceReference = map[string]int{
-	"k": BLACK_KING,
-	"q": BLACK_QUEEN,
-	"r": BLACK_ROOK,
-	"b": BLACK_BISHOP,
-	"n": BLACK_KNIGHT,
-	"p": BLACK_PAWN,
-	"K": WHITE_KING,
-	"Q": WHITE_QUEEN,
-	"R": WHITE_ROOK,
-	"B": WHITE_BISHOP,
-	"N": WHITE_KNIGHT,
-	"P": WHITE_PAWN,
+// pieceReference is used for fen string conversion to internal Position struct
+var pieceReference = map[string]Piece{
+	"k": BlackKing,
+	"q": BlackQueen,
+	"r": BlackRook,
+	"b": BlackBishop,
+	"n": BlackKnight,
+	"p": BlackPawn,
+	"K": WhiteKing,
+	"Q": WhiteQueen,
+	"R": WhiteRook,
+	"B": WhiteBishop,
+	"N": WhiteKnight,
+	"P": WhitePawn,
 }
 
 // zobritsKeys contains the random keys to create the zobrist hash of a position
@@ -66,39 +88,43 @@ var zobristKeys = initZobristKeys()
 type Position struct {
 	// Bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
 	Bitboards       [12]Bitboard
-	turn            rune
+	turn            Color
 	castlingRights  castling
 	enPassantTarget Bitboard
 	halfmoveClock   int
 	fullmoveNumber  int
 	Zobrist         uint64
-	// TODO: add a field for the FEN string? not sure if its necesary...
 }
 
-// pieceAt returns a Piece at the given square coordinate in the Position
+// TODO: Idea...
+// PieceAt should return a bitboard with a piece or null bitboard...
+// PieceType should return the type of the piece at the specified square...
+
+// pieceAt returns a Piece at the given square coordinate in the Position or error
 func (pos *Position) PieceAt(square string) (piece Piece, e error) {
 	bitboardSquare := squareToBitboard([]string{square})
 
-	for role, bitboard := range pos.Bitboards {
+	for index, bitboard := range pos.Bitboards {
 		if bitboard&bitboardSquare > 0 {
-			piece = makePiece(role, bitboardSquare)
+			piece = Piece(index)
+			return
 		}
 	}
-	if piece == nil {
-		e = errors.New("no piece")
-	}
+
+	e = errors.New("no piece")
 	return
 }
 
-// addPiece adds a new Piece to the Position
-func (pos *Position) AddPiece(role int, square string) {
+// addPiece adds to the position the Piece passed in the square passed
+func (pos *Position) AddPiece(piece Piece, square string) {
 	bitboardSquare := squareToBitboard([]string{square})
-	pos.Bitboards[role] |= bitboardSquare
+	pos.Bitboards[piece] |= bitboardSquare
 }
 
 // emptySquares returns a Bitboard with the empty sqaures of the position
 func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 	// Set all as empty
+	// TODO: extract to constant
 	emptySquares = 0xFFFFFFFFFFFFFFFF
 
 	for _, bitboard := range pos.Bitboards {
@@ -108,44 +134,81 @@ func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 }
 
 // attackedSquares returns a bitboard with all squares attacked by the passed side
-func (pos *Position) AttackedSquares(side rune) (attackedSquares Bitboard) {
+func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
 	startingBitboard := 0
-	if side != WHITE {
+	if side != White {
 		startingBitboard = 6
 	}
 
 	for currentBitboard := startingBitboard; currentBitboard-startingBitboard < 6; currentBitboard++ {
-		for _, square := range pos.Bitboards[currentBitboard].ToStringSlice() {
-			piece, _ := pos.PieceAt(square)
-			attackedSquares |= piece.Attacks(pos)
-		}
-	}
+		piece := Piece(currentBitboard)
+		pieces := pos.Bitboards[currentBitboard]
+		sq := pieces.nextOne()
 
+		for sq > 0 {
+			attackedSquares |= Attacks(piece, sq, pos)
+			sq = pieces.nextOne()
+		}
+
+	}
 	return
 }
 
-// checkingPieces returns an slice of Piece{} that are checking the passed side king
-func (pos *Position) CheckingPieces(side rune) (pieces []Piece) {
+func Attacks(piece Piece, sq Bitboard, pos *Position) (attacks Bitboard) {
+	// TODO: Tests...
+	switch piece {
+	case WhiteKing, BlackKing:
+		attacks |= kingAttacks(&sq, pos)
+	case WhiteQueen, BlackQueen:
+		attacks |= queenAttacks(&sq, pos)
+	case WhiteRook, BlackRook:
+		attacks |= rookAttacks(&sq, pos)
+	case WhiteBishop, BlackBishop:
+		attacks |= bishopAttacks(&sq, pos)
+	case WhiteKnight, BlackKnight:
+		attacks |= knightAttacks(&sq, pos)
+	case WhitePawn:
+		attacks |= pawnAttacks(&sq, pos, White)
+	case BlackPawn:
+		attacks |= pawnAttacks(&sq, pos, Black)
+	}
+	return
+}
+
+// checkingPieces returns an Bitboard of squares that contain pieces attacking the king of the side passed
+func (pos *Position) CheckingPieces(side Color) (kingAttackers Bitboard) {
 	if !pos.Check(side) {
 		return
 	}
 
 	kingSq := pos.KingPosition(side)
-	// iterate over all opponent pieces an add the ones that are attacking the king
-	for _, sq := range pos.Pieces(opponentSide(side)).ToStringSlice() {
-		piece, _ := pos.PieceAt(sq)
+	// iterate over all opponent bitboards and check who is attacking the king
+	// TODO: refactor... duplicated in pos.Pieces method
+	indexBB := 0
+	if side == Black {
+		indexBB = 6
+	}
 
-		if (kingSq & piece.Attacks(pos)) > 0 {
-			pieces = append(pieces, piece)
+	for pieceBB := indexBB; pieceBB-indexBB < 6; pieceBB++ {
+		// TODO: also duplicated...
+		pieces := pos.Bitboards[pieceBB]
+		piece := Piece(pieceBB + indexBB)
+
+		for pieces > 0 {
+			sq := pieces.nextOne()
+
+			if kingSq&Attacks(piece, sq, pos) > 0 {
+				kingAttackers |= sq
+			}
 		}
 	}
 	return
 }
 
 // Pieces returns a Bitboard with the pieces of the color pased
-func (pos *Position) Pieces(side rune) (pieces Bitboard) {
+func (pos *Position) Pieces(side Color) (pieces Bitboard) {
 	startingBitboard := 0
-	if side != WHITE {
+	if side != White {
 		startingBitboard = 6
 	}
 	for currentBitboard := startingBitboard; currentBitboard-startingBitboard < 6; currentBitboard++ {
@@ -155,7 +218,7 @@ func (pos *Position) Pieces(side rune) (pieces Bitboard) {
 }
 
 // Check returns if the side passed is in check
-func (pos *Position) Check(side rune) (inCheck bool) {
+func (pos *Position) Check(side Color) (inCheck bool) {
 	kingPos := pos.KingPosition(side)
 
 	if (kingPos & pos.AttackedSquares(opponentSide(side))) > 0 {
@@ -165,11 +228,11 @@ func (pos *Position) Check(side rune) (inCheck bool) {
 }
 
 // KingPosition returns the bitboard of the passed side king
-func (pos *Position) KingPosition(side rune) (king Bitboard) {
-	if side == WHITE {
-		king = pos.Bitboards[WHITE_KING]
+func (pos *Position) KingPosition(side Color) (king Bitboard) {
+	if side == White {
+		king = pos.Bitboards[WhiteKing]
 	} else {
-		king = pos.Bitboards[BLACK_KING]
+		king = pos.Bitboards[BlackKing]
 	}
 	return
 }
@@ -192,12 +255,12 @@ func (pos *Position) NumberOfPieces(pieceType int) int {
 }
 
 // ToMove returns the side to move in the current position
-func (pos *Position) ToMove() rune {
+func (pos *Position) ToMove() Color {
 	return pos.turn
 }
 
-func (pos *Position) getBitboards(side rune) (bitboards []Bitboard) {
-	if side == WHITE {
+func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
+	if side == White {
 		bitboards = pos.Bitboards[0:6]
 	} else {
 		bitboards = pos.Bitboards[6:12]
@@ -206,10 +269,8 @@ func (pos *Position) getBitboards(side rune) (bitboards []Bitboard) {
 }
 
 // LegalMoves returns an slice of Move of all legal moves for the side passed
-func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
-	// piecesSq := pos.Pieces(side).ToStringSlice()
-
-	var refactoredMoves []move
+func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
+	var refactoredMoves []Move
 	bitboards := pos.getBitboards(side)
 
 	for piece, bb := range bitboards {
@@ -231,43 +292,17 @@ func (pos *Position) LegalMoves(side rune) (legalMoves []Move) {
 			}
 		}
 	}
-	legalMoves = append(legalMoves, moveMapper(refactoredMoves)...)
-
-	// for _, from := range piecesSq {
-	// 	piece, _ := pos.PieceAt(from)
-	// 	legalMoves = append(legalMoves, piece.validMoves(pos)...)
-	// }
-	// CASTLE
-	legalMoves = append(legalMoves, pos.legalCastles(side)...)
-	// EN PASSANT
-	legalMoves = append(legalMoves, pos.legalEnPassant(side)...)
 
 	// TODO: Move ordering. Captures are more likely to generate cutoff in the search
 	// Need to find how to evaluate how good a move is to generate cutoff...
 	sort.Slice(legalMoves, func(i, j int) bool {
-		return legalMoves[i].moveType > legalMoves[j].moveType
+		return legalMoves[i].moveType() > legalMoves[j].moveType()
 	})
 	return
 }
 
-// FIX: refactor, internal method for testing new move encoding and refactoring
-func moveMapper(inputMoves []move) (outputMoves []Move) {
-	for _, move := range inputMoves {
-		newMove := Move{
-			from:       squareReference[move.from()],
-			to:         squareReference[move.to()],
-			piece:      move.piece(),
-			promotedTo: move.promotedTo(),
-			moveType:   move.moveType(),
-		}
-
-		outputMoves = append(outputMoves, newMove)
-	}
-	return
-}
-
 // legalCastles returns the castles moves the passed side can make
-func (pos *Position) legalCastles(side rune) (castle []Move) {
+func (pos *Position) legalCastles(side Color) (castle []Move) {
 	castlePathsBB := []Bitboard{0x60, 0xE, 0x6000000000000000, 0xE00000000000000}
 	passingKingPathBB := []Bitboard{0x60, 0xC, 0x6000000000000000, 0xC00000000000000}
 
@@ -275,49 +310,75 @@ func (pos *Position) legalCastles(side rune) (castle []Move) {
 		return
 	}
 
-	if side == WHITE {
+	if side == White {
+		king := WhiteKing
 		canCastleShort := castlePathsBB[0]&(^pos.EmptySquares()|pos.AttackedSquares(opponentSide(side))) == 0
 		canCastleLong := (castlePathsBB[1] & ^pos.EmptySquares())|(passingKingPathBB[1]&pos.AttackedSquares(opponentSide(side))) == 0
 
 		if pos.castlingRights.canCastle(SHORT_CASTLE_WHITE) && canCastleShort {
-			castle = append(castle, Move{from: "e1", to: "g1", piece: WHITE_KING, moveType: CASTLE})
+			castle = append(castle, MoveEncode(4, 6, int(king), 0, CASTLE))
+			// Move{from: "e1", to: "g1", piece: WHITE_KING, moveType: CASTLE})
 		}
 		if pos.castlingRights.canCastle(LONG_CASTLE_WHITE) && canCastleLong {
-			castle = append(castle, Move{from: "e1", to: "c1", piece: WHITE_KING, moveType: CASTLE})
+			castle = append(castle, MoveEncode(4, 2, int(king), 0, CASTLE))
+			// Move{from: "e1", to: "c1", piece: WHITE_KING, moveType: CASTLE})
 		}
 	} else {
+		king := BlackKing
 		canCastleShort := castlePathsBB[2]&(^pos.EmptySquares()|pos.AttackedSquares(opponentSide(side))) == 0
 		canCastleLong := (castlePathsBB[3] & ^pos.EmptySquares())|(passingKingPathBB[3]&pos.AttackedSquares(opponentSide(side))) == 0
 		if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) && canCastleShort {
-			castle = append(castle, Move{from: "e8", to: "g8", piece: BLACK_KING, moveType: CASTLE})
+			castle = append(castle, MoveEncode(60, 62, int(king), 0, CASTLE))
+			// Move{from: "e8", to: "g8", piece: BLACK_KING, moveType: CASTLE})
 		}
 		if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) && canCastleLong {
-			castle = append(castle, Move{from: "e8", to: "c8", piece: BLACK_KING, moveType: CASTLE})
+			castle = append(castle, MoveEncode(60, 58, int(king), 0, CASTLE))
+			// Move{from: "e8", to: "c8", piece: BLACK_KING, moveType: CASTLE})
 		}
 	}
 	return
 }
 
 // legalEnPassant returns the en passant moves in the position
-func (pos *Position) legalEnPassant(side rune) (enPassant []Move) {
+func (pos *Position) legalEnPassant(side Color) (enPassant []Move) {
 	epTarget := pos.enPassantTarget
 
 	if epTarget == 0 {
 		return
 	}
+	piece := WhitePawn
+	if side == Black {
+		piece = BlackPawn
+	}
 
 	posiblesCapturers := posiblesEpCapturers(epTarget, side, pos)
-	for _, sq := range posiblesCapturers.ToStringSlice() {
-		p, _ := pos.PieceAt(sq)
+
+	for posiblesCapturers > 0 {
+		capturer := posiblesCapturers.nextOne()
+		p, _ := pos.PieceAt(squareReference[Bsf(capturer)])
 
 		enPassantAvailable := epTarget &
-			pinRestrictedDirection(p.Square(), p.Color(), pos) &
-			checkRestrictedMoves(p.Square(), p.Color(), pos)
+			pinRestrictedDirection(capturer, pieceColor[p], pos) &
+			checkRestrictedMoves(capturer, pieceColor[p], pos)
 
 		if enPassantAvailable > 0 {
-			enPassant = append(enPassant, Move{from: p.Square().ToStringSlice()[0], to: pos.enPassantTarget.ToStringSlice()[0], piece: p.role(), moveType: EN_PASSANT})
+			enPassant = append(enPassant, MoveEncode(Bsf(capturer), Bsf(epTarget), int(piece), 0, EN_PASSANT))
 		}
+
 	}
+
+	// for _, sq := range posiblesCapturers.ToStringSlice() {
+	// 	p, _ := pos.PieceAt(sq)
+	//
+	// 	enPassantAvailable := epTarget &
+	// 		pinRestrictedDirection(p.Square(), p.Color(), pos) &
+	// 		checkRestrictedMoves(p.Square(), p.Color(), pos)
+	//
+	// 	if enPassantAvailable > 0 {
+	// 		enPassant = append(enPassant, MoveEncode(Bsf(p.Square()), Bsf(epTarget), piece, 0, EN_PASSANT))
+	// 		// Move{from: p.Square().ToStringSlice()[0], to: pos.enPassantTarget.ToStringSlice()[0], piece: p.role(), moveType: EN_PASSANT})
+	// 	}
+	// }
 	return
 }
 
@@ -326,7 +387,7 @@ func (pos *Position) legalEnPassant(side rune) (enPassant []Move) {
 // TODO: Every side which has a queen has additionally no other pieces or one minorpiece maximum.
 func (pos *Position) IsEndgame() bool {
 	// Both sides no queen
-	if (pos.Bitboards[WHITE_QUEEN] | pos.Bitboards[BLACK_QUEEN]) > 0 {
+	if (pos.Bitboards[WhiteQueen] | pos.Bitboards[BlackQueen]) > 0 {
 		return false
 	}
 	return true
@@ -334,58 +395,58 @@ func (pos *Position) IsEndgame() bool {
 
 // posiblesEpCapturers returns a bitboard with the pawns that are attacking
 // the en passant target square passed
-func posiblesEpCapturers(target Bitboard, side rune, pos *Position) (squares Bitboard) {
-	if side == WHITE {
+func posiblesEpCapturers(target Bitboard, side Color, pos *Position) (squares Bitboard) {
+	if side == White {
 		squares = (target & ^(target & files[7]) >> 7) |
 			(target & ^(target & files[0]) >> 9)
-		squares &= pos.Bitboards[WHITE_PAWN]
+		squares &= pos.Bitboards[WhitePawn]
 	} else {
 		squares |= (target & ^(target & files[7]) << 7) |
 			(target & ^(target & files[0]) << 9)
-		squares &= pos.Bitboards[BLACK_PAWN]
+		squares &= pos.Bitboards[BlackPawn]
 	}
 	return
 }
 
 // MakeMove updates the position by making the move passed as parameter
 func (pos *Position) MakeMove(move *Move) (newPos Position) {
-	pieceToAdd := move.piece
-	newPos = pos.RemovePiece(squareToBitboard([]string{move.from}))
+	pieceToAdd := Piece(move.piece())
+	newPos = pos.RemovePiece(BitboardFromIndex(move.from()))
 
 	// clear EnPassant target if was setted
 	newPos.enPassantTarget &= 0
 
 	// fullmoveNumber+1 if it's black turn
-	if pos.turn == BLACK {
+	if pos.turn == Black {
 		newPos.fullmoveNumber++
 	}
 	newPos.halfmoveClock++
 
 	// Check for special moves:
-	switch move.moveType {
+	switch move.moveType() {
 	case NORMAL:
 		// Reset halfmoveClock also resets with single pawn push
-		if move.piece == WHITE_PAWN || move.piece == BLACK_PAWN {
+		if move.piece() == int(WhitePawn) || move.piece() == int(BlackPawn) {
 			newPos.halfmoveClock = 0
 		}
 		updateCastleRights(&newPos, move)
 	case PAWN_DOUBLE_PUSH:
 		// Add ep target sq
-		if move.piece == WHITE_PAWN {
-			newPos.enPassantTarget = squareToBitboard([]string{move.to}) >> 8
+		if move.piece() == int(WhitePawn) {
+			newPos.enPassantTarget = BitboardFromIndex(move.to()) >> 8
 		} else {
-			newPos.enPassantTarget = squareToBitboard([]string{move.to}) << 8
+			newPos.enPassantTarget = BitboardFromIndex(move.to()) << 8
 		}
 		newPos.halfmoveClock = 0
 	case CAPTURE:
 		// Remove piece at destination
-		newPos = newPos.RemovePiece(squareToBitboard([]string{move.to}))
+		newPos = newPos.RemovePiece(BitboardFromIndex(move.to()))
 		// Reset halfmoveClock
 		newPos.halfmoveClock = 0
 		updateCastleRights(&newPos, move)
 	case PROMOTION:
 		// change piece to add to the board
-		pieceToAdd = move.promotedTo
+		pieceToAdd = Piece(move.promotedTo())
 		// Reset halfmoveClock
 		newPos.halfmoveClock = 0
 	case CASTLE:
@@ -396,7 +457,7 @@ func (pos *Position) MakeMove(move *Move) (newPos Position) {
 	case EN_PASSANT:
 		// Remove the captured pawn
 		// Es hacia abajo(blancas) / arriba (negras) del epTarget
-		if move.piece == WHITE_PAWN {
+		if move.piece() == int(WhitePawn) {
 			newPos = newPos.RemovePiece(pos.enPassantTarget >> 8)
 		} else {
 			newPos = newPos.RemovePiece(pos.enPassantTarget << 8)
@@ -408,7 +469,7 @@ func (pos *Position) MakeMove(move *Move) (newPos Position) {
 	// Update Turn/color to move
 	newPos.turn = opponentSide(pos.turn)
 	// Add piece to destination sqaure
-	newPos.AddPiece(pieceToAdd, move.to)
+	newPos.AddPiece(pieceToAdd, squareReference[move.to()])
 
 	// Update zobrist hash for the position
 	// TODO: refactor to a proper update function to avoid calculating the hash from scratch
@@ -422,22 +483,23 @@ func moveRookOnCastleMove(newPos Position, move *Move) Position {
 	// Kingside castling
 	// Si el rey mueve hacia la izuqierda -> torren en a1/a8
 	// Kingside castling black
-	if move.piece == WHITE_KING {
-		if move.to == "g1" {
+	if move.piece() == int(WhiteKing) {
+		// TODO: map integer number to square string....
+		if move.to() == Bsf(squareToBitboard([]string{"g1"})) {
 			newPos = newPos.RemovePiece(squareToBitboard([]string{"h1"}))
-			newPos.AddPiece(WHITE_ROOK, "f1")
+			newPos.AddPiece(WhiteRook, "f1")
 		} else {
 			newPos = newPos.RemovePiece(squareToBitboard([]string{"a1"}))
-			newPos.AddPiece(WHITE_ROOK, "c1")
+			newPos.AddPiece(WhiteRook, "c1")
 		}
 	} else {
 
-		if move.to == "g8" {
+		if move.to() == Bsf(squareToBitboard([]string{"g8"})) {
 			newPos = newPos.RemovePiece(squareToBitboard([]string{"h8"}))
-			newPos.AddPiece(BLACK_ROOK, "f8")
+			newPos.AddPiece(BlackRook, "f8")
 		} else {
 			newPos = newPos.RemovePiece(squareToBitboard([]string{"a8"}))
-			newPos.AddPiece(BLACK_ROOK, "c8")
+			newPos.AddPiece(BlackRook, "c8")
 		}
 	}
 	return newPos
@@ -446,19 +508,20 @@ func moveRookOnCastleMove(newPos Position, move *Move) Position {
 // updateCastleRights updates the castle rigths based on the move passed if the
 // rook or the king has been moved
 func updateCastleRights(pos *Position, move *Move) {
-	switch move.piece {
-	case WHITE_KING:
+	piece := Piece(move.piece())
+	switch piece {
+	case WhiteKing:
 		pos.castlingRights.remove(SHORT_CASTLE_WHITE | LONG_CASTLE_WHITE)
-	case WHITE_ROOK:
-		if move.from == "h1" {
+	case WhiteRook:
+		if move.from() == Bsf(squareToBitboard([]string{"h1"})) {
 			pos.castlingRights.remove(SHORT_CASTLE_WHITE)
 		} else {
 			pos.castlingRights.remove(LONG_CASTLE_WHITE)
 		}
-	case BLACK_KING:
+	case BlackKing:
 		pos.castlingRights.remove(SHORT_CASTLE_BLACK | LONG_CASTLE_BLACK)
-	case BLACK_ROOK:
-		if move.from == "h8" {
+	case BlackRook:
+		if move.from() == Bsf(squareToBitboard([]string{"h8"})) {
 			pos.castlingRights.remove(SHORT_CASTLE_BLACK)
 		} else {
 			pos.castlingRights.remove(LONG_CASTLE_BLACK)
@@ -494,7 +557,13 @@ func (pos *Position) ToFen() (fen string) {
 			fen += "/"
 		}
 	}
-	fen += " " + string(pos.turn)
+
+	if pos.turn == White {
+		fen += "w"
+	} else {
+		fen += "b"
+	}
+
 	fen += " " + pos.castlingRights.toFen()
 	if pos.enPassantTarget > 0 {
 		fen += " " + pos.enPassantTarget.ToStringSlice()[0]
@@ -507,7 +576,7 @@ func (pos *Position) ToFen() (fen string) {
 }
 
 // Checkmate returns if the passed side is in checkmate on the current position
-func (pos *Position) Checkmate(side rune) (checkmate bool) {
+func (pos *Position) Checkmate(side Color) (checkmate bool) {
 	if len(pos.LegalMoves(side)) == 0 && pos.Check(side) {
 		checkmate = true
 	} else {
@@ -517,7 +586,7 @@ func (pos *Position) Checkmate(side rune) (checkmate bool) {
 }
 
 // Stealmate returns if the passed side is in stealmate on the current position
-func (pos *Position) Stealmate(side rune) (stealmate bool) {
+func (pos *Position) Stealmate(side Color) (stealmate bool) {
 	// Cannot be in check, and cannot have any legal moves
 	if len(pos.LegalMoves(side)) == 0 && !pos.Check(side) {
 		stealmate = true
@@ -532,19 +601,19 @@ func (pos *Position) InsuficientMaterial() bool {
 	// - lone king
 	// - king and bishop
 	// - king and knight
-	insuficientMaterialWhite := pos.Pieces(WHITE) == pos.KingPosition(WHITE) ||
-		onlyKingAndBishop(pos, WHITE) ||
-		onlyKingAndKnight(pos, WHITE)
-	insuficientMaterialBlack := pos.Pieces(BLACK) == pos.KingPosition(BLACK) ||
-		onlyKingAndBishop(pos, BLACK) ||
-		onlyKingAndKnight(pos, BLACK)
+	insuficientMaterialWhite := pos.Pieces(White) == pos.KingPosition(White) ||
+		onlyKingAndBishop(pos, White) ||
+		onlyKingAndKnight(pos, White)
+	insuficientMaterialBlack := pos.Pieces(Black) == pos.KingPosition(Black) ||
+		onlyKingAndBishop(pos, Black) ||
+		onlyKingAndKnight(pos, Black)
 
 	return insuficientMaterialWhite && insuficientMaterialBlack
 }
 
 // onlyKingAndKnight returns if in the passed position there is only a king piece
 // and a knight piece for the side passed
-func onlyKingAndKnight(pos *Position, side rune) bool {
+func onlyKingAndKnight(pos *Position, side Color) bool {
 	if pos.knights(side).count() > 1 {
 		return false
 	}
@@ -552,17 +621,17 @@ func onlyKingAndKnight(pos *Position, side rune) bool {
 }
 
 // knights returns the bitboards with the knights of the side passed
-func (pos *Position) knights(side rune) Bitboard {
-	if side == WHITE {
-		return pos.Bitboards[WHITE_KNIGHT]
+func (pos *Position) knights(side Color) Bitboard {
+	if side == White {
+		return pos.Bitboards[WhiteKnight]
 	} else {
-		return pos.Bitboards[BLACK_KNIGHT]
+		return pos.Bitboards[BlackKnight]
 	}
 }
 
 // onlyKingAndBishop returns if in the passed position there is only a king piece
 // and a bishop piece for the side passed
-func onlyKingAndBishop(pos *Position, side rune) bool {
+func onlyKingAndBishop(pos *Position, side Color) bool {
 	if pos.bishops(side).count() > 1 {
 		return false
 	}
@@ -570,11 +639,11 @@ func onlyKingAndBishop(pos *Position, side rune) bool {
 }
 
 // bishops returns the bitboards with the bishops of the side passed
-func (pos *Position) bishops(side rune) Bitboard {
-	if side == WHITE {
-		return pos.Bitboards[WHITE_BISHOP]
+func (pos *Position) bishops(side Color) Bitboard {
+	if side == White {
+		return pos.Bitboards[WhiteBishop]
 	} else {
-		return pos.Bitboards[BLACK_BISHOP]
+		return pos.Bitboards[BlackBishop]
 	}
 }
 
@@ -622,35 +691,35 @@ func toRuneArray(pos *Position) [64]rune {
 // Utility functions
 
 // makePiece is a factory function that returns a Piece based on the role and square passed
-func makePiece(role int, square Bitboard) (piece Piece) {
-	switch role {
-	case WHITE_KING:
-		piece = &King{color: WHITE, square: square}
-	case WHITE_QUEEN:
-		piece = &Queen{color: WHITE, square: square}
-	case WHITE_ROOK:
-		piece = &Rook{color: WHITE, square: square}
-	case WHITE_BISHOP:
-		piece = &Bishop{color: WHITE, square: square}
-	case WHITE_KNIGHT:
-		piece = &Knight{color: WHITE, square: square}
-	case WHITE_PAWN:
-		piece = &Pawn{color: WHITE, square: square}
-	case BLACK_KING:
-		piece = &King{color: BLACK, square: square}
-	case BLACK_QUEEN:
-		piece = &Queen{color: BLACK, square: square}
-	case BLACK_ROOK:
-		piece = &Rook{color: BLACK, square: square}
-	case BLACK_BISHOP:
-		piece = &Bishop{color: BLACK, square: square}
-	case BLACK_KNIGHT:
-		piece = &Knight{color: BLACK, square: square}
-	case BLACK_PAWN:
-		piece = &Pawn{color: BLACK, square: square}
-	}
-	return
-}
+// func makePiece(role int, square Bitboard) (piece Piece) {
+// 	switch role {
+// 	case WHITE_KING:
+// 		piece = &King{color: WHITE, square: square}
+// 	case WHITE_QUEEN:
+// 		piece = &Queen{color: WHITE, square: square}
+// 	case WHITE_ROOK:
+// 		piece = &Rook{color: WHITE, square: square}
+// 	case WHITE_BISHOP:
+// 		piece = &Bishop{color: WHITE, square: square}
+// 	case WHITE_KNIGHT:
+// 		piece = &Knight{color: WHITE, square: square}
+// 	case WHITE_PAWN:
+// 		piece = &Pawn{color: WHITE, square: square}
+// 	case BLACK_KING:
+// 		piece = &King{color: BLACK, square: square}
+// 	case BLACK_QUEEN:
+// 		piece = &Queen{color: BLACK, square: square}
+// 	case BLACK_ROOK:
+// 		piece = &Rook{color: BLACK, square: square}
+// 	case BLACK_BISHOP:
+// 		piece = &Bishop{color: BLACK, square: square}
+// 	case BLACK_KNIGHT:
+// 		piece = &Knight{color: BLACK, square: square}
+// 	case BLACK_PAWN:
+// 		piece = &Pawn{color: BLACK, square: square}
+// 	}
+// 	return
+// }
 
 // squareToBitboard returns a bitboard containing the position of the squares coordinates passed
 func squareToBitboard(coordinates []string) (bitboard Bitboard) {
@@ -685,9 +754,14 @@ func From(fen string) (pos *Position) {
 		}
 		currentSquare -= 16
 	}
-	pos.turn = rune(elements[1][0])
+	if elements[1][0] == 'w' {
+		pos.turn = White
+	} else {
+		pos.turn = Black
+	}
+
 	pos.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
-	// FIX can be null square '-' and goes segmentation fault/panic!
+	// FIX: can be null square '-' and goes segmentation fault/panic!
 	if elements[3] != "-" {
 		pos.enPassantTarget = squareToBitboard([]string{elements[3]})
 	}
@@ -727,7 +801,7 @@ func zobristHash(pos Position, keys [781]uint64) (hash uint64) {
 		}
 	}
 	// Black to move
-	if pos.ToMove() == BLACK {
+	if pos.ToMove() == Black {
 		hash = hash ^ keys[768]
 	}
 

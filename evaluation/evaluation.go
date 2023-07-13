@@ -135,10 +135,10 @@ var kingEndGameBonus = [64]int{
 func Evaluate(pos board.Position) (score int) {
 	// Set checkmate as 10 kings value
 	// TODO: should evaluate checkmate in number of moves. eg mate in 2 is better than a mate in 3
-	if pos.Checkmate(board.WHITE) {
+	if pos.Checkmate(board.White) {
 		return -10 * pieceScoreValue[0]
 	}
-	if pos.Checkmate(board.BLACK) {
+	if pos.Checkmate(board.Black) {
 		return 10 * pieceScoreValue[0]
 	}
 

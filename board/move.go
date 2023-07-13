@@ -1,7 +1,5 @@
 package board
 
-import "fmt"
-
 // Type of move
 const (
 	NORMAL = iota
@@ -22,45 +20,46 @@ const (
 // 3 bits to describe the type of move (2^3) (6 types)
 // Total := 23 bits, fits in a 32 int
 
-type move uint32
+type Move uint32
 
 // from returns the number of the origin square of the move
-func (m *move) from() int {
+func (m *Move) from() int {
 	return int(*m & 0b111111)
 }
 
 // to returns the number of the destination square of the move
-func (m *move) to() int {
+func (m *Move) to() int {
 	return int((*m & (0b111111 << 6)) >> 6)
 }
 
 // piece returns the piece which is being moved
-func (m *move) piece() int {
+func (m *Move) piece() int {
 	return int((*m & (0b1111 << 12)) >> 12)
 }
 
 // promotedTo returns the piece which is going to be replaced by the pawn
-func (m *move) promotedTo() int {
+func (m *Move) promotedTo() int {
 	return int((*m & (0b1111 << 16)) >> 16)
 }
 
 // moveType returns the type of move
-func (m *move) moveType() int {
+func (m *Move) moveType() int {
 	return int((*m & (0b1111 << 20)) >> 20)
 }
 
-func (m *move) ToUci() (uciString string) {
+func (m *Move) ToUci() (uciString string) {
 	uciString += squareReference[m.from()]
 	uciString += squareReference[m.to()]
 	if m.moveType() == PROMOTION {
-		switch m.promotedTo() {
-		case WHITE_QUEEN, BLACK_QUEEN:
+		promotedTo := Piece(m.promotedTo())
+		switch promotedTo {
+		case WhiteQueen, BlackQueen:
 			uciString += "q"
-		case WHITE_ROOK, BLACK_ROOK:
+		case WhiteRook, BlackRook:
 			uciString += "r"
-		case WHITE_BISHOP, BLACK_BISHOP:
+		case WhiteBishop, BlackBishop:
 			uciString += "b"
-		case WHITE_KNIGHT, BLACK_KNIGHT:
+		case WhiteKnight, BlackKnight:
 			uciString += "n"
 		}
 	}
@@ -68,46 +67,11 @@ func (m *move) ToUci() (uciString string) {
 }
 
 // MoveEncode returns a move with the specified values
-func MoveEncode(from int, to int, piece int, promotedTo int, moveType int) (mov move) {
-	mov |= move(from)
-	mov |= move(to << 6)
-	mov |= move(piece << 12)
-	mov |= move(promotedTo << 16)
-	mov |= move(moveType << 20)
-	return
-}
-
-// Represents a move of chess
-type Move struct {
-	from       string
-	to         string
-	piece      int
-	promotedTo int
-	moveType   int
-}
-
-// String returns the move string
-func (m Move) String() string {
-	return fmt.Sprintf(
-		"%s -> %s",
-		m.from,
-		m.to)
-}
-
-func (m Move) ToUci() (uciString string) {
-	uciString += m.from
-	uciString += m.to
-	if m.moveType == PROMOTION {
-		switch m.promotedTo {
-		case WHITE_QUEEN, BLACK_QUEEN:
-			uciString += "q"
-		case WHITE_ROOK, BLACK_ROOK:
-			uciString += "r"
-		case WHITE_BISHOP, BLACK_BISHOP:
-			uciString += "b"
-		case WHITE_KNIGHT, BLACK_KNIGHT:
-			uciString += "n"
-		}
-	}
+func MoveEncode(from int, to int, piece int, promotedTo int, moveType int) (mov Move) {
+	mov |= Move(from)
+	mov |= Move(to << 6)
+	mov |= Move(piece << 12)
+	mov |= Move(promotedTo << 16)
+	mov |= Move(moveType << 20)
 	return
 }
