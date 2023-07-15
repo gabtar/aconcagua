@@ -184,15 +184,16 @@ func (pos *Position) CheckingPieces(side Color) (kingAttackers Bitboard) {
 	kingSq := pos.KingPosition(side)
 	// iterate over all opponent bitboards and check who is attacking the king
 	// TODO: refactor... duplicated in pos.Pieces method
+	// FIX: need to get the opponent pieces bitboards...
 	indexBB := 0
-	if side == Black {
+	if side == White {
 		indexBB = 6
 	}
 
 	for pieceBB := indexBB; pieceBB-indexBB < 6; pieceBB++ {
 		// TODO: also duplicated...
 		pieces := pos.Bitboards[pieceBB]
-		piece := Piece(pieceBB + indexBB)
+		piece := Piece(pieceBB)
 
 		for pieces > 0 {
 			sq := pieces.nextOne()
@@ -270,7 +271,6 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 
 // LegalMoves returns an slice of Move of all legal moves for the side passed
 func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
-	var refactoredMoves []Move
 	bitboards := pos.getBitboards(side)
 
 	for piece, bb := range bitboards {
@@ -278,20 +278,22 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 			pieceBB := bb.nextOne()
 			switch piece {
 			case 0:
-				refactoredMoves = append(refactoredMoves, getKingMoves(&pieceBB, pos, side)...)
+				legalMoves = append(legalMoves, getKingMoves(&pieceBB, pos, side)...)
 			case 1:
-				refactoredMoves = append(refactoredMoves, getQueenMoves(&pieceBB, pos, side)...)
+				legalMoves = append(legalMoves, getQueenMoves(&pieceBB, pos, side)...)
 			case 2:
-				refactoredMoves = append(refactoredMoves, getRookMoves(&pieceBB, pos, side)...)
+				legalMoves = append(legalMoves, getRookMoves(&pieceBB, pos, side)...)
 			case 3:
-				refactoredMoves = append(refactoredMoves, getBishopMoves(&pieceBB, pos, side)...)
+				legalMoves = append(legalMoves, getBishopMoves(&pieceBB, pos, side)...)
 			case 4:
-				refactoredMoves = append(refactoredMoves, getKnightMoves(&pieceBB, pos, side)...)
+				legalMoves = append(legalMoves, getKnightMoves(&pieceBB, pos, side)...)
 			case 5:
-				refactoredMoves = append(refactoredMoves, getPawnMoves(&pieceBB, pos, side)...)
+				legalMoves = append(legalMoves, getPawnMoves(&pieceBB, pos, side)...)
 			}
 		}
 	}
+	legalMoves = append(legalMoves, pos.legalCastles(side)...)
+	legalMoves = append(legalMoves, pos.legalEnPassant(side)...)
 
 	// TODO: Move ordering. Captures are more likely to generate cutoff in the search
 	// Need to find how to evaluate how good a move is to generate cutoff...
@@ -559,9 +561,9 @@ func (pos *Position) ToFen() (fen string) {
 	}
 
 	if pos.turn == White {
-		fen += "w"
+		fen += " w"
 	} else {
-		fen += "b"
+		fen += " b"
 	}
 
 	fen += " " + pos.castlingRights.toFen()

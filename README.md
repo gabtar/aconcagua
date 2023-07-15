@@ -15,7 +15,7 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 ### TODO:
 
 #### Move generation:
-- [ ] Refactor move encode
+- [x] Refactor move encode
 - [ ] unmakeMove method on position
 - [ ] Refactor move generator
 - [ ] Improve move ordering
