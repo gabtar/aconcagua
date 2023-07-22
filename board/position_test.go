@@ -24,8 +24,6 @@ func TestGetDirectionNorth(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BlackKing, "e1")
 	pos.AddPiece(BlackRook, "e8")
-	// king, _ := pos.PieceAt("e1")
-	// rook, _ := pos.PieceAt("e8")
 
 	expected := NORTH
 	got := getDirection(squareToBitboard([]string{"e8"}), squareToBitboard([]string{"e1"})) // king -> rook == NORTH
@@ -213,7 +211,6 @@ func TestFenSerializationFromPosition(t *testing.T) {
 	}
 }
 
-// TODO: checkmate and stealmate position tests!!!!
 func TestBlackIsInCheckmate(t *testing.T) {
 
 	pos := From("4R2k/r5pp/8/8/8/8/PPP5/1K6 b - - 0 1")
@@ -324,7 +321,8 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 
 	from := Bsf(squareToBitboard([]string{"e3"}))
 	to := Bsf(squareToBitboard([]string{"d4"}))
-	move := MoveEncode(from, to, int(WhitePawn), 0, CAPTURE)
+	capturedPiece, _ := pos.PieceAt("d4")
+	move := MoveEncode(from, to, int(WhitePawn), 0, CAPTURE, int(capturedPiece), 0)
 
 	newPos := pos.MakeMove(&move)
 
@@ -336,25 +334,24 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 	}
 }
 
-// TODO: Test moves sequences that generates the same position gets the same zorbitst hash
 func TestZobristUpdate(t *testing.T) {
 	pos := InitialPosition()
 
 	from := Bsf(squareToBitboard([]string{"g1"}))
 	to := Bsf(squareToBitboard([]string{"f3"}))
-	move1 := MoveEncode(from, to, int(WhitePawn), 0, NORMAL)
+	move1 := MoveEncode(from, to, int(WhitePawn), 0, NORMAL, 0, 0)
 
 	from = Bsf(squareToBitboard([]string{"b7"}))
 	to = Bsf(squareToBitboard([]string{"c5"}))
-	move2 := MoveEncode(from, to, int(BlackPawn), 0, NORMAL)
+	move2 := MoveEncode(from, to, int(BlackPawn), 0, NORMAL, 0, 0)
 
 	from = Bsf(squareToBitboard([]string{"b1"}))
 	to = Bsf(squareToBitboard([]string{"c3"}))
-	move3 := MoveEncode(from, to, int(WhiteKnight), 0, NORMAL)
+	move3 := MoveEncode(from, to, int(WhiteKnight), 0, NORMAL, 0, 0)
 
 	from = Bsf(squareToBitboard([]string{"g8"}))
 	to = Bsf(squareToBitboard([]string{"f6"}))
-	move4 := MoveEncode(from, to, int(BlackKnight), 0, NORMAL)
+	move4 := MoveEncode(from, to, int(BlackKnight), 0, NORMAL, 0, 0)
 
 	// Normal order 1 2 3 4
 	// move1 := &Move{from: "g1", to: "f3", piece: WHITE_PAWN, moveType: NORMAL}
@@ -375,6 +372,45 @@ func TestZobristUpdate(t *testing.T) {
 
 	expected := pos4.Zobrist
 	got := pos8.Zobrist
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+// Test for unmake move
+func TestUnmakeInNormalMove(t *testing.T) {
+	pos := InitialPosition()
+
+	from := Bsf(squareToBitboard([]string{"g1"}))
+	to := Bsf(squareToBitboard([]string{"f3"}))
+
+	move := MoveEncode(from, to, int(WhiteKnight), NORMAL, 0, 0, 0)
+
+	after := pos.MakeMove(&move)
+	before := after.UnmakeMove(move)
+
+	expected := pos.Zobrist
+	got := before.Zobrist
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
+	pos := InitialPosition()
+
+	from := Bsf(squareToBitboard([]string{"e2"}))
+	to := Bsf(squareToBitboard([]string{"e4"}))
+
+	move := MoveEncode(from, to, int(WhitePawn), PAWN_DOUBLE_PUSH, 0, 0, 0)
+
+	after := pos.MakeMove(&move)
+	before := after.UnmakeMove(move)
+
+	expected := pos.ToFen()
+	got := before.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

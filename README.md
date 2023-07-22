@@ -17,8 +17,10 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 #### Move generation:
 - [x] Refactor move encode
 - [ ] unmakeMove method on position
-- [ ] Refactor move generator
+- [x] Refactor move generator
+- [ ] Refactor zobrist hash generation/update
 - [ ] Improve move ordering
+- [ ] Check a corner case when capturing with promotion a rook(i think castle rights are not updated...) 
 
 #### Evaluation:
 - [x] Add piece square tables to evaluation

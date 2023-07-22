@@ -31,7 +31,6 @@ func TestFoundCaptureTheQueen(t *testing.T) {
 
 func TestDontSacTheQueen(t *testing.T) {
 	pos := board.From("r1b2bnr/6k1/1qp1p1p1/p1pp1p1p/P1P2P2/3PPQ2/1P2N1PP/RNB2RK1 b - - 6 13")
-	// FIX: not working!!!!!
 	_, bestMoves := BestMove(pos, 4)
 
 	expected := "d5c4"

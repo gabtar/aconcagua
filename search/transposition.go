@@ -25,8 +25,15 @@ type TranspositionTable struct {
 	table map[uint64]struct {
 		depth int
 		score int
+		flag  int
 	}
 }
+
+const (
+	EXACT = iota
+	LOWERBOUND
+	UPPERBOUND
+)
 
 // newTranspositionTable returns a new TranspositionTable
 func newTranspositionTable() *TranspositionTable {
@@ -34,18 +41,21 @@ func newTranspositionTable() *TranspositionTable {
 		table: make(map[uint64]struct {
 			depth int
 			score int
+			flag  int
 		}),
 	}
 }
 
 // save saves a searched position in the TranspositionTable with it's score and depth
-func (tt *TranspositionTable) save(key uint64, depth int, score int) {
+func (tt *TranspositionTable) save(key uint64, depth int, score int, flag int) {
 	tt.table[key] = struct {
 		depth int
 		score int
+		flag  int
 	}{
 		depth: depth,
 		score: score,
+		flag:  flag,
 	}
 }
 

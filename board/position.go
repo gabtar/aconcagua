@@ -3,13 +3,11 @@ package board
 import (
 	"errors"
 	"fmt"
-	"math/rand"
-	"sort"
 	"strconv"
 	"strings"
 )
 
-// TODO: extract to piece.go
+// TODO: extract to piece.go?
 // Color is an int referencing the white or black player in chess
 type Color int
 
@@ -17,6 +15,15 @@ const (
 	White Color = iota
 	Black
 )
+
+// opponent returns the opponent color to the actual color
+func (c Color) opponent() Color {
+	if c == White {
+		return Black
+	} else {
+		return White
+	}
+}
 
 // Piece is an int that references piece role/color for bitboards in position struct
 type Piece int
@@ -34,6 +41,13 @@ const (
 	BlackBishop
 	BlackKnight
 	BlackPawn
+	// Constants for reference to piece type
+	King
+	Queen
+	Rook
+	Bishop
+	Knight
+	Pawn
 )
 
 // pieceColor references a Piece type to a Color type
@@ -50,6 +64,16 @@ var pieceColor = map[Piece]Color{
 	BlackBishop: Black,
 	BlackKnight: Black,
 	BlackPawn:   Black,
+}
+
+// pieceOfColor returns a Piece of the color passed
+var pieceOfColor = map[Piece]map[Color]Piece{
+	King:   {White: WhiteKing, Black: BlackKing},
+	Queen:  {White: WhiteQueen, Black: BlackQueen},
+	Rook:   {White: WhiteRook, Black: BlackRook},
+	Bishop: {White: WhiteBishop, Black: BlackBishop},
+	Knight: {White: WhiteKnight, Black: BlackKnight},
+	Pawn:   {White: WhitePawn, Black: BlackPawn},
 }
 
 // squareReference maps an integer(the index of the array) with the
@@ -80,9 +104,6 @@ var pieceReference = map[string]Piece{
 	"N": WhiteKnight,
 	"P": WhitePawn,
 }
-
-// zobritsKeys contains the random keys to create the zobrist hash of a position
-var zobristKeys = initZobristKeys()
 
 // Position contains all information about a chess position
 type Position struct {
@@ -123,9 +144,7 @@ func (pos *Position) AddPiece(piece Piece, square string) {
 
 // emptySquares returns a Bitboard with the empty sqaures of the position
 func (pos *Position) EmptySquares() (emptySquares Bitboard) {
-	// Set all as empty
-	// TODO: extract to constant
-	emptySquares = 0xFFFFFFFFFFFFFFFF
+	emptySquares = ALL_SQUARES
 
 	for _, bitboard := range pos.Bitboards {
 		emptySquares &= ^bitboard
@@ -154,23 +173,22 @@ func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
 	return
 }
 
-func Attacks(piece Piece, sq Bitboard, pos *Position) (attacks Bitboard) {
-	// TODO: Tests...
+func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	switch piece {
 	case WhiteKing, BlackKing:
-		attacks |= kingAttacks(&sq, pos)
+		attacks |= kingAttacks(&from, pos)
 	case WhiteQueen, BlackQueen:
-		attacks |= queenAttacks(&sq, pos)
+		attacks |= queenAttacks(&from, pos)
 	case WhiteRook, BlackRook:
-		attacks |= rookAttacks(&sq, pos)
+		attacks |= rookAttacks(&from, pos)
 	case WhiteBishop, BlackBishop:
-		attacks |= bishopAttacks(&sq, pos)
+		attacks |= bishopAttacks(&from, pos)
 	case WhiteKnight, BlackKnight:
-		attacks |= knightAttacks(&sq, pos)
+		attacks |= knightAttacks(&from, pos)
 	case WhitePawn:
-		attacks |= pawnAttacks(&sq, pos, White)
+		attacks |= pawnAttacks(&from, pos, White)
 	case BlackPawn:
-		attacks |= pawnAttacks(&sq, pos, Black)
+		attacks |= pawnAttacks(&from, pos, Black)
 	}
 	return
 }
@@ -208,6 +226,7 @@ func (pos *Position) CheckingPieces(side Color) (kingAttackers Bitboard) {
 
 // Pieces returns a Bitboard with the pieces of the color pased
 func (pos *Position) Pieces(side Color) (pieces Bitboard) {
+	// TODO: Also duplicated, triplicated, etc...
 	startingBitboard := 0
 	if side != White {
 		startingBitboard = 6
@@ -222,7 +241,7 @@ func (pos *Position) Pieces(side Color) (pieces Bitboard) {
 func (pos *Position) Check(side Color) (inCheck bool) {
 	kingPos := pos.KingPosition(side)
 
-	if (kingPos & pos.AttackedSquares(opponentSide(side))) > 0 {
+	if (kingPos & pos.AttackedSquares(side.opponent())) > 0 {
 		inCheck = true
 	}
 	return
@@ -230,11 +249,7 @@ func (pos *Position) Check(side Color) (inCheck bool) {
 
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
-	if side == White {
-		king = pos.Bitboards[WhiteKing]
-	} else {
-		king = pos.Bitboards[BlackKing]
-	}
+	king = pos.Bitboards[pieceOfColor[King][side]]
 	return
 }
 
@@ -248,11 +263,6 @@ func (pos Position) RemovePiece(piece Bitboard) Position {
 		}
 	}
 	return newPos
-}
-
-// NumberOfPieces return the number of pieces of the type passed
-func (pos *Position) NumberOfPieces(pieceType int) int {
-	return pos.Bitboards[pieceType].count()
 }
 
 // ToMove returns the side to move in the current position
@@ -295,47 +305,42 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 	legalMoves = append(legalMoves, pos.legalCastles(side)...)
 	legalMoves = append(legalMoves, pos.legalEnPassant(side)...)
 
-	// TODO: Move ordering. Captures are more likely to generate cutoff in the search
-	// Need to find how to evaluate how good a move is to generate cutoff...
-	sort.Slice(legalMoves, func(i, j int) bool {
-		return legalMoves[i].moveType() > legalMoves[j].moveType()
-	})
 	return
 }
 
 // legalCastles returns the castles moves the passed side can make
 func (pos *Position) legalCastles(side Color) (castle []Move) {
-	castlePathsBB := []Bitboard{0x60, 0xE, 0x6000000000000000, 0xE00000000000000}
-	passingKingPathBB := []Bitboard{0x60, 0xC, 0x6000000000000000, 0xC00000000000000}
-
 	if pos.Check(side) {
 		return
 	}
+	oldEpTarget := 0
+	if pos.enPassantTarget > 0 {
+		oldEpTarget = Bsf(pos.enPassantTarget)
+	}
+
+	castlePathsBB := []Bitboard{0x60, 0xE, 0x6000000000000000, 0xE00000000000000}
+	passingKingPathBB := []Bitboard{0x60, 0xC, 0x6000000000000000, 0xC00000000000000}
 
 	if side == White {
 		king := WhiteKing
-		canCastleShort := castlePathsBB[0]&(^pos.EmptySquares()|pos.AttackedSquares(opponentSide(side))) == 0
-		canCastleLong := (castlePathsBB[1] & ^pos.EmptySquares())|(passingKingPathBB[1]&pos.AttackedSquares(opponentSide(side))) == 0
+		canCastleShort := castlePathsBB[0]&(^pos.EmptySquares()|pos.AttackedSquares(side.opponent())) == 0
+		canCastleLong := (castlePathsBB[1] & ^pos.EmptySquares())|(passingKingPathBB[1]&pos.AttackedSquares(side.opponent())) == 0
 
 		if pos.castlingRights.canCastle(SHORT_CASTLE_WHITE) && canCastleShort {
-			castle = append(castle, MoveEncode(4, 6, int(king), 0, CASTLE))
-			// Move{from: "e1", to: "g1", piece: WHITE_KING, moveType: CASTLE})
+			castle = append(castle, MoveEncode(4, 6, int(king), 0, CASTLE, 0, oldEpTarget))
 		}
 		if pos.castlingRights.canCastle(LONG_CASTLE_WHITE) && canCastleLong {
-			castle = append(castle, MoveEncode(4, 2, int(king), 0, CASTLE))
-			// Move{from: "e1", to: "c1", piece: WHITE_KING, moveType: CASTLE})
+			castle = append(castle, MoveEncode(4, 2, int(king), 0, CASTLE, 0, oldEpTarget))
 		}
 	} else {
 		king := BlackKing
-		canCastleShort := castlePathsBB[2]&(^pos.EmptySquares()|pos.AttackedSquares(opponentSide(side))) == 0
-		canCastleLong := (castlePathsBB[3] & ^pos.EmptySquares())|(passingKingPathBB[3]&pos.AttackedSquares(opponentSide(side))) == 0
+		canCastleShort := castlePathsBB[2]&(^pos.EmptySquares()|pos.AttackedSquares(side.opponent())) == 0
+		canCastleLong := (castlePathsBB[3] & ^pos.EmptySquares())|(passingKingPathBB[3]&pos.AttackedSquares(side.opponent())) == 0
 		if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) && canCastleShort {
-			castle = append(castle, MoveEncode(60, 62, int(king), 0, CASTLE))
-			// Move{from: "e8", to: "g8", piece: BLACK_KING, moveType: CASTLE})
+			castle = append(castle, MoveEncode(60, 62, int(king), 0, CASTLE, 0, oldEpTarget))
 		}
 		if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) && canCastleLong {
-			castle = append(castle, MoveEncode(60, 58, int(king), 0, CASTLE))
-			// Move{from: "e8", to: "c8", piece: BLACK_KING, moveType: CASTLE})
+			castle = append(castle, MoveEncode(60, 58, int(king), 0, CASTLE, 0, oldEpTarget))
 		}
 	}
 	return
@@ -344,14 +349,15 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 // legalEnPassant returns the en passant moves in the position
 func (pos *Position) legalEnPassant(side Color) (enPassant []Move) {
 	epTarget := pos.enPassantTarget
+	oldEpTarget := 0
+	if pos.enPassantTarget > 0 {
+		oldEpTarget = Bsf(pos.enPassantTarget)
+	}
 
 	if epTarget == 0 {
 		return
 	}
-	piece := WhitePawn
-	if side == Black {
-		piece = BlackPawn
-	}
+	piece := pieceOfColor[Pawn][side]
 
 	posiblesCapturers := posiblesEpCapturers(epTarget, side, pos)
 
@@ -364,23 +370,11 @@ func (pos *Position) legalEnPassant(side Color) (enPassant []Move) {
 			checkRestrictedMoves(capturer, pieceColor[p], pos)
 
 		if enPassantAvailable > 0 {
-			enPassant = append(enPassant, MoveEncode(Bsf(capturer), Bsf(epTarget), int(piece), 0, EN_PASSANT))
+			enPassant = append(enPassant,
+				MoveEncode(Bsf(capturer), Bsf(epTarget), int(piece), 0, EN_PASSANT, int(pieceOfColor[Pawn][side.opponent()]), oldEpTarget),
+			)
 		}
-
 	}
-
-	// for _, sq := range posiblesCapturers.ToStringSlice() {
-	// 	p, _ := pos.PieceAt(sq)
-	//
-	// 	enPassantAvailable := epTarget &
-	// 		pinRestrictedDirection(p.Square(), p.Color(), pos) &
-	// 		checkRestrictedMoves(p.Square(), p.Color(), pos)
-	//
-	// 	if enPassantAvailable > 0 {
-	// 		enPassant = append(enPassant, MoveEncode(Bsf(p.Square()), Bsf(epTarget), piece, 0, EN_PASSANT))
-	// 		// Move{from: p.Square().ToStringSlice()[0], to: pos.enPassantTarget.ToStringSlice()[0], piece: p.role(), moveType: EN_PASSANT})
-	// 	}
-	// }
 	return
 }
 
@@ -415,7 +409,7 @@ func (pos *Position) MakeMove(move *Move) (newPos Position) {
 	pieceToAdd := Piece(move.piece())
 	newPos = pos.RemovePiece(BitboardFromIndex(move.from()))
 
-	// clear EnPassant target if was setted
+	// clear ep target
 	newPos.enPassantTarget &= 0
 
 	// fullmoveNumber+1 if it's black turn
@@ -425,7 +419,7 @@ func (pos *Position) MakeMove(move *Move) (newPos Position) {
 	newPos.halfmoveClock++
 
 	// Check for special moves:
-	switch move.moveType() {
+	switch move.MoveType() {
 	case NORMAL:
 		// Reset halfmoveClock also resets with single pawn push
 		if move.piece() == int(WhitePawn) || move.piece() == int(BlackPawn) {
@@ -469,13 +463,56 @@ func (pos *Position) MakeMove(move *Move) (newPos Position) {
 	}
 
 	// Update Turn/color to move
-	newPos.turn = opponentSide(pos.turn)
+	newPos.turn = pos.turn.opponent()
 	// Add piece to destination sqaure
 	newPos.AddPiece(pieceToAdd, squareReference[move.to()])
 
 	// Update zobrist hash for the position
 	// TODO: refactor to a proper update function to avoid calculating the hash from scratch
 	newPos.Zobrist = zobristHash(newPos, zobristKeys)
+	return
+}
+
+// UnmakeMove undoes a the passed move in the postion
+func (pos *Position) UnmakeMove(move Move) (oldPos Position) {
+	// pos is the position with the move make
+	// oldPos will be the old position before the move
+	oldPos = pos.RemovePiece(BitboardFromIndex(move.to()))
+
+	// restore to previous ep target
+	oldPos.enPassantTarget = Bitboard(0)
+	if move.oldEpTarget() > 0 {
+		oldPos.enPassantTarget = BitboardFromIndex(move.oldEpTarget())
+	}
+
+	// pos.fullmoveNumber
+	// NOTE: not needed to update because it does not modifies zorbist hash fullmoveNumber
+
+	switch move.MoveType() {
+	// case NORMAL: noting special needed
+	// case PAWN_DOUBLE_PUSH: ep target managed by move.oldEpTarget()
+	case CAPTURE:
+		// check castle
+		// add captured piece back
+		oldPos.AddPiece(Piece(move.capturedPiece()), squareReference[move.to()])
+		// restore updateCastleRights
+	case PROMOTION:
+	// remove promoted piece
+	// add pawn to from
+	// check castle if capture promotion(?)
+	case CASTLE:
+	// move back the rook
+	case EN_PASSANT:
+		// add captured pawn to original square
+	}
+
+	oldPos.AddPiece(Piece(move.piece()), squareReference[move.from()])
+
+	// Update Turn/color to move to opponent
+	oldPos.turn = pos.turn.opponent()
+
+	// Update zobrist hash for the position
+	oldPos.Zobrist = zobristHash(oldPos, zobristKeys)
 	return
 }
 
@@ -657,11 +694,10 @@ func (pos *Position) drawAvailableBy50MoveRule() bool {
 
 // Print prints the Position to the terminal from white's view perspective
 func (pos *Position) Print() {
-	// TODO: add coordinates/unicode chars for pieces
 	board := toRuneArray(pos)
 
 	currentSq := 63
-	fmt.Println("\n  -------------------------------") // Break line
+	fmt.Println("\n  -------------------------------")
 	for rank := 7; rank >= 0; rank-- {
 		for file := 7; file >= 0; file-- {
 			piece := board[currentSq-file]
@@ -670,7 +706,7 @@ func (pos *Position) Print() {
 			}
 			fmt.Print(" | " + string(piece))
 		}
-		fmt.Println(" |\n  -------------------------------") // Break line
+		fmt.Println(" |\n  -------------------------------")
 		currentSq -= 8
 	}
 }
@@ -692,38 +728,8 @@ func toRuneArray(pos *Position) [64]rune {
 
 // Utility functions
 
-// makePiece is a factory function that returns a Piece based on the role and square passed
-// func makePiece(role int, square Bitboard) (piece Piece) {
-// 	switch role {
-// 	case WHITE_KING:
-// 		piece = &King{color: WHITE, square: square}
-// 	case WHITE_QUEEN:
-// 		piece = &Queen{color: WHITE, square: square}
-// 	case WHITE_ROOK:
-// 		piece = &Rook{color: WHITE, square: square}
-// 	case WHITE_BISHOP:
-// 		piece = &Bishop{color: WHITE, square: square}
-// 	case WHITE_KNIGHT:
-// 		piece = &Knight{color: WHITE, square: square}
-// 	case WHITE_PAWN:
-// 		piece = &Pawn{color: WHITE, square: square}
-// 	case BLACK_KING:
-// 		piece = &King{color: BLACK, square: square}
-// 	case BLACK_QUEEN:
-// 		piece = &Queen{color: BLACK, square: square}
-// 	case BLACK_ROOK:
-// 		piece = &Rook{color: BLACK, square: square}
-// 	case BLACK_BISHOP:
-// 		piece = &Bishop{color: BLACK, square: square}
-// 	case BLACK_KNIGHT:
-// 		piece = &Knight{color: BLACK, square: square}
-// 	case BLACK_PAWN:
-// 		piece = &Pawn{color: BLACK, square: square}
-// 	}
-// 	return
-// }
-
 // squareToBitboard returns a bitboard containing the position of the squares coordinates passed
+// TODO: Refactor/improve
 func squareToBitboard(coordinates []string) (bitboard Bitboard) {
 	for _, coordinate := range coordinates {
 		fileNumber := int(coordinate[0]) - 96
@@ -763,7 +769,6 @@ func From(fen string) (pos *Position) {
 	}
 
 	pos.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
-	// FIX: can be null square '-' and goes segmentation fault/panic!
 	if elements[3] != "-" {
 		pos.enPassantTarget = squareToBitboard([]string{elements[3]})
 	}
@@ -784,69 +789,4 @@ func InitialPosition() (pos *Position) {
 // EmptyPosition returns an empty Position struct
 func EmptyPosition() (pos *Position) {
 	return &Position{}
-}
-
-// zorbistKeyIndex returns the index of the zorbistKey array for a given piece
-// on a given square
-func zobristKeyIndex(piece int, sq int) (i int) {
-	return (64 * piece) + sq
-}
-
-// zorbistHash calculates the hash of a given position
-func zobristHash(pos Position, keys [781]uint64) (hash uint64) {
-	for pieceType, bb := range pos.Bitboards {
-		for bb > 0 {
-			sqNumber := Bsf(bb)
-			hash = hash ^ keys[zobristKeyIndex(pieceType, sqNumber)]
-
-			bb &= ^Bitboard(0b1 << sqNumber)
-		}
-	}
-	// Black to move
-	if pos.ToMove() == Black {
-		hash = hash ^ keys[768]
-	}
-
-	// Castle availability
-	hash = updateZobristCastle(pos, hash, keys)
-
-	// Ep target
-	if pos.enPassantTarget != 0 {
-		hash = hash ^ keys[Bsf(pos.enPassantTarget)%8]
-	}
-	return
-}
-
-// updateZobristCastle updates a zobrist hash depending on the castle
-// availability in the passed position
-func updateZobristCastle(pos Position, hash uint64, keys [781]uint64) uint64 {
-	if pos.castlingRights.canCastle(SHORT_CASTLE_WHITE) {
-		hash = hash ^ keys[769]
-	}
-	if pos.castlingRights.canCastle(LONG_CASTLE_WHITE) {
-		hash = hash ^ keys[770]
-	}
-	if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) {
-		hash = hash ^ keys[771]
-	}
-	if pos.castlingRights.canCastle(LONG_CASTLE_BLACK) {
-		hash = hash ^ keys[772]
-	}
-	return hash
-}
-
-// initZorbistKey returns an array of zorbist keys of random numbers
-func initZobristKeys() (zorbistKeys [781]uint64) {
-	//     One number for each piece at each square (12 x 64) pieceType (int) x square Number
-	//     One number to indicate the side to move is black (1)  zorbistKey[768]
-	//     Four numbers to indicate the castling rights, though usually 16 (2^4) are used for speed (4) zorbistKey[769 - 772]
-	//     Eight numbers to indicate the file of a valid En passant square, if any (8) zorbistKey[773 - 780] only account the file
-	//
-	// This leaves us with an array with 781 (12*64 + 1 + 4 + 8) random numbers. Since pawns don't happen on first and eighth rank, one might be fine with 12*64 though. There are even proposals and implementations to use overlapping keys from unaligned access up to an array of only 12 numbers for every piece and to rotate that number by square [13] [14] .
-
-	for i := range zorbistKeys {
-		zorbistKeys[i] = uint64(rand.Int63())
-	}
-
-	return
 }

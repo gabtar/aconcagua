@@ -9,19 +9,22 @@ func getBishopMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 	movesBB := bishopMoves(b, pos, side)
 	pieces := ^pos.EmptySquares()
 	from := Bsf(*b)
-	piece := WhiteBishop
-	if side == Black {
-		piece = BlackBishop
+	piece := pieceOfColor[Bishop][side]
+	oldEpTarget := 0
+	if pos.enPassantTarget > 0 {
+		oldEpTarget = Bsf(pos.enPassantTarget)
 	}
 
 	for movesBB > 0 {
 		to := movesBB.nextOne()
 		// bishop moves type only -> capture or normal
 		moveType := NORMAL
+		capturedPiece := Piece(0)
 		if to&pieces > 0 {
 			moveType = CAPTURE
+			capturedPiece, _ = pos.PieceAt(to.ToStringSlice()[0])
 		}
-		moves = append(moves, MoveEncode(from, Bsf(to), int(piece), 0, moveType))
+		moves = append(moves, MoveEncode(from, Bsf(to), int(piece), 0, moveType, int(capturedPiece), oldEpTarget))
 	}
 	return
 }

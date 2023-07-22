@@ -9,18 +9,21 @@ func getKingMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 	movesBB := kingMoves(b, pos, side)
 	pieces := ^pos.EmptySquares()
 	from := Bsf(*b)
-	piece := WhiteKing
-	if side == Black {
-		piece = BlackKing
+	piece := pieceOfColor[King][side]
+	oldEpTarget := 0
+	if pos.enPassantTarget > 0 {
+		oldEpTarget = Bsf(pos.enPassantTarget)
 	}
 
 	for movesBB > 0 {
 		to := movesBB.nextOne()
 		moveType := NORMAL
+		capturedPiece := Piece(0)
 		if to&pieces > 0 {
 			moveType = CAPTURE
+			capturedPiece, _ = pos.PieceAt(to.ToStringSlice()[0])
 		}
-		moves = append(moves, MoveEncode(from, Bsf(to), int(piece), 0, moveType))
+		moves = append(moves, MoveEncode(from, Bsf(to), int(piece), 0, moveType, int(capturedPiece), oldEpTarget))
 	}
 	return
 }
@@ -28,7 +31,7 @@ func getKingMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 // kingMoves returns a bitboard with the legal moves of the king from the bitboard passed
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	withoutKing := pos.RemovePiece(*k)
-	moves = kingAttacks(k, pos) & ^withoutKing.AttackedSquares(opponentSide(side)) & ^pos.Pieces(side)
+	moves = kingAttacks(k, pos) & ^withoutKing.AttackedSquares(side.opponent()) & ^pos.Pieces(side)
 	return
 }
 

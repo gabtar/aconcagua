@@ -31,6 +31,11 @@ var ranks [8]Bitboard = [8]Bitboard{
 	0x00000000000000FF << 56,
 }
 
+var bitboardFromString = map[string]Bitboard{
+	"a1": Bitboard(0b1),
+	"b1": Bitboard(0b1 << 1),
+}
+
 const ALL_SQUARES Bitboard = 0xFFFFFFFFFFFFFFFF
 
 // Bitboard represents a bitboard as a 64bit integer
@@ -69,7 +74,7 @@ func (b Bitboard) count() int {
 	return count
 }
 
-// nextOne returns a bitboard with the first bit
+// nextOne returns a bitboard with the first bit (removes the bit from the bitboard)
 func (b *Bitboard) nextOne() (bb Bitboard) {
 	bb = BitboardFromIndex(Bsf(*b))
 	*b ^= bb

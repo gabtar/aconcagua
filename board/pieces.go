@@ -128,6 +128,7 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 
 	// Get the first 2 pieces along the direction
 	switch pinDirection {
+	// TODO: remove duplication...
 	case NORTH, EAST, NORTHEAST, NORTHWEST:
 		firstBB := BitboardFromIndex(Bsf(piecesInLine))
 		secondBB := BitboardFromIndex(Bsf(piecesInLine & ^firstBB))
@@ -141,9 +142,6 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 			(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {
 			return true
 		}
-		// if pieceOne.Color() != pieceTwo.Color() && (pieceTwo.Attacks(&withoutPinnedPiece)&kingBB) > 0 {
-		// 	return true
-		// }
 
 	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
 		firstBB := BitboardFromIndex(63 - Bsr(piecesInLine))
@@ -160,14 +158,6 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 		}
 	}
 	return false
-}
-
-// opponentSide returns the opposite color of the passed
-func opponentSide(color Color) Color {
-	if color == White {
-		return Black
-	}
-	return White
 }
 
 // getDirection returns the direction from piece2 towards piece1 (piece2 -> piece1)
