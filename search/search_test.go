@@ -11,7 +11,7 @@ func TestFoundCheckmateMove(t *testing.T) {
 	_, bestMoves := BestMove(pos, 4)
 
 	expected := "c3d4"
-	got := bestMoves.ToUci()
+	got := bestMoves[0].ToUci()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -22,7 +22,7 @@ func TestFoundCaptureTheQueen(t *testing.T) {
 	pos := board.From("r1bqkbnr/7p/2p1p1p1/p1pp1p1Q/P4P2/3PP3/1PPBN1PP/RN3RK1 b kq - 1 9")
 	_, bestMoves := BestMove(pos, 4)
 	expected := "g6h5"
-	got := bestMoves.ToUci()
+	got := bestMoves[0].ToUci()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -34,7 +34,7 @@ func TestDontSacTheQueen(t *testing.T) {
 	_, bestMoves := BestMove(pos, 4)
 
 	expected := "d5c4"
-	got := bestMoves.ToUci()
+	got := bestMoves[0].ToUci()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

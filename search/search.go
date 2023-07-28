@@ -8,55 +8,9 @@ import (
 	"github.com/gabtar/aconcagua/evaluation"
 )
 
-// Pseudocode from wikipedia
-// function negamax(node, depth, α, β, color) is
-//     alphaOrig := α
-//
-//     (* Transposition Table Lookup; node is the lookup key for ttEntry *)
-//     ttEntry := transpositionTableLookup(node)
-//     if ttEntry is valid and ttEntry.depth ≥ depth then
-//         if ttEntry.flag = EXACT then
-//             return ttEntry.value
-//         else if ttEntry.flag = LOWERBOUND then
-//             α := max(α, ttEntry.value)
-//         else if ttEntry.flag = UPPERBOUND then
-//             β := min(β, ttEntry.value)
-//
-//         if α ≥ β then
-//             return ttEntry.value
-//
-//     if depth = 0 or node is a terminal node then
-//         return color × the heuristic value of node
-//
-//     childNodes := generateMoves(node)
-//     childNodes := orderMoves(childNodes)
-//     value := −∞
-//     for each child in childNodes do
-//         value := max(value, −negamax(child, depth − 1, −β, −α, −color))
-//         α := max(α, value)
-//         if α ≥ β then
-//             break
-//
-//     (* Transposition Table Store; node is the lookup key for ttEntry *)
-//     ttEntry.value := value
-//     if value ≤ alphaOrig then
-//         ttEntry.flag := UPPERBOUND
-//     else if value ≥ β then
-//         ttEntry.flag := LOWERBOUND
-//     else
-//         ttEntry.flag := EXACT
-//     ttEntry.depth := depth
-//     ttEntry.is_valid := true
-//     transpositionTableStore(node, ttEntry)
-//
-//     return value
-
-// (* Initial call for Player A's root node *)
-// negamax(rootNode, depth, −∞, +∞, 1)
-
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
-func negamax(pos board.Position, depth int, initialDepth int, alpha int, beta int, bestMove *board.Move) (score int) {
+func negamax(pos board.Position, depth int, alpha int, beta int, pV *principalVariation) (score int) {
 	alphaOrig := alpha
 
 	// Check if it's present on the transposition table and return the score
@@ -75,7 +29,7 @@ func negamax(pos board.Position, depth int, initialDepth int, alpha int, beta in
 	}
 
 	if depth == 0 || pos.Checkmate(board.White) || pos.Checkmate(board.Black) {
-		// Color modifier for evaluation
+		// TODO: extract to function? Color modifier for evaluation
 		color := 1
 		if pos.ToMove() == board.Black {
 			color = -1
@@ -87,21 +41,16 @@ func negamax(pos board.Position, depth int, initialDepth int, alpha int, beta in
 
 	score = math.MinInt
 
-	for _, move := range sortMoves(pos.LegalMoves(pos.ToMove()), bestMove) {
+	for _, move := range sortMoves(pos.LegalMoves(pos.ToMove()), pV, pV.maxDepth-depth) {
 		newPos := pos.MakeMove(&move)
-		newScore := -negamax(newPos, depth-1, initialDepth, -beta, -alpha, bestMove)
+		newScore := -negamax(newPos, depth-1, -beta, -alpha, pV)
 
 		if newScore > score {
 			score = newScore
-			// Set best move (only for first level)
-			if depth == initialDepth {
-				// TODO: / IDEA I should use a pointer to an engine struct eg.
-				*bestMove = move
-			}
+			pV.moves[pV.maxDepth-depth] = move
+			alpha = max(newScore, alpha)
 		}
-		if newScore > alpha {
-			alpha = newScore
-		}
+
 		if alpha >= beta {
 			return
 		}
@@ -136,28 +85,33 @@ func min(a int, b int) int {
 
 // BestMove returns the best move sequence in the position (for the current side)
 // with its score evaluation.
-func BestMove(pos *board.Position, maxDepth int) (bestMoveScore int, bestMove board.Move) {
+func BestMove(pos *board.Position, maxDepth int) (bestMoveScore int, bestMove []board.Move) {
 
-	min := math.MinInt + 1 // NOTE: Due to overflow issues i need to use this way, now negamax works well
+	min := math.MinInt + 1 // NOTE: +1 Needed to avoid overflow when invert in negamax
 	max := math.MaxInt
 	tt = newTranspositionTable()
+	pV := newPrincipalVariation(maxDepth)
 
-	// TODO: iterative deepening
 	for d := 1; d <= maxDepth; d++ {
-		bestMoveScore = negamax(*pos, d, d, min, max, &bestMove)
+		pV.maxDepth = d
+		bestMoveScore = negamax(*pos, d, min, max, pV)
 	}
+
+	bestMove = pV.moves
 
 	return
 }
 
-func sortMoves(legalMoves []board.Move, bestMove *board.Move) (sortedMoves []board.Move) {
+// sortMoves sorts an slice of moves acording to the principalVariation
+func sortMoves(legalMoves []board.Move, pV *principalVariation, depth int) (sortedMoves []board.Move) {
 	sort.Slice(legalMoves, func(i, j int) bool {
-		// TODO: improve move ordering by using a principal variation
-		// this only works on 1st iteration
-		if legalMoves[i] == *bestMove {
+
+		if pV.moves[depth] == legalMoves[i] {
 			return true
 		}
 
+		// rest of the moves sort acording to type (captures, promotion...)
+		// TODO: improve move ordering...
 		return legalMoves[i].MoveType() > legalMoves[j].MoveType()
 	})
 	return legalMoves

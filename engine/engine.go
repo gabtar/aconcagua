@@ -83,9 +83,8 @@ func Uci(cmd chan string, output chan string) {
 			// TODO: set flag on engine that its calculating
 			// TODO: parse depth, time, other paramterts
 			score, bestMove := search.BestMove(pos, 4)
-			// FIX: Negamax relative score based on the side, i should invert sign if black to move...
 			output <- "info score cp " + strconv.Itoa(score)
-			output <- "bestmove " + bestMove.ToUci()
+			output <- "bestmove " + bestMove[0].ToUci()
 
 			// TODO:  ----------- only for testing internal state via uci command line ----------------
 		case "printboard":

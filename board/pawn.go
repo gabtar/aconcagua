@@ -20,27 +20,35 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 		doublePushTo = ranks[4]
 		promotions = []Piece{BlackKnight, BlackBishop, BlackRook, BlackQueen}
 	}
-	// TODO: Refactor/improve....
-	oldEpTarget := 0
-	if pos.enPassantTarget > 0 {
-		oldEpTarget = Bsf(pos.enPassantTarget)
-	}
 
 	for destinationsBB > 0 {
 		destSq := destinationsBB.nextOne()
+		move := newMove().
+			setFromSq(Bsf(*p)).
+			setToSq(Bsf(destSq)).
+			setPiece(piece).
+			setMoveType(NORMAL).
+			setEpTargetBefore(pos.enPassantTarget).
+			setRule50Before(pos.halfmoveClock).
+			setCastleRightsBefore(pos.castlingRights)
 
 		switch {
 		case (opponentPieces & destSq) > 0:
-			capturedPiece, _ := pos.PieceAt(destSq.ToStringSlice()[0])
-			moves = append(moves, MoveEncode(Bsf(*p), Bsf(destSq), int(piece), 0, CAPTURE, int(capturedPiece), oldEpTarget))
+			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(destSq)])
+			move.setMoveType(CAPTURE).setCapturedPiece(capturedPiece)
+			moves = append(moves, *move)
 		case (destSq&doublePushTo) > 0 && (*p&doublePushFrom) > 0:
-			moves = append(moves, MoveEncode(Bsf(*p), Bsf(destSq), int(piece), 0, PAWN_DOUBLE_PUSH, 0, oldEpTarget))
+			move.setMoveType(PAWN_DOUBLE_PUSH)
+			moves = append(moves, *move)
 		case (destSq & queeningRank) > 0:
+			// TODO: Check if its a promotion capture...
+			move.setMoveType(PROMOTION)
 			for _, promotedRole := range promotions {
-				moves = append(moves, MoveEncode(Bsf(*p), Bsf(destSq), int(piece), int(promotedRole), PROMOTION, 0, oldEpTarget))
+				move.setPiece(promotedRole)
+				moves = append(moves, *move)
 			}
 		default:
-			moves = append(moves, MoveEncode(Bsf(*p), Bsf(destSq), int(piece), 0, NORMAL, 0, oldEpTarget))
+			moves = append(moves, *move)
 		}
 	}
 	return

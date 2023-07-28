@@ -30,8 +30,9 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 #### Search:
 - [x] Add alpha-beta prunning
 - [x] Use negamax algorithm
-- [ ] Transposition table
-- [ ] Iterative deepening
+- [x] Transposition table
+- [x] Iterative deepening
+- [x] Principal Variation
 - [ ] Aspiration windows
 - [ ] Add ~~check~~, stealmate, etc detection while searching
 

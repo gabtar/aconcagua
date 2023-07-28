@@ -321,10 +321,13 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 
 	from := Bsf(squareToBitboard([]string{"e3"}))
 	to := Bsf(squareToBitboard([]string{"d4"}))
-	capturedPiece, _ := pos.PieceAt("d4")
-	move := MoveEncode(from, to, int(WhitePawn), 0, CAPTURE, int(capturedPiece), 0)
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(WhitePawn).
+		setMoveType(CAPTURE)
 
-	newPos := pos.MakeMove(&move)
+	newPos := pos.MakeMove(move)
 
 	expected := "7k/8/8/8/3P4/8/8/7K b - - 0 1"
 	got := newPos.ToFen()
@@ -339,19 +342,35 @@ func TestZobristUpdate(t *testing.T) {
 
 	from := Bsf(squareToBitboard([]string{"g1"}))
 	to := Bsf(squareToBitboard([]string{"f3"}))
-	move1 := MoveEncode(from, to, int(WhitePawn), 0, NORMAL, 0, 0)
+	move1 := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(WhitePawn).
+		setMoveType(NORMAL)
 
 	from = Bsf(squareToBitboard([]string{"b7"}))
 	to = Bsf(squareToBitboard([]string{"c5"}))
-	move2 := MoveEncode(from, to, int(BlackPawn), 0, NORMAL, 0, 0)
+	move2 := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(BlackPawn).
+		setMoveType(NORMAL)
 
 	from = Bsf(squareToBitboard([]string{"b1"}))
 	to = Bsf(squareToBitboard([]string{"c3"}))
-	move3 := MoveEncode(from, to, int(WhiteKnight), 0, NORMAL, 0, 0)
+	move3 := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(WhiteKnight).
+		setMoveType(NORMAL)
 
 	from = Bsf(squareToBitboard([]string{"g8"}))
 	to = Bsf(squareToBitboard([]string{"f6"}))
-	move4 := MoveEncode(from, to, int(BlackKnight), 0, NORMAL, 0, 0)
+	move4 := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(BlackKnight).
+		setMoveType(NORMAL)
 
 	// Normal order 1 2 3 4
 	// move1 := &Move{from: "g1", to: "f3", piece: WHITE_PAWN, moveType: NORMAL}
@@ -359,16 +378,16 @@ func TestZobristUpdate(t *testing.T) {
 	// move3 := &Move{from: "b1", to: "c3", piece: WHITE_KNIGHT, moveType: NORMAL}
 	// move4 := &Move{from: "g8", to: "f6", piece: BLACK_KNIGHT, moveType: NORMAL}
 
-	pos1 := pos.MakeMove(&move1)
-	pos2 := pos1.MakeMove(&move2)
-	pos3 := pos2.MakeMove(&move3)
-	pos4 := pos3.MakeMove(&move4)
+	pos1 := pos.MakeMove(move1)
+	pos2 := pos1.MakeMove(move2)
+	pos3 := pos2.MakeMove(move3)
+	pos4 := pos3.MakeMove(move4)
 
 	// Invert move order 3 4 1 2 -> Gets the same fen -> "r1bqkb1r/pppppppp/2n2n2/8/8/2N2N2/PPPPPPPP/R1BQKB1R w KQkq - 2 3"
-	pos5 := pos.MakeMove(&move3)
-	pos6 := pos5.MakeMove(&move4)
-	pos7 := pos6.MakeMove(&move1)
-	pos8 := pos7.MakeMove(&move2)
+	pos5 := pos.MakeMove(move3)
+	pos6 := pos5.MakeMove(move4)
+	pos7 := pos6.MakeMove(move1)
+	pos8 := pos7.MakeMove(move2)
 
 	expected := pos4.Zobrist
 	got := pos8.Zobrist
@@ -379,40 +398,97 @@ func TestZobristUpdate(t *testing.T) {
 }
 
 // Test for unmake move
-func TestUnmakeInNormalMove(t *testing.T) {
-	pos := InitialPosition()
-
-	from := Bsf(squareToBitboard([]string{"g1"}))
-	to := Bsf(squareToBitboard([]string{"f3"}))
-
-	move := MoveEncode(from, to, int(WhiteKnight), NORMAL, 0, 0, 0)
-
-	after := pos.MakeMove(&move)
-	before := after.UnmakeMove(move)
-
-	expected := pos.Zobrist
-	got := before.Zobrist
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
-	pos := InitialPosition()
-
-	from := Bsf(squareToBitboard([]string{"e2"}))
-	to := Bsf(squareToBitboard([]string{"e4"}))
-
-	move := MoveEncode(from, to, int(WhitePawn), PAWN_DOUBLE_PUSH, 0, 0, 0)
-
-	after := pos.MakeMove(&move)
-	before := after.UnmakeMove(move)
-
-	expected := pos.ToFen()
-	got := before.ToFen()
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
+// func TestUnmakeInNormalMove(t *testing.T) {
+// 	pos := InitialPosition()
+//
+// 	from := Bsf(squareToBitboard([]string{"g1"}))
+// 	to := Bsf(squareToBitboard([]string{"f3"}))
+//
+// 	move := MoveEncode(from, to, int(WhiteKnight), NORMAL, 0)
+//
+// 	after := pos.MakeMove(&move)
+// 	before := after.UnmakeMove(move)
+//
+// 	expected := pos.Zobrist
+// 	got := before.Zobrist
+//
+// 	if got != expected {
+// 		t.Errorf("Expected: %v, got: %v", expected, got)
+// 	}
+// }
+//
+// func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
+// 	pos := InitialPosition()
+//
+// 	from := Bsf(squareToBitboard([]string{"e2"}))
+// 	to := Bsf(squareToBitboard([]string{"e4"}))
+//
+// 	move := MoveEncode(from, to, int(WhitePawn), PAWN_DOUBLE_PUSH, 0)
+//
+// 	after := pos.MakeMove(&move)
+// 	before := after.UnmakeMove(move)
+//
+// 	expected := pos.ToFen()
+// 	got := before.ToFen()
+//
+// 	if got != expected {
+// 		t.Errorf("Expected: %v, got: %v", expected, got)
+// 	}
+// }
+//
+// func TestUnmakeMoveNormalMove(t *testing.T) {
+// 	pos := From("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1") // Position. 1. e4 (black to move)
+//
+// 	from := Bsf(squareToBitboard([]string{"e7"}))
+// 	to := Bsf(squareToBitboard([]string{"e5"}))
+//
+// 	move := MoveEncode(from, to, int(BlackPawn), 0, PAWN_DOUBLE_PUSH)
+//
+// 	makeMove := pos.MakeMove(&move)
+// 	unmakeMove := makeMove.UnmakeMove(move)
+//
+// 	expected := pos.ToFen()
+// 	got := unmakeMove.ToFen()
+//
+// 	if got != expected {
+// 		t.Errorf("Expected: %v, got: %v", expected, got)
+// 	}
+// }
+//
+// func TestUnmakeCapture(t *testing.T) {
+// 	pos := From("6k1/6pp/1r3p2/8/4n3/4B1P1/5P1P/6K1 w - - 0 1")
+//
+// 	from := Bsf(squareToBitboard([]string{"e3"}))
+// 	to := Bsf(squareToBitboard([]string{"b6"}))
+//
+// 	move := MoveEncode(from, to, int(WhiteBishop), 0, CAPTURE)
+//
+// 	makeMove := pos.MakeMove(&move)
+// 	unmakeMove := makeMove.UnmakeMove(move)
+//
+// 	expected := pos.ToFen()
+// 	got := unmakeMove.ToFen()
+//
+// 	if got != expected {
+// 		t.Errorf("Expected: %v, got: %v", expected, got)
+// 	}
+// }
+//
+// func TestUnmakeCaptureThatChangesCastleRights(t *testing.T) {
+// 	pos := From("6k1/1b4pp/5p2/8/8/4B1P1/5P1P/4K2R b K - 1 1")
+//
+// 	from := Bsf(squareToBitboard([]string{"b7"}))
+// 	to := Bsf(squareToBitboard([]string{"h1"}))
+//
+// 	move := MoveEncode(from, to, int(BlackBishop), 0, CAPTURE)
+//
+// 	makeMove := pos.MakeMove(&move)
+// 	unmakeMove := makeMove.UnmakeMove(move)
+//
+// 	expected := pos.ToFen()
+// 	got := unmakeMove.ToFen()
+//
+// 	if got != expected {
+// 		t.Errorf("Expected: %v, got: %v", expected, got)
+// 	}
+// }

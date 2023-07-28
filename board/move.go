@@ -3,10 +3,10 @@ package board
 // Type of move
 const (
 	NORMAL = iota
-	PAWN_DOUBLE_PUSH
 	CASTLE
-	EN_PASSANT
+	PAWN_DOUBLE_PUSH
 	PROMOTION
+	EN_PASSANT
 	CAPTURE
 )
 
@@ -18,6 +18,9 @@ const (
 // 4 bits to describe the type of the piece (2^4) (12 types now) - Not necessary needed
 // 4 bits to describe the promotedToPiece (2^4) (12 types now)
 // 3 bits to describe the type of move (2^3) (6 types) - NOTE: using 4 bits now
+
+// 32 bits for describe the state of the board before "making" the move. For unmake move purposes only!
+
 // NOTE: For unmaking moves purposes only
 // 4 bits to describe the type of the piece captured (2^4) (12 types)
 // 6 bits to describe the old en passant target square
@@ -50,16 +53,35 @@ func (m *Move) MoveType() int {
 	return int((*m & (0b1111 << 20)) >> 20)
 }
 
-// capturedPiece returns the type of the piece captured in the move (for unmake move purposes only)
-func (m *Move) capturedPiece() int {
-	return int((*m & (0b1111 << 24)) >> 24)
+// Data for unmaking moves purposes
+// --------------------------------
+
+// capturedPiece 4 bits 0000
+// epTargetBefore 6 bits 000000
+// rule50Before 6 bits 000000
+// castleRightsBefore 4 bits 0000
+
+// capturedPiece
+func (m *Move) capturedPiece() Piece {
+	return Piece((*m & (0b1111 << 24)) >> 24)
 }
 
-// oldEpTarget stores the old en passant square of the position before making the move
-func (m *Move) oldEpTarget() int {
-	return int((*m & (0b111111 << 28)) >> 28)
+// epTargetBefore
+func (m *Move) epTargetBefore() Bitboard {
+	return Bitboard((*m & (0b111111 << 28)) >> 28)
 }
 
+// rule50Before
+func (m *Move) rule50Before() int {
+	return int((*m & (0b111111 << 34)) >> 34)
+}
+
+// castleRightsBefore
+func (m *Move) castleRightsBefore() castling {
+	return castling((*m & (0b1111 << 40)) >> 40)
+}
+
+// ToUci returns the move in UCI format (starting square string -> destinatnion square string)
 func (m *Move) ToUci() (uciString string) {
 	uciString += squareReference[m.from()]
 	uciString += squareReference[m.to()]
@@ -79,15 +101,64 @@ func (m *Move) ToUci() (uciString string) {
 	return
 }
 
-// MoveEncode returns a move with the specified values
-// TODO: try to use instead a builder pattern for creating moves. It may be faster if i use a pointer to a list of moves preloaded structs in memomory
-func MoveEncode(from int, to int, piece int, promotedTo int, moveType int, capturedPiece int, oldEpTarget int) (mov Move) {
-	mov |= Move(from)
-	mov |= Move(to << 6)
-	mov |= Move(piece << 12)
-	mov |= Move(promotedTo << 16)
-	mov |= Move(moveType << 20)
-	mov |= Move(capturedPiece << 24)
-	mov |= Move(oldEpTarget << 28)
-	return
+// newMove returns a reference to a Move
+func newMove() *Move {
+	return new(Move)
 }
+
+// setFromSq sets the origin square in the Move
+func (m *Move) setFromSq(from int) *Move {
+	*m |= Move(from)
+	return m
+}
+
+// setToSq sets the destination square in the Move
+func (m *Move) setToSq(to int) *Move {
+	*m |= Move(to << 6)
+	return m
+}
+
+// setPiece sets the piece moved in the Move
+func (m *Move) setPiece(piece Piece) *Move {
+	*m |= Move(int(piece) << 12)
+	return m
+}
+
+// setPromotedTo sets the piece which is going to be promoted to in the Move
+func (m *Move) setPromotedTo(piece Piece) *Move {
+	*m |= Move(int(piece) << 16)
+	return m
+}
+
+// setMoveType sets the type of the move
+func (m *Move) setMoveType(moveType int) *Move {
+	*m |= Move(moveType << 20)
+	return m
+}
+
+// setCapturedPiece sets the piece captured during the move
+func (m *Move) setCapturedPiece(piece Piece) *Move {
+	*m |= Move(int(piece) << 24)
+	return m
+}
+
+// setEpTargetBefore sets the en passant square of the position before making the move
+func (m *Move) setEpTargetBefore(epTarget Bitboard) *Move {
+	*m |= Move(Bsf(epTarget) << 28)
+	return m
+}
+
+// setRule50Before sets the halfmoveClock of the position before making the move
+func (m *Move) setRule50Before(halfmoveClock int) *Move {
+	*m |= Move(halfmoveClock << 34)
+	return m
+}
+
+// setCastleRightsBefore sets the caslte rights of the position before making the move
+func (m *Move) setCastleRightsBefore(castles castling) *Move {
+	*m |= Move(int(castles) << 40)
+	return m
+}
+
+// Eg. sample call
+// move := newMove().setFromSq(4).setToSq(7)

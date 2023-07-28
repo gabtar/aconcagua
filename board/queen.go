@@ -16,21 +16,23 @@ func getQueenMoves(q *Bitboard, pos *Position, side Color) (moves []Move) {
 	pieces := ^pos.EmptySquares()
 	from := Bsf(*q)
 	piece := pieceOfColor[Queen][side]
-	oldEpTarget := 0
-	if pos.enPassantTarget > 0 {
-		oldEpTarget = Bsf(pos.enPassantTarget)
-	}
 
 	for movesBB > 0 {
 		to := movesBB.nextOne()
-		// bishop moves type only -> capture or normal
-		moveType := NORMAL
-		capturedPiece := Piece(0)
+		move := newMove().
+			setFromSq(from).
+			setToSq(Bsf(to)).
+			setPiece(piece).
+			setMoveType(NORMAL).
+			setEpTargetBefore(pos.enPassantTarget).
+			setRule50Before(pos.halfmoveClock).
+			setCastleRightsBefore(pos.castlingRights)
+
 		if to&pieces > 0 {
-			moveType = CAPTURE
-			capturedPiece, _ = pos.PieceAt(to.ToStringSlice()[0])
+			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(to)])
+			move.setMoveType(CAPTURE).setCapturedPiece(capturedPiece)
 		}
-		moves = append(moves, MoveEncode(from, Bsf(to), int(piece), 0, moveType, int(capturedPiece), oldEpTarget))
+		moves = append(moves, *move)
 	}
 	return
 }
