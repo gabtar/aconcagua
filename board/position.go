@@ -409,118 +409,133 @@ func posiblesEpCapturers(target Bitboard, side Color, pos *Position) (squares Bi
 }
 
 // MakeMove updates the position by making the move passed as parameter
-func (pos *Position) MakeMove(move *Move) (newPos Position) {
+func (pos *Position) MakeMove(move *Move) {
 	pieceToAdd := Piece(move.piece())
-	newPos = pos.RemovePiece(BitboardFromIndex(move.from()))
+	*pos = pos.RemovePiece(BitboardFromIndex(move.from()))
 
 	// clear ep target
-	newPos.enPassantTarget &= 0
+	pos.enPassantTarget &= 0
 
 	// fullmoveNumber+1 if it's black turn
 	if pos.turn == Black {
-		newPos.fullmoveNumber++
+		pos.fullmoveNumber++
 	}
-	newPos.halfmoveClock++
+	pos.halfmoveClock++
 
 	// Check for special moves:
 	switch move.MoveType() {
 	case NORMAL:
 		// Reset halfmoveClock also resets with single pawn push
 		if move.piece() == int(WhitePawn) || move.piece() == int(BlackPawn) {
-			newPos.halfmoveClock = 0
+			pos.halfmoveClock = 0
 		}
-		updateCastleRights(&newPos, move)
+		updateCastleRights(pos, move)
 	case PAWN_DOUBLE_PUSH:
 		// Add ep target sq
 		if move.piece() == int(WhitePawn) {
-			newPos.enPassantTarget = BitboardFromIndex(move.to()) >> 8
+			pos.enPassantTarget = BitboardFromIndex(move.to()) >> 8
 		} else {
-			newPos.enPassantTarget = BitboardFromIndex(move.to()) << 8
+			pos.enPassantTarget = BitboardFromIndex(move.to()) << 8
 		}
-		newPos.halfmoveClock = 0
+		pos.halfmoveClock = 0
 	case CAPTURE:
 		// Remove piece at destination
-		newPos = newPos.RemovePiece(BitboardFromIndex(move.to()))
+		*pos = pos.RemovePiece(BitboardFromIndex(move.to()))
 		// Reset halfmoveClock
-		newPos.halfmoveClock = 0
-		updateCastleRights(&newPos, move)
+		pos.halfmoveClock = 0
+		updateCastleRights(pos, move)
 	case PROMOTION:
 		// change piece to add to the board
 		pieceToAdd = Piece(move.promotedTo())
 		// Reset halfmoveClock
-		newPos.halfmoveClock = 0
+		pos.halfmoveClock = 0
 	case CASTLE:
 		// TODO: i need to figure out another way of implement this
-		newPos = moveRookOnCastleMove(newPos, move)
+		*pos = moveRookOnCastleMove(*pos, move)
 		// Update castle rights
-		updateCastleRights(&newPos, move)
+		updateCastleRights(pos, move)
 	case EN_PASSANT:
 		// Remove the captured pawn
 		// Es hacia abajo(blancas) / arriba (negras) del epTarget
 		if move.piece() == int(WhitePawn) {
-			newPos = newPos.RemovePiece(pos.enPassantTarget >> 8)
+			*pos = pos.RemovePiece(pos.enPassantTarget >> 8)
 		} else {
-			newPos = newPos.RemovePiece(pos.enPassantTarget << 8)
+			*pos = pos.RemovePiece(pos.enPassantTarget << 8)
 		}
 		// Reset halfmoveClock
-		newPos.halfmoveClock = 0
+		pos.halfmoveClock = 0
 	}
 
 	// Update Turn/color to move
-	newPos.turn = pos.turn.opponent()
+	pos.turn = pos.turn.opponent()
 	// Add piece to destination sqaure
-	newPos.AddPiece(pieceToAdd, squareReference[move.to()])
+	pos.AddPiece(pieceToAdd, squareReference[move.to()])
 
 	// Update zobrist hash for the position
 	// TODO: refactor to a proper update function to avoid calculating the hash from scratch
-	newPos.Zobrist = zobristHash(newPos, zobristKeys)
+	pos.Zobrist = zobristHash(*pos, zobristKeys)
 	return
 }
 
 // UnmakeMove undoes a the passed move in the postion
-func (pos *Position) UnmakeMove(move Move) (oldPos Position) {
-	// pos is the position with the move make
-	// oldPos will be the old position before the move
-	oldPos = pos.RemovePiece(BitboardFromIndex(move.to()))
-	// fullmoveNumber+1 if it's black turn
+func (pos *Position) UnmakeMove(move Move) {
+	// Remove the piece at destination
+	*pos = pos.RemovePiece(BitboardFromIndex(move.to()))
 
+	// restore full move number
 	if pos.turn == White {
-		oldPos.fullmoveNumber--
+		pos.fullmoveNumber--
 	}
-	oldPos.halfmoveClock--
 
-	// restore to previous ep target
-	// oldPos.enPassantTarget = Bitboard(0)
-	// if move.oldEpTarget() > 0 {
-	// 	oldPos.enPassantTarget = BitboardFromIndex(move.oldEpTarget())
-	// }
+	// Restore old position status
+	pos.enPassantTarget = move.epTargetBefore()
+	pos.halfmoveClock = move.rule50Before()
+	pos.castlingRights = move.castleRightsBefore()
 
-	// pos.fullmoveNumber
-	// NOTE: not needed to update because it does not modifies zorbist hash fullmoveNumber
-
+	pieceToAdd := Piece(move.piece())
 	switch move.MoveType() {
-	// case NORMAL: noting special needed
-	// case PAWN_DOUBLE_PUSH: ep target managed by move.oldEpTarget()
+	// case NORMAL:
+	// case PAWN_DOUBLE_PUSH:
 	case CAPTURE:
-		// oldPos.AddPiece(Piece(move.capturedPiece()), squareReference[move.to()])
-		// restore updateCastleRights
-	case PROMOTION:
-	// remove promoted piece
-	// add pawn to from
-	// check castle if capture promotion(?)
+		// Add the captured piece back to the position
+		pos.AddPiece(move.capturedPiece(), squareReference[move.to()])
+	// case PROMOTION:
 	case CASTLE:
-	// move back the rook
+		// Restore rook position
+
+		// Check king color
+		// TODO: refactor?...
+		king := Piece(move.piece())
+		if pieceColor[king] == White {
+			if move.to() == 6 { // king to g1
+				pos.AddPiece(WhiteRook, "h1")
+			} else { // king to c1
+				pos.AddPiece(WhiteRook, "a1")
+			}
+		} else {
+			if move.to() == 62 { // king to g8
+				pos.AddPiece(BlackRook, "h8")
+			} else { // king to c8
+				pos.AddPiece(BlackRook, "a8")
+			}
+		}
 	case EN_PASSANT:
-		// add captured pawn to original square
+		// Check color of captured pawn
+		// if white -> sq = epTarget - 1 rank
+		// if black -> sq = epTarget + 1 rank
+		restoreSq := move.to() + 8                    // 1 rank up
+		if pieceColor[Piece(move.piece())] == White { // White ep capture
+			restoreSq = move.to() - 8 // 1 rank down
+		}
+		// Need to restore captured pawn...
+		pos.AddPiece(pieceOfColor[Pawn][pos.turn], squareReference[restoreSq])
 	}
 
-	oldPos.AddPiece(Piece(move.piece()), squareReference[move.from()])
+	pos.turn = pos.turn.opponent()
+	// Add piece to destination sqaure
+	pos.AddPiece(pieceToAdd, squareReference[move.from()])
 
-	// Update Turn/color to move to opponent
-	oldPos.turn = pos.turn.opponent()
-
-	// Update zobrist hash for the position
-	oldPos.Zobrist = zobristHash(oldPos, zobristKeys)
+	pos.Zobrist = zobristHash(*pos, zobristKeys)
 	return
 }
 

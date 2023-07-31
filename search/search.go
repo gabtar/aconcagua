@@ -42,8 +42,9 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pV *principalVa
 	score = math.MinInt
 
 	for _, move := range sortMoves(pos.LegalMoves(pos.ToMove()), pV, pV.maxDepth-depth) {
-		newPos := pos.MakeMove(&move)
-		newScore := -negamax(newPos, depth-1, -beta, -alpha, pV)
+		pos.MakeMove(&move)
+		newScore := -negamax(pos, depth-1, -beta, -alpha, pV)
+		pos.UnmakeMove(move)
 
 		if newScore > score {
 			score = newScore

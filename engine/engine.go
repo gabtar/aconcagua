@@ -73,8 +73,7 @@ func Uci(cmd chan string, output chan string) {
 					// Find the move that matches the uci command and perform on the position
 					for _, legalMove := range pos.LegalMoves(pos.ToMove()) {
 						if legalMove.ToUci() == move {
-							// TODO: check other ways to dereference
-							pos = func(p board.Position) *board.Position { return &p }(pos.MakeMove(&legalMove))
+							pos.MakeMove(&legalMove)
 						}
 					}
 				}

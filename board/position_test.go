@@ -327,10 +327,10 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 		setPiece(WhitePawn).
 		setMoveType(CAPTURE)
 
-	newPos := pos.MakeMove(move)
+	pos.MakeMove(move)
 
 	expected := "7k/8/8/8/3P4/8/8/7K b - - 0 1"
-	got := newPos.ToFen()
+	got := pos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -372,25 +372,27 @@ func TestZobristUpdate(t *testing.T) {
 		setPiece(BlackKnight).
 		setMoveType(NORMAL)
 
+	pos2 := *pos
+
 	// Normal order 1 2 3 4
 	// move1 := &Move{from: "g1", to: "f3", piece: WHITE_PAWN, moveType: NORMAL}
 	// move2 := &Move{from: "b8", to: "c6", piece: BLACK_PAWN, moveType: NORMAL}
 	// move3 := &Move{from: "b1", to: "c3", piece: WHITE_KNIGHT, moveType: NORMAL}
 	// move4 := &Move{from: "g8", to: "f6", piece: BLACK_KNIGHT, moveType: NORMAL}
 
-	pos1 := pos.MakeMove(move1)
-	pos2 := pos1.MakeMove(move2)
-	pos3 := pos2.MakeMove(move3)
-	pos4 := pos3.MakeMove(move4)
+	pos.MakeMove(move1)
+	pos.MakeMove(move2)
+	pos.MakeMove(move3)
+	pos.MakeMove(move4)
 
 	// Invert move order 3 4 1 2 -> Gets the same fen -> "r1bqkb1r/pppppppp/2n2n2/8/8/2N2N2/PPPPPPPP/R1BQKB1R w KQkq - 2 3"
-	pos5 := pos.MakeMove(move3)
-	pos6 := pos5.MakeMove(move4)
-	pos7 := pos6.MakeMove(move1)
-	pos8 := pos7.MakeMove(move2)
+	pos2.MakeMove(move3)
+	pos2.MakeMove(move4)
+	pos2.MakeMove(move1)
+	pos2.MakeMove(move2)
 
-	expected := pos4.Zobrist
-	got := pos8.Zobrist
+	expected := pos.Zobrist
+	got := pos2.Zobrist
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -398,97 +400,280 @@ func TestZobristUpdate(t *testing.T) {
 }
 
 // Test for unmake move
-// func TestUnmakeInNormalMove(t *testing.T) {
-// 	pos := InitialPosition()
-//
-// 	from := Bsf(squareToBitboard([]string{"g1"}))
-// 	to := Bsf(squareToBitboard([]string{"f3"}))
-//
-// 	move := MoveEncode(from, to, int(WhiteKnight), NORMAL, 0)
-//
-// 	after := pos.MakeMove(&move)
-// 	before := after.UnmakeMove(move)
-//
-// 	expected := pos.Zobrist
-// 	got := before.Zobrist
-//
-// 	if got != expected {
-// 		t.Errorf("Expected: %v, got: %v", expected, got)
-// 	}
-// }
-//
-// func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
-// 	pos := InitialPosition()
-//
-// 	from := Bsf(squareToBitboard([]string{"e2"}))
-// 	to := Bsf(squareToBitboard([]string{"e4"}))
-//
-// 	move := MoveEncode(from, to, int(WhitePawn), PAWN_DOUBLE_PUSH, 0)
-//
-// 	after := pos.MakeMove(&move)
-// 	before := after.UnmakeMove(move)
-//
-// 	expected := pos.ToFen()
-// 	got := before.ToFen()
-//
-// 	if got != expected {
-// 		t.Errorf("Expected: %v, got: %v", expected, got)
-// 	}
-// }
-//
-// func TestUnmakeMoveNormalMove(t *testing.T) {
-// 	pos := From("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1") // Position. 1. e4 (black to move)
-//
-// 	from := Bsf(squareToBitboard([]string{"e7"}))
-// 	to := Bsf(squareToBitboard([]string{"e5"}))
-//
-// 	move := MoveEncode(from, to, int(BlackPawn), 0, PAWN_DOUBLE_PUSH)
-//
-// 	makeMove := pos.MakeMove(&move)
-// 	unmakeMove := makeMove.UnmakeMove(move)
-//
-// 	expected := pos.ToFen()
-// 	got := unmakeMove.ToFen()
-//
-// 	if got != expected {
-// 		t.Errorf("Expected: %v, got: %v", expected, got)
-// 	}
-// }
-//
-// func TestUnmakeCapture(t *testing.T) {
-// 	pos := From("6k1/6pp/1r3p2/8/4n3/4B1P1/5P1P/6K1 w - - 0 1")
-//
-// 	from := Bsf(squareToBitboard([]string{"e3"}))
-// 	to := Bsf(squareToBitboard([]string{"b6"}))
-//
-// 	move := MoveEncode(from, to, int(WhiteBishop), 0, CAPTURE)
-//
-// 	makeMove := pos.MakeMove(&move)
-// 	unmakeMove := makeMove.UnmakeMove(move)
-//
-// 	expected := pos.ToFen()
-// 	got := unmakeMove.ToFen()
-//
-// 	if got != expected {
-// 		t.Errorf("Expected: %v, got: %v", expected, got)
-// 	}
-// }
-//
-// func TestUnmakeCaptureThatChangesCastleRights(t *testing.T) {
-// 	pos := From("6k1/1b4pp/5p2/8/8/4B1P1/5P1P/4K2R b K - 1 1")
-//
-// 	from := Bsf(squareToBitboard([]string{"b7"}))
-// 	to := Bsf(squareToBitboard([]string{"h1"}))
-//
-// 	move := MoveEncode(from, to, int(BlackBishop), 0, CAPTURE)
-//
-// 	makeMove := pos.MakeMove(&move)
-// 	unmakeMove := makeMove.UnmakeMove(move)
-//
-// 	expected := pos.ToFen()
-// 	got := unmakeMove.ToFen()
-//
-// 	if got != expected {
-// 		t.Errorf("Expected: %v, got: %v", expected, got)
-// 	}
-// }
+func TestUnmakeInNormalMove(t *testing.T) {
+	pos := InitialPosition()
+
+	from := Bsf(squareToBitboard([]string{"g1"}))
+	to := Bsf(squareToBitboard([]string{"f3"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(WhiteKnight).
+		setMoveType(NORMAL).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.Zobrist
+
+	// Make and restore
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.Zobrist
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
+	pos := InitialPosition()
+
+	from := Bsf(squareToBitboard([]string{"e2"}))
+	to := Bsf(squareToBitboard([]string{"e4"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(WhitePawn).
+		setMoveType(NORMAL).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.ToFen() // Orifinal position
+
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakeMoveNormalMove(t *testing.T) {
+	pos := From("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1") // Position. 1. e4 (black to move)
+
+	from := Bsf(squareToBitboard([]string{"e7"}))
+	to := Bsf(squareToBitboard([]string{"e5"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(BlackPawn).
+		setMoveType(NORMAL).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.ToFen()
+
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakeCapture(t *testing.T) {
+	pos := From("6k1/6pp/1r3p2/8/4n3/4B1P1/5P1P/6K1 w - - 0 1")
+
+	from := Bsf(squareToBitboard([]string{"e3"}))
+	to := Bsf(squareToBitboard([]string{"b6"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(WhiteBishop).
+		setMoveType(CAPTURE).
+		setCapturedPiece(BlackRook).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.ToFen()
+
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakeCaptureThatChangesCastleRights(t *testing.T) {
+	pos := From("6k1/1b4pp/5p2/8/8/4B1P1/5P1P/4K2R b K - 1 1")
+
+	from := Bsf(squareToBitboard([]string{"b7"}))
+	to := Bsf(squareToBitboard([]string{"h1"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(BlackBishop).
+		setMoveType(CAPTURE).
+		setCapturedPiece(WhiteRook).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.ToFen()
+
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakePromotionRestoresThePawnTo7thRank(t *testing.T) {
+	pos := From("1kq5/ppr1P3/2p5/8/8/8/5PPP/4R1K1 w - - 1 1")
+
+	from := Bsf(squareToBitboard([]string{"e7"}))
+	to := Bsf(squareToBitboard([]string{"e8"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(WhitePawn).
+		setMoveType(PROMOTION).
+		setPromotedTo(WhiteQueen).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.ToFen()
+
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakeCastleForWhite(t *testing.T) {
+	pos := From("5rk1/pbpq1ppp/1pnp1n2/4p2P/4P1P1/2NP1PN1/PPPQ4/R3K2R w KQ - 0 1")
+
+	from := Bsf(squareToBitboard([]string{"e1"}))
+	to := Bsf(squareToBitboard([]string{"c1"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(WhiteKing).
+		setMoveType(CASTLE).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.ToFen()
+
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakeCastleForBlack(t *testing.T) {
+	pos := From("r3k3/pbpq1ppp/1pnp1n2/4p2P/4P1P1/2NP1PN1/PPPQ4/2KR3R b q - 0 1")
+
+	from := Bsf(squareToBitboard([]string{"e8"}))
+	to := Bsf(squareToBitboard([]string{"c8"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(BlackKing).
+		setMoveType(CASTLE).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.ToFen()
+
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakeEnPassantCaptureForBlack(t *testing.T) {
+	pos := From("5rk1/1q3ppp/4p3/3pN3/1Pp5/5Q2/5PPP/5RK1 b - b3 0 1")
+
+	from := Bsf(squareToBitboard([]string{"c4"}))
+	to := Bsf(squareToBitboard([]string{"b3"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(BlackPawn).
+		setMoveType(EN_PASSANT).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.ToFen()
+
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
+	pos := From("5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1")
+
+	from := Bsf(squareToBitboard([]string{"d5"}))
+	to := Bsf(squareToBitboard([]string{"c6"}))
+
+	move := newMove().
+		setFromSq(from).
+		setToSq(to).
+		setPiece(WhitePawn).
+		setMoveType(EN_PASSANT).
+		setEpTargetBefore(pos.enPassantTarget).
+		setRule50Before(pos.halfmoveClock).
+		setCastleRightsBefore(pos.castlingRights)
+
+	expected := pos.ToFen()
+
+	pos.MakeMove(move)
+	pos.UnmakeMove(*move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+// TODO:
+// test make promotion capture
+// all -> make in place (in struct)

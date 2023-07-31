@@ -6,6 +6,7 @@ const (
 	CASTLE
 	PAWN_DOUBLE_PUSH
 	PROMOTION
+	// TODO: -> Promotion capture for unmaking move
 	EN_PASSANT
 	CAPTURE
 )
@@ -68,7 +69,13 @@ func (m *Move) capturedPiece() Piece {
 
 // epTargetBefore
 func (m *Move) epTargetBefore() Bitboard {
-	return Bitboard((*m & (0b111111 << 28)) >> 28)
+	// Check non zero...
+	indexBB := int((*m & (0b111111 << 28)) >> 28)
+	if indexBB == 0 {
+		return Bitboard(0)
+	}
+
+	return BitboardFromIndex(indexBB)
 }
 
 // rule50Before
@@ -144,6 +151,10 @@ func (m *Move) setCapturedPiece(piece Piece) *Move {
 
 // setEpTargetBefore sets the en passant square of the position before making the move
 func (m *Move) setEpTargetBefore(epTarget Bitboard) *Move {
+	// NOTE: need to do this because of Bsf(0) == 64. Need to FIX it
+	if epTarget == 0 {
+		return m
+	}
 	*m |= Move(Bsf(epTarget) << 28)
 	return m
 }

@@ -15,10 +15,10 @@ func TestNormalMove(t *testing.T) {
 		setPiece(WhitePawn).
 		setMoveType(NORMAL)
 
-	newPos := pos.MakeMove(move)
+	pos.MakeMove(move)
 
 	expected := "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
-	got := newPos.ToFen()
+	got := pos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -36,10 +36,10 @@ func TestCastleMoveUpdate(t *testing.T) {
 		setPiece(WhiteKing).
 		setMoveType(CASTLE)
 
-	newPos := pos.MakeMove(move)
+	pos.MakeMove(move)
 
 	expected := "5rk1/5ppp/8/8/8/1bB5/4PPPP/5RK1 b - - 1 1"
-	got := newPos.ToFen()
+	got := pos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -57,10 +57,10 @@ func TestEnPassantCaptureUpdate(t *testing.T) {
 		setPiece(BlackPawn).
 		setMoveType(EN_PASSANT)
 
-	newPos := pos.MakeMove(move)
+	pos.MakeMove(move)
 
-	expected := "5rk1/5ppp/5b2/8/8/2pN4/5PPP/5RK1 w - - 0 2"
-	got := newPos.ToFen()
+	expected := "5rk1/5ppp/5b2/8/2P5/2pN4/5PPP/5RK1 w - - 0 2"
+	got := pos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -78,10 +78,10 @@ func TestRookCapture(t *testing.T) {
 		setPiece(BlackRook).
 		setMoveType(CAPTURE)
 
-	newPos := pos.MakeMove(move)
+	pos.MakeMove(move)
 
 	expected := "5rk1/5pbp/6p1/8/1pr5/1N5P/5PP1/1R3RK1 w - - 0 2"
-	got := newPos.ToFen()
+	got := pos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -99,10 +99,10 @@ func TestDoublePawnPush(t *testing.T) {
 		setPiece(WhitePawn).
 		setMoveType(PAWN_DOUBLE_PUSH)
 
-	newPos := pos.MakeMove(move)
+	pos.MakeMove(move)
 
 	expected := "5rk1/5p1p/6p1/2N5/1pP2P2/2b4P/6P1/1R3RK1 b - f3 0 3"
-	got := newPos.ToFen()
+	got := pos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -121,10 +121,10 @@ func TestPawnPromotion(t *testing.T) {
 		setMoveType(PROMOTION).
 		setPromotedTo(BlackQueen)
 
-	newPos := pos.MakeMove(move)
+	pos.MakeMove(move)
 
 	expected := "1r3n1k/5Ppp/8/8/R7/6PP/7K/1q6 w - - 0 2"
-	got := newPos.ToFen()
+	got := pos.ToFen()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -186,7 +186,7 @@ func TestMoveBuilder(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expectedPiece, gotPiece)
 	}
 
-	expectedEpBefore := Bitboard(56)
+	expectedEpBefore := BitboardFromIndex(56)
 	gotEpBefore := move.epTargetBefore()
 
 	if gotEpBefore != expectedEpBefore {
