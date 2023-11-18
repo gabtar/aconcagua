@@ -8,6 +8,14 @@ import (
 	"github.com/gabtar/aconcagua/evaluation"
 )
 
+type engine struct {
+	pv           principalVariation
+	currentDepth int
+	score        int
+	position     board.Position
+	// TODO: add time spent?
+}
+
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
 func negamax(pos board.Position, depth int, alpha int, beta int, pV *principalVariation) (score int) {
@@ -93,6 +101,7 @@ func BestMove(pos *board.Position, maxDepth int) (bestMoveScore int, bestMove []
 	tt = newTranspositionTable()
 	pV := newPrincipalVariation(maxDepth)
 
+	// TODO: In each depth i should 'emit' on channel the best variation found...
 	for d := 1; d <= maxDepth; d++ {
 		pV.maxDepth = d
 		bestMoveScore = negamax(*pos, d, min, max, pV)

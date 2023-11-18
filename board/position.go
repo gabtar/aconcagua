@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// TODO: extract to piece.go?
 // Color is an int referencing the white or black player in chess
 type Color int
 
@@ -154,23 +153,28 @@ func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 
 // attackedSquares returns a bitboard with all squares attacked by the passed side
 func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
+	startingPiece := startingPieceNumber(side)
+
+	for i, bitboard := range pos.getBitboards(side) {
+		piece := Piece(startingPiece + i)
+		sq := bitboard.nextOne()
+
+		for sq > 0 {
+			attackedSquares |= Attacks(piece, sq, pos)
+			sq = bitboard.nextOne()
+		}
+	}
+
+	return
+}
+
+// startingPieceNumber return an integer with the number of the starting bitboard piece for the color passed
+func startingPieceNumber(side Color) int {
 	startingBitboard := 0
 	if side != White {
 		startingBitboard = 6
 	}
-
-	for currentBitboard := startingBitboard; currentBitboard-startingBitboard < 6; currentBitboard++ {
-		piece := Piece(currentBitboard)
-		pieces := pos.Bitboards[currentBitboard]
-		sq := pieces.nextOne()
-
-		for sq > 0 {
-			attackedSquares |= Attacks(piece, sq, pos)
-			sq = pieces.nextOne()
-		}
-
-	}
-	return
+	return startingBitboard
 }
 
 func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
@@ -200,39 +204,28 @@ func (pos *Position) CheckingPieces(side Color) (kingAttackers Bitboard) {
 	}
 
 	kingSq := pos.KingPosition(side)
-	// iterate over all opponent bitboards and check who is attacking the king
-	// TODO: refactor... duplicated in pos.Pieces method
-	// FIX: need to get the opponent pieces bitboards...
-	indexBB := 0
-	if side == White {
-		indexBB = 6
-	}
 
-	for pieceBB := indexBB; pieceBB-indexBB < 6; pieceBB++ {
-		// TODO: also duplicated...
-		pieces := pos.Bitboards[pieceBB]
-		piece := Piece(pieceBB)
+	startingPieceNumber := startingPieceNumber(side.opponent())
 
-		for pieces > 0 {
-			sq := pieces.nextOne()
+	for i, bitboard := range pos.getBitboards(side.opponent()) {
+		piece := Piece(startingPieceNumber + i)
+
+		for bitboard > 0 {
+			sq := bitboard.nextOne()
 
 			if kingSq&Attacks(piece, sq, pos) > 0 {
 				kingAttackers |= sq
 			}
 		}
+
 	}
 	return
 }
 
 // Pieces returns a Bitboard with the pieces of the color pased
 func (pos *Position) Pieces(side Color) (pieces Bitboard) {
-	// TODO: Also duplicated, triplicated, etc...
-	startingBitboard := 0
-	if side != White {
-		startingBitboard = 6
-	}
-	for currentBitboard := startingBitboard; currentBitboard-startingBitboard < 6; currentBitboard++ {
-		pieces |= pos.Bitboards[currentBitboard]
+	for _, bitboard := range pos.getBitboards(side) {
+		pieces |= bitboard
 	}
 	return
 }
@@ -413,25 +406,21 @@ func (pos *Position) MakeMove(move *Move) {
 	pieceToAdd := Piece(move.piece())
 	*pos = pos.RemovePiece(BitboardFromIndex(move.from()))
 
-	// clear ep target
 	pos.enPassantTarget &= 0
 
-	// fullmoveNumber+1 if it's black turn
 	if pos.turn == Black {
 		pos.fullmoveNumber++
 	}
 	pos.halfmoveClock++
 
-	// Check for special moves:
+	// TODO: handlers for move pieces in the board
 	switch move.MoveType() {
 	case NORMAL:
-		// Reset halfmoveClock also resets with single pawn push
 		if move.piece() == int(WhitePawn) || move.piece() == int(BlackPawn) {
 			pos.halfmoveClock = 0
 		}
 		updateCastleRights(pos, move)
 	case PAWN_DOUBLE_PUSH:
-		// Add ep target sq
 		if move.piece() == int(WhitePawn) {
 			pos.enPassantTarget = BitboardFromIndex(move.to()) >> 8
 		} else {
@@ -439,55 +428,42 @@ func (pos *Position) MakeMove(move *Move) {
 		}
 		pos.halfmoveClock = 0
 	case CAPTURE:
-		// Remove piece at destination
 		*pos = pos.RemovePiece(BitboardFromIndex(move.to()))
-		// Reset halfmoveClock
 		pos.halfmoveClock = 0
 		updateCastleRights(pos, move)
 	case PROMOTION:
-		// change piece to add to the board
 		pieceToAdd = Piece(move.promotedTo())
-		// Reset halfmoveClock
 		pos.halfmoveClock = 0
 	case CASTLE:
 		// TODO: i need to figure out another way of implement this
 		*pos = moveRookOnCastleMove(*pos, move)
-		// Update castle rights
 		updateCastleRights(pos, move)
 	case EN_PASSANT:
-		// Remove the captured pawn
-		// Es hacia abajo(blancas) / arriba (negras) del epTarget
 		if move.piece() == int(WhitePawn) {
 			*pos = pos.RemovePiece(pos.enPassantTarget >> 8)
 		} else {
 			*pos = pos.RemovePiece(pos.enPassantTarget << 8)
 		}
-		// Reset halfmoveClock
 		pos.halfmoveClock = 0
 	}
-
-	// Update Turn/color to move
 	pos.turn = pos.turn.opponent()
-	// Add piece to destination sqaure
+
 	pos.AddPiece(pieceToAdd, squareReference[move.to()])
 
-	// Update zobrist hash for the position
 	// TODO: refactor to a proper update function to avoid calculating the hash from scratch
+	// updateZobristHash(hash, move)
 	pos.Zobrist = zobristHash(*pos, zobristKeys)
 	return
 }
 
 // UnmakeMove undoes a the passed move in the postion
 func (pos *Position) UnmakeMove(move Move) {
-	// Remove the piece at destination
 	*pos = pos.RemovePiece(BitboardFromIndex(move.to()))
 
-	// restore full move number
 	if pos.turn == White {
 		pos.fullmoveNumber--
 	}
 
-	// Restore old position status
 	pos.enPassantTarget = move.epTargetBefore()
 	pos.halfmoveClock = move.rule50Before()
 	pos.castlingRights = move.castleRightsBefore()
@@ -747,7 +723,6 @@ func toRuneArray(pos *Position) [64]rune {
 // Utility functions
 
 // squareToBitboard returns a bitboard containing the position of the squares coordinates passed
-// TODO: Refactor/improve
 func squareToBitboard(coordinates []string) (bitboard Bitboard) {
 	for _, coordinate := range coordinates {
 		fileNumber := int(coordinate[0]) - 96

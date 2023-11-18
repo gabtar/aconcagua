@@ -18,7 +18,7 @@ const (
 // 6 bits to describe the destination square (2^6) - 0 to 64
 // 4 bits to describe the type of the piece (2^4) (12 types now) - Not necessary needed
 // 4 bits to describe the promotedToPiece (2^4) (12 types now)
-// 3 bits to describe the type of move (2^3) (6 types) - NOTE: using 4 bits now
+// 3 bits to describe the type of move (2^3) (6 types)
 
 // 32 bits for describe the state of the board before "making" the move. For unmake move purposes only!
 

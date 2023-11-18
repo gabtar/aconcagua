@@ -45,7 +45,6 @@ func TestBlackPawnNearQueening(t *testing.T) {
 	}
 }
 
-// TODO: more test with pieces square tables...
 func TestWhiteFirstMoveE4(t *testing.T) {
 	pos := board.From("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
 

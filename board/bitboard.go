@@ -83,7 +83,6 @@ func (b *Bitboard) nextOne() (bb Bitboard) {
 
 // ToStringSlice returns an slice of (string)coordinates with the squares occupied
 // in the bitboard
-// TODO: need to find a better way to do this / maybe a hash / map like in squareReference but inverted...
 func (b Bitboard) ToStringSlice() (squares []string) {
 	for b > 0 {
 		squares = append(squares, squareReference[Bsf(b)])
