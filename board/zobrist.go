@@ -31,7 +31,7 @@ func zobristHash(pos Position, keys [781]uint64) (hash uint64) {
 
 	// Ep target
 	if pos.enPassantTarget != 0 {
-		hash = hash ^ keys[Bsf(pos.enPassantTarget)%8]
+		hash = hash ^ keys[772+Bsf(pos.enPassantTarget)%8]
 	}
 	return
 }

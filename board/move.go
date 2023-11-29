@@ -75,7 +75,7 @@ func (m *Move) epTargetBefore() Bitboard {
 		return Bitboard(0)
 	}
 
-	return BitboardFromIndex(indexBB)
+	return bitboardFromIndex(indexBB)
 }
 
 // rule50Before
@@ -170,6 +170,3 @@ func (m *Move) setCastleRightsBefore(castles castling) *Move {
 	*m |= Move(int(castles) << 40)
 	return m
 }
-
-// Eg. sample call
-// move := newMove().setFromSq(4).setToSq(7)

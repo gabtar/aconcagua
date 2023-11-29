@@ -3,12 +3,13 @@ package board
 import "testing"
 
 // Tests that diferent moves produces the correct update on the board
+// TODO: More tests
 
 func TestNormalMove(t *testing.T) {
 	pos := InitialPosition()
 
-	from := Bsf(squareToBitboard([]string{"e2"}))
-	to := Bsf(squareToBitboard([]string{"e4"}))
+	from := Bsf(bitboardFromCoordinate("e2"))
+	to := Bsf(bitboardFromCoordinate("e4"))
 	move := newMove().
 		setFromSq(from).
 		setToSq(to).
@@ -28,8 +29,8 @@ func TestNormalMove(t *testing.T) {
 func TestCastleMoveUpdate(t *testing.T) {
 	pos := From("5rk1/5ppp/8/8/8/1bB5/4PPPP/4K2R w K - 0 1")
 
-	from := Bsf(squareToBitboard([]string{"e1"}))
-	to := Bsf(squareToBitboard([]string{"g1"}))
+	from := Bsf(bitboardFromCoordinate("e1"))
+	to := Bsf(bitboardFromCoordinate("g1"))
 	move := newMove().
 		setFromSq(from).
 		setToSq(to).
@@ -49,8 +50,8 @@ func TestCastleMoveUpdate(t *testing.T) {
 func TestEnPassantCaptureUpdate(t *testing.T) {
 	pos := From("5rk1/5ppp/5b2/8/1pP5/3N4/5PPP/5RK1 b - c3 0 1")
 
-	from := Bsf(squareToBitboard([]string{"b4"}))
-	to := Bsf(squareToBitboard([]string{"c3"}))
+	from := Bsf(bitboardFromCoordinate("b4"))
+	to := Bsf(bitboardFromCoordinate("c3"))
 	move := newMove().
 		setFromSq(from).
 		setToSq(to).
@@ -70,8 +71,8 @@ func TestEnPassantCaptureUpdate(t *testing.T) {
 func TestRookCapture(t *testing.T) {
 	pos := From("2r2rk1/5pbp/6p1/8/1pP5/1N5P/5PP1/1R3RK1 b - c3 0 1")
 
-	from := Bsf(squareToBitboard([]string{"c8"}))
-	to := Bsf(squareToBitboard([]string{"c4"}))
+	from := Bsf(bitboardFromCoordinate("c8"))
+	to := Bsf(bitboardFromCoordinate("c4"))
 	move := newMove().
 		setFromSq(from).
 		setToSq(to).
@@ -91,8 +92,8 @@ func TestRookCapture(t *testing.T) {
 func TestDoublePawnPush(t *testing.T) {
 	pos := From("5rk1/5p1p/6p1/2N5/1pP5/2b4P/5PP1/1R3RK1 w - - 1 3")
 
-	from := Bsf(squareToBitboard([]string{"f2"}))
-	to := Bsf(squareToBitboard([]string{"f4"}))
+	from := Bsf(bitboardFromCoordinate("f2"))
+	to := Bsf(bitboardFromCoordinate("f4"))
 	move := newMove().
 		setFromSq(from).
 		setToSq(to).
@@ -112,8 +113,8 @@ func TestDoublePawnPush(t *testing.T) {
 func TestPawnPromotion(t *testing.T) {
 	pos := From("1r3n1k/5Ppp/8/8/R7/6PP/1p5K/8 b - - 0 1")
 
-	from := Bsf(squareToBitboard([]string{"b2"}))
-	to := Bsf(squareToBitboard([]string{"b1"}))
+	from := Bsf(bitboardFromCoordinate("b2"))
+	to := Bsf(bitboardFromCoordinate("b1"))
 	move := newMove().
 		setFromSq(from).
 		setToSq(to).
@@ -154,7 +155,7 @@ func TestMoveBuilder(t *testing.T) {
 		setToSq(8).
 		setPiece(WhitePawn).
 		setMoveType(NORMAL).
-		setEpTargetBefore(BitboardFromIndex(56)).
+		setEpTargetBefore(bitboardFromIndex(56)).
 		setRule50Before(10).
 		setCastleRightsBefore(castling(0b1111))
 
@@ -186,7 +187,7 @@ func TestMoveBuilder(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expectedPiece, gotPiece)
 	}
 
-	expectedEpBefore := BitboardFromIndex(56)
+	expectedEpBefore := bitboardFromIndex(56)
 	gotEpBefore := move.epTargetBefore()
 
 	if gotEpBefore != expectedEpBefore {

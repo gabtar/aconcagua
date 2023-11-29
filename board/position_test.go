@@ -26,7 +26,7 @@ func TestGetDirectionNorth(t *testing.T) {
 	pos.AddPiece(BlackRook, "e8")
 
 	expected := NORTH
-	got := getDirection(squareToBitboard([]string{"e8"}), squareToBitboard([]string{"e1"})) // king -> rook == NORTH
+	got := getDirection(bitboardFromCoordinate("e8"), bitboardFromCoordinate("e1")) // king -> rook == NORTH
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -39,7 +39,7 @@ func TestGetDirectionSouth(t *testing.T) {
 	pos.AddPiece(BlackRook, "e8")
 
 	expected := SOUTH
-	got := getDirection(squareToBitboard([]string{"e1"}), squareToBitboard([]string{"e8"})) // rook -> king == SOUTH
+	got := getDirection(bitboardFromCoordinate("e1"), bitboardFromCoordinate("e8")) // rook -> king == SOUTH
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -52,7 +52,7 @@ func TestGetDirectionSouthWest(t *testing.T) {
 	pos.AddPiece(BlackRook, "d3")
 
 	expected := SOUTHWEST
-	got := getDirection(squareToBitboard([]string{"d3"}), squareToBitboard([]string{"e4"})) // king -> rook == SOUTHWEST
+	got := getDirection(bitboardFromCoordinate("d3"), bitboardFromCoordinate("e4")) // king -> rook == SOUTHWEST
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -66,8 +66,8 @@ func TestGetRayPath(t *testing.T) {
 
 	expectedSquares := []string{"d4", "e4"}
 
-	expected := squareToBitboard(expectedSquares)
-	got := getRayPath(squareToBitboard([]string{"c4"}), squareToBitboard([]string{"f4"}))
+	expected := bitboardFromCoordinates(expectedSquares)
+	got := getRayPath(bitboardFromCoordinate("c4"), bitboardFromCoordinate("f4"))
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -82,7 +82,7 @@ func TestPinnedPiece(t *testing.T) {
 	blackRook, _ := pos.PieceAt("c6")
 
 	expected := true
-	got := isPinned(squareToBitboard([]string{"c6"}), pieceColor[blackRook], pos)
+	got := isPinned(bitboardFromCoordinate("c6"), pieceColor[blackRook], pos)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -319,8 +319,8 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 	pos := From("7k/8/8/8/3p4/4P3/8/7K w - - 0 1")
 	// move := &Move{from: "e3", to: "d4", piece: WHITE_PAWN, moveType: CAPTURE}
 
-	from := Bsf(squareToBitboard([]string{"e3"}))
-	to := Bsf(squareToBitboard([]string{"d4"}))
+	from := Bsf(bitboardFromCoordinate("e3"))
+	to := Bsf(bitboardFromCoordinate("d4"))
 	move := newMove().
 		setFromSq(from).
 		setToSq(to).
@@ -340,32 +340,32 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 func TestZobristUpdate(t *testing.T) {
 	pos := InitialPosition()
 
-	from := Bsf(squareToBitboard([]string{"g1"}))
-	to := Bsf(squareToBitboard([]string{"f3"}))
+	from := Bsf(bitboardFromCoordinate("g1"))
+	to := Bsf(bitboardFromCoordinate("f3"))
 	move1 := newMove().
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhitePawn).
 		setMoveType(NORMAL)
 
-	from = Bsf(squareToBitboard([]string{"b7"}))
-	to = Bsf(squareToBitboard([]string{"c5"}))
+	from = Bsf(bitboardFromCoordinate("b7"))
+	to = Bsf(bitboardFromCoordinate("c5"))
 	move2 := newMove().
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackPawn).
 		setMoveType(NORMAL)
 
-	from = Bsf(squareToBitboard([]string{"b1"}))
-	to = Bsf(squareToBitboard([]string{"c3"}))
+	from = Bsf(bitboardFromCoordinate("b1"))
+	to = Bsf(bitboardFromCoordinate("c3"))
 	move3 := newMove().
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhiteKnight).
 		setMoveType(NORMAL)
 
-	from = Bsf(squareToBitboard([]string{"g8"}))
-	to = Bsf(squareToBitboard([]string{"f6"}))
+	from = Bsf(bitboardFromCoordinate("g8"))
+	to = Bsf(bitboardFromCoordinate("f6"))
 	move4 := newMove().
 		setFromSq(from).
 		setToSq(to).
@@ -403,8 +403,8 @@ func TestZobristUpdate(t *testing.T) {
 func TestUnmakeInNormalMove(t *testing.T) {
 	pos := InitialPosition()
 
-	from := Bsf(squareToBitboard([]string{"g1"}))
-	to := Bsf(squareToBitboard([]string{"f3"}))
+	from := Bsf(bitboardFromCoordinate("g1"))
+	to := Bsf(bitboardFromCoordinate("f3"))
 
 	move := newMove().
 		setFromSq(from).
@@ -431,8 +431,8 @@ func TestUnmakeInNormalMove(t *testing.T) {
 func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
 	pos := InitialPosition()
 
-	from := Bsf(squareToBitboard([]string{"e2"}))
-	to := Bsf(squareToBitboard([]string{"e4"}))
+	from := Bsf(bitboardFromCoordinate("e2"))
+	to := Bsf(bitboardFromCoordinate("e4"))
 
 	move := newMove().
 		setFromSq(from).
@@ -458,8 +458,8 @@ func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
 func TestUnmakeMoveNormalMove(t *testing.T) {
 	pos := From("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1") // Position. 1. e4 (black to move)
 
-	from := Bsf(squareToBitboard([]string{"e7"}))
-	to := Bsf(squareToBitboard([]string{"e5"}))
+	from := Bsf(bitboardFromCoordinate("e7"))
+	to := Bsf(bitboardFromCoordinate("e5"))
 
 	move := newMove().
 		setFromSq(from).
@@ -485,8 +485,8 @@ func TestUnmakeMoveNormalMove(t *testing.T) {
 func TestUnmakeCapture(t *testing.T) {
 	pos := From("6k1/6pp/1r3p2/8/4n3/4B1P1/5P1P/6K1 w - - 0 1")
 
-	from := Bsf(squareToBitboard([]string{"e3"}))
-	to := Bsf(squareToBitboard([]string{"b6"}))
+	from := Bsf(bitboardFromCoordinate("e3"))
+	to := Bsf(bitboardFromCoordinate("b6"))
 
 	move := newMove().
 		setFromSq(from).
@@ -513,8 +513,8 @@ func TestUnmakeCapture(t *testing.T) {
 func TestUnmakeCaptureThatChangesCastleRights(t *testing.T) {
 	pos := From("6k1/1b4pp/5p2/8/8/4B1P1/5P1P/4K2R b K - 1 1")
 
-	from := Bsf(squareToBitboard([]string{"b7"}))
-	to := Bsf(squareToBitboard([]string{"h1"}))
+	from := Bsf(bitboardFromCoordinate("b7"))
+	to := Bsf(bitboardFromCoordinate("h1"))
 
 	move := newMove().
 		setFromSq(from).
@@ -541,8 +541,8 @@ func TestUnmakeCaptureThatChangesCastleRights(t *testing.T) {
 func TestUnmakePromotionRestoresThePawnTo7thRank(t *testing.T) {
 	pos := From("1kq5/ppr1P3/2p5/8/8/8/5PPP/4R1K1 w - - 1 1")
 
-	from := Bsf(squareToBitboard([]string{"e7"}))
-	to := Bsf(squareToBitboard([]string{"e8"}))
+	from := Bsf(bitboardFromCoordinate("e7"))
+	to := Bsf(bitboardFromCoordinate("e8"))
 
 	move := newMove().
 		setFromSq(from).
@@ -569,8 +569,8 @@ func TestUnmakePromotionRestoresThePawnTo7thRank(t *testing.T) {
 func TestUnmakeCastleForWhite(t *testing.T) {
 	pos := From("5rk1/pbpq1ppp/1pnp1n2/4p2P/4P1P1/2NP1PN1/PPPQ4/R3K2R w KQ - 0 1")
 
-	from := Bsf(squareToBitboard([]string{"e1"}))
-	to := Bsf(squareToBitboard([]string{"c1"}))
+	from := Bsf(bitboardFromCoordinate("e1"))
+	to := Bsf(bitboardFromCoordinate("c1"))
 
 	move := newMove().
 		setFromSq(from).
@@ -596,8 +596,8 @@ func TestUnmakeCastleForWhite(t *testing.T) {
 func TestUnmakeCastleForBlack(t *testing.T) {
 	pos := From("r3k3/pbpq1ppp/1pnp1n2/4p2P/4P1P1/2NP1PN1/PPPQ4/2KR3R b q - 0 1")
 
-	from := Bsf(squareToBitboard([]string{"e8"}))
-	to := Bsf(squareToBitboard([]string{"c8"}))
+	from := Bsf(bitboardFromCoordinate("e8"))
+	to := Bsf(bitboardFromCoordinate("c8"))
 
 	move := newMove().
 		setFromSq(from).
@@ -623,8 +623,8 @@ func TestUnmakeCastleForBlack(t *testing.T) {
 func TestUnmakeEnPassantCaptureForBlack(t *testing.T) {
 	pos := From("5rk1/1q3ppp/4p3/3pN3/1Pp5/5Q2/5PPP/5RK1 b - b3 0 1")
 
-	from := Bsf(squareToBitboard([]string{"c4"}))
-	to := Bsf(squareToBitboard([]string{"b3"}))
+	from := Bsf(bitboardFromCoordinate("c4"))
+	to := Bsf(bitboardFromCoordinate("b3"))
 
 	move := newMove().
 		setFromSq(from).
@@ -650,8 +650,8 @@ func TestUnmakeEnPassantCaptureForBlack(t *testing.T) {
 func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
 	pos := From("5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1")
 
-	from := Bsf(squareToBitboard([]string{"d5"}))
-	to := Bsf(squareToBitboard([]string{"c6"}))
+	from := Bsf(bitboardFromCoordinate("d5"))
+	to := Bsf(bitboardFromCoordinate("c6"))
 
 	move := newMove().
 		setFromSq(from).

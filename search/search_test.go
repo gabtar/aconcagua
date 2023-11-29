@@ -40,3 +40,16 @@ func TestDontSacTheQueen(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestHangingBishop(t *testing.T) {
+	pos := board.From("r1bqk1nr/pppp1ppp/8/4n3/1b2P3/2P2N2/PP3PPP/RNBQKB1R b KQkq - 0 5")
+	pos.Print()
+	_, bestMoves := BestMove(pos, 2)
+
+	expected := "e5f3"
+	got := bestMoves[0].ToUci()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

@@ -130,8 +130,8 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 	switch pinDirection {
 	// TODO: remove duplication...
 	case NORTH, EAST, NORTHEAST, NORTHWEST:
-		firstBB := BitboardFromIndex(Bsf(piecesInLine))
-		secondBB := BitboardFromIndex(Bsf(piecesInLine & ^firstBB))
+		firstBB := bitboardFromIndex(Bsf(piecesInLine))
+		secondBB := bitboardFromIndex(Bsf(piecesInLine & ^firstBB))
 
 		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
 		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
@@ -144,8 +144,8 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 		}
 
 	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
-		firstBB := BitboardFromIndex(63 - Bsr(piecesInLine))
-		secondBB := BitboardFromIndex(63 - Bsr(piecesInLine & ^firstBB))
+		firstBB := bitboardFromIndex(63 - Bsr(piecesInLine))
+		secondBB := bitboardFromIndex(63 - Bsr(piecesInLine & ^firstBB))
 
 		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
 		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])

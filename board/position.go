@@ -7,23 +7,6 @@ import (
 	"strings"
 )
 
-// Color is an int referencing the white or black player in chess
-type Color int
-
-const (
-	White Color = iota
-	Black
-)
-
-// opponent returns the opponent color to the actual color
-func (c Color) opponent() Color {
-	if c == White {
-		return Black
-	} else {
-		return White
-	}
-}
-
 // Piece is an int that references piece role/color for bitboards in position struct
 type Piece int
 
@@ -122,7 +105,7 @@ type Position struct {
 
 // pieceAt returns a Piece at the given square coordinate in the Position or error
 func (pos *Position) PieceAt(square string) (piece Piece, e error) {
-	bitboardSquare := squareToBitboard([]string{square})
+	bitboardSquare := bitboardFromCoordinate(square)
 
 	for index, bitboard := range pos.Bitboards {
 		if bitboard&bitboardSquare > 0 {
@@ -137,7 +120,7 @@ func (pos *Position) PieceAt(square string) (piece Piece, e error) {
 
 // addPiece adds to the position the Piece passed in the square passed
 func (pos *Position) AddPiece(piece Piece, square string) {
-	bitboardSquare := squareToBitboard([]string{square})
+	bitboardSquare := bitboardFromCoordinate(square)
 	pos.Bitboards[piece] |= bitboardSquare
 }
 
@@ -404,7 +387,7 @@ func posiblesEpCapturers(target Bitboard, side Color, pos *Position) (squares Bi
 // MakeMove updates the position by making the move passed as parameter
 func (pos *Position) MakeMove(move *Move) {
 	pieceToAdd := Piece(move.piece())
-	*pos = pos.RemovePiece(BitboardFromIndex(move.from()))
+	*pos = pos.RemovePiece(bitboardFromIndex(move.from()))
 
 	pos.enPassantTarget &= 0
 
@@ -422,13 +405,13 @@ func (pos *Position) MakeMove(move *Move) {
 		updateCastleRights(pos, move)
 	case PAWN_DOUBLE_PUSH:
 		if move.piece() == int(WhitePawn) {
-			pos.enPassantTarget = BitboardFromIndex(move.to()) >> 8
+			pos.enPassantTarget = bitboardFromIndex(move.to()) >> 8
 		} else {
-			pos.enPassantTarget = BitboardFromIndex(move.to()) << 8
+			pos.enPassantTarget = bitboardFromIndex(move.to()) << 8
 		}
 		pos.halfmoveClock = 0
 	case CAPTURE:
-		*pos = pos.RemovePiece(BitboardFromIndex(move.to()))
+		*pos = pos.RemovePiece(bitboardFromIndex(move.to()))
 		pos.halfmoveClock = 0
 		updateCastleRights(pos, move)
 	case PROMOTION:
@@ -458,7 +441,7 @@ func (pos *Position) MakeMove(move *Move) {
 
 // UnmakeMove undoes a the passed move in the postion
 func (pos *Position) UnmakeMove(move Move) {
-	*pos = pos.RemovePiece(BitboardFromIndex(move.to()))
+	*pos = pos.RemovePiece(bitboardFromIndex(move.to()))
 
 	if pos.turn == White {
 		pos.fullmoveNumber--
@@ -518,20 +501,20 @@ func (pos *Position) UnmakeMove(move Move) {
 func moveRookOnCastleMove(newPos Position, move *Move) Position {
 	if move.piece() == int(WhiteKing) {
 		// TODO: map integer number to square string....
-		if move.to() == Bsf(squareToBitboard([]string{"g1"})) {
-			newPos = newPos.RemovePiece(squareToBitboard([]string{"h1"}))
+		if move.to() == Bsf(bitboardFromCoordinate("g1")) {
+			newPos = newPos.RemovePiece(bitboardFromCoordinate("h1"))
 			newPos.AddPiece(WhiteRook, "f1")
 		} else {
-			newPos = newPos.RemovePiece(squareToBitboard([]string{"a1"}))
+			newPos = newPos.RemovePiece(bitboardFromCoordinate("a1"))
 			newPos.AddPiece(WhiteRook, "c1")
 		}
 	} else {
 
-		if move.to() == Bsf(squareToBitboard([]string{"g8"})) {
-			newPos = newPos.RemovePiece(squareToBitboard([]string{"h8"}))
+		if move.to() == Bsf(bitboardFromCoordinate("g8")) {
+			newPos = newPos.RemovePiece(bitboardFromCoordinate("h8"))
 			newPos.AddPiece(BlackRook, "f8")
 		} else {
-			newPos = newPos.RemovePiece(squareToBitboard([]string{"a8"}))
+			newPos = newPos.RemovePiece(bitboardFromCoordinate("a8"))
 			newPos.AddPiece(BlackRook, "c8")
 		}
 	}
@@ -546,7 +529,7 @@ func updateCastleRights(pos *Position, move *Move) {
 	case WhiteKing:
 		pos.castlingRights.remove(SHORT_CASTLE_WHITE | LONG_CASTLE_WHITE)
 	case WhiteRook:
-		if move.from() == Bsf(squareToBitboard([]string{"h1"})) {
+		if move.from() == Bsf(bitboardFromCoordinate("h1")) {
 			pos.castlingRights.remove(SHORT_CASTLE_WHITE)
 		} else {
 			pos.castlingRights.remove(LONG_CASTLE_WHITE)
@@ -554,7 +537,7 @@ func updateCastleRights(pos *Position, move *Move) {
 	case BlackKing:
 		pos.castlingRights.remove(SHORT_CASTLE_BLACK | LONG_CASTLE_BLACK)
 	case BlackRook:
-		if move.from() == Bsf(squareToBitboard([]string{"h8"})) {
+		if move.from() == Bsf(bitboardFromCoordinate("h8")) {
 			pos.castlingRights.remove(SHORT_CASTLE_BLACK)
 		} else {
 			pos.castlingRights.remove(LONG_CASTLE_BLACK)
@@ -599,7 +582,7 @@ func (pos *Position) ToFen() (fen string) {
 
 	fen += " " + pos.castlingRights.toFen()
 	if pos.enPassantTarget > 0 {
-		fen += " " + pos.enPassantTarget.ToStringSlice()[0]
+		fen += " " + squareReference[Bsf(pos.enPassantTarget)]
 	} else {
 		fen += " " + "-"
 	}
@@ -722,19 +705,6 @@ func toRuneArray(pos *Position) [64]rune {
 
 // Utility functions
 
-// squareToBitboard returns a bitboard containing the position of the squares coordinates passed
-func squareToBitboard(coordinates []string) (bitboard Bitboard) {
-	for _, coordinate := range coordinates {
-		fileNumber := int(coordinate[0]) - 96
-		rankNumber := int(coordinate[1]) - 48
-		squareNumber := (fileNumber - 1) + 8*(rankNumber-1)
-
-		// displaces 1 bit to the coordinate passed
-		bitboard |= 0b1 << squareNumber
-	}
-	return
-}
-
 // From creates a new Position struct from a fen string
 func From(fen string) (pos *Position) {
 	// FIX this does not validate the fen string at all!!!!!!
@@ -763,7 +733,7 @@ func From(fen string) (pos *Position) {
 
 	pos.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
 	if elements[3] != "-" {
-		pos.enPassantTarget = squareToBitboard([]string{elements[3]})
+		pos.enPassantTarget = bitboardFromCoordinate(elements[3])
 	}
 	pos.halfmoveClock, _ = strconv.Atoi(elements[4]) // TODO handle errors
 	pos.fullmoveNumber, _ = strconv.Atoi(elements[5])

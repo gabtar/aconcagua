@@ -61,9 +61,9 @@ func nearestPieceInDirection(b *Bitboard, pos *Position, dir uint64) (nearestBlo
 
 	switch dir {
 	case NORTH, EAST, NORTHEAST, NORTHWEST:
-		nearestBlocker = BitboardFromIndex(Bsf(blockersInDirection))
+		nearestBlocker = bitboardFromIndex(Bsf(blockersInDirection))
 	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
-		nearestBlocker = BitboardFromIndex(63 - Bsr(blockersInDirection))
+		nearestBlocker = bitboardFromIndex(63 - Bsr(blockersInDirection))
 	}
 	return
 }

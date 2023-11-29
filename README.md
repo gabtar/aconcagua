@@ -16,8 +16,9 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 #### Move generation:
 - [x] Refactor move encode
-- [x] unmakeMove method on position
-- [x] Refactor move generator
+- [x] Refactor square to bitboard function
+- [ ] Fix bug. Check last test added (need to debug, maybe unmakeMove and zobrist hash settings...)
+- [ ] unmakeMove method on position - refactor
 - [ ] Refactor zobrist hash generation/update
 - [ ] Check a corner case when capturing with promotion a rook or a piece(maybe use a promotion_capture move type?)
 

@@ -21,7 +21,6 @@ type engine struct {
 func negamax(pos board.Position, depth int, alpha int, beta int, pV *principalVariation) (score int) {
 	alphaOrig := alpha
 
-	// Check if it's present on the transposition table and return the score
 	if ttEntry, exists := tt.table[pos.Zobrist]; exists && tt.table[pos.Zobrist].depth >= depth {
 		if ttEntry.flag == EXACT {
 			return ttEntry.score
