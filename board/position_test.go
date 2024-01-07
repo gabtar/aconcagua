@@ -676,4 +676,3 @@ func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
 
 // TODO:
 // test make promotion capture
-// all -> make in place (in struct)

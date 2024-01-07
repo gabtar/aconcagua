@@ -85,9 +85,25 @@ func Uci(cmd chan string, output chan string) {
 			output <- "info score cp " + strconv.Itoa(score)
 			output <- "bestmove " + bestMove[0].ToUci()
 
-			// TODO:  ----------- only for testing internal state via uci command line ----------------
+		// NOTE:  ----------- Non Uci commmands. Only for testing internal state via command line ----------------
 		case "printboard":
 			pos.Print()
+		case "perft":
+			depth, err := strconv.Atoi(commands[1])
+			if err != nil {
+				output <- "error"
+			} else {
+				output <- "nodes " + strconv.FormatUint(pos.Perft(depth), 10)
+			}
+		case "divide":
+			depth, err := strconv.Atoi(commands[1])
+			if err != nil {
+				output <- "error"
+			} else {
+				for _, perft := range strings.Split(pos.Divide(depth), ",") {
+					output <- perft
+				}
+			}
 		default:
 			output <- "invalid command"
 		}
