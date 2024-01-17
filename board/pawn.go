@@ -33,20 +33,28 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 			setCastleRightsBefore(pos.castlingRights)
 
 		switch {
+		case (destSq & queeningRank) > 0: // NOTE: This must be  first because of promotion captures..
+			move.setMoveType(PROMOTION)
+			for _, promotedRole := range promotions {
+				if (destSq & opponentPieces) > 0 {
+					capturedPiece, _ := pos.PieceAt(squareReference[Bsf(destSq)])
+					move.setCapturedPiece(capturedPiece)
+				}
+				// FIX: temporary fix
+				move2 := *move
+				move2.setPromotedTo(promotedRole)
+				moves = append(moves, move2)
+			}
+			break
 		case (opponentPieces & destSq) > 0:
 			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(destSq)])
 			move.setMoveType(CAPTURE).setCapturedPiece(capturedPiece)
 			moves = append(moves, *move)
+			break
 		case (destSq&doublePushTo) > 0 && (*p&doublePushFrom) > 0:
 			move.setMoveType(PAWN_DOUBLE_PUSH)
 			moves = append(moves, *move)
-		case (destSq & queeningRank) > 0:
-			// TODO: Check if its a promotion capture...
-			move.setMoveType(PROMOTION)
-			for _, promotedRole := range promotions {
-				move.setPiece(promotedRole)
-				moves = append(moves, *move)
-			}
+			break
 		default:
 			moves = append(moves, *move)
 		}

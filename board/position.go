@@ -343,6 +343,17 @@ func (pos *Position) legalEnPassant(side Color) (enPassant []Move) {
 		capturer := posiblesCapturers.nextOne()
 		p, _ := pos.PieceAt(squareReference[Bsf(capturer)])
 
+		// FIX: Bug that en passant removes checker!!!
+		// Si está en jaque por y es por ese unico capturer entonces
+		if pos.CheckingPieces(side) == (capturer>>1) || pos.CheckingPieces(side) == (capturer<<1) {
+			move.setFromSq(Bsf(capturer)).
+				setToSq(Bsf(epTarget)).
+				setMoveType(EN_PASSANT)
+
+			enPassant = append(enPassant, *move)
+			continue
+		}
+
 		enPassantAvailable := epTarget &
 			pinRestrictedDirection(capturer, pieceColor[p], pos) &
 			checkRestrictedMoves(capturer, pieceColor[p], pos)
@@ -377,7 +388,7 @@ func posiblesEpCapturers(target Bitboard, side Color, pos *Position) (squares Bi
 			(target & ^(target & files[0]) >> 9)
 		squares &= pos.Bitboards[WhitePawn]
 	} else {
-		squares |= (target & ^(target & files[7]) << 7) |
+		squares = (target & ^(target & files[7]) << 7) |
 			(target & ^(target & files[0]) << 9)
 		squares &= pos.Bitboards[BlackPawn]
 	}
@@ -415,6 +426,7 @@ func (pos *Position) MakeMove(move *Move) {
 		pos.halfmoveClock = 0
 		updateCastleRights(pos, move)
 	case PROMOTION:
+		*pos = pos.RemovePiece(bitboardFromIndex(move.to()))
 		pieceToAdd = Piece(move.promotedTo())
 		pos.halfmoveClock = 0
 	case CASTLE:
@@ -456,37 +468,38 @@ func (pos *Position) UnmakeMove(move Move) {
 	// case NORMAL:
 	// case PAWN_DOUBLE_PUSH:
 	case CAPTURE:
-		// Add the captured piece back to the position
 		pos.AddPiece(move.capturedPiece(), squareReference[move.to()])
-	// case PROMOTION:
+	case PROMOTION:
+		pos.AddPiece(Piece(move.piece()), squareReference[move.from()])
+		if move.capturedPiece() > 0 {
+			pos.AddPiece(Piece(move.capturedPiece()), squareReference[move.to()])
+		}
 	case CASTLE:
-		// Restore rook position
-
-		// Check king color
 		// TODO: refactor?...
+		// Idea encapsulate a Castle and Uncastle in a function ?
 		king := Piece(move.piece())
 		if pieceColor[king] == White {
 			if move.to() == 6 { // king to g1
 				pos.AddPiece(WhiteRook, "h1")
+				*pos = pos.RemovePiece(bitboardFromCoordinate("f1"))
 			} else { // king to c1
 				pos.AddPiece(WhiteRook, "a1")
+				*pos = pos.RemovePiece(bitboardFromCoordinate("d1"))
 			}
 		} else {
 			if move.to() == 62 { // king to g8
 				pos.AddPiece(BlackRook, "h8")
+				*pos = pos.RemovePiece(bitboardFromCoordinate("f8"))
 			} else { // king to c8
 				pos.AddPiece(BlackRook, "a8")
+				*pos = pos.RemovePiece(bitboardFromCoordinate("d8"))
 			}
 		}
 	case EN_PASSANT:
-		// Check color of captured pawn
-		// if white -> sq = epTarget - 1 rank
-		// if black -> sq = epTarget + 1 rank
 		restoreSq := move.to() + 8                    // 1 rank up
 		if pieceColor[Piece(move.piece())] == White { // White ep capture
 			restoreSq = move.to() - 8 // 1 rank down
 		}
-		// Need to restore captured pawn...
 		pos.AddPiece(pieceOfColor[Pawn][pos.turn], squareReference[restoreSq])
 	}
 
@@ -522,7 +535,7 @@ func moveRookOnCastleMove(newPos Position, move *Move) Position {
 }
 
 // updateCastleRights updates the castle rigths based on the move passed if the
-// rook or the king has been moved
+// rook or the king has been moved or the move captured a rook on the corner
 func updateCastleRights(pos *Position, move *Move) {
 	piece := Piece(move.piece())
 	switch piece {
@@ -541,6 +554,19 @@ func updateCastleRights(pos *Position, move *Move) {
 			pos.castlingRights.remove(SHORT_CASTLE_BLACK)
 		} else {
 			pos.castlingRights.remove(LONG_CASTLE_BLACK)
+		}
+	}
+	// TO FIX BUG: if its a capture that captures a rook on a1, h1, a8 or h8, it should also update the castle rights...
+	if move.MoveType() == CAPTURE || move.MoveType() == PROMOTION {
+		switch {
+		case move.to() == 0 && move.capturedPiece() == WhiteRook:
+			pos.castlingRights.remove(LONG_CASTLE_WHITE)
+		case move.to() == 7 && move.capturedPiece() == WhiteRook:
+			pos.castlingRights.remove(SHORT_CASTLE_WHITE)
+		case move.to() == 56 && move.capturedPiece() == BlackRook:
+			pos.castlingRights.remove(LONG_CASTLE_BLACK)
+		case move.to() == 63 && move.capturedPiece() == BlackRook:
+			pos.castlingRights.remove(SHORT_CASTLE_BLACK)
 		}
 	}
 }

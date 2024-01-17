@@ -37,7 +37,6 @@ func knightMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	if isPinned(*k, side, pos) {
 		return Bitboard(0)
 	}
-
 	moves = knightAttacks(k, pos) & ^pos.Pieces(side) &
 		checkRestrictedMoves(*k, side, pos)
 	return

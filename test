@@ -1,0 +1,171 @@
+Aconcagua
+
+f8g8 1354 S
+d8a5 404  S
+d8b6 1596 S
+d8c7 1631 S
+d8d7 1534 S
+d8e8 1538 S
+h8g8 1377 S
+e7a3 1459 S
+e7b4 305  S
+e7h4 1362 S
+e7c5 1513 S
+e7g5 1424 S
+e7d6 1651 S
+e7f6 1388 S
+c8d7 1493 S
+f2d1 1179 S
+f2h1 1224 S
+f2d3 156  S
+f2h3 1272 S
+f2e4 1436 S
+f2g4 1356 S
+b8a6 1462 S
+b8d7 1420 S
+c6c5 1303 S
+a7a5 1423 ERROR
+a7a6 1380 S
+b7b5 1453 S
+b7b6 1371 S
+f7f5 1374 S
+f7f6 1251 S
+g7g5 1310 S
+g7g6 1387 S
+h7h5 1462 S
+h7h6 1421 S
+
+Stockfish
+c6c5: 1303
+a7a6: 1380
+b7b6: 1371
+f7f6: 1251
+g7g6: 1387
+h7h6: 1421
+a7a5: 1422
+b7b5: 1453
+f7f5: 1374
+g7g5: 1310
+h7h5: 1462
+f2d1: 1179
+f2h1: 1224
+f2d3: 156
+f2h3: 1272
+f2e4: 1436
+f2g4: 1356
+b8a6: 1462
+b8d7: 1420
+e7a3: 1459
+e7b4: 305
+e7h4: 1362
+e7c5: 1513
+e7g5: 1424
+e7d6: 1651
+e7f6: 1388
+c8d7: 1493
+h8g8: 1377
+d8a5: 404
+d8b6: 1596
+d8c7: 1631
+d8d7: 1534
+d8e8: 1538
+f8g8: 1354
+
+
+Aconcagua
+e1f1 34 S
+e1d2 34 S
+e1f2 28 S
+d1d2 34 S
+d1d3 34 S
+d1d4 34 S
+d1d5 35 S
+d1d6 28 S
+g1f1 34 S
+g1h1 34 S
+c1d2 34 S
+c1e3 34 S
+c1f4 34 S
+c1g5 32 S
+c1h6 31 S
+c4b3 34 S
+c4d3 34 S
+c4b5 34 S
+c4d5 35 S
+c4a6 35 S
+c4e6 35 S
+c4f7 32 S
+b1d2 34 S
+b1a3 34 S
+b1c3 34 S
+e2c3 34 S
+e2g3 34 S
+e2d4 34 S
+e2f4 34 S
+a2a3 34 S
+a2a4 33 S
+b2b3 34 S
+b2b4 34 S
+c2c3 34 S
+g2g3 34 S
+g2g4 34 S
+h2h3 34 S
+h2h4 35 ERROR
+d7c8n 41 S
+d7c8b 41 S
+d7c8r 32 S
+d7c8q 32 S
+
+Stockfish
+a2a3: 34
+b2b3: 34
+c2c3: 34
+g2g3: 34
+h2h3: 34
+a2a4: 33
+b2b4: 34
+g2g4: 34
+h2h4: 34
+d7c8q: 32
+d7c8r: 32
+d7c8b: 41
+d7c8n: 41
+b1d2: 34
+b1a3: 34
+b1c3: 34
+e2c3: 34
+e2g3: 34
+e2d4: 34
+e2f4: 34
+c1d2: 34
+c1e3: 34
+c1f4: 34
+c1g5: 32
+c1h6: 31
+c4b3: 34
+c4d3: 34
+c4b5: 34
+c4d5: 35
+c4a6: 35
+c4e6: 35
+c4f7: 32
+g1f1: 34
+g1h1: 34
+d1d2: 34
+d1d3: 34
+d1d4: 34
+d1d5: 35
+d1d6: 28
+e1f1: 34
+e1d2: 34
+e1f2: 28
+
+Making move by move on each engine!!!!
+
+FEN: rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8
+Move h1g1 -> a7a5 -> h2h4 -> FOUND!!!! BUG ON EN PASSANT a5h2 illegal found by aconcagua WTF???
+
+FEN: rnbq1k1r/1p1Pbppp/2p5/p7/2B4P/8/PPP1NnP1/RNBQK1R1 b Q h3 0 
+Aconcagua legal moves -> 35
+Stockfish -> 34!!!
+

@@ -117,6 +117,7 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 	if pinDirection == INVALID {
 		return false
 	}
+
 	// Ray from king to piece
 	possibleAttackers := raysAttacks[pinDirection][Bsf(kingBB)]
 
@@ -126,7 +127,6 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 		return false
 	}
 
-	// Get the first 2 pieces along the direction
 	switch pinDirection {
 	// TODO: remove duplication...
 	case NORTH, EAST, NORTHEAST, NORTHWEST:
@@ -136,7 +136,7 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
 		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
 
-		withoutPinnedPiece := pos.RemovePiece(firstBB)
+		withoutPinnedPiece := pos.RemovePiece(piece)
 
 		if pieceColor[pieceOne] != pieceColor[pieceTwo] &&
 			(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {
@@ -150,7 +150,7 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
 		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
 
-		withoutPinnedPiece := pos.RemovePiece(firstBB)
+		withoutPinnedPiece := pos.RemovePiece(piece)
 
 		if pieceColor[pieceOne] != pieceColor[pieceTwo] &&
 			(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {

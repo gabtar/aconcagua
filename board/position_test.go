@@ -89,6 +89,18 @@ func TestPinnedPiece(t *testing.T) {
 	}
 }
 
+func TestPinnedPieceKnightFail(t *testing.T) {
+	pos := From("rnQq1k1r/pp2bppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R b KQ - 1 8")
+	blackKnight, _ := pos.PieceAt("b8")
+
+	expected := false
+	got := isPinned(bitboardFromCoordinate("b8"), pieceColor[blackKnight], pos)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
 func TestShortLegalCastleForWhite(t *testing.T) {
 	pos := From("8/8/8/8/8/8/8/4K2R w K - 0 1")
 

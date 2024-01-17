@@ -12,7 +12,6 @@ const (
 func (c Color) opponent() Color {
 	if c == White {
 		return Black
-	} else {
-		return White
 	}
+	return White
 }
