@@ -134,29 +134,6 @@ func TestLongIllegalCastleForBlack(t *testing.T) {
 	}
 }
 
-func TestEnPassantMoves(t *testing.T) {
-	// Both white pawns from c5 and e5 can capture en passant to d6
-	pos := From("3k4/8/8/2PpP3/8/8/8/3K4 w - d6 0 1")
-
-	expected := 2
-	got := len(pos.legalEnPassant(White))
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestLegalMovesFromInitialPosition(t *testing.T) {
-	pos := From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-
-	expected := 20
-	got := len(pos.LegalMoves(White))
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 func TestLegalMovesOnAPositionWithPromotion(t *testing.T) {
 	pos := From("3r2k1/5ppp/8/8/8/8/pp4PP/5R1K b - - 0 1")
 

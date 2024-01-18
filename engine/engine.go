@@ -69,16 +69,13 @@ func Uci(cmd chan string, output chan string) {
 			hasMoves, _ := regexp.MatchString("moves", command)
 
 			if hasMoves {
-				// Match de moves para adelante
 				re := regexp.MustCompile("(?:moves )(.+)")
 				movesList := re.FindString(command)
 				moves := strings.Split(movesList, " ")
 				for _, move := range moves {
-					// Find the move that matches the uci command and perform on the position
-					pos := engine.pos
-					for _, legalMove := range pos.LegalMoves(pos.ToMove()) {
+					for _, legalMove := range engine.pos.LegalMoves(engine.pos.ToMove()) {
 						if legalMove.ToUci() == move {
-							pos.MakeMove(&legalMove)
+							engine.pos.MakeMove(&legalMove)
 						}
 					}
 				}

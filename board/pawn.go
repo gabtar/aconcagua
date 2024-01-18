@@ -46,6 +46,10 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 				moves = append(moves, move2)
 			}
 			break
+		case (pos.enPassantTarget > 0) && (pos.enPassantTarget&destSq) > 0:
+			move.setMoveType(EN_PASSANT)
+			moves = append(moves, *move)
+			break
 		case (opponentPieces & destSq) > 0:
 			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(destSq)])
 			move.setMoveType(CAPTURE).setCapturedPiece(capturedPiece)
@@ -55,6 +59,7 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 			move.setMoveType(PAWN_DOUBLE_PUSH)
 			moves = append(moves, *move)
 			break
+			// VALID EP
 		default:
 			moves = append(moves, *move)
 		}
@@ -65,6 +70,7 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 // pawnMoves returns a Bitboard with the squares a pawn can move to in the passed position
 func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	posibleCaptures := pawnAttacks(p, pos, side) & pos.Pieces(side.opponent())
+	posibleEnPassant := pawnEnPassantCaptures(p, pos, side)
 	posiblesMoves := Bitboard(0)
 
 	if side == White {
@@ -77,9 +83,11 @@ func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
 		posiblesMoves = singleMove | firstPawnMoveAvailable
 	}
 
-	moves = (posibleCaptures | posiblesMoves) &
-		pinRestrictedDirection(*p, side, pos) &
-		checkRestrictedMoves(*p, side, pos)
+	moves = (posibleCaptures|posiblesMoves)&
+		pinRestrictedDirection(*p, side, pos)&
+		checkRestrictedMoves(*p, side, pos) |
+		posibleEnPassant
+
 	return
 }
 
@@ -93,5 +101,34 @@ func pawnAttacks(p *Bitboard, pos *Position, side Color) (attacks Bitboard) {
 	} else {
 		attacks = notInAFile>>9 | notInHFile>>7
 	}
+	return
+}
+
+// pawnEnPassantCaptures the bitboard with the squares the pawn can capture en passant
+func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bitboard) {
+	caughtPawn := pos.enPassantTarget >> 8
+	if side == Black {
+		caughtPawn = pos.enPassantTarget << 8
+	}
+	afterEp := pos.RemovePiece(caughtPawn).RemovePiece(*p)
+	afterEp.Bitboards[pieceOfColor[Pawn][side]] |= pos.enPassantTarget
+
+	if pos.enPassantTarget == 0 || afterEp.Check(side) {
+		return
+	}
+
+	if pos.CheckingPieces(side) == caughtPawn {
+		if side == White {
+			enPassant |= caughtPawn << 8
+		} else {
+			enPassant |= caughtPawn >> 8
+		}
+	}
+
+	enPassant |= pos.enPassantTarget &
+		pawnAttacks(p, pos, side) &
+		pinRestrictedDirection(*p, side, pos) &
+		checkRestrictedMoves(*p, side, pos)
+
 	return
 }

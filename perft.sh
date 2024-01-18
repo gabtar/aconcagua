@@ -18,7 +18,7 @@ pid=$!
 # Excecute commands in aconcagua and exit
 echo "position fen $fen" > "$fifo"
 echo "divide $depth" > "$fifo"
-(sleep 4 && echo "quit") > "$fifo"
+(sleep 10 && echo "quit") > "$fifo"
 
 rm "$fifo"
 

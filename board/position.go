@@ -279,7 +279,6 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 		}
 	}
 	legalMoves = append(legalMoves, pos.legalCastles(side)...)
-	legalMoves = append(legalMoves, pos.legalEnPassant(side)...)
 
 	return
 }
@@ -324,51 +323,6 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 	return
 }
 
-// legalEnPassant returns the en passant moves in the position
-func (pos *Position) legalEnPassant(side Color) (enPassant []Move) {
-	epTarget := pos.enPassantTarget
-
-	if epTarget == 0 {
-		return
-	}
-	piece := pieceOfColor[Pawn][side]
-	posiblesCapturers := posiblesEpCapturers(epTarget, side, pos)
-	move := newMove().
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights).
-		setEpTargetBefore(pos.enPassantTarget).
-		setPiece(piece)
-
-	for posiblesCapturers > 0 {
-		capturer := posiblesCapturers.nextOne()
-		p, _ := pos.PieceAt(squareReference[Bsf(capturer)])
-
-		// FIX: Bug that en passant removes checker!!!
-		// Si está en jaque por y es por ese unico capturer entonces
-		if pos.CheckingPieces(side) == (capturer>>1) || pos.CheckingPieces(side) == (capturer<<1) {
-			move.setFromSq(Bsf(capturer)).
-				setToSq(Bsf(epTarget)).
-				setMoveType(EN_PASSANT)
-
-			enPassant = append(enPassant, *move)
-			continue
-		}
-
-		enPassantAvailable := epTarget &
-			pinRestrictedDirection(capturer, pieceColor[p], pos) &
-			checkRestrictedMoves(capturer, pieceColor[p], pos)
-
-		if enPassantAvailable > 0 {
-			move.setFromSq(Bsf(capturer)).
-				setToSq(Bsf(epTarget)).
-				setMoveType(EN_PASSANT)
-
-			enPassant = append(enPassant, *move)
-		}
-	}
-	return
-}
-
 // Endgame criteria
 // Both sides have no queens or
 // TODO: Every side which has a queen has additionally no other pieces or one minorpiece maximum.
@@ -378,21 +332,6 @@ func (pos *Position) IsEndgame() bool {
 		return false
 	}
 	return true
-}
-
-// posiblesEpCapturers returns a bitboard with the pawns that are attacking
-// the en passant target square passed
-func posiblesEpCapturers(target Bitboard, side Color, pos *Position) (squares Bitboard) {
-	if side == White {
-		squares = (target & ^(target & files[7]) >> 7) |
-			(target & ^(target & files[0]) >> 9)
-		squares &= pos.Bitboards[WhitePawn]
-	} else {
-		squares = (target & ^(target & files[7]) << 7) |
-			(target & ^(target & files[0]) << 9)
-		squares &= pos.Bitboards[BlackPawn]
-	}
-	return
 }
 
 // MakeMove updates the position by making the move passed as parameter
@@ -435,9 +374,9 @@ func (pos *Position) MakeMove(move *Move) {
 		updateCastleRights(pos, move)
 	case EN_PASSANT:
 		if move.piece() == int(WhitePawn) {
-			*pos = pos.RemovePiece(pos.enPassantTarget >> 8)
+			pos.Bitboards[BlackPawn] ^= move.epTargetBefore() >> 8
 		} else {
-			*pos = pos.RemovePiece(pos.enPassantTarget << 8)
+			pos.Bitboards[WhitePawn] ^= move.epTargetBefore() << 8
 		}
 		pos.halfmoveClock = 0
 	}
