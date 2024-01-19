@@ -59,7 +59,6 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 			move.setMoveType(PAWN_DOUBLE_PUSH)
 			moves = append(moves, *move)
 			break
-			// VALID EP
 		default:
 			moves = append(moves, *move)
 		}
@@ -117,7 +116,8 @@ func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bi
 		return
 	}
 
-	if pos.CheckingPieces(side) == caughtPawn {
+	// Y lo esta atacando al enPassant target????
+	if pos.CheckingPieces(side) == caughtPawn && (pawnAttacks(p, pos, side)&pos.enPassantTarget) > 0 {
 		if side == White {
 			enPassant |= caughtPawn << 8
 		} else {

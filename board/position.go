@@ -305,6 +305,11 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 
 		if pos.castlingRights.canCastle(SHORT_CASTLE_WHITE) && canCastleShort {
 			castle = append(castle, *move.setFromSq(4).setToSq(6).setMoveType(CASTLE))
+			move = newMove().
+				setRule50Before(pos.halfmoveClock).
+				setCastleRightsBefore(pos.castlingRights).
+				setEpTargetBefore(pos.enPassantTarget).
+				setPiece(king)
 		}
 		if pos.castlingRights.canCastle(LONG_CASTLE_WHITE) && canCastleLong {
 			castle = append(castle, *move.setFromSq(4).setToSq(2).setMoveType(CASTLE))
@@ -315,8 +320,13 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 
 		if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) && canCastleShort {
 			castle = append(castle, *move.setFromSq(60).setToSq(62).setMoveType(CASTLE))
+			move = newMove().
+				setRule50Before(pos.halfmoveClock).
+				setCastleRightsBefore(pos.castlingRights).
+				setEpTargetBefore(pos.enPassantTarget).
+				setPiece(king)
 		}
-		if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) && canCastleLong {
+		if pos.castlingRights.canCastle(LONG_CASTLE_BLACK) && canCastleLong {
 			castle = append(castle, *move.setFromSq(60).setToSq(58).setMoveType(CASTLE))
 		}
 	}
@@ -458,7 +468,7 @@ func moveRookOnCastleMove(newPos Position, move *Move) Position {
 			newPos.AddPiece(WhiteRook, "f1")
 		} else {
 			newPos = newPos.RemovePiece(bitboardFromCoordinate("a1"))
-			newPos.AddPiece(WhiteRook, "c1")
+			newPos.AddPiece(WhiteRook, "d1")
 		}
 	} else {
 
@@ -467,7 +477,7 @@ func moveRookOnCastleMove(newPos Position, move *Move) Position {
 			newPos.AddPiece(BlackRook, "f8")
 		} else {
 			newPos = newPos.RemovePiece(bitboardFromCoordinate("a8"))
-			newPos.AddPiece(BlackRook, "c8")
+			newPos.AddPiece(BlackRook, "d8")
 		}
 	}
 	return newPos

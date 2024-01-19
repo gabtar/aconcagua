@@ -15,10 +15,10 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 ### TODO:
 
 #### Move generation:
-- [ ] Fix move generation BUG. Use perft and divide
-- [ ] unmakeMove method on position - refactor - Fails when unmaking a promotion capture!!!!
+- [x] Fix move generation BUG. Use perft and divide
+- [x] unmakeMove method on position - refactor - Fails when unmaking a promotion capture!!!!
 - [ ] Refactor zobrist hash generation/update
-- [ ] Check a corner case when capturing with promotion a rook or a piece(maybe use a promotion_capture move type?)
+- [x] Check a corner case when capturing with promotion a rook or a piece(maybe use a promotion_capture move type?)
 
 #### Evaluation:
 - [x] Add piece square tables to evaluation

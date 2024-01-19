@@ -6,7 +6,6 @@ const (
 	CASTLE
 	PAWN_DOUBLE_PUSH
 	PROMOTION
-	// TODO: -> Promotion capture for unmaking move
 	EN_PASSANT
 	CAPTURE
 )
