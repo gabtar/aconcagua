@@ -5,11 +5,8 @@ import (
 )
 
 func main() {
-	input := make(chan string)
-	output := make(chan string)
 
-	go engine.ReadStdin(input)
-	go engine.WriteStdout(output)
+	eng := engine.NewEngine()
+	eng.StartUci()
 
-	engine.Uci(input, output)
 }

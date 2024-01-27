@@ -8,17 +8,9 @@ import (
 	"github.com/gabtar/aconcagua/evaluation"
 )
 
-type engine struct {
-	pv           principalVariation
-	currentDepth int
-	score        int
-	position     board.Position
-	// TODO: add time spent?
-}
-
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
-func negamax(pos board.Position, depth int, alpha int, beta int, pV *principalVariation) (score int) {
+func negamax(pos board.Position, depth int, alpha int, beta int, pV *PrincipalVariation) (score int) {
 	alphaOrig := alpha
 
 	if ttEntry, exists := tt.table[pos.Zobrist]; exists && tt.table[pos.Zobrist].depth >= depth {
@@ -37,6 +29,7 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pV *principalVa
 
 	if depth == 0 || pos.Checkmate(board.White) || pos.Checkmate(board.Black) {
 		// TODO: extract to function? Color modifier for evaluation
+
 		color := 1
 		if pos.ToMove() == board.Black {
 			color = -1
@@ -112,7 +105,7 @@ func BestMove(pos *board.Position, maxDepth int) (bestMoveScore int, bestMove []
 }
 
 // sortMoves sorts an slice of moves acording to the principalVariation
-func sortMoves(legalMoves []board.Move, pV *principalVariation, depth int) (sortedMoves []board.Move) {
+func sortMoves(legalMoves []board.Move, pV *PrincipalVariation, depth int) (sortedMoves []board.Move) {
 	sort.Slice(legalMoves, func(i, j int) bool {
 
 		if pV.moves[depth] == legalMoves[i] {

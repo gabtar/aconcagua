@@ -116,7 +116,6 @@ func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bi
 		return
 	}
 
-	// Y lo esta atacando al enPassant target????
 	if pos.CheckingPieces(side) == caughtPawn && (pawnAttacks(p, pos, side)&pos.enPassantTarget) > 0 {
 		if side == White {
 			enPassant |= caughtPawn << 8

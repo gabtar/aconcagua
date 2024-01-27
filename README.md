@@ -15,10 +15,7 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 ### TODO:
 
 #### Move generation:
-- [x] Fix move generation BUG. Use perft and divide
-- [x] unmakeMove method on position - refactor - Fails when unmaking a promotion capture!!!!
 - [ ] Refactor zobrist hash generation/update
-- [x] Check a corner case when capturing with promotion a rook or a piece(maybe use a promotion_capture move type?)
 
 #### Evaluation:
 - [x] Add piece square tables to evaluation
@@ -31,6 +28,7 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 - [x] Transposition table
 - [x] Iterative deepening
 - [x] Principal Variation
+- [ ] Refactor search
 - [ ] Improve move ordering by using transposition table? Access by zorbist key?
 - [ ] Aspiration windows
 - [ ] Add ~~check~~, stealmate, etc detection while searching
@@ -38,4 +36,4 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 ### Engine
 - [ ] Create an engine struct with main parameters(current best move, depth, etc)
-- [ ] Add remaining uci commands
+- [ ] Add/improve remaining uci commands

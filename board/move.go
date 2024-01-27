@@ -150,7 +150,7 @@ func (m *Move) setCapturedPiece(piece Piece) *Move {
 
 // setEpTargetBefore sets the en passant square of the position before making the move
 func (m *Move) setEpTargetBefore(epTarget Bitboard) *Move {
-	// NOTE: need to do this because of Bsf(0) == 64. Need to FIX it
+	// NOTE: need to do this because of Bsf(0) == 64.
 	if epTarget == 0 {
 		return m
 	}
