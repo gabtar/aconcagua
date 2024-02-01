@@ -47,7 +47,7 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 	if params[0] == "startpos" {
 		engine.pos = *board.From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 	} else if params[0] == "fen" {
-		fen := strings.Join(params[2:], " ")
+		fen := strings.Join(params[1:], " ")
 		en.pos = *board.From(fen)
 	} else {
 		stdout <- "invalid command"
@@ -75,8 +75,15 @@ func isReadyCommand(en *Engine, stdout chan string, params ...string) {
 func goCommand(en *Engine, stdout chan string, params ...string) {
 	// TODO: implement remaining 'go' uci options
 
-	// NOTE: fixed depth for now
-	score, bestMove := search.BestMove(&engine.pos, 4)
+	// TODO: Default depth for now
+	depth := 5
+
+	dIndex := findParam(params, "depth")
+	if dIndex != -1 {
+		depth, _ = strconv.Atoi(params[dIndex+1])
+	}
+
+	score, bestMove := search.BestMove(&engine.pos, depth, stdout)
 	stdout <- "info score cp " + strconv.Itoa(score)
 	stdout <- "bestmove " + bestMove[0].ToUci()
 }

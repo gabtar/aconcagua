@@ -29,11 +29,11 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 - [x] Iterative deepening
 - [x] Principal Variation
 - [ ] Refactor search
-- [ ] Improve move ordering by using transposition table? Access by zorbist key?
+- [ ] Improve move ordering
 - [ ] Aspiration windows
 - [ ] Add ~~check~~, stealmate, etc detection while searching
 - [ ] Detect threefold repetition - use zobrist hash
 
 ### Engine
-- [ ] Create an engine struct with main parameters(current best move, depth, etc)
+- [x] Create an engine struct with main parameters(current best move, depth, etc)
 - [ ] Add/improve remaining uci commands

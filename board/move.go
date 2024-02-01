@@ -5,8 +5,8 @@ const (
 	NORMAL = iota
 	CASTLE
 	PAWN_DOUBLE_PUSH
-	PROMOTION
 	EN_PASSANT
+	PROMOTION
 	CAPTURE
 )
 
@@ -24,6 +24,7 @@ const (
 // NOTE: For unmaking moves purposes only
 // 4 bits to describe the type of the piece captured (2^4) (12 types)
 // 6 bits to describe the old en passant target square
+// 16 bits to store the evaluation score after the move - For move ordering purposes
 // Total := 34 bits, fits in a 64 int
 
 type Move uint64
@@ -85,6 +86,11 @@ func (m *Move) rule50Before() int {
 // castleRightsBefore
 func (m *Move) castleRightsBefore() castling {
 	return castling((*m & (0b1111 << 40)) >> 40)
+}
+
+// Score returns the Score evaluation after the move has been made
+func (m *Move) Score() int {
+	return int((*m & (0b1111111111111111 << 44)) >> 44)
 }
 
 // ToUci returns the move in UCI format (starting square string -> destinatnion square string)
@@ -167,5 +173,11 @@ func (m *Move) setRule50Before(halfmoveClock int) *Move {
 // setCastleRightsBefore sets the caslte rights of the position before making the move
 func (m *Move) setCastleRightsBefore(castles castling) *Move {
 	*m |= Move(int(castles) << 40)
+	return m
+}
+
+// SetScore sets the score passed in centipawns evaluation
+func (m *Move) SetScore(score int) *Move {
+	*m |= Move(score << 44)
 	return m
 }

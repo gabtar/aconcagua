@@ -157,7 +157,8 @@ func TestMoveBuilder(t *testing.T) {
 		setMoveType(NORMAL).
 		setEpTargetBefore(bitboardFromIndex(56)).
 		setRule50Before(10).
-		setCastleRightsBefore(castling(0b1111))
+		setCastleRightsBefore(castling(0b1111)).
+		SetScore(100)
 
 	expectedFrom := 0
 	gotFrom := move.from()
@@ -206,5 +207,12 @@ func TestMoveBuilder(t *testing.T) {
 
 	if gotRuleCastlingBefore != expectedCastlingBefore {
 		t.Errorf("Expected: %v, got: %v", expectedEpBefore, gotEpBefore)
+	}
+
+	expectedScore := 100
+	gotScore := move.Score()
+
+	if gotScore != expectedScore {
+		t.Errorf("Expected: %v, got: %v", expectedScore, gotScore)
 	}
 }

@@ -8,15 +8,15 @@ type PrincipalVariation struct {
 	moves    []board.Move
 }
 
-// place sets a move in the principal variation at the specified depth
-func (pV *PrincipalVariation) place(depth int, move board.Move) {
-	pV.moves[depth] = move
-}
-
 // newPrincipalVariation is a factory that returns a pointer to a principalVariation struct
 func newPrincipalVariation(depth int) *PrincipalVariation {
 	return &PrincipalVariation{
 		maxDepth: depth,
 		moves:    make([]board.Move, depth),
 	}
+}
+
+// add adds a new move to the principalVariation
+func (pv *PrincipalVariation) add(m board.Move, d int) {
+	pv.moves[pv.maxDepth-d] = m
 }

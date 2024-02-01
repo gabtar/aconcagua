@@ -132,7 +132,7 @@ var kingEndGameBonus = [64]int{
 }
 
 // Evaluate scores out the position in centipawns for a given a position of the board
-func Evaluate(pos board.Position) (score int) {
+func Evaluate(pos *board.Position) (score int) {
 	// Set checkmate as 10 kings value
 	// TODO: should evaluate checkmate in number of moves. eg mate in 2 is better than a mate in 3
 	if pos.Checkmate(board.White) {
@@ -146,7 +146,7 @@ func Evaluate(pos board.Position) (score int) {
 		for bb > 0 {
 			sqIndex := board.Bsf(bb)
 			sqBB := board.Bitboard(0b1 << sqIndex)
-			isEndgame := isEndgame(pos)
+			isEndgame := isEndgame(*pos)
 
 			// TODO: Refactor?
 			if pieceType == WHITE_KING && isEndgame {

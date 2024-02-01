@@ -58,11 +58,3 @@ func (tt *TranspositionTable) save(key uint64, depth int, score int, flag int) {
 		flag:  flag,
 	}
 }
-
-// find returns the value of a transposition table for a given key
-func (tt *TranspositionTable) find(key uint64) (int, bool) {
-	if entry, ok := tt.table[key]; ok {
-		return entry.score, true
-	}
-	return 0, false
-}

@@ -255,6 +255,35 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 	return
 }
 
+// MvvVlaScore (Most Valuable Victim - Least Valuable Aggressor) for scoring captures
+var MvvVlaScore = [6][6]int{
+	{0, 0, 0, 0, 0, 0},             // Victim K, agressor K, Q, R, B, N, P - No point to capture a king!
+	{100, 101, 102, 103, 104, 105}, // Victim Q, agressor K, Q, R, B, N, P
+	{90, 91, 92, 93, 94, 95},       // Victim R, agressor K, Q, R, B, N, P
+	{80, 81, 82, 83, 84, 85},       // Victim B, agressor K, Q, R, B, N, P
+	{70, 71, 72, 73, 74, 75},       // Victim N, agressor K, Q, R, B, N, P
+	{60, 61, 62, 63, 64, 65},       // Victim P, agressor K, Q, R, B, N, P
+}
+
+func setMvvVlaScore(m *Move) {
+	// If not a capture just score as move type
+	if m.MoveType() != CAPTURE {
+		m.SetScore(m.MoveType())
+		return
+	}
+
+	victim := int(m.capturedPiece())
+	aggresor := int(m.piece())
+
+	if victim > 5 {
+		victim -= 6
+	}
+	if aggresor > 5 {
+		aggresor -= 6
+	}
+	m.SetScore(MvvVlaScore[victim][aggresor])
+}
+
 // LegalMoves returns an slice of Move of all legal moves for the side passed
 func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 	bitboards := pos.getBitboards(side)
@@ -279,6 +308,11 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 		}
 	}
 	legalMoves = append(legalMoves, pos.legalCastles(side)...)
+
+	// MVV_VLA score
+	for idx := range legalMoves {
+		setMvvVlaScore(&legalMoves[idx])
+	}
 
 	return
 }

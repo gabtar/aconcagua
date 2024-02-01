@@ -11,10 +11,8 @@ import (
 var engine Engine = Engine{pos: *board.InitialPosition()}
 
 type Engine struct {
-	pos          board.Position
-	pv           search.PrincipalVariation
-	currentDepth int
-	score        int
+	pos board.Position
+	pv  search.PrincipalVariation
 }
 
 func NewEngine() *Engine {
