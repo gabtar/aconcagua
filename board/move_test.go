@@ -3,7 +3,6 @@ package board
 import "testing"
 
 // Tests that diferent moves produces the correct update on the board
-// TODO: More tests
 
 func TestNormalMove(t *testing.T) {
 	pos := InitialPosition()
@@ -148,7 +147,6 @@ func TestBuildMove(t *testing.T) {
 
 }
 
-// TODO: add individual tests for each builder method
 func TestMoveBuilder(t *testing.T) {
 	move := newMove().
 		setFromSq(0).

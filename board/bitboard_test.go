@@ -14,7 +14,7 @@ func TestCountPiecesInBitboard(t *testing.T) {
 }
 
 func TestCountPiecesInBitboard2(t *testing.T) {
-	bb := Bitboard(ALL_SQUARES)
+	bb := Bitboard(AllSquares)
 
 	expected := 64
 	got := bb.count()

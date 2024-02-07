@@ -126,7 +126,7 @@ func (pos *Position) AddPiece(piece Piece, square string) {
 
 // emptySquares returns a Bitboard with the empty sqaures of the position
 func (pos *Position) EmptySquares() (emptySquares Bitboard) {
-	emptySquares = ALL_SQUARES
+	emptySquares = AllSquares
 
 	for _, bitboard := range pos.Bitboards {
 		emptySquares &= ^bitboard
@@ -265,7 +265,7 @@ var MvvVlaScore = [6][6]int{
 	{60, 61, 62, 63, 64, 65},       // Victim P, agressor K, Q, R, B, N, P
 }
 
-func setMvvVlaScore(m *Move) {
+func setMvvVlaScore(m *Move, pos *Position) {
 	// If not a capture just score as move type
 	if m.MoveType() != CAPTURE {
 		m.SetScore(m.MoveType())
@@ -281,6 +281,7 @@ func setMvvVlaScore(m *Move) {
 	if aggresor > 5 {
 		aggresor -= 6
 	}
+
 	m.SetScore(MvvVlaScore[victim][aggresor])
 }
 
@@ -311,7 +312,7 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 
 	// MVV_VLA score
 	for idx := range legalMoves {
-		setMvvVlaScore(&legalMoves[idx])
+		setMvvVlaScore(&legalMoves[idx], pos)
 	}
 
 	return

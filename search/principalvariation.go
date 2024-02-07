@@ -16,7 +16,21 @@ func newPrincipalVariation(depth int) *PrincipalVariation {
 	}
 }
 
-// add adds a new move to the principalVariation
-func (pv *PrincipalVariation) add(m board.Move, d int) {
-	pv.moves[pv.maxDepth-d] = m
+// add adds a new move to the principalVariation at the specific depth
+func (pv *PrincipalVariation) add(m board.Move, depth int) {
+	pv.moves[pv.maxDepth-depth] = m
+}
+
+// clear resets the principal variation moves
+func (pv *PrincipalVariation) clear() {
+	pv.moves = pv.moves[:0]
+}
+
+// String returns the string representation of the principal variation moves
+func (pv *PrincipalVariation) String() string {
+	list := ""
+	for _, m := range pv.moves[:pv.maxDepth] {
+		list += m.ToUci() + " "
+	}
+	return list
 }

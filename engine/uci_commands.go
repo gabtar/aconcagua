@@ -15,6 +15,7 @@ type UciCommand func(en *Engine, stdout chan string, params ...string)
 
 var uciCommands map[string]UciCommand = map[string]UciCommand{
 	"uci":      uciCommand,
+	"isready":  isReadyCommand,
 	"position": positionCommand,
 	"go":       goCommand,
 
@@ -75,7 +76,6 @@ func isReadyCommand(en *Engine, stdout chan string, params ...string) {
 func goCommand(en *Engine, stdout chan string, params ...string) {
 	// TODO: implement remaining 'go' uci options
 
-	// TODO: Default depth for now
 	depth := 5
 
 	dIndex := findParam(params, "depth")
@@ -83,7 +83,8 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 		depth, _ = strconv.Atoi(params[dIndex+1])
 	}
 
-	score, bestMove := search.BestMove(&engine.pos, depth, stdout)
+	// TODO: use search with a goroutine
+	score, bestMove := search.Search(&engine.pos, depth, stdout)
 	stdout <- "info score cp " + strconv.Itoa(score)
 	stdout <- "bestmove " + bestMove[0].ToUci()
 }

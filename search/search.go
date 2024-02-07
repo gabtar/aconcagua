@@ -4,18 +4,46 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"time"
 
 	"github.com/gabtar/aconcagua/board"
 	"github.com/gabtar/aconcagua/evaluation"
 )
 
-var nodes int = 0
+type SearchState struct {
+	nodes        int
+	currentDepth int
+	maxDepth     int
+	pv           *PrincipalVariation
+	// TODO: implement time constraints
+	time      time.Time
+	totalTime time.Time
+}
+
+var ss SearchState = SearchState{
+	nodes:        0,
+	currentDepth: 0,
+	maxDepth:     0,
+	pv:           newPrincipalVariation(10),
+	time:         time.Now(),
+	totalTime:    time.Now(),
+}
+
+// init clears previous search state
+func (s *SearchState) init(depth int) {
+	s.nodes = 0
+	s.currentDepth = 0
+	s.maxDepth = depth
+	s.pv = newPrincipalVariation(depth)
+	s.time = time.Now()
+	s.totalTime = time.Now()
+}
 
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
-func negamax(pos board.Position, depth int, alpha int, beta int, pV *PrincipalVariation) (score int) {
+func negamax(pos board.Position, depth int, alpha int, beta int) (score int) {
+	ss.nodes++
 	alphaOrig := alpha
-	nodes++
 
 	if ttEntry, exists := tt.table[pos.Zobrist]; exists && tt.table[pos.Zobrist].depth >= depth {
 		if ttEntry.flag == EXACT {
@@ -38,16 +66,16 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pV *PrincipalVa
 	score = math.MinInt
 
 	moves := pos.LegalMoves(pos.ToMove())
-	sortMoves(moves, pV, pV.maxDepth-depth)
+	sortMoves(moves, ss.pv.moves[ss.currentDepth-depth])
 
 	for _, move := range moves {
 		pos.MakeMove(&move)
-		newScore := -negamax(pos, depth-1, -beta, -alpha, pV)
+		newScore := -negamax(pos, depth-1, -beta, -alpha)
 		pos.UnmakeMove(move)
 
 		if newScore > score {
 			score = newScore
-			pV.add(move, depth)
+			ss.pv.add(move, depth)
 			alpha = max(newScore, alpha)
 		}
 
@@ -91,37 +119,44 @@ func min(a int, b int) int {
 	return a
 }
 
-// BestMove returns the best move sequence in the position (for the current side)
+// Search returns the best move sequence in the position (for the current side)
 // with its score evaluation.
-func BestMove(pos *board.Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove []board.Move) {
+func Search(pos *board.Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove []board.Move) {
 
-	min := math.MinInt + 1 // NOTE: +1 Needed to avoid overflow when invert in negamax
+	min := math.MinInt + 1 // NOTE: +1 Needed to avoid overflow when inverting alpha and beta in negamax
 	max := math.MaxInt
-	pV := newPrincipalVariation(maxDepth)
 	tt = newTranspositionTable()
+	ss.init(maxDepth)
 
 	for d := 1; d <= maxDepth; d++ {
-		nodes = 0
-		pV.maxDepth = d
-		bestMoveScore = negamax(*pos, d, min, max, pV)
-		stdout <- fmt.Sprintf("info depth %d nodes %d", d, nodes)
-	}
 
-	bestMove = pV.moves
+		// TODO: clear/reset method...
+		ss.currentDepth = d
+		ss.pv.maxDepth = d
+		ss.nodes = 0
+
+		bestMoveScore = negamax(*pos, d, min, max)
+		bestMove = ss.pv.moves
+
+		depthTime := time.Since(ss.time)
+		ss.time = time.Now()
+
+		stdout <- fmt.Sprintf("info depth %d nodes %d time %v pv %v", d, ss.nodes, depthTime.Milliseconds(), ss.pv)
+	}
 
 	return
 }
 
 // sortMoves sorts an slice of moves acording to the principalVariation
-func sortMoves(legalMoves []board.Move, pV *PrincipalVariation, depth int) []board.Move {
-	sort.Slice(legalMoves, func(i, j int) bool {
+func sortMoves(moves []board.Move, pvLastIteration board.Move) []board.Move {
+	sort.Slice(moves, func(i, j int) bool {
 		// PV move from previous iteration always goes first
-		if pV.moves[depth] == legalMoves[i] {
+		if pvLastIteration.ToUci() == moves[i].ToUci() {
 			return true
 		}
 
-		return legalMoves[i].Score() > legalMoves[j].Score()
+		return moves[i].Score() > moves[j].Score()
 	})
 
-	return legalMoves
+	return moves
 }

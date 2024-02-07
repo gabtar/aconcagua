@@ -243,7 +243,7 @@ func getRayPath(from Bitboard, to Bitboard) (rayPath Bitboard) {
 
 // pinRestrictedDirection returns a bitboard with the restricted direction of moves
 func pinRestrictedDirection(piece Bitboard, side Color, pos *Position) (restrictedDirection Bitboard) {
-	restrictedDirection = ALL_SQUARES // No initial restrictions
+	restrictedDirection = AllSquares // No initial restrictions
 	kingBB := pos.KingPosition(side)
 
 	if isPinned(piece, side, pos) {
@@ -265,7 +265,7 @@ func checkRestrictedMoves(piece Bitboard, side Color, pos *Position) (allowedSqu
 	switch {
 	case checkingPieces.count() == 0:
 		// No restriction
-		allowedSquares = ALL_SQUARES
+		allowedSquares = AllSquares
 	case checkingPieces.count() == 1:
 		// Capture or block the path
 		checker := checkingPieces.nextOne()

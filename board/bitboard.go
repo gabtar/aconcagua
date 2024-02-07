@@ -43,13 +43,12 @@ var coordinateToSquareNumber = map[string]int{
 	"a8": 56, "b8": 57, "c8": 58, "d8": 59, "e8": 60, "f8": 61, "g8": 62, "h8": 63,
 }
 
-const ALL_SQUARES Bitboard = 0xFFFFFFFFFFFFFFFF
+const AllSquares Bitboard = 0xFFFFFFFFFFFFFFFF
 
 // Bitboard represents a bitboard as a 64bit integer
 type Bitboard uint64
 
 // Print draws a Bitboard in the terminal in a 'prettier' way
-// TODO: for debug only for now. Clear later...
 func (b Bitboard) Print() {
 	binary := strconv.FormatUint(uint64(b), 2)
 	fill := ""

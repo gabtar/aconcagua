@@ -662,6 +662,3 @@ func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
-
-// TODO:
-// test make promotion capture
