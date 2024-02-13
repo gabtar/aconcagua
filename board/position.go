@@ -91,17 +91,13 @@ var pieceReference = map[string]Piece{
 type Position struct {
 	// Bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
 	Bitboards       [12]Bitboard
-	turn            Color
+	Turn            Color
+	Hash            uint64
 	castlingRights  castling
 	enPassantTarget Bitboard
 	halfmoveClock   int
 	fullmoveNumber  int
-	Zobrist         uint64
 }
-
-// TODO: Idea...
-// PieceAt should return a bitboard with a piece or null bitboard...
-// PieceType should return the type of the piece at the specified square...
 
 // pieceAt returns a Piece at the given square coordinate in the Position or error
 func (pos *Position) PieceAt(square string) (piece Piece, e error) {
@@ -230,20 +226,12 @@ func (pos *Position) KingPosition(side Color) (king Bitboard) {
 }
 
 // Remove Piece returns a new position without the piece passed
-func (pos Position) RemovePiece(piece Bitboard) Position {
-	newPos := pos
-
-	for role, bitboard := range newPos.Bitboards {
+func (pos *Position) RemovePiece(piece Bitboard) {
+	for role, bitboard := range pos.Bitboards {
 		if bitboard&piece > 0 {
-			newPos.Bitboards[role] &= ^piece
+			pos.Bitboards[role] &= ^piece
 		}
 	}
-	return newPos
-}
-
-// ToMove returns the side to move in the current position
-func (pos *Position) ToMove() Color {
-	return pos.turn
 }
 
 func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
@@ -338,7 +326,7 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 		canCastleShort := castlePathsBB[0]&(^pos.EmptySquares()|pos.AttackedSquares(side.opponent())) == 0
 		canCastleLong := (castlePathsBB[1] & ^pos.EmptySquares())|(passingKingPathBB[1]&pos.AttackedSquares(side.opponent())) == 0
 
-		if pos.castlingRights.canCastle(SHORT_CASTLE_WHITE) && canCastleShort {
+		if pos.castlingRights.canCastle(K) && canCastleShort {
 			castle = append(castle, *move.setFromSq(4).setToSq(6).setMoveType(CASTLE))
 			move = newMove().
 				setRule50Before(pos.halfmoveClock).
@@ -346,14 +334,14 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 				setEpTargetBefore(pos.enPassantTarget).
 				setPiece(king)
 		}
-		if pos.castlingRights.canCastle(LONG_CASTLE_WHITE) && canCastleLong {
+		if pos.castlingRights.canCastle(Q) && canCastleLong {
 			castle = append(castle, *move.setFromSq(4).setToSq(2).setMoveType(CASTLE))
 		}
 	} else {
 		canCastleShort := castlePathsBB[2]&(^pos.EmptySquares()|pos.AttackedSquares(side.opponent())) == 0
 		canCastleLong := (castlePathsBB[3] & ^pos.EmptySquares())|(passingKingPathBB[3]&pos.AttackedSquares(side.opponent())) == 0
 
-		if pos.castlingRights.canCastle(SHORT_CASTLE_BLACK) && canCastleShort {
+		if pos.castlingRights.canCastle(k) && canCastleShort {
 			castle = append(castle, *move.setFromSq(60).setToSq(62).setMoveType(CASTLE))
 			move = newMove().
 				setRule50Before(pos.halfmoveClock).
@@ -361,7 +349,7 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 				setEpTargetBefore(pos.enPassantTarget).
 				setPiece(king)
 		}
-		if pos.castlingRights.canCastle(LONG_CASTLE_BLACK) && canCastleLong {
+		if pos.castlingRights.canCastle(q) && canCastleLong {
 			castle = append(castle, *move.setFromSq(60).setToSq(58).setMoveType(CASTLE))
 		}
 	}
@@ -382,16 +370,15 @@ func (pos *Position) IsEndgame() bool {
 // MakeMove updates the position by making the move passed as parameter
 func (pos *Position) MakeMove(move *Move) {
 	pieceToAdd := Piece(move.piece())
-	*pos = pos.RemovePiece(bitboardFromIndex(move.from()))
+	pos.RemovePiece(bitboardFromIndex(move.from()))
 
 	pos.enPassantTarget &= 0
 
-	if pos.turn == Black {
+	if pos.Turn == Black {
 		pos.fullmoveNumber++
 	}
 	pos.halfmoveClock++
 
-	// TODO: handlers for move pieces in the board
 	switch move.MoveType() {
 	case NORMAL:
 		if move.piece() == int(WhitePawn) || move.piece() == int(BlackPawn) {
@@ -406,16 +393,15 @@ func (pos *Position) MakeMove(move *Move) {
 		}
 		pos.halfmoveClock = 0
 	case CAPTURE:
-		*pos = pos.RemovePiece(bitboardFromIndex(move.to()))
+		pos.RemovePiece(bitboardFromIndex(move.to()))
 		pos.halfmoveClock = 0
 		updateCastleRights(pos, move)
 	case PROMOTION:
-		*pos = pos.RemovePiece(bitboardFromIndex(move.to()))
+		pos.RemovePiece(bitboardFromIndex(move.to()))
 		pieceToAdd = Piece(move.promotedTo())
 		pos.halfmoveClock = 0
 	case CASTLE:
-		// TODO: i need to figure out another way of implement this
-		*pos = moveRookOnCastleMove(*pos, move)
+		moveRookOnCastleMove(pos, castleType[move.ToUci()])
 		updateCastleRights(pos, move)
 	case EN_PASSANT:
 		if move.piece() == int(WhitePawn) {
@@ -425,21 +411,19 @@ func (pos *Position) MakeMove(move *Move) {
 		}
 		pos.halfmoveClock = 0
 	}
-	pos.turn = pos.turn.opponent()
+	pos.Turn = pos.Turn.opponent()
 
 	pos.AddPiece(pieceToAdd, squareReference[move.to()])
 
-	// TODO: refactor to a proper update function to avoid calculating the hash from scratch
-	// updateZobristHash(hash, move)
-	pos.Zobrist = zobristHash(*pos, zobristKeys)
+	pos.Hash = zobristHash(pos)
 	return
 }
 
 // UnmakeMove undoes a the passed move in the postion
 func (pos *Position) UnmakeMove(move Move) {
-	*pos = pos.RemovePiece(bitboardFromIndex(move.to()))
+	pos.RemovePiece(bitboardFromIndex(move.to()))
 
-	if pos.turn == White {
+	if pos.Turn == White {
 		pos.fullmoveNumber--
 	}
 
@@ -459,63 +443,39 @@ func (pos *Position) UnmakeMove(move Move) {
 			pos.AddPiece(Piece(move.capturedPiece()), squareReference[move.to()])
 		}
 	case CASTLE:
-		// TODO: refactor?...
-		// Idea encapsulate a Castle and Uncastle in a function ?
-		king := Piece(move.piece())
-		if pieceColor[king] == White {
-			if move.to() == 6 { // king to g1
-				pos.AddPiece(WhiteRook, "h1")
-				*pos = pos.RemovePiece(bitboardFromCoordinate("f1"))
-			} else { // king to c1
-				pos.AddPiece(WhiteRook, "a1")
-				*pos = pos.RemovePiece(bitboardFromCoordinate("d1"))
-			}
-		} else {
-			if move.to() == 62 { // king to g8
-				pos.AddPiece(BlackRook, "h8")
-				*pos = pos.RemovePiece(bitboardFromCoordinate("f8"))
-			} else { // king to c8
-				pos.AddPiece(BlackRook, "a8")
-				*pos = pos.RemovePiece(bitboardFromCoordinate("d8"))
-			}
-		}
+		restoreRookOnCastle(pos, castleType[move.ToUci()])
 	case EN_PASSANT:
 		restoreSq := move.to() + 8                    // 1 rank up
 		if pieceColor[Piece(move.piece())] == White { // White ep capture
 			restoreSq = move.to() - 8 // 1 rank down
 		}
-		pos.AddPiece(pieceOfColor[Pawn][pos.turn], squareReference[restoreSq])
+		pos.AddPiece(pieceOfColor[Pawn][pos.Turn], squareReference[restoreSq])
 	}
 
-	pos.turn = pos.turn.opponent()
+	pos.Turn = pos.Turn.opponent()
 	// Add piece to destination sqaure
 	pos.AddPiece(pieceToAdd, squareReference[move.from()])
 
-	pos.Zobrist = zobristHash(*pos, zobristKeys)
+	pos.Hash = zobristHash(pos)
 	return
 }
 
-func moveRookOnCastleMove(newPos Position, move *Move) Position {
-	if move.piece() == int(WhiteKing) {
-		// TODO: map integer number to square string....
-		if move.to() == Bsf(bitboardFromCoordinate("g1")) {
-			newPos = newPos.RemovePiece(bitboardFromCoordinate("h1"))
-			newPos.AddPiece(WhiteRook, "f1")
-		} else {
-			newPos = newPos.RemovePiece(bitboardFromCoordinate("a1"))
-			newPos.AddPiece(WhiteRook, "d1")
-		}
-	} else {
+// moveRook updates the rook position for the castle passed
+func moveRookOnCastleMove(pos *Position, castle castling) {
+	rookFrom := rookOrigin[castle]
+	rookTo := rookDestination[castle]
 
-		if move.to() == Bsf(bitboardFromCoordinate("g8")) {
-			newPos = newPos.RemovePiece(bitboardFromCoordinate("h8"))
-			newPos.AddPiece(BlackRook, "f8")
-		} else {
-			newPos = newPos.RemovePiece(bitboardFromCoordinate("a8"))
-			newPos.AddPiece(BlackRook, "d8")
-		}
-	}
-	return newPos
+	pos.RemovePiece(bitboardFromIndex(rookFrom))
+	pos.AddPiece(castleRook[castle], squareReference[rookTo])
+}
+
+// restoreRookOnCastle restores the rook when undoing a castle
+func restoreRookOnCastle(pos *Position, castle castling) {
+	rookTo := rookOrigin[castle]
+	rookFrom := rookDestination[castle]
+
+	pos.RemovePiece(bitboardFromIndex(rookFrom))
+	pos.AddPiece(castleRook[castle], squareReference[rookTo])
 }
 
 // updateCastleRights updates the castle rigths based on the move passed if the
@@ -524,33 +484,33 @@ func updateCastleRights(pos *Position, move *Move) {
 	piece := Piece(move.piece())
 	switch piece {
 	case WhiteKing:
-		pos.castlingRights.remove(SHORT_CASTLE_WHITE | LONG_CASTLE_WHITE)
+		pos.castlingRights.remove(K | Q)
 	case WhiteRook:
 		if move.from() == Bsf(bitboardFromCoordinate("h1")) {
-			pos.castlingRights.remove(SHORT_CASTLE_WHITE)
+			pos.castlingRights.remove(K)
 		} else {
-			pos.castlingRights.remove(LONG_CASTLE_WHITE)
+			pos.castlingRights.remove(Q)
 		}
 	case BlackKing:
-		pos.castlingRights.remove(SHORT_CASTLE_BLACK | LONG_CASTLE_BLACK)
+		pos.castlingRights.remove(k | q)
 	case BlackRook:
 		if move.from() == Bsf(bitboardFromCoordinate("h8")) {
-			pos.castlingRights.remove(SHORT_CASTLE_BLACK)
+			pos.castlingRights.remove(k)
 		} else {
-			pos.castlingRights.remove(LONG_CASTLE_BLACK)
+			pos.castlingRights.remove(q)
 		}
 	}
 	// TO FIX BUG: if its a capture that captures a rook on a1, h1, a8 or h8, it should also update the castle rights...
 	if move.MoveType() == CAPTURE || move.MoveType() == PROMOTION {
 		switch {
 		case move.to() == 0 && move.capturedPiece() == WhiteRook:
-			pos.castlingRights.remove(LONG_CASTLE_WHITE)
+			pos.castlingRights.remove(Q)
 		case move.to() == 7 && move.capturedPiece() == WhiteRook:
-			pos.castlingRights.remove(SHORT_CASTLE_WHITE)
+			pos.castlingRights.remove(K)
 		case move.to() == 56 && move.capturedPiece() == BlackRook:
-			pos.castlingRights.remove(LONG_CASTLE_BLACK)
+			pos.castlingRights.remove(q)
 		case move.to() == 63 && move.capturedPiece() == BlackRook:
-			pos.castlingRights.remove(SHORT_CASTLE_BLACK)
+			pos.castlingRights.remove(k)
 		}
 	}
 }
@@ -584,7 +544,7 @@ func (pos *Position) ToFen() (fen string) {
 		}
 	}
 
-	if pos.turn == White {
+	if pos.Turn == White {
 		fen += " w"
 	} else {
 		fen += " b"
@@ -736,20 +696,20 @@ func From(fen string) (pos *Position) {
 		currentSquare -= 16
 	}
 	if elements[1][0] == 'w' {
-		pos.turn = White
+		pos.Turn = White
 	} else {
-		pos.turn = Black
+		pos.Turn = Black
 	}
 
 	pos.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
 	if elements[3] != "-" {
 		pos.enPassantTarget = bitboardFromCoordinate(elements[3])
 	}
-	pos.halfmoveClock, _ = strconv.Atoi(elements[4]) // TODO handle errors
+	pos.halfmoveClock, _ = strconv.Atoi(elements[4]) // TODO: handle errors
 	pos.fullmoveNumber, _ = strconv.Atoi(elements[5])
 
 	// Set zobrist
-	pos.Zobrist = zobristHash(*pos, zobristKeys)
+	pos.Hash = zobristHash(pos)
 	return
 }
 

@@ -48,7 +48,7 @@ func TestAddLongWhiteCastle(t *testing.T) {
 	castlings := "-"
 
 	c.fromFen(castlings)
-	c.add(LONG_CASTLE_WHITE)
+	c.add(Q)
 
 	expected := castling(0b0100)
 	got := c
@@ -65,7 +65,7 @@ func TestWhiteCanCastleLong(t *testing.T) {
 	c.fromFen(castlings)
 
 	expected := true
-	got := c.canCastle(LONG_CASTLE_WHITE)
+	got := c.canCastle(Q)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

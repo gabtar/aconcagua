@@ -106,9 +106,8 @@ var raysAttacks [8][64]Bitboard = [8][64]Bitboard{
 
 // isPinned returns if the passed piece is pinned in the passed position
 func isPinned(piece Bitboard, side Color, pos *Position) bool {
-	// TODO: quedo medio fea..., pero funciona bien
 	kingBB := pos.KingPosition(side)
-	// FIX: Es necesario porque en algunos test no hay rey en la posicion
+	// FIX: Needed because some test are without king
 	if kingBB == 0 {
 		return false
 	}
@@ -136,7 +135,8 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
 		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
 
-		withoutPinnedPiece := pos.RemovePiece(piece)
+		withoutPinnedPiece := *pos
+		withoutPinnedPiece.RemovePiece(piece)
 
 		if pieceColor[pieceOne] != pieceColor[pieceTwo] &&
 			(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {
@@ -150,7 +150,8 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
 		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
 
-		withoutPinnedPiece := pos.RemovePiece(piece)
+		withoutPinnedPiece := *pos
+		withoutPinnedPiece.RemovePiece(piece)
 
 		if pieceColor[pieceOne] != pieceColor[pieceTwo] &&
 			(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {

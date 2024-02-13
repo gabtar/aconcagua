@@ -380,8 +380,8 @@ func TestZobristUpdate(t *testing.T) {
 	pos2.MakeMove(move1)
 	pos2.MakeMove(move2)
 
-	expected := pos.Zobrist
-	got := pos2.Zobrist
+	expected := pos.Hash
+	got := pos2.Hash
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -404,13 +404,13 @@ func TestUnmakeInNormalMove(t *testing.T) {
 		setRule50Before(pos.halfmoveClock).
 		setCastleRightsBefore(pos.castlingRights)
 
-	expected := pos.Zobrist
+	expected := pos.Hash
 
 	// Make and restore
 	pos.MakeMove(move)
 	pos.UnmakeMove(*move)
 
-	got := pos.Zobrist
+	got := pos.Hash
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

@@ -58,7 +58,7 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 
 	if movesIndex != -1 {
 		for _, move := range params[movesIndex:] {
-			for _, legalMove := range engine.pos.LegalMoves(engine.pos.ToMove()) {
+			for _, legalMove := range engine.pos.LegalMoves(engine.pos.Turn) {
 				if legalMove.ToUci() == move {
 					engine.pos.MakeMove(&legalMove)
 				}
@@ -76,14 +76,13 @@ func isReadyCommand(en *Engine, stdout chan string, params ...string) {
 func goCommand(en *Engine, stdout chan string, params ...string) {
 	// TODO: implement remaining 'go' uci options
 
-	depth := 5
+	depth := 5 // Default depth
 
 	dIndex := findParam(params, "depth")
 	if dIndex != -1 {
 		depth, _ = strconv.Atoi(params[dIndex+1])
 	}
 
-	// TODO: use search with a goroutine
 	score, bestMove := search.Search(&engine.pos, depth, stdout)
 	stdout <- "info score cp " + strconv.Itoa(score)
 	stdout <- "bestmove " + bestMove[0].ToUci()

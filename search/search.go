@@ -15,9 +15,8 @@ type SearchState struct {
 	currentDepth int
 	maxDepth     int
 	pv           *PrincipalVariation
-	// TODO: implement time constraints
-	time      time.Time
-	totalTime time.Time
+	time         time.Time
+	totalTime    time.Time
 }
 
 var ss SearchState = SearchState{
@@ -39,13 +38,20 @@ func (s *SearchState) init(depth int) {
 	s.totalTime = time.Now()
 }
 
+// reset sets the new iteration parameters in the SearchState
+func (s *SearchState) reset(currentDepth int) {
+	ss.currentDepth = currentDepth
+	ss.pv.maxDepth = currentDepth
+	ss.nodes = 0
+}
+
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
 func negamax(pos board.Position, depth int, alpha int, beta int) (score int) {
 	ss.nodes++
 	alphaOrig := alpha
 
-	if ttEntry, exists := tt.table[pos.Zobrist]; exists && tt.table[pos.Zobrist].depth >= depth {
+	if ttEntry, exists := tt.table[pos.Hash]; exists && tt.table[pos.Hash].depth >= depth {
 		if ttEntry.flag == EXACT {
 			return ttEntry.score
 		} else if ttEntry.flag == LOWERBOUND {
@@ -60,12 +66,12 @@ func negamax(pos board.Position, depth int, alpha int, beta int) (score int) {
 	}
 
 	if depth == 0 || pos.Checkmate(board.White) || pos.Checkmate(board.Black) {
-		return sideModifier(pos.ToMove()) * evaluation.Evaluate(&pos)
+		return sideModifier(pos.Turn) * evaluation.Evaluate(&pos)
 	}
 
 	score = math.MinInt
 
-	moves := pos.LegalMoves(pos.ToMove())
+	moves := pos.LegalMoves(pos.Turn)
 	sortMoves(moves, ss.pv.moves[ss.currentDepth-depth])
 
 	for _, move := range moves {
@@ -85,11 +91,11 @@ func negamax(pos board.Position, depth int, alpha int, beta int) (score int) {
 	}
 
 	if score <= alphaOrig {
-		tt.save(pos.Zobrist, depth, score, UPPERBOUND)
+		tt.save(pos.Hash, depth, score, UPPERBOUND)
 	} else if score >= beta {
-		tt.save(pos.Zobrist, depth, score, LOWERBOUND)
+		tt.save(pos.Hash, depth, score, LOWERBOUND)
 	} else {
-		tt.save(pos.Zobrist, depth, score, EXACT)
+		tt.save(pos.Hash, depth, score, EXACT)
 	}
 
 	return
@@ -129,11 +135,7 @@ func Search(pos *board.Position, maxDepth int, stdout chan string) (bestMoveScor
 	ss.init(maxDepth)
 
 	for d := 1; d <= maxDepth; d++ {
-
-		// TODO: clear/reset method...
-		ss.currentDepth = d
-		ss.pv.maxDepth = d
-		ss.nodes = 0
+		ss.reset(d)
 
 		bestMoveScore = negamax(*pos, d, min, max)
 		bestMove = ss.pv.moves

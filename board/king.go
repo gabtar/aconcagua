@@ -35,7 +35,8 @@ func getKingMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 
 // kingMoves returns a bitboard with the legal moves of the king from the bitboard passed
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	withoutKing := pos.RemovePiece(*k)
+	withoutKing := *pos
+	withoutKing.RemovePiece(*k)
 	moves = kingAttacks(k, pos) & ^withoutKing.AttackedSquares(side.opponent()) & ^pos.Pieces(side)
 	return
 }

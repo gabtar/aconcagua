@@ -15,25 +15,20 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 ### TODO:
 
 #### Move generation:
-- [ ] Refactor zobrist hash generation/update
+- [ ] Try to improve make and unmake move
 
 #### Evaluation:
-- [x] Add piece square tables to evaluation
-- [ ] Mobility
-- [ ] Tapered Eval
+- [ ] Refactor to use PeSTO evaluation function
 
 #### Search:
-- [x] Add alpha-beta prunning
-- [x] Use negamax algorithm
-- [x] Transposition table
-- [x] Iterative deepening
-- [x] Principal Variation
-- [ ] Refactor search
-- [ ] Improve move ordering
 - [ ] Aspiration windows
+- [ ] Improve move ordering
+    - [ ] Killer moves
+    - [ ] Improve MVV-LVA
 - [ ] Add ~~check~~, stealmate, etc detection while searching
 - [ ] Detect threefold repetition - use zobrist hash
 
 ### Engine
 - [x] Create an engine struct with main parameters(current best move, depth, etc)
+- [ ] Improve error handling in uci commands (eg. invalid fen, etc)
 - [ ] Add/improve remaining uci commands

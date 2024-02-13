@@ -109,7 +109,9 @@ func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bi
 	if side == Black {
 		caughtPawn = pos.enPassantTarget << 8
 	}
-	afterEp := pos.RemovePiece(caughtPawn).RemovePiece(*p)
+	afterEp := *pos
+	afterEp.RemovePiece(caughtPawn)
+	afterEp.RemovePiece(*p)
 	afterEp.Bitboards[pieceOfColor[Pawn][side]] |= pos.enPassantTarget
 
 	if pos.enPassantTarget == 0 || afterEp.Check(side) {
