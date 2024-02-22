@@ -22,11 +22,13 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 #### Search:
 - [ ] Aspiration windows
+- [ ] Quiescent search
 - [ ] Improve move ordering
     - [ ] Killer moves
     - [ ] Improve MVV-LVA
 - [ ] Add ~~check~~, stealmate, etc detection while searching
 - [ ] Detect threefold repetition - use zobrist hash
+- [ ] Refactor Transposition table
 
 ### Engine
 - [x] Create an engine struct with main parameters(current best move, depth, etc)

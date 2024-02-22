@@ -23,7 +23,7 @@ var ss SearchState = SearchState{
 	nodes:        0,
 	currentDepth: 0,
 	maxDepth:     0,
-	pv:           newPrincipalVariation(10),
+	pv:           newPrincipalVariation(),
 	time:         time.Now(),
 	totalTime:    time.Now(),
 }
@@ -33,7 +33,7 @@ func (s *SearchState) init(depth int) {
 	s.nodes = 0
 	s.currentDepth = 0
 	s.maxDepth = depth
-	s.pv = newPrincipalVariation(depth)
+	s.pv = newPrincipalVariation()
 	s.time = time.Now()
 	s.totalTime = time.Now()
 }
@@ -41,15 +41,15 @@ func (s *SearchState) init(depth int) {
 // reset sets the new iteration parameters in the SearchState
 func (s *SearchState) reset(currentDepth int) {
 	ss.currentDepth = currentDepth
-	ss.pv.maxDepth = currentDepth
 	ss.nodes = 0
 }
 
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
-func negamax(pos board.Position, depth int, alpha int, beta int) (score int) {
-	ss.nodes++
+func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVariation) int {
 	alphaOrig := alpha
+	ss.nodes++
+	branchPv := newPrincipalVariation()
 
 	if ttEntry, exists := tt.table[pos.Hash]; exists && tt.table[pos.Hash].depth >= depth {
 		if ttEntry.flag == EXACT {
@@ -66,39 +66,38 @@ func negamax(pos board.Position, depth int, alpha int, beta int) (score int) {
 	}
 
 	if depth == 0 || pos.Checkmate(board.White) || pos.Checkmate(board.Black) {
+		// TODO: implement qs
+		pv.clear() // NOTE: needed when checkmate is found!
 		return sideModifier(pos.Turn) * evaluation.Evaluate(&pos)
 	}
 
-	score = math.MinInt
-
 	moves := pos.LegalMoves(pos.Turn)
-	sortMoves(moves, ss.pv.moves[ss.currentDepth-depth])
+	sortMoves(moves, ss.pv, ss.currentDepth-depth)
 
 	for _, move := range moves {
 		pos.MakeMove(&move)
-		newScore := -negamax(pos, depth-1, -beta, -alpha)
+		newScore := -negamax(pos, depth-1, -beta, -alpha, branchPv)
 		pos.UnmakeMove(move)
 
-		if newScore > score {
-			score = newScore
-			ss.pv.add(move, depth)
-			alpha = max(newScore, alpha)
+		if newScore >= beta {
+			return beta
 		}
 
-		if alpha >= beta {
-			return
+		if newScore > alpha {
+			alpha = newScore
+			pv.insert(move, branchPv)
 		}
 	}
 
-	if score <= alphaOrig {
-		tt.save(pos.Hash, depth, score, UPPERBOUND)
-	} else if score >= beta {
-		tt.save(pos.Hash, depth, score, LOWERBOUND)
+	if alpha <= alphaOrig {
+		tt.save(pos.Hash, depth, alpha, UPPERBOUND)
+	} else if alpha >= beta {
+		tt.save(pos.Hash, depth, alpha, LOWERBOUND)
 	} else {
-		tt.save(pos.Hash, depth, score, EXACT)
+		tt.save(pos.Hash, depth, alpha, EXACT)
 	}
 
-	return
+	return alpha
 }
 
 // sideModifier returns a multiplier factor for the evaluation score based on the current color turn(side to move) passed
@@ -137,8 +136,8 @@ func Search(pos *board.Position, maxDepth int, stdout chan string) (bestMoveScor
 	for d := 1; d <= maxDepth; d++ {
 		ss.reset(d)
 
-		bestMoveScore = negamax(*pos, d, min, max)
-		bestMove = ss.pv.moves
+		bestMoveScore = negamax(*pos, d, min, max, ss.pv)
+		bestMove = *ss.pv
 
 		depthTime := time.Since(ss.time)
 		ss.time = time.Now()
@@ -150,10 +149,10 @@ func Search(pos *board.Position, maxDepth int, stdout chan string) (bestMoveScor
 }
 
 // sortMoves sorts an slice of moves acording to the principalVariation
-func sortMoves(moves []board.Move, pvLastIteration board.Move) []board.Move {
+func sortMoves(moves []board.Move, pv *PrincipalVariation, ply int) []board.Move {
 	sort.Slice(moves, func(i, j int) bool {
-		// PV move from previous iteration always goes first
-		if pvLastIteration.ToUci() == moves[i].ToUci() {
+		// PV pvMove from previous iteration always goes first
+		if pvMove, exists := pv.moveAt(ply); exists && pvMove.ToUci() == moves[i].ToUci() {
 			return true
 		}
 

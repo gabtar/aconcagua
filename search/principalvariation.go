@@ -3,33 +3,34 @@ package search
 import "github.com/gabtar/aconcagua/board"
 
 // PrincipalVariation stores the current best line when searching for best moves
-type PrincipalVariation struct {
-	maxDepth int
-	moves    []board.Move
-}
+type PrincipalVariation []board.Move
 
 // newPrincipalVariation is a factory that returns a pointer to a principalVariation struct
-func newPrincipalVariation(depth int) *PrincipalVariation {
-	return &PrincipalVariation{
-		maxDepth: depth,
-		moves:    make([]board.Move, depth),
-	}
+func newPrincipalVariation() *PrincipalVariation {
+	return &PrincipalVariation{}
 }
 
-// add adds a new move to the principalVariation at the specific depth
-func (pv *PrincipalVariation) add(m board.Move, depth int) {
-	pv.moves[pv.maxDepth-depth] = m
+// insert adds a move at the begginning of the principal variation
+func (pv *PrincipalVariation) insert(move board.Move, branchPv *PrincipalVariation) {
+	*pv = append([]board.Move{move}, *branchPv...)
+}
+
+func (pv *PrincipalVariation) moveAt(ply int) (board.Move, bool) {
+	if len(*pv) > ply {
+		return (*pv)[ply], true
+	}
+	return board.Move(0), false
 }
 
 // clear resets the principal variation moves
 func (pv *PrincipalVariation) clear() {
-	pv.moves = pv.moves[:0]
+	*pv = (*pv)[:0]
 }
 
 // String returns the string representation of the principal variation moves
 func (pv *PrincipalVariation) String() string {
 	list := ""
-	for _, m := range pv.moves[:pv.maxDepth] {
+	for _, m := range *pv {
 		list += m.ToUci() + " "
 	}
 	return list
