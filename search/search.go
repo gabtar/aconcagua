@@ -66,9 +66,9 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVa
 	}
 
 	if depth == 0 || pos.Checkmate(board.White) || pos.Checkmate(board.Black) {
-		// TODO: implement qs
-		pv.clear() // NOTE: needed when checkmate is found!
-		return sideModifier(pos.Turn) * evaluation.Evaluate(&pos)
+		pv.clear() // NOTE: needed to clear when mate is found!!
+		// return sideModifier(pos.Turn) * evaluation.Evaluate(&pos)
+		return quiescent(&pos, alpha, beta)
 	}
 
 	moves := pos.LegalMoves(pos.Turn)
@@ -95,6 +95,41 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVa
 		tt.save(pos.Hash, depth, alpha, LOWERBOUND)
 	} else {
 		tt.save(pos.Hash, depth, alpha, EXACT)
+	}
+
+	return alpha
+}
+
+// quiescent performs a quiescent search (evaluates the position, while being careful to avoid overlooking extremely obvious tactical conditions)
+func quiescent(pos *board.Position, alpha int, beta int) int {
+	score := evaluation.Eval(pos)
+	if score >= beta {
+		return beta
+	}
+	if score > alpha {
+		alpha = score
+	}
+
+	// TODO: need a function to generate captures only...
+	moves := pos.LegalMoves(pos.Turn)
+	sortMoves(moves, ss.pv, 0)
+
+	for _, move := range moves {
+		// skip non capture
+		if move.MoveType() != board.Capture {
+			continue
+		}
+
+		pos.MakeMove(&move)
+		score = -quiescent(pos, -beta, -alpha)
+		pos.UnmakeMove(move)
+
+		if score >= beta {
+			return beta
+		}
+		if score > alpha {
+			alpha = score
+		}
 	}
 
 	return alpha

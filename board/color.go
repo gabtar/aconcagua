@@ -8,8 +8,8 @@ const (
 	Black
 )
 
-// opponent returns the opponent color to the actual color
-func (c Color) opponent() Color {
+// Opponent returns the Opponent color to the actual color
+func (c Color) Opponent() Color {
 	if c == White {
 		return Black
 	}

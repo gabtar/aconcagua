@@ -16,13 +16,16 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 #### Move generation:
 - [ ] Try to improve make and unmake move
+- [ ] Add an specific function to get only captures/checks moves for quiescent
+- [ ] Use a move list/array, so as to get rid of 'appends' in moves(it should improve search performance)
 
 #### Evaluation:
-- [ ] Refactor to use PeSTO evaluation function
+- [x] Refactor to use PeSTO evaluation function(tapered eval)
 
 #### Search:
 - [ ] Aspiration windows
-- [ ] Quiescent search
+- [x] Quiescent search
+- [ ] Limit quiescent (maybe by time/nodes...)
 - [ ] Improve move ordering
     - [ ] Killer moves
     - [ ] Improve MVV-LVA

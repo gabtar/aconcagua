@@ -12,12 +12,12 @@ func getKingMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 	piece := pieceOfColor[King][side]
 
 	for movesBB > 0 {
-		to := movesBB.nextOne()
+		to := movesBB.NextBit()
 		move := newMove().
 			setFromSq(from).
 			setToSq(Bsf(to)).
 			setPiece(piece).
-			setMoveType(NORMAL).
+			setMoveType(Normal).
 			setEpTargetBefore(pos.enPassantTarget).
 			setRule50Before(pos.halfmoveClock).
 			setCastleRightsBefore(pos.castlingRights)
@@ -26,7 +26,7 @@ func getKingMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(to)])
 
 			// NOTE: the captured piece will stay set but not used if move != CAPTURE
-			move.setMoveType(CAPTURE).setCapturedPiece(capturedPiece)
+			move.setMoveType(Capture).setCapturedPiece(capturedPiece)
 		}
 		moves = append(moves, *move)
 	}
@@ -37,7 +37,7 @@ func getKingMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	withoutKing := *pos
 	withoutKing.RemovePiece(*k)
-	moves = kingAttacks(k, pos) & ^withoutKing.AttackedSquares(side.opponent()) & ^pos.Pieces(side)
+	moves = kingAttacks(k, pos) & ^withoutKing.AttackedSquares(side.Opponent()) & ^pos.Pieces(side)
 	return
 }
 

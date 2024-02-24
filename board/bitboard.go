@@ -81,8 +81,8 @@ func (b Bitboard) count() int {
 	return count
 }
 
-// nextOne removes the next bit of the bitboard and returns it
-func (b *Bitboard) nextOne() (bb Bitboard) {
+// NextBit removes the next bit of the bitboard and returns it
+func (b *Bitboard) NextBit() (bb Bitboard) {
 	bb = bitboardFromIndex(Bsf(*b))
 	*b ^= bb
 	return

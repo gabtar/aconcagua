@@ -136,11 +136,11 @@ func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
 
 	for i, bitboard := range pos.getBitboards(side) {
 		piece := Piece(startingPiece + i)
-		sq := bitboard.nextOne()
+		sq := bitboard.NextBit()
 
 		for sq > 0 {
 			attackedSquares |= Attacks(piece, sq, pos)
-			sq = bitboard.nextOne()
+			sq = bitboard.NextBit()
 		}
 	}
 
@@ -184,13 +184,13 @@ func (pos *Position) CheckingPieces(side Color) (kingAttackers Bitboard) {
 
 	kingSq := pos.KingPosition(side)
 
-	startingPieceNumber := startingPieceNumber(side.opponent())
+	startingPieceNumber := startingPieceNumber(side.Opponent())
 
-	for i, bitboard := range pos.getBitboards(side.opponent()) {
+	for i, bitboard := range pos.getBitboards(side.Opponent()) {
 		piece := Piece(startingPieceNumber + i)
 
 		for bitboard > 0 {
-			sq := bitboard.nextOne()
+			sq := bitboard.NextBit()
 
 			if kingSq&Attacks(piece, sq, pos) > 0 {
 				kingAttackers |= sq
@@ -213,7 +213,7 @@ func (pos *Position) Pieces(side Color) (pieces Bitboard) {
 func (pos *Position) Check(side Color) (inCheck bool) {
 	kingPos := pos.KingPosition(side)
 
-	if (kingPos & pos.AttackedSquares(side.opponent())) > 0 {
+	if (kingPos & pos.AttackedSquares(side.Opponent())) > 0 {
 		inCheck = true
 	}
 	return
@@ -243,8 +243,8 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 	return
 }
 
-// MvvVlaScore (Most Valuable Victim - Least Valuable Aggressor) for scoring captures
-var MvvVlaScore = [6][6]int{
+// mvvLvaScore (Most Valuable Victim - Least Valuable Aggressor) for scoring captures
+var mvvLvaScore = [6][6]int{
 	{0, 0, 0, 0, 0, 0},             // Victim K, agressor K, Q, R, B, N, P - No point to capture a king!
 	{100, 101, 102, 103, 104, 105}, // Victim Q, agressor K, Q, R, B, N, P
 	{90, 91, 92, 93, 94, 95},       // Victim R, agressor K, Q, R, B, N, P
@@ -253,9 +253,10 @@ var MvvVlaScore = [6][6]int{
 	{60, 61, 62, 63, 64, 65},       // Victim P, agressor K, Q, R, B, N, P
 }
 
-func setMvvVlaScore(m *Move, pos *Position) {
+// setMvvLvaScore sets the score to a move according to MVV-LVA(Most Valuable Victim - Least Valuable Aggressor)
+func setMvvLvaScore(m *Move) {
 	// If not a capture just score as move type
-	if m.MoveType() != CAPTURE {
+	if m.MoveType() != Capture {
 		m.SetScore(m.MoveType())
 		return
 	}
@@ -270,7 +271,7 @@ func setMvvVlaScore(m *Move, pos *Position) {
 		aggresor -= 6
 	}
 
-	m.SetScore(MvvVlaScore[victim][aggresor])
+	m.SetScore(mvvLvaScore[victim][aggresor])
 }
 
 // LegalMoves returns an slice of Move of all legal moves for the side passed
@@ -279,7 +280,7 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 
 	for piece, bb := range bitboards {
 		for bb > 0 {
-			pieceBB := bb.nextOne()
+			pieceBB := bb.NextBit()
 			switch piece {
 			case 0:
 				legalMoves = append(legalMoves, getKingMoves(&pieceBB, pos, side)...)
@@ -300,7 +301,7 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 
 	// MVV_VLA score
 	for idx := range legalMoves {
-		setMvvVlaScore(&legalMoves[idx], pos)
+		setMvvLvaScore(&legalMoves[idx])
 	}
 
 	return
@@ -323,11 +324,11 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 		setPiece(king)
 
 	if side == White {
-		canCastleShort := castlePathsBB[0]&(^pos.EmptySquares()|pos.AttackedSquares(side.opponent())) == 0
-		canCastleLong := (castlePathsBB[1] & ^pos.EmptySquares())|(passingKingPathBB[1]&pos.AttackedSquares(side.opponent())) == 0
+		canCastleShort := castlePathsBB[0]&(^pos.EmptySquares()|pos.AttackedSquares(side.Opponent())) == 0
+		canCastleLong := (castlePathsBB[1] & ^pos.EmptySquares())|(passingKingPathBB[1]&pos.AttackedSquares(side.Opponent())) == 0
 
 		if pos.castlingRights.canCastle(K) && canCastleShort {
-			castle = append(castle, *move.setFromSq(4).setToSq(6).setMoveType(CASTLE))
+			castle = append(castle, *move.setFromSq(4).setToSq(6).setMoveType(Castle))
 			move = newMove().
 				setRule50Before(pos.halfmoveClock).
 				setCastleRightsBefore(pos.castlingRights).
@@ -335,14 +336,14 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 				setPiece(king)
 		}
 		if pos.castlingRights.canCastle(Q) && canCastleLong {
-			castle = append(castle, *move.setFromSq(4).setToSq(2).setMoveType(CASTLE))
+			castle = append(castle, *move.setFromSq(4).setToSq(2).setMoveType(Castle))
 		}
 	} else {
-		canCastleShort := castlePathsBB[2]&(^pos.EmptySquares()|pos.AttackedSquares(side.opponent())) == 0
-		canCastleLong := (castlePathsBB[3] & ^pos.EmptySquares())|(passingKingPathBB[3]&pos.AttackedSquares(side.opponent())) == 0
+		canCastleShort := castlePathsBB[2]&(^pos.EmptySquares()|pos.AttackedSquares(side.Opponent())) == 0
+		canCastleLong := (castlePathsBB[3] & ^pos.EmptySquares())|(passingKingPathBB[3]&pos.AttackedSquares(side.Opponent())) == 0
 
 		if pos.castlingRights.canCastle(k) && canCastleShort {
-			castle = append(castle, *move.setFromSq(60).setToSq(62).setMoveType(CASTLE))
+			castle = append(castle, *move.setFromSq(60).setToSq(62).setMoveType(Castle))
 			move = newMove().
 				setRule50Before(pos.halfmoveClock).
 				setCastleRightsBefore(pos.castlingRights).
@@ -350,21 +351,10 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 				setPiece(king)
 		}
 		if pos.castlingRights.canCastle(q) && canCastleLong {
-			castle = append(castle, *move.setFromSq(60).setToSq(58).setMoveType(CASTLE))
+			castle = append(castle, *move.setFromSq(60).setToSq(58).setMoveType(Castle))
 		}
 	}
 	return
-}
-
-// Endgame criteria
-// Both sides have no queens or
-// TODO: Every side which has a queen has additionally no other pieces or one minorpiece maximum.
-func (pos *Position) IsEndgame() bool {
-	// Both sides no queen
-	if (pos.Bitboards[WhiteQueen] | pos.Bitboards[BlackQueen]) > 0 {
-		return false
-	}
-	return true
 }
 
 // MakeMove updates the position by making the move passed as parameter
@@ -380,30 +370,30 @@ func (pos *Position) MakeMove(move *Move) {
 	pos.halfmoveClock++
 
 	switch move.MoveType() {
-	case NORMAL:
+	case Normal:
 		if move.piece() == int(WhitePawn) || move.piece() == int(BlackPawn) {
 			pos.halfmoveClock = 0
 		}
 		updateCastleRights(pos, move)
-	case PAWN_DOUBLE_PUSH:
+	case PawnDoublePush:
 		if move.piece() == int(WhitePawn) {
 			pos.enPassantTarget = bitboardFromIndex(move.to()) >> 8
 		} else {
 			pos.enPassantTarget = bitboardFromIndex(move.to()) << 8
 		}
 		pos.halfmoveClock = 0
-	case CAPTURE:
+	case Capture:
 		pos.RemovePiece(bitboardFromIndex(move.to()))
 		pos.halfmoveClock = 0
 		updateCastleRights(pos, move)
-	case PROMOTION:
+	case Promotion:
 		pos.RemovePiece(bitboardFromIndex(move.to()))
 		pieceToAdd = Piece(move.promotedTo())
 		pos.halfmoveClock = 0
-	case CASTLE:
+	case Castle:
 		moveRookOnCastleMove(pos, castleType[move.ToUci()])
 		updateCastleRights(pos, move)
-	case EN_PASSANT:
+	case EnPassant:
 		if move.piece() == int(WhitePawn) {
 			pos.Bitboards[BlackPawn] ^= move.epTargetBefore() >> 8
 		} else {
@@ -411,7 +401,7 @@ func (pos *Position) MakeMove(move *Move) {
 		}
 		pos.halfmoveClock = 0
 	}
-	pos.Turn = pos.Turn.opponent()
+	pos.Turn = pos.Turn.Opponent()
 
 	pos.AddPiece(pieceToAdd, squareReference[move.to()])
 
@@ -435,16 +425,16 @@ func (pos *Position) UnmakeMove(move Move) {
 	switch move.MoveType() {
 	// case NORMAL:
 	// case PAWN_DOUBLE_PUSH:
-	case CAPTURE:
+	case Capture:
 		pos.AddPiece(move.capturedPiece(), squareReference[move.to()])
-	case PROMOTION:
+	case Promotion:
 		pos.AddPiece(Piece(move.piece()), squareReference[move.from()])
 		if move.capturedPiece() > 0 {
 			pos.AddPiece(Piece(move.capturedPiece()), squareReference[move.to()])
 		}
-	case CASTLE:
+	case Castle:
 		restoreRookOnCastle(pos, castleType[move.ToUci()])
-	case EN_PASSANT:
+	case EnPassant:
 		restoreSq := move.to() + 8                    // 1 rank up
 		if pieceColor[Piece(move.piece())] == White { // White ep capture
 			restoreSq = move.to() - 8 // 1 rank down
@@ -452,7 +442,7 @@ func (pos *Position) UnmakeMove(move Move) {
 		pos.AddPiece(pieceOfColor[Pawn][pos.Turn], squareReference[restoreSq])
 	}
 
-	pos.Turn = pos.Turn.opponent()
+	pos.Turn = pos.Turn.Opponent()
 	// Add piece to destination sqaure
 	pos.AddPiece(pieceToAdd, squareReference[move.from()])
 
@@ -501,7 +491,7 @@ func updateCastleRights(pos *Position, move *Move) {
 		}
 	}
 	// TO FIX BUG: if its a capture that captures a rook on a1, h1, a8 or h8, it should also update the castle rights...
-	if move.MoveType() == CAPTURE || move.MoveType() == PROMOTION {
+	if move.MoveType() == Capture || move.MoveType() == Promotion {
 		switch {
 		case move.to() == 0 && move.capturedPiece() == WhiteRook:
 			pos.castlingRights.remove(Q)

@@ -12,19 +12,19 @@ func getRookMoves(r *Bitboard, pos *Position, side Color) (moves []Move) {
 	piece := pieceOfColor[Rook][side]
 
 	for movesBB > 0 {
-		to := movesBB.nextOne()
+		to := movesBB.NextBit()
 		move := newMove().
 			setFromSq(from).
 			setToSq(Bsf(to)).
 			setPiece(piece).
-			setMoveType(NORMAL).
+			setMoveType(Normal).
 			setEpTargetBefore(pos.enPassantTarget).
 			setRule50Before(pos.halfmoveClock).
 			setCastleRightsBefore(pos.castlingRights)
 
 		if to&pieces > 0 {
 			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(to)])
-			move.setMoveType(CAPTURE).setCapturedPiece(capturedPiece)
+			move.setMoveType(Capture).setCapturedPiece(capturedPiece)
 		}
 		moves = append(moves, *move)
 	}

@@ -2,12 +2,12 @@ package board
 
 // Type of move
 const (
-	NORMAL = iota
-	CASTLE
-	PAWN_DOUBLE_PUSH
-	EN_PASSANT
-	PROMOTION
-	CAPTURE
+	Normal = iota
+	Castle
+	PawnDoublePush
+	EnPassant
+	Promotion
+	Capture
 )
 
 // move stores all information related to a chess move
@@ -97,7 +97,7 @@ func (m *Move) Score() int {
 func (m *Move) ToUci() (uciString string) {
 	uciString += squareReference[m.from()]
 	uciString += squareReference[m.to()]
-	if m.MoveType() == PROMOTION {
+	if m.MoveType() == Promotion {
 		promotedTo := Piece(m.promotedTo())
 		switch promotedTo {
 		case WhiteQueen, BlackQueen:

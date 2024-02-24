@@ -314,7 +314,7 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhitePawn).
-		setMoveType(CAPTURE)
+		setMoveType(Capture)
 
 	pos.MakeMove(move)
 
@@ -335,7 +335,7 @@ func TestZobristUpdate(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhitePawn).
-		setMoveType(NORMAL)
+		setMoveType(Normal)
 
 	from = Bsf(bitboardFromCoordinate("b7"))
 	to = Bsf(bitboardFromCoordinate("c5"))
@@ -343,7 +343,7 @@ func TestZobristUpdate(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackPawn).
-		setMoveType(NORMAL)
+		setMoveType(Normal)
 
 	from = Bsf(bitboardFromCoordinate("b1"))
 	to = Bsf(bitboardFromCoordinate("c3"))
@@ -351,7 +351,7 @@ func TestZobristUpdate(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhiteKnight).
-		setMoveType(NORMAL)
+		setMoveType(Normal)
 
 	from = Bsf(bitboardFromCoordinate("g8"))
 	to = Bsf(bitboardFromCoordinate("f6"))
@@ -359,7 +359,7 @@ func TestZobristUpdate(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackKnight).
-		setMoveType(NORMAL)
+		setMoveType(Normal)
 
 	pos2 := *pos
 
@@ -399,7 +399,7 @@ func TestUnmakeInNormalMove(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhiteKnight).
-		setMoveType(NORMAL).
+		setMoveType(Normal).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
 		setCastleRightsBefore(pos.castlingRights)
@@ -427,7 +427,7 @@ func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhitePawn).
-		setMoveType(NORMAL).
+		setMoveType(Normal).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
 		setCastleRightsBefore(pos.castlingRights)
@@ -454,7 +454,7 @@ func TestUnmakeMoveNormalMove(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackPawn).
-		setMoveType(NORMAL).
+		setMoveType(Normal).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
 		setCastleRightsBefore(pos.castlingRights)
@@ -481,7 +481,7 @@ func TestUnmakeCapture(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhiteBishop).
-		setMoveType(CAPTURE).
+		setMoveType(Capture).
 		setCapturedPiece(BlackRook).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
@@ -509,7 +509,7 @@ func TestUnmakeCaptureThatChangesCastleRights(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackBishop).
-		setMoveType(CAPTURE).
+		setMoveType(Capture).
 		setCapturedPiece(WhiteRook).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
@@ -537,7 +537,7 @@ func TestUnmakePromotionRestoresThePawnTo7thRank(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhitePawn).
-		setMoveType(PROMOTION).
+		setMoveType(Promotion).
 		setPromotedTo(WhiteQueen).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
@@ -565,7 +565,7 @@ func TestUnmakeCastleForWhite(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhiteKing).
-		setMoveType(CASTLE).
+		setMoveType(Castle).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
 		setCastleRightsBefore(pos.castlingRights)
@@ -592,7 +592,7 @@ func TestUnmakeCastleForBlack(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackKing).
-		setMoveType(CASTLE).
+		setMoveType(Castle).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
 		setCastleRightsBefore(pos.castlingRights)
@@ -619,7 +619,7 @@ func TestUnmakeEnPassantCaptureForBlack(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackPawn).
-		setMoveType(EN_PASSANT).
+		setMoveType(EnPassant).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
 		setCastleRightsBefore(pos.castlingRights)
@@ -646,7 +646,7 @@ func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhitePawn).
-		setMoveType(EN_PASSANT).
+		setMoveType(EnPassant).
 		setEpTargetBefore(pos.enPassantTarget).
 		setRule50Before(pos.halfmoveClock).
 		setCastleRightsBefore(pos.castlingRights)

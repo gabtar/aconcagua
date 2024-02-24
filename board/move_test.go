@@ -13,7 +13,7 @@ func TestNormalMove(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhitePawn).
-		setMoveType(NORMAL)
+		setMoveType(Normal)
 
 	pos.MakeMove(move)
 
@@ -34,7 +34,7 @@ func TestCastleMoveUpdate(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhiteKing).
-		setMoveType(CASTLE)
+		setMoveType(Castle)
 
 	pos.MakeMove(move)
 
@@ -55,7 +55,7 @@ func TestEnPassantCaptureUpdate(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackPawn).
-		setMoveType(EN_PASSANT)
+		setMoveType(EnPassant)
 
 	pos.MakeMove(move)
 
@@ -76,7 +76,7 @@ func TestRookCapture(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackRook).
-		setMoveType(CAPTURE)
+		setMoveType(Capture)
 
 	pos.MakeMove(move)
 
@@ -97,7 +97,7 @@ func TestDoublePawnPush(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(WhitePawn).
-		setMoveType(PAWN_DOUBLE_PUSH)
+		setMoveType(PawnDoublePush)
 
 	pos.MakeMove(move)
 
@@ -118,7 +118,7 @@ func TestPawnPromotion(t *testing.T) {
 		setFromSq(from).
 		setToSq(to).
 		setPiece(BlackPawn).
-		setMoveType(PROMOTION).
+		setMoveType(Promotion).
 		setPromotedTo(BlackQueen)
 
 	pos.MakeMove(move)
@@ -136,9 +136,9 @@ func TestBuildMove(t *testing.T) {
 		setFromSq(63).
 		setToSq(9).
 		setPiece(BlackBishop).
-		setMoveType(NORMAL)
+		setMoveType(Normal)
 
-	expected := NORMAL
+	expected := Normal
 	got := move.MoveType()
 
 	if got != expected {
@@ -152,7 +152,7 @@ func TestMoveBuilder(t *testing.T) {
 		setFromSq(0).
 		setToSq(8).
 		setPiece(WhitePawn).
-		setMoveType(NORMAL).
+		setMoveType(Normal).
 		setEpTargetBefore(bitboardFromIndex(56)).
 		setRule50Before(10).
 		setCastleRightsBefore(castling(0b1111)).
@@ -179,7 +179,7 @@ func TestMoveBuilder(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expectedPiece, gotPiece)
 	}
 
-	expectedType := NORMAL
+	expectedType := Normal
 	gotType := move.MoveType()
 
 	if gotType != expectedType {

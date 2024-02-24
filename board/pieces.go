@@ -269,7 +269,7 @@ func checkRestrictedMoves(piece Bitboard, side Color, pos *Position) (allowedSqu
 		allowedSquares = AllSquares
 	case checkingPieces.count() == 1:
 		// Capture or block the path
-		checker := checkingPieces.nextOne()
+		checker := checkingPieces.NextBit()
 		piece, _ := pos.PieceAt(squareReference[Bsf(checker)])
 
 		if isSliding(piece) {

@@ -8,7 +8,7 @@ package board
 // TODO: refactor...
 func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 	destinationsBB := pawnMoves(p, pos, side)
-	opponentPieces := pos.Pieces(side.opponent())
+	opponentPieces := pos.Pieces(side.Opponent())
 	piece := pieceOfColor[Pawn][side]
 	doublePushFrom := ranks[1]
 	doublePushTo := ranks[3]
@@ -22,19 +22,19 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 	}
 
 	for destinationsBB > 0 {
-		destSq := destinationsBB.nextOne()
+		destSq := destinationsBB.NextBit()
 		move := newMove().
 			setFromSq(Bsf(*p)).
 			setToSq(Bsf(destSq)).
 			setPiece(piece).
-			setMoveType(NORMAL).
+			setMoveType(Normal).
 			setEpTargetBefore(pos.enPassantTarget).
 			setRule50Before(pos.halfmoveClock).
 			setCastleRightsBefore(pos.castlingRights)
 
 		switch {
 		case (destSq & queeningRank) > 0: // NOTE: This must be  first because of promotion captures..
-			move.setMoveType(PROMOTION)
+			move.setMoveType(Promotion)
 			for _, promotedRole := range promotions {
 				if (destSq & opponentPieces) > 0 {
 					capturedPiece, _ := pos.PieceAt(squareReference[Bsf(destSq)])
@@ -47,16 +47,16 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 			}
 			break
 		case (pos.enPassantTarget > 0) && (pos.enPassantTarget&destSq) > 0:
-			move.setMoveType(EN_PASSANT)
+			move.setMoveType(EnPassant)
 			moves = append(moves, *move)
 			break
 		case (opponentPieces & destSq) > 0:
 			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(destSq)])
-			move.setMoveType(CAPTURE).setCapturedPiece(capturedPiece)
+			move.setMoveType(Capture).setCapturedPiece(capturedPiece)
 			moves = append(moves, *move)
 			break
 		case (destSq&doublePushTo) > 0 && (*p&doublePushFrom) > 0:
-			move.setMoveType(PAWN_DOUBLE_PUSH)
+			move.setMoveType(PawnDoublePush)
 			moves = append(moves, *move)
 			break
 		default:
@@ -68,7 +68,7 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 
 // pawnMoves returns a Bitboard with the squares a pawn can move to in the passed position
 func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	posibleCaptures := pawnAttacks(p, pos, side) & pos.Pieces(side.opponent())
+	posibleCaptures := pawnAttacks(p, pos, side) & pos.Pieces(side.Opponent())
 	posibleEnPassant := pawnEnPassantCaptures(p, pos, side)
 	posiblesMoves := Bitboard(0)
 
