@@ -13,6 +13,7 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 
 ### TODO:
+- [ ] Add a makefile
 
 #### Move generation:
 - [ ] Try to improve make and unmake move
@@ -23,13 +24,15 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 - [x] Refactor to use PeSTO evaluation function(tapered eval)
 
 #### Search:
-- [ ] Aspiration windows
+- [x] Aspiration windows
+- [x] Principal variation search
 - [x] Quiescent search
 - [ ] Limit quiescent (maybe by time/nodes...)
 - [ ] Improve move ordering
     - [ ] Killer moves
+    - [ ] History moves
     - [ ] Improve MVV-LVA
-- [ ] Add ~~check~~, stealmate, etc detection while searching
+- [ ] Add ~~checkmate~~, stealmate, etc detection while searching
 - [ ] Detect threefold repetition - use zobrist hash
 - [ ] Refactor Transposition table
 

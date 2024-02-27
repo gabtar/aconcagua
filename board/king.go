@@ -37,12 +37,12 @@ func getKingMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	withoutKing := *pos
 	withoutKing.RemovePiece(*k)
-	moves = kingAttacks(k, pos) & ^withoutKing.AttackedSquares(side.Opponent()) & ^pos.Pieces(side)
+	moves = kingAttacks(k) & ^withoutKing.AttackedSquares(side.Opponent()) & ^pos.Pieces(side)
 	return
 }
 
 // kingAttacks returns a bitboard with the squares the king attacks from the passed bitboard
-func kingAttacks(k *Bitboard, pos *Position) (attacks Bitboard) {
+func kingAttacks(k *Bitboard) (attacks Bitboard) {
 	notInHFile := *k & ^(*k & files[7])
 	notInAFile := *k & ^(*k & files[0])
 

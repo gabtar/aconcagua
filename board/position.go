@@ -159,7 +159,7 @@ func startingPieceNumber(side Color) int {
 func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	switch piece {
 	case WhiteKing, BlackKing:
-		attacks |= kingAttacks(&from, pos)
+		attacks |= kingAttacks(&from)
 	case WhiteQueen, BlackQueen:
 		attacks |= queenAttacks(&from, pos)
 	case WhiteRook, BlackRook:

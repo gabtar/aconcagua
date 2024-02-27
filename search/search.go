@@ -48,6 +48,7 @@ func (s *SearchState) reset(currentDepth int) {
 // for a fixed depth
 func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVariation) int {
 	alphaOrig := alpha
+	foundPv := false
 	ss.nodes++
 	branchPv := newPrincipalVariation()
 
@@ -67,7 +68,6 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVa
 
 	if depth == 0 || pos.Checkmate(board.White) || pos.Checkmate(board.Black) {
 		pv.clear() // NOTE: needed to clear when mate is found!!
-		// return sideModifier(pos.Turn) * evaluation.Evaluate(&pos)
 		return quiescent(&pos, alpha, beta)
 	}
 
@@ -76,7 +76,18 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVa
 
 	for _, move := range moves {
 		pos.MakeMove(&move)
-		newScore := -negamax(pos, depth-1, -beta, -alpha, branchPv)
+
+		// PVS Principal variation search
+		newScore := math.MinInt + 1
+		if foundPv {
+			newScore = -negamax(pos, depth-1, -alpha-1, -alpha, branchPv)
+			if newScore > alpha && newScore < beta {
+				newScore = -negamax(pos, depth-1, -beta, -alpha, branchPv)
+			}
+		} else {
+			newScore = -negamax(pos, depth-1, -beta, -alpha, branchPv)
+		}
+
 		pos.UnmakeMove(move)
 
 		if newScore >= beta {
@@ -86,6 +97,7 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVa
 		if newScore > alpha {
 			alpha = newScore
 			pv.insert(move, branchPv)
+			foundPv = true
 		}
 	}
 
@@ -163,16 +175,27 @@ func min(a int, b int) int {
 // with its score evaluation.
 func Search(pos *board.Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove []board.Move) {
 
-	min := math.MinInt + 1 // NOTE: +1 Needed to avoid overflow when inverting alpha and beta in negamax
-	max := math.MaxInt
+	alpha := math.MinInt + 1 // NOTE: +1 Needed to avoid overflow when inverting alpha and beta in negamax
+	beta := math.MaxInt
 	tt = newTranspositionTable()
 	ss.init(maxDepth)
 
 	for d := 1; d <= maxDepth; d++ {
 		ss.reset(d)
 
-		bestMoveScore = negamax(*pos, d, min, max, ss.pv)
+		bestMoveScore = negamax(*pos, d, alpha, beta, ss.pv)
 		bestMove = *ss.pv
+
+		// Set aspiration window
+		if bestMoveScore <= alpha || bestMoveScore >= beta {
+			alpha = math.MinInt + 1
+			beta = math.MaxInt
+			d--
+			continue
+		}
+		// TODO: try diferent window values...
+		alpha = bestMoveScore - 50
+		beta = bestMoveScore + 50
 
 		depthTime := time.Since(ss.time)
 		ss.time = time.Now()
