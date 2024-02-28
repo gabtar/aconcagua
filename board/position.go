@@ -2,7 +2,6 @@ package board
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -243,37 +242,6 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 	return
 }
 
-// mvvLvaScore (Most Valuable Victim - Least Valuable Aggressor) for scoring captures
-var mvvLvaScore = [6][6]int{
-	{0, 0, 0, 0, 0, 0},             // Victim K, agressor K, Q, R, B, N, P - No point to capture a king!
-	{100, 101, 102, 103, 104, 105}, // Victim Q, agressor K, Q, R, B, N, P
-	{90, 91, 92, 93, 94, 95},       // Victim R, agressor K, Q, R, B, N, P
-	{80, 81, 82, 83, 84, 85},       // Victim B, agressor K, Q, R, B, N, P
-	{70, 71, 72, 73, 74, 75},       // Victim N, agressor K, Q, R, B, N, P
-	{60, 61, 62, 63, 64, 65},       // Victim P, agressor K, Q, R, B, N, P
-}
-
-// setMvvLvaScore sets the score to a move according to MVV-LVA(Most Valuable Victim - Least Valuable Aggressor)
-func setMvvLvaScore(m *Move) {
-	// If not a capture just score as move type
-	if m.MoveType() != Capture {
-		m.SetScore(m.MoveType())
-		return
-	}
-
-	victim := int(m.capturedPiece())
-	aggresor := int(m.piece())
-
-	if victim > 5 {
-		victim -= 6
-	}
-	if aggresor > 5 {
-		aggresor -= 6
-	}
-
-	m.SetScore(mvvLvaScore[victim][aggresor])
-}
-
 // LegalMoves returns an slice of Move of all legal moves for the side passed
 func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 	bitboards := pos.getBitboards(side)
@@ -299,16 +267,12 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 	}
 	legalMoves = append(legalMoves, pos.legalCastles(side)...)
 
-	// MVV_VLA score
-	for idx := range legalMoves {
-		setMvvLvaScore(&legalMoves[idx])
-	}
-
 	return
 }
 
 // legalCastles returns the castles moves the passed side can make
 func (pos *Position) legalCastles(side Color) (castle []Move) {
+	// TODO: refactor for better readability
 	if pos.Check(side) {
 		return
 	}
@@ -359,7 +323,7 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 
 // MakeMove updates the position by making the move passed as parameter
 func (pos *Position) MakeMove(move *Move) {
-	pieceToAdd := Piece(move.piece())
+	pieceToAdd := Piece(move.Piece())
 	pos.RemovePiece(bitboardFromIndex(move.from()))
 
 	pos.enPassantTarget &= 0
@@ -371,30 +335,30 @@ func (pos *Position) MakeMove(move *Move) {
 
 	switch move.MoveType() {
 	case Normal:
-		if move.piece() == int(WhitePawn) || move.piece() == int(BlackPawn) {
+		if move.Piece() == int(WhitePawn) || move.Piece() == int(BlackPawn) {
 			pos.halfmoveClock = 0
 		}
 		updateCastleRights(pos, move)
 	case PawnDoublePush:
-		if move.piece() == int(WhitePawn) {
-			pos.enPassantTarget = bitboardFromIndex(move.to()) >> 8
+		if move.Piece() == int(WhitePawn) {
+			pos.enPassantTarget = bitboardFromIndex(move.To()) >> 8
 		} else {
-			pos.enPassantTarget = bitboardFromIndex(move.to()) << 8
+			pos.enPassantTarget = bitboardFromIndex(move.To()) << 8
 		}
 		pos.halfmoveClock = 0
 	case Capture:
-		pos.RemovePiece(bitboardFromIndex(move.to()))
+		pos.RemovePiece(bitboardFromIndex(move.To()))
 		pos.halfmoveClock = 0
 		updateCastleRights(pos, move)
 	case Promotion:
-		pos.RemovePiece(bitboardFromIndex(move.to()))
+		pos.RemovePiece(bitboardFromIndex(move.To()))
 		pieceToAdd = Piece(move.promotedTo())
 		pos.halfmoveClock = 0
 	case Castle:
 		moveRookOnCastleMove(pos, castleType[move.ToUci()])
 		updateCastleRights(pos, move)
 	case EnPassant:
-		if move.piece() == int(WhitePawn) {
+		if move.Piece() == int(WhitePawn) {
 			pos.Bitboards[BlackPawn] ^= move.epTargetBefore() >> 8
 		} else {
 			pos.Bitboards[WhitePawn] ^= move.epTargetBefore() << 8
@@ -403,7 +367,7 @@ func (pos *Position) MakeMove(move *Move) {
 	}
 	pos.Turn = pos.Turn.Opponent()
 
-	pos.AddPiece(pieceToAdd, squareReference[move.to()])
+	pos.AddPiece(pieceToAdd, squareReference[move.To()])
 
 	pos.Hash = zobristHash(pos)
 	return
@@ -411,7 +375,7 @@ func (pos *Position) MakeMove(move *Move) {
 
 // UnmakeMove undoes a the passed move in the postion
 func (pos *Position) UnmakeMove(move Move) {
-	pos.RemovePiece(bitboardFromIndex(move.to()))
+	pos.RemovePiece(bitboardFromIndex(move.To()))
 
 	if pos.Turn == White {
 		pos.fullmoveNumber--
@@ -421,23 +385,23 @@ func (pos *Position) UnmakeMove(move Move) {
 	pos.halfmoveClock = move.rule50Before()
 	pos.castlingRights = move.castleRightsBefore()
 
-	pieceToAdd := Piece(move.piece())
+	pieceToAdd := Piece(move.Piece())
 	switch move.MoveType() {
 	// case NORMAL:
 	// case PAWN_DOUBLE_PUSH:
 	case Capture:
-		pos.AddPiece(move.capturedPiece(), squareReference[move.to()])
+		pos.AddPiece(move.CapturedPiece(), squareReference[move.To()])
 	case Promotion:
-		pos.AddPiece(Piece(move.piece()), squareReference[move.from()])
-		if move.capturedPiece() > 0 {
-			pos.AddPiece(Piece(move.capturedPiece()), squareReference[move.to()])
+		pos.AddPiece(Piece(move.Piece()), squareReference[move.from()])
+		if move.CapturedPiece() > 0 {
+			pos.AddPiece(Piece(move.CapturedPiece()), squareReference[move.To()])
 		}
 	case Castle:
 		restoreRookOnCastle(pos, castleType[move.ToUci()])
 	case EnPassant:
-		restoreSq := move.to() + 8                    // 1 rank up
-		if pieceColor[Piece(move.piece())] == White { // White ep capture
-			restoreSq = move.to() - 8 // 1 rank down
+		restoreSq := move.To() + 8                    // 1 rank up
+		if pieceColor[Piece(move.Piece())] == White { // White ep capture
+			restoreSq = move.To() - 8 // 1 rank down
 		}
 		pos.AddPiece(pieceOfColor[Pawn][pos.Turn], squareReference[restoreSq])
 	}
@@ -471,7 +435,7 @@ func restoreRookOnCastle(pos *Position, castle castling) {
 // updateCastleRights updates the castle rigths based on the move passed if the
 // rook or the king has been moved or the move captured a rook on the corner
 func updateCastleRights(pos *Position, move *Move) {
-	piece := Piece(move.piece())
+	piece := Piece(move.Piece())
 	switch piece {
 	case WhiteKing:
 		pos.castlingRights.remove(K | Q)
@@ -493,13 +457,13 @@ func updateCastleRights(pos *Position, move *Move) {
 	// TO FIX BUG: if its a capture that captures a rook on a1, h1, a8 or h8, it should also update the castle rights...
 	if move.MoveType() == Capture || move.MoveType() == Promotion {
 		switch {
-		case move.to() == 0 && move.capturedPiece() == WhiteRook:
+		case move.To() == 0 && move.CapturedPiece() == WhiteRook:
 			pos.castlingRights.remove(Q)
-		case move.to() == 7 && move.capturedPiece() == WhiteRook:
+		case move.To() == 7 && move.CapturedPiece() == WhiteRook:
 			pos.castlingRights.remove(K)
-		case move.to() == 56 && move.capturedPiece() == BlackRook:
+		case move.To() == 56 && move.CapturedPiece() == BlackRook:
 			pos.castlingRights.remove(q)
-		case move.to() == 63 && move.capturedPiece() == BlackRook:
+		case move.To() == 63 && move.CapturedPiece() == BlackRook:
 			pos.castlingRights.remove(k)
 		}
 	}
@@ -630,22 +594,28 @@ func (pos *Position) drawAvailableBy50MoveRule() bool {
 }
 
 // Print prints the Position to the terminal from white's view perspective
-func (pos *Position) Print() {
+func (pos *Position) String() string {
+	position := ""
 	board := toRuneArray(pos)
 
 	currentSq := 63
-	fmt.Println("\n  -------------------------------")
+	position += "\n    -------------------------------\n"
 	for rank := 7; rank >= 0; rank-- {
+		position += " " + strconv.Itoa(rank+1)
 		for file := 7; file >= 0; file-- {
 			piece := board[currentSq-file]
 			if piece == rune(0) { // Default rune char
 				piece = ' '
 			}
-			fmt.Print(" | " + string(piece))
+			position += " | " + string(piece)
 		}
-		fmt.Println(" |\n  -------------------------------")
+		position += " |\n    -------------------------------\n"
 		currentSq -= 8
 	}
+	position += "     a   b   c   d   e   f   g   h \n\n"
+	position += "Fen: " + pos.ToFen() + "\n"
+	position += "Key: " + strconv.FormatUint(pos.Hash, 10)
+	return position
 }
 
 // toRuneArray returns an array of 64 runes with the position of the pieces

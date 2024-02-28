@@ -34,13 +34,13 @@ func (m *Move) from() int {
 	return int(*m & 0b111111)
 }
 
-// to returns the number of the destination square of the move
-func (m *Move) to() int {
+// To returns the number of the destination square of the move
+func (m *Move) To() int {
 	return int((*m & (0b111111 << 6)) >> 6)
 }
 
-// piece returns the piece which is being moved
-func (m *Move) piece() int {
+// Piece returns the Piece which is being moved
+func (m *Move) Piece() int {
 	return int((*m & (0b1111 << 12)) >> 12)
 }
 
@@ -62,8 +62,8 @@ func (m *Move) MoveType() int {
 // rule50Before 6 bits 000000
 // castleRightsBefore 4 bits 0000
 
-// capturedPiece
-func (m *Move) capturedPiece() Piece {
+// CapturedPiece
+func (m *Move) CapturedPiece() Piece {
 	return Piece((*m & (0b1111 << 24)) >> 24)
 }
 
@@ -96,7 +96,7 @@ func (m *Move) Score() int {
 // ToUci returns the move in UCI format (starting square string -> destinatnion square string)
 func (m *Move) ToUci() (uciString string) {
 	uciString += squareReference[m.from()]
-	uciString += squareReference[m.to()]
+	uciString += squareReference[m.To()]
 	if m.MoveType() == Promotion {
 		promotedTo := Piece(m.promotedTo())
 		switch promotedTo {

@@ -5,11 +5,10 @@ import "testing"
 // King moves tests
 
 func TestKingAttacks(t *testing.T) {
-	pos := InitialPosition()
 	kingBB := bitboardFromCoordinate("e1")
 
 	expected := Bitboard(0b11100000101000)
-	got := kingAttacks(&kingBB, pos) // The king defends... all pieces around him
+	got := kingAttacks(&kingBB) // The king defends... all pieces around him
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

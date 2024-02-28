@@ -126,37 +126,23 @@ func isPinned(piece Bitboard, side Color, pos *Position) bool {
 		return false
 	}
 
+	firstBB := bitboardFromIndex(Bsf(piecesInLine))
+	secondBB := bitboardFromIndex(Bsf(piecesInLine & ^firstBB))
 	switch pinDirection {
-	// TODO: remove duplication...
-	case NORTH, EAST, NORTHEAST, NORTHWEST:
-		firstBB := bitboardFromIndex(Bsf(piecesInLine))
-		secondBB := bitboardFromIndex(Bsf(piecesInLine & ^firstBB))
-
-		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
-		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
-
-		withoutPinnedPiece := *pos
-		withoutPinnedPiece.RemovePiece(piece)
-
-		if pieceColor[pieceOne] != pieceColor[pieceTwo] &&
-			(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {
-			return true
-		}
-
 	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
-		firstBB := bitboardFromIndex(63 - Bsr(piecesInLine))
-		secondBB := bitboardFromIndex(63 - Bsr(piecesInLine & ^firstBB))
+		firstBB = bitboardFromIndex(63 - Bsr(piecesInLine))
+		secondBB = bitboardFromIndex(63 - Bsr(piecesInLine & ^firstBB))
+	}
 
-		pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
-		pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
+	pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
+	pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
 
-		withoutPinnedPiece := *pos
-		withoutPinnedPiece.RemovePiece(piece)
+	withoutPinnedPiece := *pos
+	withoutPinnedPiece.RemovePiece(piece)
 
-		if pieceColor[pieceOne] != pieceColor[pieceTwo] &&
-			(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {
-			return true
-		}
+	if pieceColor[pieceOne] != pieceColor[pieceTwo] &&
+		(Attacks(pieceTwo, secondBB, &withoutPinnedPiece)&kingBB) > 0 {
+		return true
 	}
 	return false
 }
@@ -258,14 +244,10 @@ func pinRestrictedDirection(piece Bitboard, side Color, pos *Position) (restrict
 // checkRestrictedMoves returns a bitboard with the allowed squares to block
 // the path or capture the checking piece if in check
 func checkRestrictedMoves(piece Bitboard, side Color, pos *Position) (allowedSquares Bitboard) {
-	// FIX: need to refactor witout using the piece struct...
-	// Need to return a bitboard of the checking piece...
-	// Need to find a way to detect the type of piece checking -> sliding or not...
 	checkingPieces := pos.CheckingPieces(side)
 
 	switch {
 	case checkingPieces.count() == 0:
-		// No restriction
 		allowedSquares = AllSquares
 	case checkingPieces.count() == 1:
 		// Capture or block the path
@@ -283,7 +265,6 @@ func checkRestrictedMoves(piece Bitboard, side Color, pos *Position) (allowedSqu
 
 // isSliding returns a the passed Piece is an sliding piece(Queen, Rook or Bishop)
 func isSliding(piece Piece) bool {
-	// TODO: refactor, use a map instead?
 	if piece == WhiteQueen || piece == WhiteRook ||
 		piece == WhiteBishop || piece == BlackQueen ||
 		piece == BlackRook || piece == BlackBishop {

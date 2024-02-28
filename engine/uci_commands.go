@@ -121,8 +121,7 @@ func findParam(params []string, param string) int {
 
 // printBoardCommand prtints the board on the terminal
 func printBoardCommand(en *Engine, stdout chan string, params ...string) {
-	en.pos.Print()
-	stdout <- "Fen: " + engine.pos.ToFen()
+	stdout <- en.pos.String()
 }
 
 // perftCommand returns the number of moves up to the passed depth for the current position

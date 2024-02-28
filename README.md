@@ -28,10 +28,10 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 - [x] Principal variation search
 - [x] Quiescent search
 - [ ] Limit quiescent (maybe by time/nodes...)
-- [ ] Improve move ordering
-    - [ ] Killer moves
-    - [ ] History moves
-    - [ ] Improve MVV-LVA
+- [x] Improve move ordering
+    - [x] Killer moves
+    - [x] History heruistic
+    - [x] Improve MVV-LVA
 - [ ] Add ~~checkmate~~, stealmate, etc detection while searching
 - [ ] Detect threefold repetition - use zobrist hash
 - [ ] Refactor Transposition table

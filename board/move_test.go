@@ -166,14 +166,14 @@ func TestMoveBuilder(t *testing.T) {
 	}
 
 	expectedTo := 8
-	gotTo := move.to()
+	gotTo := move.To()
 
 	if gotTo != expectedTo {
 		t.Errorf("Expected: %v, got: %v", expectedTo, gotTo)
 	}
 
 	expectedPiece := int(WhitePawn)
-	gotPiece := move.piece()
+	gotPiece := move.Piece()
 
 	if gotPiece != expectedPiece {
 		t.Errorf("Expected: %v, got: %v", expectedPiece, gotPiece)

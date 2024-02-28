@@ -10,11 +10,27 @@ import (
 	"github.com/gabtar/aconcagua/evaluation"
 )
 
+// HistoryMoves stores moves score during search by piece moved/target square
+type HistoryMoves [12][64]int
+
+// KillerMoves holds the killers moves(quiet/non capture) found during search that produces a beta cutoff
+type KillerMoves struct {
+	moves [2]board.Move
+}
+
+// adds a killer move to the struct
+func (km *KillerMoves) add(move board.Move) {
+	km.moves[1] = km.moves[0]
+	km.moves[0] = move
+}
+
 type SearchState struct {
 	nodes        int
 	currentDepth int
 	maxDepth     int
 	pv           *PrincipalVariation
+	killers      [100]KillerMoves // up to 100 depth for now
+	history      HistoryMoves
 	time         time.Time
 	totalTime    time.Time
 }
@@ -24,6 +40,8 @@ var ss SearchState = SearchState{
 	currentDepth: 0,
 	maxDepth:     0,
 	pv:           newPrincipalVariation(),
+	killers:      [100]KillerMoves{},
+	history:      HistoryMoves{},
 	time:         time.Now(),
 	totalTime:    time.Now(),
 }
@@ -49,6 +67,7 @@ func (s *SearchState) reset(currentDepth int) {
 func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVariation) int {
 	alphaOrig := alpha
 	foundPv := false
+	ply := ss.currentDepth - depth
 	ss.nodes++
 	branchPv := newPrincipalVariation()
 
@@ -72,13 +91,13 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVa
 	}
 
 	moves := pos.LegalMoves(pos.Turn)
-	sortMoves(moves, ss.pv, ss.currentDepth-depth)
+	sortMoves(moves, ss.pv, ply)
 
 	for _, move := range moves {
 		pos.MakeMove(&move)
+		newScore := math.MinInt + 1
 
 		// PVS Principal variation search
-		newScore := math.MinInt + 1
 		if foundPv {
 			newScore = -negamax(pos, depth-1, -alpha-1, -alpha, branchPv)
 			if newScore > alpha && newScore < beta {
@@ -90,11 +109,16 @@ func negamax(pos board.Position, depth int, alpha int, beta int, pv *PrincipalVa
 
 		pos.UnmakeMove(move)
 
+		// beta cutoff
 		if newScore >= beta {
+			ss.killers[ply].add(move)
 			return beta
 		}
 
+		// new best move found
 		if newScore > alpha {
+			ss.history[move.Piece()][move.To()] += depth
+
 			alpha = newScore
 			pv.insert(move, branchPv)
 			foundPv = true
@@ -127,7 +151,6 @@ func quiescent(pos *board.Position, alpha int, beta int) int {
 	sortMoves(moves, ss.pv, 0)
 
 	for _, move := range moves {
-		// skip non capture
 		if move.MoveType() != board.Capture {
 			continue
 		}
@@ -208,14 +231,65 @@ func Search(pos *board.Position, maxDepth int, stdout chan string) (bestMoveScor
 
 // sortMoves sorts an slice of moves acording to the principalVariation
 func sortMoves(moves []board.Move, pv *PrincipalVariation, ply int) []board.Move {
+	// socre moves
+	// MVV_VLA score
+	for idx := range moves {
+		setMoveScore(&moves[idx], pv, ply)
+	}
+
+	// sort moves
 	sort.Slice(moves, func(i, j int) bool {
 		// PV pvMove from previous iteration always goes first
-		if pvMove, exists := pv.moveAt(ply); exists && pvMove.ToUci() == moves[i].ToUci() {
-			return true
-		}
 
 		return moves[i].Score() > moves[j].Score()
 	})
 
 	return moves
+}
+
+// mvvLvaScore (Most Valuable Victim - Least Valuable Aggressor) for scoring captures
+var mvvLvaScore = [6][6]int{
+	{0, 0, 0, 0, 0, 0},             // Victim K, agressor K, Q, R, B, N, P - No point to capture a king!
+	{100, 101, 102, 103, 104, 105}, // Victim Q, agressor K, Q, R, B, N, P
+	{90, 91, 92, 93, 94, 95},       // Victim R, agressor K, Q, R, B, N, P
+	{80, 81, 82, 83, 84, 85},       // Victim B, agressor K, Q, R, B, N, P
+	{70, 71, 72, 73, 74, 75},       // Victim N, agressor K, Q, R, B, N, P
+	{60, 61, 62, 63, 64, 65},       // Victim P, agressor K, Q, R, B, N, P
+}
+
+// setMoveScore sets the score to a move according to MVV-LVA(Most Valuable Victim - Least Valuable Aggressor)
+func setMoveScore(m *board.Move, pv *PrincipalVariation, ply int) {
+	if pvMove, exists := pv.moveAt(ply); exists && pvMove.ToUci() == m.ToUci() {
+		m.SetScore(200)
+		return
+	}
+
+	// MvvLva score
+	if m.MoveType() == board.Capture {
+		victim := m.CapturedPiece()
+		aggresor := m.Piece()
+
+		if victim > 5 {
+			victim -= 6
+		}
+		if aggresor > 5 {
+			aggresor -= 6
+		}
+		m.SetScore(mvvLvaScore[victim][aggresor])
+	} else {
+
+		// 1st Killer
+		if ss.killers[ply].moves[0] == *m {
+			m.SetScore(50)
+			return
+		}
+		// 2nd Killer
+		if ss.killers[ply].moves[1] == *m {
+			m.SetScore(40)
+			return
+		}
+
+		// score from history moves
+		m.SetScore(ss.history[m.Piece()][m.To()])
+	}
 }
