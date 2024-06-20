@@ -1,4 +1,4 @@
-package board
+package aconcagua
 
 // castling represents the castling rights available in the position
 // Represented in a binary of 4 bits where 0 is no castling available and 1 is available

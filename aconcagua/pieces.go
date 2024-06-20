@@ -1,5 +1,5 @@
 // Pieces movements in a chess board
-package board
+package aconcagua
 
 import (
 	"math"

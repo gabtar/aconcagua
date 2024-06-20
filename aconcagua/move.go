@@ -1,4 +1,4 @@
-package board
+package aconcagua
 
 // Type of move
 const (

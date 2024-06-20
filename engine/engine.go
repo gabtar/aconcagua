@@ -4,20 +4,20 @@ package engine
 import (
 	"strings"
 
-	"github.com/gabtar/aconcagua/board"
+	"github.com/gabtar/aconcagua/aconcagua"
 	"github.com/gabtar/aconcagua/search"
 )
 
-var engine Engine = Engine{pos: *board.InitialPosition()}
+var engine Engine = Engine{pos: *aconcagua.InitialPosition()}
 
 type Engine struct {
-	pos board.Position
+	pos aconcagua.Position
 	pv  search.PrincipalVariation
 }
 
 func NewEngine() *Engine {
 	return &Engine{
-		pos: *board.EmptyPosition(),
+		pos: *aconcagua.EmptyPosition(),
 		pv:  search.PrincipalVariation{},
 	}
 }

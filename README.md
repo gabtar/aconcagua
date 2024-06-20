@@ -14,6 +14,7 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 ### TODO:
 - [ ] Add a makefile
+- [ ] Refactor to a single Aconcagua package
 
 #### Move generation:
 - [ ] Try to improve make and unmake move
@@ -37,6 +38,6 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 - [ ] Refactor Transposition table
 
 ### Engine
-- [x] Create an engine struct with main parameters(current best move, depth, etc)
+- [x] Create an engine struct with main parameters(current best move, depth, etc) - Add search state
 - [ ] Improve error handling in uci commands (eg. invalid fen, etc)
 - [ ] Add/improve remaining uci commands

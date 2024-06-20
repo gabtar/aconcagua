@@ -2,10 +2,10 @@
 package evaluation
 
 import (
-	"github.com/gabtar/aconcagua/board"
+	"github.com/gabtar/aconcagua/aconcagua"
 )
 
-func Eval(pos *board.Position) int {
+func Eval(pos *aconcagua.Position) int {
 	// Only middlegame evaluation for now
 
 	// TODO: implement mate during search instead of during evaluation
@@ -27,7 +27,7 @@ func Eval(pos *board.Position) int {
 		}
 
 		for bb > 0 {
-			sq := board.Bsf(bb.NextBit())
+			sq := aconcagua.Bsf(bb.NextBit())
 			mgScore[color] += middlegamePiecesScore[p][sq]
 			egScore[color] += endgamePiecesScore[p][sq]
 			phase += phaseInc[p]
@@ -42,9 +42,9 @@ func Eval(pos *board.Position) int {
 	egPhase := 62 - mgPhase
 
 	turn := pos.Turn
-	opponent := board.White
+	opponent := aconcagua.White
 	if opponent == turn {
-		opponent = board.Black
+		opponent = aconcagua.Black
 	}
 
 	mg := mgScore[turn] - mgScore[opponent]

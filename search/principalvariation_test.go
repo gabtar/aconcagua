@@ -3,15 +3,15 @@ package search
 import (
 	"testing"
 
-	"github.com/gabtar/aconcagua/board"
+	"github.com/gabtar/aconcagua/aconcagua"
 )
 
 func TestAdd(t *testing.T) {
 	pv := newPrincipalVariation()
 	branchPv := newPrincipalVariation()
 
-	m0 := board.Move(0)
-	m1 := board.Move(1)
+	m0 := aconcagua.Move(0)
+	m1 := aconcagua.Move(1)
 
 	pv.insert(m0, branchPv)
 	pv.insert(m1, pv)

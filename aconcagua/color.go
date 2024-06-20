@@ -1,4 +1,4 @@
-package board
+package aconcagua
 
 // Color is an int referencing the white or black player in chess
 type Color int

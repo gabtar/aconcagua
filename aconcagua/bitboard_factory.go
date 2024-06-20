@@ -1,4 +1,4 @@
-package board
+package aconcagua
 
 // bitboardFromCoordinate is a factory that returns a bitboard from a string coordinate
 func bitboardFromCoordinate(coordinate string) (bitboard Bitboard) {

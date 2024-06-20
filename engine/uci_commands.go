@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gabtar/aconcagua/board"
+	"github.com/gabtar/aconcagua/aconcagua"
 	"github.com/gabtar/aconcagua/search"
 )
 
@@ -46,10 +46,10 @@ func uciCommand(en *Engine, stdout chan string, params ...string) {
 // positionCommand implements the position uci command
 func positionCommand(en *Engine, stdout chan string, params ...string) {
 	if params[0] == "startpos" {
-		engine.pos = *board.From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+		engine.pos = *aconcagua.From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 	} else if params[0] == "fen" {
 		fen := strings.Join(params[1:], " ")
-		en.pos = *board.From(fen)
+		en.pos = *aconcagua.From(fen)
 	} else {
 		stdout <- "invalid command"
 		return
