@@ -1,13 +1,10 @@
-package search
+package aconcagua
 
 import (
 	"fmt"
 	"math"
 	"sort"
 	"time"
-
-	"github.com/gabtar/aconcagua/aconcagua"
-	"github.com/gabtar/aconcagua/evaluation"
 )
 
 // HistoryMoves stores moves score during search by piece moved/target square
@@ -15,11 +12,11 @@ type HistoryMoves [12][64]int
 
 // KillerMoves holds the killers moves(quiet/non capture) found during search that produces a beta cutoff
 type KillerMoves struct {
-	moves [2]aconcagua.Move
+	moves [2]Move
 }
 
 // adds a killer move to the struct
-func (km *KillerMoves) add(move aconcagua.Move) {
+func (km *KillerMoves) add(move Move) {
 	km.moves[1] = km.moves[0]
 	km.moves[0] = move
 }
@@ -64,7 +61,7 @@ func (s *SearchState) reset(currentDepth int) {
 
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
-func negamax(pos aconcagua.Position, depth int, alpha int, beta int, pv *PrincipalVariation) int {
+func negamax(pos Position, depth int, alpha int, beta int, pv *PrincipalVariation) int {
 	alphaOrig := alpha
 	foundPv := false
 	ply := ss.currentDepth - depth
@@ -85,7 +82,7 @@ func negamax(pos aconcagua.Position, depth int, alpha int, beta int, pv *Princip
 		}
 	}
 
-	if depth == 0 || pos.Checkmate(aconcagua.White) || pos.Checkmate(aconcagua.Black) {
+	if depth == 0 || pos.Checkmate(White) || pos.Checkmate(Black) {
 		pv.clear() // NOTE: needed to clear when mate is found!!
 		return quiescent(&pos, alpha, beta)
 	}
@@ -137,8 +134,8 @@ func negamax(pos aconcagua.Position, depth int, alpha int, beta int, pv *Princip
 }
 
 // quiescent performs a quiescent search (evaluates the position, while being careful to avoid overlooking extremely obvious tactical conditions)
-func quiescent(pos *aconcagua.Position, alpha int, beta int) int {
-	score := evaluation.Eval(pos)
+func quiescent(pos *Position, alpha int, beta int) int {
+	score := Eval(pos)
 	if score >= beta {
 		return beta
 	}
@@ -151,7 +148,7 @@ func quiescent(pos *aconcagua.Position, alpha int, beta int) int {
 	sortMoves(moves, ss.pv, 0)
 
 	for _, move := range moves {
-		if move.MoveType() != aconcagua.Capture {
+		if move.MoveType() != Capture {
 			continue
 		}
 
@@ -171,8 +168,8 @@ func quiescent(pos *aconcagua.Position, alpha int, beta int) int {
 }
 
 // sideModifier returns a multiplier factor for the evaluation score based on the current color turn(side to move) passed
-func sideModifier(color aconcagua.Color) int {
-	if color == aconcagua.Black {
+func sideModifier(color Color) int {
+	if color == Black {
 		return -1
 	}
 	return 1
@@ -196,7 +193,7 @@ func min(a int, b int) int {
 
 // Search returns the best move sequence in the position (for the current side)
 // with its score evaluation.
-func Search(pos *aconcagua.Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove []aconcagua.Move) {
+func Search(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove []Move) {
 
 	alpha := math.MinInt + 1 // NOTE: +1 Needed to avoid overflow when inverting alpha and beta in negamax
 	beta := math.MaxInt
@@ -230,7 +227,7 @@ func Search(pos *aconcagua.Position, maxDepth int, stdout chan string) (bestMove
 }
 
 // sortMoves sorts an slice of moves acording to the principalVariation
-func sortMoves(moves []aconcagua.Move, pv *PrincipalVariation, ply int) []aconcagua.Move {
+func sortMoves(moves []Move, pv *PrincipalVariation, ply int) []Move {
 	// socre moves
 	// MVV_VLA score
 	for idx := range moves {
@@ -258,14 +255,14 @@ var mvvLvaScore = [6][6]int{
 }
 
 // setMoveScore sets the score to a move according to MVV-LVA(Most Valuable Victim - Least Valuable Aggressor)
-func setMoveScore(m *aconcagua.Move, pv *PrincipalVariation, ply int) {
+func setMoveScore(m *Move, pv *PrincipalVariation, ply int) {
 	if pvMove, exists := pv.moveAt(ply); exists && pvMove.ToUci() == m.ToUci() {
 		m.SetScore(200)
 		return
 	}
 
 	// MvvLva score
-	if m.MoveType() == aconcagua.Capture {
+	if m.MoveType() == Capture {
 		victim := m.CapturedPiece()
 		aggresor := m.Piece()
 

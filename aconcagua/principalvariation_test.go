@@ -1,17 +1,13 @@
-package search
+package aconcagua
 
-import (
-	"testing"
-
-	"github.com/gabtar/aconcagua/aconcagua"
-)
+import "testing"
 
 func TestAdd(t *testing.T) {
 	pv := newPrincipalVariation()
 	branchPv := newPrincipalVariation()
 
-	m0 := aconcagua.Move(0)
-	m1 := aconcagua.Move(1)
+	m0 := Move(0)
+	m1 := Move(1)
 
 	pv.insert(m0, branchPv)
 	pv.insert(m1, pv)

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/gabtar/aconcagua/engine"
+	"github.com/gabtar/aconcagua/aconcagua"
 )
 
 func main() {
 
-	eng := engine.NewEngine()
+	eng := aconcagua.NewEngine()
 	eng.StartUci()
 
 }

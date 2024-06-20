@@ -1,4 +1,4 @@
-package search
+package aconcagua
 
 var tt *TranspositionTable
 

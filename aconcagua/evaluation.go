@@ -1,13 +1,6 @@
-// evaluation contains all functions related to position evaluation in the engine
-package evaluation
+package aconcagua
 
-import (
-	"github.com/gabtar/aconcagua/aconcagua"
-)
-
-func Eval(pos *aconcagua.Position) int {
-	// Only middlegame evaluation for now
-
+func Eval(pos *Position) int {
 	// TODO: implement mate during search instead of during evaluation
 	if pos.Checkmate(pos.Turn) {
 		return -100000
@@ -27,7 +20,7 @@ func Eval(pos *aconcagua.Position) int {
 		}
 
 		for bb > 0 {
-			sq := aconcagua.Bsf(bb.NextBit())
+			sq := Bsf(bb.NextBit())
 			mgScore[color] += middlegamePiecesScore[p][sq]
 			egScore[color] += endgamePiecesScore[p][sq]
 			phase += phaseInc[p]
@@ -42,9 +35,9 @@ func Eval(pos *aconcagua.Position) int {
 	egPhase := 62 - mgPhase
 
 	turn := pos.Turn
-	opponent := aconcagua.White
+	opponent := White
 	if opponent == turn {
-		opponent = aconcagua.Black
+		opponent = Black
 	}
 
 	mg := mgScore[turn] - mgScore[opponent]

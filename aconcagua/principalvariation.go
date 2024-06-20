@@ -1,9 +1,7 @@
-package search
-
-import "github.com/gabtar/aconcagua/aconcagua"
+package aconcagua
 
 // PrincipalVariation stores the current best line when searching for best moves
-type PrincipalVariation []aconcagua.Move
+type PrincipalVariation []Move
 
 // newPrincipalVariation is a factory that returns a pointer to a principalVariation struct
 func newPrincipalVariation() *PrincipalVariation {
@@ -11,15 +9,15 @@ func newPrincipalVariation() *PrincipalVariation {
 }
 
 // insert adds a move at the begginning of the principal variation
-func (pv *PrincipalVariation) insert(move aconcagua.Move, branchPv *PrincipalVariation) {
-	*pv = append([]aconcagua.Move{move}, *branchPv...)
+func (pv *PrincipalVariation) insert(move Move, branchPv *PrincipalVariation) {
+	*pv = append([]Move{move}, *branchPv...)
 }
 
-func (pv *PrincipalVariation) moveAt(ply int) (aconcagua.Move, bool) {
+func (pv *PrincipalVariation) moveAt(ply int) (Move, bool) {
 	if len(*pv) > ply {
 		return (*pv)[ply], true
 	}
-	return aconcagua.Move(0), false
+	return Move(0), false
 }
 
 // clear resets the principal variation moves

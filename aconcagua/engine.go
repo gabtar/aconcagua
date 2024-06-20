@@ -1,24 +1,20 @@
-// engine package handles uci commands
-package engine
+package aconcagua
 
 import (
 	"strings"
-
-	"github.com/gabtar/aconcagua/aconcagua"
-	"github.com/gabtar/aconcagua/search"
 )
 
-var engine Engine = Engine{pos: *aconcagua.InitialPosition()}
+var engine Engine = Engine{pos: *InitialPosition()}
 
 type Engine struct {
-	pos aconcagua.Position
-	pv  search.PrincipalVariation
+	pos Position
+	pv  PrincipalVariation
 }
 
 func NewEngine() *Engine {
 	return &Engine{
-		pos: *aconcagua.EmptyPosition(),
-		pv:  search.PrincipalVariation{},
+		pos: *EmptyPosition(),
+		pv:  PrincipalVariation{},
 	}
 }
 

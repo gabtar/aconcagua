@@ -1,4 +1,4 @@
-package engine
+package aconcagua
 
 import (
 	"bufio"
@@ -6,9 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/gabtar/aconcagua/aconcagua"
-	"github.com/gabtar/aconcagua/search"
 )
 
 type UciCommand func(en *Engine, stdout chan string, params ...string)
@@ -46,10 +43,10 @@ func uciCommand(en *Engine, stdout chan string, params ...string) {
 // positionCommand implements the position uci command
 func positionCommand(en *Engine, stdout chan string, params ...string) {
 	if params[0] == "startpos" {
-		engine.pos = *aconcagua.From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+		engine.pos = *From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 	} else if params[0] == "fen" {
 		fen := strings.Join(params[1:], " ")
-		en.pos = *aconcagua.From(fen)
+		en.pos = *From(fen)
 	} else {
 		stdout <- "invalid command"
 		return
@@ -83,7 +80,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 		depth, _ = strconv.Atoi(params[dIndex+1])
 	}
 
-	score, bestMove := search.Search(&engine.pos, depth, stdout)
+	score, bestMove := Search(&engine.pos, depth, stdout)
 	stdout <- "info score cp " + strconv.Itoa(score)
 	stdout <- "bestmove " + bestMove[0].ToUci()
 }
