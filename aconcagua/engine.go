@@ -2,19 +2,33 @@ package aconcagua
 
 import (
 	"strings"
+	"time"
 )
 
 var engine Engine = Engine{pos: *InitialPosition()}
 
 type Engine struct {
-	pos Position
-	pv  PrincipalVariation
+	pos         Position
+	searching   bool // whenever the engine is looking for a position
+	searchState SearchState
 }
 
 func NewEngine() *Engine {
 	return &Engine{
-		pos: *EmptyPosition(),
-		pv:  PrincipalVariation{},
+		pos:       *EmptyPosition(),
+		searching: false,
+		searchState: SearchState{
+			nodes:        0,
+			currentDepth: 0,
+			maxDepth:     0,
+			pv:           newPrincipalVariation(),
+			killers:      [100]KillerMoves{},
+			history:      HistoryMoves{},
+			time:         time.Now(),
+			totalTime:    time.Now(),
+			stop:         false,
+		},
+		// TODO: engine options
 	}
 }
 

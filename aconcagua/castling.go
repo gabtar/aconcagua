@@ -2,16 +2,6 @@ package aconcagua
 
 // castling represents the castling rights available in the position
 // Represented in a binary of 4 bits where 0 is no castling available and 1 is available
-// 0000: "-" NO CASTLE
-// 1000: "K" WHITE
-// 0100: "Q" WHITE
-// 0010: "k" BLACK
-// 0001: "q" BLACK
-// and all the combinations of them
-type castling int
-
-// TODO: may be useful to use all 16 combinations to avoid multiple ifs statements in some code
-// For example: N means no castle available...
 // NNNq = 0001  or directly q
 // NNkN = 0010
 // NNkq = 0011
@@ -27,6 +17,7 @@ type castling int
 // KQNq = 1101
 // KQkN = 1110
 // KQkq = 1111
+type castling int
 
 const (
 	q    = castling(0b0001)

@@ -21,6 +21,7 @@ func (km *KillerMoves) add(move Move) {
 	km.moves[0] = move
 }
 
+// SearchState contains all the stats for the current search
 type SearchState struct {
 	nodes        int
 	currentDepth int
@@ -30,17 +31,7 @@ type SearchState struct {
 	history      HistoryMoves
 	time         time.Time
 	totalTime    time.Time
-}
-
-var ss SearchState = SearchState{
-	nodes:        0,
-	currentDepth: 0,
-	maxDepth:     0,
-	pv:           newPrincipalVariation(),
-	killers:      [100]KillerMoves{},
-	history:      HistoryMoves{},
-	time:         time.Now(),
-	totalTime:    time.Now(),
+	stop         bool // flag to stop current search
 }
 
 // init clears previous search state
@@ -55,13 +46,13 @@ func (s *SearchState) init(depth int) {
 
 // reset sets the new iteration parameters in the SearchState
 func (s *SearchState) reset(currentDepth int) {
-	ss.currentDepth = currentDepth
-	ss.nodes = 0
+	s.currentDepth = currentDepth
+	s.nodes = 0
 }
 
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
-func negamax(pos Position, depth int, alpha int, beta int, pv *PrincipalVariation) int {
+func negamax(pos Position, ss *SearchState, depth int, alpha int, beta int, pv *PrincipalVariation) int {
 	alphaOrig := alpha
 	foundPv := false
 	ply := ss.currentDepth - depth
@@ -84,11 +75,11 @@ func negamax(pos Position, depth int, alpha int, beta int, pv *PrincipalVariatio
 
 	if depth == 0 || pos.Checkmate(White) || pos.Checkmate(Black) {
 		pv.clear() // NOTE: needed to clear when mate is found!!
-		return quiescent(&pos, alpha, beta)
+		return quiescent(&pos, ss, alpha, beta)
 	}
 
 	moves := pos.LegalMoves(pos.Turn)
-	sortMoves(moves, ss.pv, ply)
+	sortMoves(moves, ss, ply)
 
 	for _, move := range moves {
 		pos.MakeMove(&move)
@@ -96,12 +87,12 @@ func negamax(pos Position, depth int, alpha int, beta int, pv *PrincipalVariatio
 
 		// PVS Principal variation search
 		if foundPv {
-			newScore = -negamax(pos, depth-1, -alpha-1, -alpha, branchPv)
+			newScore = -negamax(pos, ss, depth-1, -alpha-1, -alpha, branchPv)
 			if newScore > alpha && newScore < beta {
-				newScore = -negamax(pos, depth-1, -beta, -alpha, branchPv)
+				newScore = -negamax(pos, ss, depth-1, -beta, -alpha, branchPv)
 			}
 		} else {
-			newScore = -negamax(pos, depth-1, -beta, -alpha, branchPv)
+			newScore = -negamax(pos, ss, depth-1, -beta, -alpha, branchPv)
 		}
 
 		pos.UnmakeMove(move)
@@ -134,7 +125,7 @@ func negamax(pos Position, depth int, alpha int, beta int, pv *PrincipalVariatio
 }
 
 // quiescent performs a quiescent search (evaluates the position, while being careful to avoid overlooking extremely obvious tactical conditions)
-func quiescent(pos *Position, alpha int, beta int) int {
+func quiescent(pos *Position, ss *SearchState, alpha int, beta int) int {
 	score := Eval(pos)
 	if score >= beta {
 		return beta
@@ -145,7 +136,7 @@ func quiescent(pos *Position, alpha int, beta int) int {
 
 	// TODO: need a function to generate captures only...
 	moves := pos.LegalMoves(pos.Turn)
-	sortMoves(moves, ss.pv, 0)
+	sortMoves(moves, ss, 0)
 
 	for _, move := range moves {
 		if move.MoveType() != Capture {
@@ -153,7 +144,7 @@ func quiescent(pos *Position, alpha int, beta int) int {
 		}
 
 		pos.MakeMove(&move)
-		score = -quiescent(pos, -beta, -alpha)
+		score = -quiescent(pos, ss, -beta, -alpha)
 		pos.UnmakeMove(move)
 
 		if score >= beta {
@@ -193,7 +184,7 @@ func min(a int, b int) int {
 
 // Search returns the best move sequence in the position (for the current side)
 // with its score evaluation.
-func Search(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove []Move) {
+func Search(pos *Position, ss *SearchState, maxDepth int, stdout chan string) (bestMoveScore int, bestMove []Move) {
 
 	alpha := math.MinInt + 1 // NOTE: +1 Needed to avoid overflow when inverting alpha and beta in negamax
 	beta := math.MaxInt
@@ -201,9 +192,14 @@ func Search(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int,
 	ss.init(maxDepth)
 
 	for d := 1; d <= maxDepth; d++ {
+		// stop search if stop command has been sended
+		if ss.stop {
+			break
+		}
+
 		ss.reset(d)
 
-		bestMoveScore = negamax(*pos, d, alpha, beta, ss.pv)
+		bestMoveScore = negamax(*pos, ss, d, alpha, beta, ss.pv)
 		bestMove = *ss.pv
 
 		// Set aspiration window
@@ -227,11 +223,11 @@ func Search(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int,
 }
 
 // sortMoves sorts an slice of moves acording to the principalVariation
-func sortMoves(moves []Move, pv *PrincipalVariation, ply int) []Move {
+func sortMoves(moves []Move, ss *SearchState, ply int) []Move {
 	// socre moves
 	// MVV_VLA score
 	for idx := range moves {
-		setMoveScore(&moves[idx], pv, ply)
+		setMoveScore(&moves[idx], ss, ply)
 	}
 
 	// sort moves
@@ -255,8 +251,8 @@ var mvvLvaScore = [6][6]int{
 }
 
 // setMoveScore sets the score to a move according to MVV-LVA(Most Valuable Victim - Least Valuable Aggressor)
-func setMoveScore(m *Move, pv *PrincipalVariation, ply int) {
-	if pvMove, exists := pv.moveAt(ply); exists && pvMove.ToUci() == m.ToUci() {
+func setMoveScore(m *Move, ss *SearchState, ply int) {
+	if pvMove, exists := ss.pv.moveAt(ply); exists && pvMove.ToUci() == m.ToUci() {
 		m.SetScore(200)
 		return
 	}

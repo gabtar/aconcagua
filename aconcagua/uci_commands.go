@@ -15,6 +15,7 @@ var uciCommands map[string]UciCommand = map[string]UciCommand{
 	"isready":  isReadyCommand,
 	"position": positionCommand,
 	"go":       goCommand,
+	"stop":     stopCommand,
 
 	"d":      printBoardCommand,
 	"perft":  perftCommand,
@@ -71,6 +72,7 @@ func isReadyCommand(en *Engine, stdout chan string, params ...string) {
 
 // goCommand starts looking for the best move in the current position
 func goCommand(en *Engine, stdout chan string, params ...string) {
+	en.searchState.stop = false
 	// TODO: implement remaining 'go' uci options
 
 	depth := 5 // Default depth
@@ -80,9 +82,19 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 		depth, _ = strconv.Atoi(params[dIndex+1])
 	}
 
-	score, bestMove := Search(&engine.pos, depth, stdout)
+	en.searching = true
+	score, bestMove := Search(&engine.pos, &engine.searchState, depth, stdout)
 	stdout <- "info score cp " + strconv.Itoa(score)
 	stdout <- "bestmove " + bestMove[0].ToUci()
+	en.searching = false
+}
+
+// stopCommand
+func stopCommand(en *Engine, stout chan string, params ...string) {
+	if en.searching {
+		en.searchState.stop = true
+	}
+
 }
 
 // readStdin reads strings from standard input (from GUI to engine)

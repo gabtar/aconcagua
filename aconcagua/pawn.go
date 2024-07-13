@@ -45,20 +45,16 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 				move2.setPromotedTo(promotedRole)
 				moves = append(moves, move2)
 			}
-			break
 		case (pos.enPassantTarget > 0) && (pos.enPassantTarget&destSq) > 0:
 			move.setMoveType(EnPassant)
 			moves = append(moves, *move)
-			break
 		case (opponentPieces & destSq) > 0:
 			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(destSq)])
 			move.setMoveType(Capture).setCapturedPiece(capturedPiece)
 			moves = append(moves, *move)
-			break
 		case (destSq&doublePushTo) > 0 && (*p&doublePushFrom) > 0:
 			move.setMoveType(PawnDoublePush)
 			moves = append(moves, *move)
-			break
 		default:
 			moves = append(moves, *move)
 		}
