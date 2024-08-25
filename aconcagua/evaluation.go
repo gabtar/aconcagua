@@ -1,13 +1,6 @@
 package aconcagua
 
 func Eval(pos *Position) int {
-	// TODO: implement mate during search instead of during evaluation
-	if pos.Checkmate(pos.Turn) {
-		return -100000
-	} else if pos.Checkmate(pos.Turn.Opponent()) {
-		return 100000
-	}
-
 	mgScore := [2]int{0, 0}
 	egScore := [2]int{0, 0}
 	phase := 0

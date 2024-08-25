@@ -13,8 +13,6 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 
 ### TODO:
-- [ ] Add a makefile
-- [ ] Refactor to a single Aconcagua package
 
 #### Move generation:
 - [ ] Try to improve make and unmake move
@@ -28,16 +26,18 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 - [x] Aspiration windows
 - [x] Principal variation search
 - [x] Quiescent search
-- [ ] Limit quiescent (maybe by time/nodes...)
+- [x] Limit quiescent search (needs further work!)
+- [x] Add checkmate detection
+- [ ] Null move pruning
 - [x] Improve move ordering
     - [x] Killer moves
     - [x] History heruistic
     - [x] Improve MVV-LVA
-- [ ] Add ~~checkmate~~, stealmate, etc detection while searching
 - [ ] Detect threefold repetition - use zobrist hash
 - [ ] Refactor Transposition table
 
 ### Engine
 - [x] Create an engine struct with main parameters(current best move, depth, etc) - Add search state
+- [ ] Add Search as method to engine
 - [ ] Improve error handling in uci commands (eg. invalid fen, etc)
 - [ ] Add/improve remaining uci commands

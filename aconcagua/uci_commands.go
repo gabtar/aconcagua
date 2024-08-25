@@ -84,8 +84,17 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 
 	en.searching = true
 	score, bestMove := Search(&engine.pos, &engine.searchState, depth, stdout)
-	stdout <- "info score cp " + strconv.Itoa(score)
+
+	if score >= MateScore || score <= -MateScore {
+		opponentModifier := sideModifier(en.pos.Turn.Opponent())
+		mateIn := ((depth - (opponentModifier*score - MateScore)) + 1) / 2 // moves, not ply!
+
+		stdout <- "info score mate " + strconv.Itoa(opponentModifier*mateIn)
+	} else {
+		stdout <- "info score cp " + strconv.Itoa(score)
+	}
 	stdout <- "bestmove " + bestMove[0].ToUci()
+
 	en.searching = false
 }
 

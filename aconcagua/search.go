@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+// MateScore defines a base score for detecting checkmates
+const MateScore = 100000
+
 // HistoryMoves stores moves score during search by piece moved/target square
 type HistoryMoves [12][64]int
 
@@ -53,6 +56,11 @@ func (s *SearchState) reset(currentDepth int) {
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
 func negamax(pos Position, ss *SearchState, depth int, alpha int, beta int, pv *PrincipalVariation) int {
+	// TODO:!!!!! improve
+	if ss.stop {
+		return alpha
+	}
+
 	alphaOrig := alpha
 	foundPv := false
 	ply := ss.currentDepth - depth
@@ -73,13 +81,22 @@ func negamax(pos Position, ss *SearchState, depth int, alpha int, beta int, pv *
 		}
 	}
 
-	if depth == 0 || pos.Checkmate(White) || pos.Checkmate(Black) {
-		pv.clear() // NOTE: needed to clear when mate is found!!
-		return quiescent(&pos, ss, alpha, beta)
-	}
-
 	moves := pos.LegalMoves(pos.Turn)
 	sortMoves(moves, ss, ply)
+
+	// checkmate/stealmate detection
+	// TODO: extract to stealmate/checkmate found function
+	if len(moves) == 0 {
+		// Stealmate
+		if !pos.Check(pos.Turn) {
+			return 0 // Stealmate is draw...
+		}
+		return -MateScore - depth
+	}
+
+	if depth == 0 {
+		return quiescent(&pos, ss, alpha, beta)
+	}
 
 	for _, move := range moves {
 		pos.MakeMove(&move)
@@ -126,6 +143,10 @@ func negamax(pos Position, ss *SearchState, depth int, alpha int, beta int, pv *
 
 // quiescent performs a quiescent search (evaluates the position, while being careful to avoid overlooking extremely obvious tactical conditions)
 func quiescent(pos *Position, ss *SearchState, alpha int, beta int) int {
+	// if pos.Check(pos.Turn) {
+	// 	return negamax(*pos, ss, 1, alpha, beta, ss.pv)
+	// }
+
 	score := Eval(pos)
 	if score >= beta {
 		return beta
