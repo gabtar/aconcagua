@@ -84,14 +84,9 @@ func negamax(pos Position, ss *SearchState, depth int, alpha int, beta int, pv *
 	moves := pos.LegalMoves(pos.Turn)
 	sortMoves(moves, ss, ply)
 
-	// checkmate/stealmate detection
-	// TODO: extract to stealmate/checkmate found function
-	if len(moves) == 0 {
-		// Stealmate
-		if !pos.Check(pos.Turn) {
-			return 0 // Stealmate is draw...
-		}
-		return -MateScore - depth
+	result, checkOrStealmateFound := validateCheckmateOrStealmate(&pos, &moves, &depth)
+	if checkOrStealmateFound {
+		return result
 	}
 
 	if depth == 0 {
@@ -139,6 +134,18 @@ func negamax(pos Position, ss *SearchState, depth int, alpha int, beta int, pv *
 	}
 
 	return alpha
+}
+
+func validateCheckmateOrStealmate(pos *Position, moves *[]Move, depth *int) (int, bool) {
+	found := len(*moves) == 0
+	if found {
+		if !pos.Check(pos.Turn) {
+			return 0, found
+		}
+		return -MateScore - *depth, found
+	}
+
+	return 0, false
 }
 
 // quiescent performs a quiescent search (evaluates the position, while being careful to avoid overlooking extremely obvious tactical conditions)

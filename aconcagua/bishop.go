@@ -52,18 +52,3 @@ func bishopAttacks(b *Bitboard, pos *Position) (attacks Bitboard) {
 	}
 	return
 }
-
-// TODO: extract to position/piece file
-// nearestPieceInDirection returns a bitboard with the nearest piece in the direction passed
-func nearestPieceInDirection(b *Bitboard, pos *Position, dir uint64) (nearestBlocker Bitboard) {
-	blockers := ^pos.EmptySquares()
-	blockersInDirection := blockers & raysAttacks[dir][Bsf(*b)]
-
-	switch dir {
-	case NORTH, EAST, NORTHEAST, NORTHWEST:
-		nearestBlocker = bitboardFromIndex(Bsf(blockersInDirection))
-	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
-		nearestBlocker = bitboardFromIndex(63 - Bsr(blockersInDirection))
-	}
-	return
-}

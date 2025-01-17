@@ -166,7 +166,7 @@ func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	case WhiteBishop, BlackBishop:
 		attacks |= bishopAttacks(&from, pos)
 	case WhiteKnight, BlackKnight:
-		attacks |= knightAttacks(&from, pos)
+		attacks |= knightAttackSquares[Bsf(from)]
 	case WhitePawn:
 		attacks |= pawnAttacks(&from, pos, White)
 	case BlackPawn:
