@@ -84,18 +84,25 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 
 	en.searching = true
 	score, bestMove := Search(&engine.pos, &engine.searchState, depth, stdout)
+	absScore := abs(score)
 
-	if score >= MateScore || score <= -MateScore {
-		opponentModifier := sideModifier(en.pos.Turn.Opponent())
-		mateIn := ((depth - (opponentModifier*score - MateScore)) + 1) / 2 // moves, not ply!
-
-		stdout <- "info score mate " + strconv.Itoa(opponentModifier*mateIn)
+	if absScore >= MateScore {
+		mateIn := ((depth - (absScore - MateScore)) + 1) / 2 // moves, not ply!
+		stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
 	} else {
 		stdout <- "info score cp " + strconv.Itoa(score)
 	}
 	stdout <- "bestmove " + bestMove[0].ToUci()
 
 	en.searching = false
+}
+
+// abs returns the absolute value of the number passed
+func abs(number int) int {
+	if number < 0 {
+		return -number
+	}
+	return number
 }
 
 // stopCommand
