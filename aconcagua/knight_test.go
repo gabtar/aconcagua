@@ -1,6 +1,8 @@
 package aconcagua
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestKnightAttacks(t *testing.T) {
 	pos := EmptyPosition()
@@ -66,4 +68,20 @@ func TestKnightMovesWhenPinned(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 
+}
+
+func TestNewKnightMoves(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(WhiteKnight, "b1")
+	pos.AddPiece(BlackBishop, "c3")
+	pos.AddPiece(WhiteRook, "a3")
+	pos.AddPiece(WhiteRook, "d2") // Blocks Knight move
+	knightBB := bitboardFromCoordinate("b1")
+
+	expected := []chessMove{encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
+	got := newKnightMoves(&knightBB, pos, White)
+
+	if got[0] != expected[0] {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
 }

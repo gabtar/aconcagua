@@ -14,7 +14,7 @@ func TestPawnAttacks(t *testing.T) {
 	expectedSquares := []string{"d3", "f3"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := pawnAttacks(&pawnBB, pos, White)
+	got := pawnAttacks(&pawnBB, White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -30,7 +30,7 @@ func TestPawnAttacksOnEdgeFiles(t *testing.T) {
 	expectedSquares := []string{"g3"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := pawnAttacks(&pawnBB, pos, White)
+	got := pawnAttacks(&pawnBB, White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -143,6 +143,30 @@ func TestPawnIsNotPinnedIfCapturesThePinnedPiece(t *testing.T) {
 
 	expected := bitboardFromCoordinate("h5")
 	got := pawnMoves(&pawnBB, pos, Black)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestNewPawnsMoves(t *testing.T) {
+	pos := InitialPosition()
+	pawnBB := bitboardFromCoordinate("e2")
+
+	expected := 2
+	got := len(newPawnMoves(pos, &pawnBB, White))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestNewPawnsMovesPromo(t *testing.T) {
+	pos := From("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
+	pawnBB := bitboardFromCoordinate("h7")
+
+	expected := 4
+	got := len(newPawnMoves(pos, &pawnBB, White))
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

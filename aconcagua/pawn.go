@@ -64,7 +64,7 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 
 // pawnMoves returns a Bitboard with the squares a pawn can move to in the passed position
 func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	posibleCaptures := pawnAttacks(p, pos, side) & pos.Pieces(side.Opponent())
+	posibleCaptures := pawnAttacks(p, side) & pos.Pieces(side.Opponent())
 	posibleEnPassant := pawnEnPassantCaptures(p, pos, side)
 	posiblesMoves := Bitboard(0)
 
@@ -87,7 +87,7 @@ func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
 }
 
 // pawnAttacks returns a bitboard with the squares the pawn attacks from the position passed
-func pawnAttacks(p *Bitboard, pos *Position, side Color) (attacks Bitboard) {
+func pawnAttacks(p *Bitboard, side Color) (attacks Bitboard) {
 	notInHFile := *p & ^(*p & files[7])
 	notInAFile := *p & ^(*p & files[0])
 
@@ -114,7 +114,7 @@ func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bi
 		return
 	}
 
-	if pos.CheckingPieces(side) == caughtPawn && (pawnAttacks(p, pos, side)&pos.enPassantTarget) > 0 {
+	if pos.CheckingPieces(side) == caughtPawn && (pawnAttacks(p, side)&pos.enPassantTarget) > 0 {
 		if side == White {
 			enPassant |= caughtPawn << 8
 		} else {
@@ -123,9 +123,85 @@ func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bi
 	}
 
 	enPassant |= pos.enPassantTarget &
-		pawnAttacks(p, pos, side) &
+		pawnAttacks(p, side) &
 		pinRestrictedDirection(*p, side, pos) &
 		checkRestrictedMoves(*p, side, pos)
 
+	return
+}
+
+// newPawnMoves returns a moves array with the new pawn moves in chessMove format
+func newPawnMoves(pos *Position, pawn *Bitboard, side Color) (moves []chessMove) {
+	toSquares := pawnMoves(pawn, pos, side)
+
+	for toSquares > 0 {
+		toSquare := toSquares.NextBit()
+		flag := pawnMoveFlag(pawn, &toSquare, pos, side)
+
+		if flag == knightPromotion || flag == knightCapturePromotion {
+			moves = addPawnPromotions(moves, pawn, toSquare, flag)
+		} else {
+			moves = append(moves, encodeMove(uint16(Bsf(*pawn)), uint16(Bsf(toSquare)), flag))
+		}
+	}
+
+	return moves
+}
+
+func addPawnPromotions(moves []chessMove, from *Bitboard, to Bitboard, flag uint16) []chessMove {
+	promotionTypes := []uint16{
+		knightPromotion, bishopPromotion, rookPromotion, queenPromotion,
+	}
+
+	capturePromotionTypes := []uint16{
+		knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion,
+	}
+
+	if flag == knightPromotion {
+		for _, promotionFlag := range promotionTypes {
+			moves = append(moves, encodeMove(uint16(*from), uint16(to), promotionFlag))
+		}
+	}
+
+	if flag == knightCapturePromotion {
+		for _, capturePromotionFlag := range capturePromotionTypes {
+			moves = append(moves, encodeMove(uint16(*from), uint16(to), capturePromotionFlag))
+		}
+	}
+
+	return moves
+}
+
+// pawnMoveFlag returns the move flag for the pawn move
+func pawnMoveFlag(from *Bitboard, to *Bitboard, pos *Position, side Color) uint16 {
+	availableEnPassant := pawnEnPassantCaptures(from, pos, side)
+	fromSq := Bsf(*from)
+	toSq := Bsf(*to)
+	opponentPieces := pos.Pieces(side.Opponent())
+	promotion := lastRank(side) & *to
+
+	switch {
+	case promotion > 0 && opponentPieces&*to > 0:
+		return knightCapturePromotion
+	case promotion > 0:
+		return knightPromotion
+	case toSq-fromSq == 16 || fromSq-toSq == 16:
+		return doublePawnPush
+	case opponentPieces&*to > 0:
+		return capture
+	case availableEnPassant&*to > 0:
+		return EnPassant
+	default:
+		return quiet
+	}
+}
+
+// lastRank returns the rank of the last rank for the side passed
+func lastRank(side Color) (rank Bitboard) {
+	if side == White {
+		rank = ranks[7]
+	} else {
+		rank = ranks[0]
+	}
 	return
 }

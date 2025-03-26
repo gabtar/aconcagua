@@ -109,3 +109,22 @@ func knightMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 		checkRestrictedMoves(*k, side, pos)
 	return
 }
+
+// newKnightMoves returns a moves array with the knight moves in chessMove format
+func newKnightMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove) {
+	toSquares := knightMoves(from, pos, side)
+	opponentPieces := pos.Pieces(side.Opponent())
+
+	for toSquares > 0 {
+		toSquare := toSquares.NextBit()
+		flag := quiet
+
+		if toSquare&opponentPieces > 0 {
+			flag = capture
+		}
+
+		moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
+	}
+
+	return
+}

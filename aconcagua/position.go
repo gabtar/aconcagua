@@ -168,9 +168,9 @@ func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	case WhiteKnight, BlackKnight:
 		attacks |= knightAttackSquares[Bsf(from)]
 	case WhitePawn:
-		attacks |= pawnAttacks(&from, pos, White)
+		attacks |= pawnAttacks(&from, White)
 	case BlackPawn:
-		attacks |= pawnAttacks(&from, pos, Black)
+		attacks |= pawnAttacks(&from, Black)
 	}
 	return
 }
@@ -319,6 +319,14 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 		}
 	}
 	return
+}
+
+func (pos *Position) newMakeMove(move chessMove) {
+	// need to store the previous board state for when unmake move is called
+	// also for castle rights
+
+	// TODO: implement newMakeMove
+
 }
 
 // MakeMove updates the position by making the move passed as parameter

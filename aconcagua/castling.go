@@ -17,7 +17,7 @@ package aconcagua
 // KQNq = 1101
 // KQkN = 1110
 // KQkq = 1111
-type castling int
+type castling int8
 
 const (
 	q    = castling(0b0001)

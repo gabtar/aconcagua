@@ -145,3 +145,21 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 	}
 
 }
+
+func TestNewRookMoves(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(BlackRook, "a8")
+	pos.AddPiece(WhiteKnight, "a4") // Can move(capture) white knight on a4
+	pos.AddPiece(WhiteKnight, "c8") // Can move(capture) knight on c8
+	rookBB := bitboardFromCoordinate("a8")
+
+	expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
+
+	expected := len(expectedSquares)
+	got := len(newRookMoves(&rookBB, pos, Black))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expectedSquares, got)
+	}
+
+}

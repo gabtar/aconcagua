@@ -36,3 +36,22 @@ func getQueenMoves(q *Bitboard, pos *Position, side Color) (moves []Move) {
 	}
 	return
 }
+
+// newQueenMoves returns a moves array with the queen moves in chessMove format
+func newQueenMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove) {
+	toSquares := bishopMoves(from, pos, side) | rookMoves(from, pos, side)
+	opponentPieces := pos.Pieces(side.Opponent())
+
+	for toSquares > 0 {
+		toSquare := toSquares.NextBit()
+		flag := quiet
+
+		if toSquare&opponentPieces > 0 {
+			flag = capture
+		}
+
+		moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
+	}
+
+	return
+}

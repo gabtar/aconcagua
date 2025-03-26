@@ -122,3 +122,21 @@ func TestBishpMovesWhenTheBishopIsPinned(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestNewBishopMoves(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(WhiteBishop, "g6")
+	pos.AddPiece(WhiteKnight, "e8") // Cannot move, blocked by same color knight
+	pos.AddPiece(WhiteRook, "f5")   // Cannot move to f5, because its blocked by Rook
+	bishopBB := bitboardFromCoordinate("g6")
+
+	expectedSquares := []string{"h7", "h5", "f7"}
+
+	expected := len(expectedSquares)
+	got := len(newBishopMoves(&bishopBB, pos, White))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+}
