@@ -9,7 +9,8 @@ func (pos *Position) Perft(depth int) (nodes uint64) {
 	}
 
 	if depth == 1 {
-		return uint64(len(pos.LegalMoves(pos.Turn)))
+		// return uint64(len(pos.LegalMoves(pos.Turn)))
+		return uint64(len(pos.newLegalMoves()))
 	}
 
 	moves := pos.LegalMoves(pos.Turn)
@@ -27,11 +28,12 @@ func (pos *Position) Perft(depth int) (nodes uint64) {
 func (pos *Position) Divide(depth int) (divide string) {
 	var totalNodes uint64 = 0
 
-	for _, m := range pos.LegalMoves(pos.Turn) {
-		pos.MakeMove(&m)
+	// for _, m := range pos.LegalMoves(pos.Turn) {
+	for _, m := range pos.newLegalMoves() {
+		pos.newMakeMove(m)
 		nodes := pos.Perft(depth - 1)
-		divide += m.ToUci() + " " + strconv.FormatUint(nodes, 10) + ","
-		pos.UnmakeMove(m)
+		divide += m.String() + " " + strconv.FormatUint(nodes, 10) + ","
+		pos.newUnmakeMove(m)
 		totalNodes += nodes
 	}
 

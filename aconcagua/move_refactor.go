@@ -81,30 +81,32 @@ func (m *chessMove) String() (move string) {
 // rule50 -> 6 bit
 // castles... -> separate castle struct
 
-type boardBefore uint32
+type positionBefore uint32
 
-// encodeBoardBefore returns a reference to an encoded board state before the move
-func encodeBoardBefore(pieceMoved uint16, pieceCaptured uint16, epTarget uint16, rule50 uint16) boardBefore {
-	bb := boardBefore(pieceMoved | pieceCaptured<<4 | epTarget<<8 | rule50<<14)
+// encodePositionBefore returns a reference to an encoded board state before the move
+func encodePositionBefore(pieceMoved uint16, pieceCaptured uint16, epTarget uint16, rule50 uint16) positionBefore {
+	rule50uint32 := positionBefore(uint32(rule50) << 15)
+	bb := positionBefore(pieceMoved | pieceCaptured<<4 | epTarget<<8)
+	bb = bb | rule50uint32
 	return bb
 }
 
 // pieceMoved returns the type of the piece pieceMoved
-func (bb *boardBefore) pieceMoved() int {
+func (bb *positionBefore) pieceMoved() int {
 	return int(*bb & 0b1111)
 }
 
 // pieceCaptured returns the type of the piece pieceCaptured
-func (bb *boardBefore) pieceCaptured() int {
+func (bb *positionBefore) pieceCaptured() int {
 	return int((*bb & (0b1111 << 4)) >> 4)
 }
 
 // epTarget returns the en passant target square
-func (bb *boardBefore) epTarget() int {
+func (bb *positionBefore) epTarget() int {
 	return int((*bb & (0b111111 << 8)) >> 8)
 }
 
 // rule50 returns the rule50 counter before the move
-func (bb *boardBefore) rule50() int {
-	return int((*bb & (0b111111 << 14)) >> 14)
+func (bb *positionBefore) rule50() int {
+	return int((*bb & (0b111111 << 15)) >> 15)
 }

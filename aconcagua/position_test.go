@@ -662,3 +662,81 @@ func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestNewMakeMoveWithEpCapture(t *testing.T) {
+	pos := From("5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1")
+
+	from := Bsf(bitboardFromCoordinate("d5"))
+	to := Bsf(bitboardFromCoordinate("c6"))
+
+	move := encodeMove(uint16(from), uint16(to), epCapture)
+
+	expected := "5rk1/pp3ppp/2P1pn2/8/8/2P3P1/PP3PBP/4R1K1 b - - 0 1"
+
+	pos.newMakeMove(move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestNewMakeMoveWithPromotionCapture(t *testing.T) {
+	pos := From("8/8/2kq1N2/2pp4/1p6/4R3/p4PPP/1N4K1 b - - 0 1")
+
+	from := Bsf(bitboardFromCoordinate("a2"))
+	to := Bsf(bitboardFromCoordinate("b1"))
+
+	move := encodeMove(uint16(from), uint16(to), queenCapturePromotion)
+
+	expected := "8/8/2kq1N2/2pp4/1p6/4R3/5PPP/1q4K1 w - - 0 2"
+
+	pos.newMakeMove(move)
+
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestNewUnmakeMoveWithEpCapture(t *testing.T) {
+	pos := From("5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1")
+
+	from := Bsf(bitboardFromCoordinate("d5"))
+	to := Bsf(bitboardFromCoordinate("c6"))
+
+	move := encodeMove(uint16(from), uint16(to), epCapture)
+	pos.newMakeMove(move)
+
+	pos.newUnmakeMove(move)
+
+	expected := "5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1"
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+}
+
+func TestNewUnmakeMoveWithKinigtMatePromotion(t *testing.T) {
+	pos := From("8/p7/1pkb4/2p5/8/6PP/5pNK/6BQ b - - 50 1")
+
+	from := Bsf(bitboardFromCoordinate("f2"))
+	to := Bsf(bitboardFromCoordinate("f1"))
+
+	move := encodeMove(uint16(from), uint16(to), knightPromotion)
+
+	pos.newMakeMove(move)
+	pos.newUnmakeMove(move)
+
+	expected := "8/p7/1pkb4/2p5/8/6PP/5pNK/6BQ b - - 50 1"
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+}

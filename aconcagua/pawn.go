@@ -131,17 +131,17 @@ func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bi
 }
 
 // newPawnMoves returns a moves array with the new pawn moves in chessMove format
-func newPawnMoves(pos *Position, pawn *Bitboard, side Color) (moves []chessMove) {
-	toSquares := pawnMoves(pawn, pos, side)
+func newPawnMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove) {
+	toSquares := pawnMoves(from, pos, side)
 
 	for toSquares > 0 {
 		toSquare := toSquares.NextBit()
-		flag := pawnMoveFlag(pawn, &toSquare, pos, side)
+		flag := pawnMoveFlag(from, &toSquare, pos, side)
 
 		if flag == knightPromotion || flag == knightCapturePromotion {
-			moves = addPawnPromotions(moves, pawn, toSquare, flag)
+			moves = addPawnPromotions(moves, from, toSquare, flag)
 		} else {
-			moves = append(moves, encodeMove(uint16(Bsf(*pawn)), uint16(Bsf(toSquare)), flag))
+			moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), flag))
 		}
 	}
 
@@ -159,13 +159,13 @@ func addPawnPromotions(moves []chessMove, from *Bitboard, to Bitboard, flag uint
 
 	if flag == knightPromotion {
 		for _, promotionFlag := range promotionTypes {
-			moves = append(moves, encodeMove(uint16(*from), uint16(to), promotionFlag))
+			moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(to)), promotionFlag))
 		}
 	}
 
 	if flag == knightCapturePromotion {
 		for _, capturePromotionFlag := range capturePromotionTypes {
-			moves = append(moves, encodeMove(uint16(*from), uint16(to), capturePromotionFlag))
+			moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(to)), capturePromotionFlag))
 		}
 	}
 

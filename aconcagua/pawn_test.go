@@ -154,7 +154,7 @@ func TestNewPawnsMoves(t *testing.T) {
 	pawnBB := bitboardFromCoordinate("e2")
 
 	expected := 2
-	got := len(newPawnMoves(pos, &pawnBB, White))
+	got := len(newPawnMoves(&pawnBB, pos, White))
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -166,7 +166,7 @@ func TestNewPawnsMovesPromo(t *testing.T) {
 	pawnBB := bitboardFromCoordinate("h7")
 
 	expected := 4
-	got := len(newPawnMoves(pos, &pawnBB, White))
+	got := len(newPawnMoves(&pawnBB, pos, White))
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

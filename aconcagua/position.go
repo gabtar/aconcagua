@@ -22,6 +22,7 @@ const (
 	BlackBishop
 	BlackKnight
 	BlackPawn
+	NoPiece
 	// Constants for reference to piece type
 	King
 	Queen
@@ -96,8 +97,10 @@ type Position struct {
 	enPassantTarget Bitboard
 	halfmoveClock   int
 	fullmoveNumber  int
+	positionHistory PositionHistory
 }
 
+// TODO: create a no piece/empty square constant instead of error
 // pieceAt returns a Piece at the given square coordinate in the Position or error
 func (pos *Position) PieceAt(square string) (piece Piece, e error) {
 	bitboardSquare := bitboardFromCoordinate(square)
@@ -109,12 +112,17 @@ func (pos *Position) PieceAt(square string) (piece Piece, e error) {
 		}
 	}
 
+	piece = NoPiece
 	e = errors.New("no piece")
 	return
 }
 
 // addPiece adds to the position the Piece passed in the square passed
 func (pos *Position) AddPiece(piece Piece, square string) {
+	if piece == NoPiece {
+		return
+	}
+
 	bitboardSquare := bitboardFromCoordinate(square)
 	pos.Bitboards[piece] |= bitboardSquare
 }
@@ -270,6 +278,33 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 	return
 }
 
+// newLegalMoves returns an slice of Move of all legal moves for the side passed
+func (pos *Position) newLegalMoves() (moves []chessMove) {
+	bitboards := pos.getBitboards(pos.Turn)
+
+	for piece, bb := range bitboards {
+		for bb > 0 {
+			pieceBB := bb.NextBit()
+			switch piece {
+			case 0:
+				moves = append(moves, newKingMoves(&pieceBB, pos, pos.Turn)...)
+			case 1:
+				moves = append(moves, newQueenMoves(&pieceBB, pos, pos.Turn)...)
+			case 2:
+				moves = append(moves, newRookMoves(&pieceBB, pos, pos.Turn)...)
+			case 3:
+				moves = append(moves, newBishopMoves(&pieceBB, pos, pos.Turn)...)
+			case 4:
+				moves = append(moves, newKnightMoves(&pieceBB, pos, pos.Turn)...)
+			case 5:
+				moves = append(moves, newPawnMoves(&pieceBB, pos, pos.Turn)...)
+			}
+		}
+	}
+
+	return
+}
+
 // legalCastles returns the castles moves the passed side can make
 func (pos *Position) legalCastles(side Color) (castle []Move) {
 	// TODO: refactor for better readability
@@ -321,12 +356,119 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 	return
 }
 
+// newMakeMove executes a chess move, updating the board state
 func (pos *Position) newMakeMove(move chessMove) {
-	// need to store the previous board state for when unmake move is called
-	// also for castle rights
+	pieceToMove, _ := pos.PieceAt(squareReference[move.from()])
+	pieceCaptured := pos.getCapturedPiece(move)
 
-	// TODO: implement newMakeMove
+	positionBefore := encodePositionBefore(
+		uint16(pieceToMove),
+		uint16(pieceCaptured),
+		uint16(Bsf(pos.enPassantTarget)),
+		uint16(pos.halfmoveClock),
+	)
+	pos.positionHistory.add(positionBefore, pos.castlingRights)
 
+	pos.RemovePiece(bitboardFromIndex(move.from()))
+	pos.updateMoveState()
+	pos.handleSpecialMoveTypes(move, &pieceToMove)
+
+	pos.Turn = pos.Turn.Opponent()
+	pos.AddPiece(pieceToMove, squareReference[move.to()])
+	pos.Hash = zobristHash(pos)
+}
+
+// updateMoveState resets and updates move-related state
+func (pos *Position) updateMoveState() {
+	pos.enPassantTarget = 0
+	pos.halfmoveClock++
+
+	if pos.Turn == Black {
+		pos.fullmoveNumber++
+	}
+}
+
+// handleSpecialMoveTypes processes different types of chess moves
+func (pos *Position) handleSpecialMoveTypes(move chessMove, pieceToMove *Piece) {
+	switch flag := move.flag(); flag {
+	case quiet:
+		pos.handleQuietMove(*pieceToMove)
+	case doublePawnPush:
+		pos.handleDoublePawnPush(move, *pieceToMove)
+	case capture:
+		pos.handleCapture(move)
+	case knightPromotion, bishopPromotion, rookPromotion, queenPromotion,
+		knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion:
+		pos.handlePromotion(move, flag, pieceToMove)
+	case kingsideCastle, queensideCastle:
+		moveRookOnCastleMove(pos, castleType[move.String()])
+	case epCapture:
+		pos.handleEnPassantCapture(move, *pieceToMove)
+	}
+}
+
+// handleQuietMove resets halfmove clock for pawn moves
+func (pos *Position) handleQuietMove(pieceToMove Piece) {
+	if pieceToMove == WhitePawn || pieceToMove == BlackPawn {
+		pos.halfmoveClock = 0
+	}
+}
+
+// handleDoublePawnPush sets en passant target square
+func (pos *Position) handleDoublePawnPush(move chessMove, pieceToMove Piece) {
+	if pieceToMove == WhitePawn {
+		pos.enPassantTarget = bitboardFromIndex(move.to()) >> 8
+	} else {
+		pos.enPassantTarget = bitboardFromIndex(move.to()) << 8
+	}
+}
+
+// handleCapture removes captured piece and resets halfmove clock
+func (pos *Position) handleCapture(move chessMove) {
+	pos.RemovePiece(bitboardFromIndex(move.to()))
+	pos.halfmoveClock = 0
+}
+
+// handlePromotion processes pawn promotion
+func (pos *Position) handlePromotion(move chessMove, flag int, pieceToMove *Piece) {
+	pos.RemovePiece(bitboardFromIndex(move.to()))
+	*pieceToMove = getPromotedToPiece(flag, pos.Turn)
+
+	pos.halfmoveClock = 0
+}
+
+// handleEnPassantCapture removes the captured pawn in en passant
+func (pos *Position) handleEnPassantCapture(move chessMove, pieceToMove Piece) {
+	if pieceToMove == WhitePawn {
+		pos.Bitboards[BlackPawn] ^= bitboardFromIndex(move.to()) >> 8
+	} else {
+		pos.Bitboards[WhitePawn] ^= bitboardFromIndex(move.to()) << 8
+	}
+	pos.halfmoveClock = 0
+}
+
+// getPromotedToPiece returns the piece promoted to based on the flag passed
+func getPromotedToPiece(flag int, side Color) (piece Piece) {
+	switch flag {
+	case knightPromotion, knightCapturePromotion:
+		return pieceOfColor[Knight][side]
+	case bishopPromotion, bishopCapturePromotion:
+		return pieceOfColor[Bishop][side]
+	case rookPromotion, rookCapturePromotion:
+		return pieceOfColor[Rook][side]
+	case queenCapturePromotion, queenPromotion:
+		return pieceOfColor[Queen][side]
+	}
+	return NoPiece
+}
+
+// getCapturedPiece determines the piece captured in the move
+func (pos *Position) getCapturedPiece(move chessMove) Piece {
+	if move.flag() == epCapture {
+		return pieceOfColor[Pawn][pos.Turn.Opponent()]
+	}
+	pieceCaptured, _ := pos.PieceAt(squareReference[move.to()])
+	return pieceCaptured
 }
 
 // MakeMove updates the position by making the move passed as parameter
@@ -346,7 +488,6 @@ func (pos *Position) MakeMove(move *Move) {
 		if move.Piece() == int(WhitePawn) || move.Piece() == int(BlackPawn) {
 			pos.halfmoveClock = 0
 		}
-		updateCastleRights(pos, move)
 	case PawnDoublePush:
 		if move.Piece() == int(WhitePawn) {
 			pos.enPassantTarget = bitboardFromIndex(move.To()) >> 8
@@ -357,14 +498,12 @@ func (pos *Position) MakeMove(move *Move) {
 	case Capture:
 		pos.RemovePiece(bitboardFromIndex(move.To()))
 		pos.halfmoveClock = 0
-		updateCastleRights(pos, move)
 	case Promotion:
 		pos.RemovePiece(bitboardFromIndex(move.To()))
 		pieceToAdd = Piece(move.promotedTo())
 		pos.halfmoveClock = 0
 	case Castle:
 		moveRookOnCastleMove(pos, castleType[move.ToUci()])
-		updateCastleRights(pos, move)
 	case EnPassant:
 		if move.Piece() == int(WhitePawn) {
 			pos.Bitboards[BlackPawn] ^= move.epTargetBefore() >> 8
@@ -373,7 +512,9 @@ func (pos *Position) MakeMove(move *Move) {
 		}
 		pos.halfmoveClock = 0
 	}
+
 	pos.Turn = pos.Turn.Opponent()
+	updateCastleRights(pos, move)
 
 	pos.AddPiece(pieceToAdd, squareReference[move.To()])
 
@@ -418,6 +559,42 @@ func (pos *Position) UnmakeMove(move Move) {
 	// Add piece to destination sqaure
 	pos.AddPiece(pieceToAdd, squareReference[move.from()])
 
+	pos.Hash = zobristHash(pos)
+	return
+}
+
+// newUnmakeMove undoes a the passed move in the postion
+func (pos *Position) newUnmakeMove(move chessMove) {
+	prevState, castle := pos.positionHistory.pop()
+	pos.RemovePiece(bitboardFromIndex(move.to()))
+
+	if pos.Turn == White {
+		pos.fullmoveNumber--
+	}
+
+	if prevState.epTarget() > 0 {
+		pos.enPassantTarget = bitboardFromIndex(prevState.epTarget())
+	}
+	pos.halfmoveClock = prevState.rule50()
+	pos.castlingRights = castle
+
+	pieceToAdd := Piece(prevState.pieceMoved())
+
+	switch flag := move.flag(); flag {
+	case capture, knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion:
+		pos.AddPiece(Piece(prevState.pieceCaptured()), squareReference[move.to()])
+	case queensideCastle, kingsideCastle:
+		restoreRookOnCastle(pos, castleType[move.String()])
+	case epCapture:
+		restoreSq := move.to() + 8           // 1 rank up
+		if pieceColor[pieceToAdd] == White { // White ep capture
+			restoreSq = move.to() - 8 // 1 rank down
+		}
+		pos.AddPiece(pieceOfColor[Pawn][pos.Turn], squareReference[restoreSq])
+	}
+
+	pos.Turn = pos.Turn.Opponent()
+	pos.AddPiece(pieceToAdd, squareReference[move.from()])
 	pos.Hash = zobristHash(pos)
 	return
 }
@@ -500,7 +677,6 @@ func (pos *Position) ToFen() (fen string) {
 		if blankSquares > 0 {
 			fen += string(rune(blankSquares + 48))
 		}
-		// En todos menos el ultimo
 		if rank != 0 {
 			fen += "/"
 		}
@@ -595,12 +771,6 @@ func (pos *Position) bishops(side Color) Bitboard {
 	}
 }
 
-// drawAvailableBy50MoveRule returns whenever if possible to claim draw by the
-// 50 move rule
-func (pos *Position) drawAvailableBy50MoveRule() bool {
-	return pos.halfmoveClock >= 50
-}
-
 // Print prints the Position to the terminal from white's view perspective
 func (pos *Position) String() string {
 	position := ""
@@ -645,7 +815,7 @@ func toRuneArray(pos *Position) [64]rune {
 
 // From creates a new Position struct from a fen string
 func From(fen string) (pos *Position) {
-	// FIX this does not validate the fen string at all!!!!!!
+	// FIX: this does not validate the fen string at all!!!!!!
 	pos = EmptyPosition()
 	elements := strings.Split(fen, " ")
 
