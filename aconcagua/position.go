@@ -368,6 +368,7 @@ func (pos *Position) newMakeMove(move chessMove) {
 		uint16(pos.halfmoveClock),
 	)
 	pos.positionHistory.add(positionBefore, pos.castlingRights)
+	newUpdateCastleRights(pos, move)
 
 	pos.RemovePiece(bitboardFromIndex(move.from()))
 	pos.updateMoveState()
@@ -591,6 +592,8 @@ func (pos *Position) newUnmakeMove(move chessMove) {
 			restoreSq = move.to() - 8 // 1 rank down
 		}
 		pos.AddPiece(pieceOfColor[Pawn][pos.Turn], squareReference[restoreSq])
+	case doublePawnPush:
+		pos.enPassantTarget = 0
 	}
 
 	pos.Turn = pos.Turn.Opponent()
@@ -652,6 +655,43 @@ func updateCastleRights(pos *Position, move *Move) {
 			pos.castlingRights.remove(k)
 		}
 	}
+}
+
+func newUpdateCastleRights(pos *Position, move chessMove) {
+	piece, _ := pos.PieceAt(squareReference[move.from()])
+	switch piece {
+	case WhiteKing:
+		pos.castlingRights.remove(K | Q)
+	case WhiteRook:
+		if move.from() == Bsf(bitboardFromCoordinate("h1")) {
+			pos.castlingRights.remove(K)
+		} else {
+			pos.castlingRights.remove(Q)
+		}
+	case BlackKing:
+		pos.castlingRights.remove(k | q)
+	case BlackRook:
+		if move.from() == Bsf(bitboardFromCoordinate("h8")) {
+			pos.castlingRights.remove(k)
+		} else {
+			pos.castlingRights.remove(q)
+		}
+	}
+
+	capturedPiece, _ := pos.PieceAt(squareReference[move.to()])
+	if move.flag() == Capture || move.flag() == Promotion {
+		switch {
+		case move.to() == 0 && capturedPiece == WhiteRook:
+			pos.castlingRights.remove(Q)
+		case move.to() == 7 && capturedPiece == WhiteRook:
+			pos.castlingRights.remove(K)
+		case move.to() == 56 && capturedPiece == BlackRook:
+			pos.castlingRights.remove(q)
+		case move.to() == 63 && capturedPiece == BlackRook:
+			pos.castlingRights.remove(k)
+		}
+	}
+
 }
 
 // ToFen serializes the position as a fen string

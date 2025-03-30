@@ -13,12 +13,12 @@ func (pos *Position) Perft(depth int) (nodes uint64) {
 		return uint64(len(pos.newLegalMoves()))
 	}
 
-	moves := pos.LegalMoves(pos.Turn)
+	moves := pos.newLegalMoves()
 
 	for _, move := range moves {
-		pos.MakeMove(&move)
+		pos.newMakeMove(move)
 		nodes += pos.Perft(depth - 1)
-		pos.UnmakeMove(move)
+		pos.newUnmakeMove(move)
 	}
 
 	return nodes

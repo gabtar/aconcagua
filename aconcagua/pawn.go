@@ -190,7 +190,7 @@ func pawnMoveFlag(from *Bitboard, to *Bitboard, pos *Position, side Color) uint1
 	case opponentPieces&*to > 0:
 		return capture
 	case availableEnPassant&*to > 0:
-		return EnPassant
+		return epCapture
 	default:
 		return quiet
 	}

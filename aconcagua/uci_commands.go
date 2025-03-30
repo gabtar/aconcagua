@@ -17,6 +17,7 @@ var uciCommands map[string]UciCommand = map[string]UciCommand{
 	"go":       goCommand,
 	"stop":     stopCommand,
 
+	// utility/debug commands
 	"d":      printBoardCommand,
 	"perft":  perftCommand,
 	"divide": divideCommand,
