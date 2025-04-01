@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type UciCommand func(en *Engine, stdout chan string, params ...string)
@@ -152,12 +153,15 @@ func printBoardCommand(en *Engine, stdout chan string, params ...string) {
 
 // perftCommand returns the number of moves up to the passed depth for the current position
 func perftCommand(en *Engine, stdout chan string, params ...string) {
+	start := time.Now()
 	depth, err := strconv.Atoi(params[0])
 	if err != nil {
 		stdout <- "invalid command"
 		return
 	}
 	stdout <- "nodes " + strconv.FormatUint(engine.pos.Perft(depth), 10)
+	depthTime := time.Since(start)
+	stdout <- fmt.Sprintf("info time %v seconds", depthTime.Seconds())
 }
 
 // divide returns the number of moves up to the depth passed for each move of the current position

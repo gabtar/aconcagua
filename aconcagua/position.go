@@ -279,30 +279,30 @@ func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
 }
 
 // newLegalMoves returns an slice of Move of all legal moves for the side passed
-func (pos *Position) newLegalMoves() (moves []chessMove) {
+func (pos *Position) newLegalMoves() *moveList {
 	bitboards := pos.getBitboards(pos.Turn)
+	ml := newMoveList()
 
 	for piece, bb := range bitboards {
 		for bb > 0 {
 			pieceBB := bb.NextBit()
 			switch piece {
 			case 0:
-				moves = append(moves, newKingMoves(&pieceBB, pos, pos.Turn)...)
+				newKingMoves(&pieceBB, pos, pos.Turn, ml)
 			case 1:
-				moves = append(moves, newQueenMoves(&pieceBB, pos, pos.Turn)...)
+				newQueenMoves(&pieceBB, pos, pos.Turn, ml)
 			case 2:
-				moves = append(moves, newRookMoves(&pieceBB, pos, pos.Turn)...)
+				newRookMoves(&pieceBB, pos, pos.Turn, ml)
 			case 3:
-				moves = append(moves, newBishopMoves(&pieceBB, pos, pos.Turn)...)
+				newBishopMoves(&pieceBB, pos, pos.Turn, ml)
 			case 4:
-				moves = append(moves, newKnightMoves(&pieceBB, pos, pos.Turn)...)
+				newKnightMoves(&pieceBB, pos, pos.Turn, ml)
 			case 5:
-				moves = append(moves, newPawnMoves(&pieceBB, pos, pos.Turn)...)
+				newPawnMoves(&pieceBB, pos, pos.Turn, ml)
 			}
 		}
 	}
-
-	return
+	return ml
 }
 
 // legalCastles returns the castles moves the passed side can make
@@ -357,7 +357,7 @@ func (pos *Position) legalCastles(side Color) (castle []Move) {
 }
 
 // newMakeMove executes a chess move, updating the board state
-func (pos *Position) newMakeMove(move chessMove) {
+func (pos *Position) newMakeMove(move *chessMove) {
 	pieceToMove, _ := pos.PieceAt(squareReference[move.from()])
 	pieceCaptured := pos.getCapturedPiece(move)
 
@@ -390,21 +390,21 @@ func (pos *Position) updateMoveState() {
 }
 
 // handleSpecialMoveTypes processes different types of chess moves
-func (pos *Position) handleSpecialMoveTypes(move chessMove, pieceToMove *Piece) {
+func (pos *Position) handleSpecialMoveTypes(move *chessMove, pieceToMove *Piece) {
 	switch flag := move.flag(); flag {
 	case quiet:
 		pos.handleQuietMove(*pieceToMove)
 	case doublePawnPush:
-		pos.handleDoublePawnPush(move, *pieceToMove)
+		pos.handleDoublePawnPush(*move, *pieceToMove)
 	case capture:
-		pos.handleCapture(move)
+		pos.handleCapture(*move)
 	case knightPromotion, bishopPromotion, rookPromotion, queenPromotion,
 		knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion:
-		pos.handlePromotion(move, flag, pieceToMove)
+		pos.handlePromotion(*move, flag, pieceToMove)
 	case kingsideCastle, queensideCastle:
 		moveRookOnCastleMove(pos, castleType[move.String()])
 	case epCapture:
-		pos.handleEnPassantCapture(move, *pieceToMove)
+		pos.handleEnPassantCapture(*move, *pieceToMove)
 	}
 }
 
@@ -464,7 +464,7 @@ func getPromotedToPiece(flag int, side Color) (piece Piece) {
 }
 
 // getCapturedPiece determines the piece captured in the move
-func (pos *Position) getCapturedPiece(move chessMove) Piece {
+func (pos *Position) getCapturedPiece(move *chessMove) Piece {
 	if move.flag() == epCapture {
 		return pieceOfColor[Pawn][pos.Turn.Opponent()]
 	}
@@ -565,7 +565,7 @@ func (pos *Position) UnmakeMove(move Move) {
 }
 
 // newUnmakeMove undoes a the passed move in the postion
-func (pos *Position) newUnmakeMove(move chessMove) {
+func (pos *Position) newUnmakeMove(move *chessMove) {
 	prevState, castle := pos.positionHistory.pop()
 	pos.RemovePiece(bitboardFromIndex(move.to()))
 
@@ -657,7 +657,7 @@ func updateCastleRights(pos *Position, move *Move) {
 	}
 }
 
-func newUpdateCastleRights(pos *Position, move chessMove) {
+func newUpdateCastleRights(pos *Position, move *chessMove) {
 	piece, _ := pos.PieceAt(squareReference[move.from()])
 	switch piece {
 	case WhiteKing:

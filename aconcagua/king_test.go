@@ -194,9 +194,11 @@ func TestNewKingMoves(t *testing.T) {
 	pos.AddPiece(WhiteRook, "a1")
 	pos.castlingRights = KQ
 	kingBB := bitboardFromCoordinate("e1")
+	ml := newMoveList()
 
 	expected := 7
-	got := len(newKingMoves(&kingBB, pos, White))
+	newKingMoves(&kingBB, pos, White, ml)
+	got := ml.length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

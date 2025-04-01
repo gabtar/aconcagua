@@ -79,7 +79,7 @@ func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	}
 
 	moves = (posibleCaptures|posiblesMoves)&
-		pinRestrictedDirection(*p, side, pos)&
+		pinRestrictedDirection(p, side, pos)&
 		checkRestrictedMoves(*p, side, pos) |
 		posibleEnPassant
 
@@ -124,14 +124,14 @@ func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bi
 
 	enPassant |= pos.enPassantTarget &
 		pawnAttacks(p, side) &
-		pinRestrictedDirection(*p, side, pos) &
+		pinRestrictedDirection(p, side, pos) &
 		checkRestrictedMoves(*p, side, pos)
 
 	return
 }
 
 // newPawnMoves returns a moves array with the new pawn moves in chessMove format
-func newPawnMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove) {
+func newPawnMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 	toSquares := pawnMoves(from, pos, side)
 
 	for toSquares > 0 {
@@ -139,16 +139,15 @@ func newPawnMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove)
 		flag := pawnMoveFlag(from, &toSquare, pos, side)
 
 		if flag == knightPromotion || flag == knightCapturePromotion {
-			moves = addPawnPromotions(moves, from, toSquare, flag)
+			addPawnPromotions(ml, from, toSquare, flag)
 		} else {
-			moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), flag))
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), flag))
 		}
 	}
-
-	return moves
 }
 
-func addPawnPromotions(moves []chessMove, from *Bitboard, to Bitboard, flag uint16) []chessMove {
+// addPawnPromotions add the 4 different promotions to the move list
+func addPawnPromotions(ml *moveList, from *Bitboard, to Bitboard, flag uint16) {
 	promotionTypes := []uint16{
 		knightPromotion, bishopPromotion, rookPromotion, queenPromotion,
 	}
@@ -159,22 +158,19 @@ func addPawnPromotions(moves []chessMove, from *Bitboard, to Bitboard, flag uint
 
 	if flag == knightPromotion {
 		for _, promotionFlag := range promotionTypes {
-			moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(to)), promotionFlag))
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(to)), promotionFlag))
 		}
 	}
 
 	if flag == knightCapturePromotion {
 		for _, capturePromotionFlag := range capturePromotionTypes {
-			moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(to)), capturePromotionFlag))
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(to)), capturePromotionFlag))
 		}
 	}
-
-	return moves
 }
 
 // pawnMoveFlag returns the move flag for the pawn move
 func pawnMoveFlag(from *Bitboard, to *Bitboard, pos *Position, side Color) uint16 {
-	availableEnPassant := pawnEnPassantCaptures(from, pos, side)
 	fromSq := Bsf(*from)
 	toSq := Bsf(*to)
 	opponentPieces := pos.Pieces(side.Opponent())
@@ -189,7 +185,7 @@ func pawnMoveFlag(from *Bitboard, to *Bitboard, pos *Position, side Color) uint1
 		return doublePawnPush
 	case opponentPieces&*to > 0:
 		return capture
-	case availableEnPassant&*to > 0:
+	case (pos.enPassantTarget > 0) && (pos.enPassantTarget&*to) > 0:
 		return epCapture
 	default:
 		return quiet

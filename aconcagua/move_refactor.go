@@ -27,9 +27,9 @@ const (
 type chessMove uint16
 
 // encodeMove returns a reference to an encoded chess move with the values passed
-func encodeMove(from uint16, to uint16, flag uint16) chessMove {
+func encodeMove(from uint16, to uint16, flag uint16) *chessMove {
 	mv := chessMove(from | to<<6 | flag<<12)
-	return mv
+	return &mv
 }
 
 // from returns the number of the origin square of the move in Little-Endian Rank-File Mapping notation

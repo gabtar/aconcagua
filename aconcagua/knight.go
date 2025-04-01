@@ -102,7 +102,7 @@ func getKnightMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 // knightMoves returns a bitboard with the legal moves of the knight from the bitboard passed
 func knightMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	// If the knight is pinned it can move at all
-	if isPinned(*k, side, pos) {
+	if isPinned(k, side, pos) {
 		return Bitboard(0)
 	}
 	moves = knightAttackSquares[Bsf(*k)] & ^pos.Pieces(side) &
@@ -111,7 +111,7 @@ func knightMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 }
 
 // newKnightMoves returns a moves array with the knight moves in chessMove format
-func newKnightMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove) {
+func newKnightMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 	toSquares := knightMoves(from, pos, side)
 	opponentPieces := pos.Pieces(side.Opponent())
 
@@ -123,8 +123,6 @@ func newKnightMoves(from *Bitboard, pos *Position, side Color) (moves []chessMov
 			flag = capture
 		}
 
-		moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
 	}
-
-	return
 }

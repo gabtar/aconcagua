@@ -34,7 +34,7 @@ func getBishopMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
 // bishopMoves returns a bitboard with the legal moves of the bishop from the bitboard passed
 func bishopMoves(b *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	return bishopAttacks(b, pos) & ^pos.Pieces(side) &
-		pinRestrictedDirection(*b, side, pos) &
+		pinRestrictedDirection(b, side, pos) &
 		checkRestrictedMoves(*b, side, pos)
 }
 
@@ -54,7 +54,7 @@ func bishopAttacks(b *Bitboard, pos *Position) (attacks Bitboard) {
 }
 
 // newBishopMoves returns a moves array with the bishop moves in chessMove format
-func newBishopMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove) {
+func newBishopMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 	toSquares := bishopMoves(from, pos, side)
 	opponentPieces := pos.Pieces(side.Opponent())
 
@@ -66,7 +66,7 @@ func newBishopMoves(from *Bitboard, pos *Position, side Color) (moves []chessMov
 			flag = capture
 		}
 
-		moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
 	}
 
 	return

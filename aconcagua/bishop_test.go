@@ -129,11 +129,13 @@ func TestNewBishopMoves(t *testing.T) {
 	pos.AddPiece(WhiteKnight, "e8") // Cannot move, blocked by same color knight
 	pos.AddPiece(WhiteRook, "f5")   // Cannot move to f5, because its blocked by Rook
 	bishopBB := bitboardFromCoordinate("g6")
+	ml := newMoveList()
 
 	expectedSquares := []string{"h7", "h5", "f7"}
 
 	expected := len(expectedSquares)
-	got := len(newBishopMoves(&bishopBB, pos, White))
+	newBishopMoves(&bishopBB, pos, White, ml)
+	got := ml.length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

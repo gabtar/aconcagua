@@ -34,7 +34,7 @@ func getRookMoves(r *Bitboard, pos *Position, side Color) (moves []Move) {
 // rookMoves returns a bitboard with the legal moves of the rook from the bitboard passed
 func rookMoves(r *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	return rookAttacks(r, pos) & ^pos.Pieces(side) &
-		pinRestrictedDirection(*r, side, pos) &
+		pinRestrictedDirection(r, side, pos) &
 		checkRestrictedMoves(*r, side, pos)
 }
 
@@ -54,7 +54,7 @@ func rookAttacks(r *Bitboard, pos *Position) (attacks Bitboard) {
 }
 
 // newRookMoves returns a moves array with the rook moves in chessMove format
-func newRookMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove) {
+func newRookMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 	toSquares := rookMoves(from, pos, side)
 	opponentPieces := pos.Pieces(side.Opponent())
 
@@ -66,8 +66,6 @@ func newRookMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove)
 			flag = capture
 		}
 
-		moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
 	}
-
-	return
 }

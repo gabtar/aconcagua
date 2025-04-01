@@ -24,9 +24,11 @@ func TestGetDirectionNorth(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BlackKing, "e1")
 	pos.AddPiece(BlackRook, "e8")
+	from := bitboardFromCoordinate("e8")
+	to := bitboardFromCoordinate("e1")
 
 	expected := NORTH
-	got := getDirection(bitboardFromCoordinate("e8"), bitboardFromCoordinate("e1")) // king -> rook == NORTH
+	got := getDirection(&from, &to) // king -> rook == NORTH
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -37,9 +39,11 @@ func TestGetDirectionSouth(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BlackKing, "e1")
 	pos.AddPiece(BlackRook, "e8")
+	from := bitboardFromCoordinate("e1")
+	to := bitboardFromCoordinate("e8")
 
 	expected := SOUTH
-	got := getDirection(bitboardFromCoordinate("e1"), bitboardFromCoordinate("e8")) // rook -> king == SOUTH
+	got := getDirection(&from, &to) // rook -> king == SOUTH
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -50,9 +54,11 @@ func TestGetDirectionSouthWest(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BlackKing, "e4")
 	pos.AddPiece(BlackRook, "d3")
+	from := bitboardFromCoordinate("d3")
+	to := bitboardFromCoordinate("e4")
 
 	expected := SOUTHWEST
-	got := getDirection(bitboardFromCoordinate("d3"), bitboardFromCoordinate("e4")) // king -> rook == SOUTHWEST
+	got := getDirection(&from, &to) // king -> rook == SOUTHWEST
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -63,11 +69,13 @@ func TestGetRayPath(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BlackRook, "c4")
 	pos.AddPiece(WhiteRook, "f4")
+	from := bitboardFromCoordinate("c4")
+	to := bitboardFromCoordinate("f4")
 
 	expectedSquares := []string{"d4", "e4"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := getRayPath(bitboardFromCoordinate("c4"), bitboardFromCoordinate("f4"))
+	got := getRayPath(&from, &to)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -80,9 +88,10 @@ func TestPinnedPiece(t *testing.T) {
 	pos.AddPiece(BlackRook, "c6")
 	pos.AddPiece(WhiteRook, "c1")
 	blackRook, _ := pos.PieceAt("c6")
+	from := bitboardFromCoordinate("c6")
 
 	expected := true
-	got := isPinned(bitboardFromCoordinate("c6"), pieceColor[blackRook], pos)
+	got := isPinned(&from, pieceColor[blackRook], pos)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -92,9 +101,10 @@ func TestPinnedPiece(t *testing.T) {
 func TestPinnedPieceKnightFail(t *testing.T) {
 	pos := From("rnQq1k1r/pp2bppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R b KQ - 1 8")
 	blackKnight, _ := pos.PieceAt("b8")
+	from := bitboardFromCoordinate("b8")
 
 	expected := false
-	got := isPinned(bitboardFromCoordinate("b8"), pieceColor[blackKnight], pos)
+	got := isPinned(&from, pieceColor[blackKnight], pos)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

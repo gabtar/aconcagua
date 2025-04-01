@@ -16,12 +16,13 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 - [ ] Do/clear TODOs/Ideas...
 
-#### Move generation:
-- [ ] Try to improve make and unmake move
-- [ ] Use an uint16/32 for move encoding and an uint16/32 for a 'history board state'
-- [ ] Refactor to use a serializeMove/moveFactory constructor instead of the builder
-- [ ] Add an specific function to get only captures/checks moves for quiescent
-- [ ] Use a move list/array, so as to get rid of 'appends' in moves(it should improve search performance)
+#### Move generation optimizations:
+- [x] Try to improve make and unmake move
+- [x] Use an uint16/32 for move encoding and an uint16/32 for a 'history board state'
+- [x] Use a new MoveList with sort method depending on depth
+- [x] Generate the legal moves on a pre-alocated move list
+- [ ] Make a separate function for ep captures, to just run once if eptarget is available 
+- [ ] Implement a sort whithin the move list depending on move score
 
 #### Evaluation:
 - [x] Refactor to use PeSTO evaluation function(tapered eval)

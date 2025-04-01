@@ -77,9 +77,11 @@ func TestNewKnightMoves(t *testing.T) {
 	pos.AddPiece(WhiteRook, "a3")
 	pos.AddPiece(WhiteRook, "d2") // Blocks Knight move
 	knightBB := bitboardFromCoordinate("b1")
+	ml := newMoveList()
 
-	expected := []chessMove{encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
-	got := newKnightMoves(&knightBB, pos, White)
+	expected := []chessMove{*encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
+	newKnightMoves(&knightBB, pos, White, ml)
+	got := ml.moves
 
 	if got[0] != expected[0] {
 		t.Errorf("Expected: %v, got: %v", expected, got)

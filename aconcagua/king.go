@@ -53,7 +53,7 @@ func kingAttacks(k *Bitboard) (attacks Bitboard) {
 }
 
 // newKingMoves returns a moves array with the king moves in chessMove format
-func newKingMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove) {
+func newKingMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 	toSquares := kingMoves(from, pos, side)
 	opponentPieces := pos.Pieces(side.Opponent())
 
@@ -64,17 +64,15 @@ func newKingMoves(from *Bitboard, pos *Position, side Color) (moves []chessMove)
 		if toSquare&opponentPieces > 0 {
 			flag = capture
 		}
-		moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
 	}
 
 	if canCastleShort(from, pos, side) {
-		moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from<<2)), kingsideCastle))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from<<2)), kingsideCastle))
 	}
 	if canCastleLong(from, pos, side) {
-		moves = append(moves, encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from>>2)), queensideCastle))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from>>2)), queensideCastle))
 	}
-
-	return
 }
 
 // canCastleShort checks if the king can castle short

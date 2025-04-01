@@ -152,9 +152,11 @@ func TestPawnIsNotPinnedIfCapturesThePinnedPiece(t *testing.T) {
 func TestNewPawnsMoves(t *testing.T) {
 	pos := InitialPosition()
 	pawnBB := bitboardFromCoordinate("e2")
+	ml := newMoveList()
 
 	expected := 2
-	got := len(newPawnMoves(&pawnBB, pos, White))
+	newPawnMoves(&pawnBB, pos, White, ml)
+	got := ml.length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -164,9 +166,11 @@ func TestNewPawnsMoves(t *testing.T) {
 func TestNewPawnsMovesPromo(t *testing.T) {
 	pos := From("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
 	pawnBB := bitboardFromCoordinate("h7")
+	ml := newMoveList()
 
 	expected := 4
-	got := len(newPawnMoves(&pawnBB, pos, White))
+	newPawnMoves(&pawnBB, pos, White, ml)
+	got := ml.length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
