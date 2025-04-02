@@ -302,6 +302,8 @@ func (pos *Position) newLegalMoves() *moveList {
 			}
 		}
 	}
+	// add new ep captures...
+	genEpPawnCaptures(pos, pos.Turn, ml)
 	return ml
 }
 

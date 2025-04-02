@@ -117,10 +117,8 @@ func isPinned(piece *Bitboard, side Color, pos *Position) bool {
 		return false
 	}
 
-	// Ray from king to piece
 	possibleAttackers := raysAttacks[pinDirection][Bsf(kingBB)]
 
-	// Get the pieces along that line
 	piecesInLine := possibleAttackers & ^pos.EmptySquares()
 	if piecesInLine.count() <= 1 { // Not enought pieces for a pin
 		return false

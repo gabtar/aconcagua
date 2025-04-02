@@ -21,7 +21,7 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 - [x] Use an uint16/32 for move encoding and an uint16/32 for a 'history board state'
 - [x] Use a new MoveList with sort method depending on depth
 - [x] Generate the legal moves on a pre-alocated move list
-- [ ] Make a separate function for ep captures, to just run once if eptarget is available 
+- [x] Make a separate function for ep captures, to just run once instead of running with each pawn move
 - [ ] Implement a sort whithin the move list depending on move score
 
 #### Evaluation:

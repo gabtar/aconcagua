@@ -176,3 +176,18 @@ func TestNewPawnsMovesPromo(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestGenEpPawnCaptures(t *testing.T) {
+	ml := newMoveList()
+
+	pos := From("4r3/8/8/R7/3Pp2k/8/8/4K3 b - d3 0 1")
+
+	genEpPawnCaptures(pos, Black, ml)
+
+	expected := 1
+	got := ml.length
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

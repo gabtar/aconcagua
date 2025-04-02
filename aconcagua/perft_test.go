@@ -1,6 +1,8 @@
 package aconcagua
 
-import "testing"
+import (
+	"testing"
+)
 
 // Perft tests
 // Data from https://gist.github.com/peterellisjones/8c46c28141c162d1d8a0f0badbc9cff9

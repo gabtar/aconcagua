@@ -21,3 +21,5 @@ func newMoveList() *moveList {
 		length: 0,
 	}
 }
+
+// TODO: sort and score the moves...

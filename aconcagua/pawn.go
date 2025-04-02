@@ -65,7 +65,7 @@ func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
 // pawnMoves returns a Bitboard with the squares a pawn can move to in the passed position
 func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	posibleCaptures := pawnAttacks(p, side) & pos.Pieces(side.Opponent())
-	posibleEnPassant := pawnEnPassantCaptures(p, pos, side)
+	// posibleEnPassant := pawnEnPassantCaptures(p, pos, side)
 	posiblesMoves := Bitboard(0)
 
 	if side == White {
@@ -78,10 +78,9 @@ func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
 		posiblesMoves = singleMove | firstPawnMoveAvailable
 	}
 
-	moves = (posibleCaptures|posiblesMoves)&
-		pinRestrictedDirection(p, side, pos)&
-		checkRestrictedMoves(*p, side, pos) |
-		posibleEnPassant
+	moves = (posibleCaptures | posiblesMoves) &
+		pinRestrictedDirection(p, side, pos) &
+		checkRestrictedMoves(*p, side, pos)
 
 	return
 }
@@ -185,10 +184,37 @@ func pawnMoveFlag(from *Bitboard, to *Bitboard, pos *Position, side Color) uint1
 		return doublePawnPush
 	case opponentPieces&*to > 0:
 		return capture
-	case (pos.enPassantTarget > 0) && (pos.enPassantTarget&*to) > 0:
-		return epCapture
 	default:
 		return quiet
+	}
+}
+
+// genEpPawnCaptures generates the enPassant captures on the move list
+func genEpPawnCaptures(pos *Position, side Color, ml *moveList) {
+	if pos.enPassantTarget == 0 {
+		return
+	}
+	epShift := pos.enPassantTarget >> 8
+	if side == Black {
+		epShift = epShift << 16
+	}
+
+	notInHFile := epShift & ^(epShift & files[7])
+	notInAFile := epShift & ^(epShift & files[0])
+
+	from := pos.getBitboards(side)[5] & (notInAFile>>1 | notInHFile<<1)
+
+	for from > 0 {
+		fromBB := from.NextBit()
+
+		move := *encodeMove(uint16(Bsf(fromBB)), uint16(Bsf(pos.enPassantTarget)), epCapture)
+
+		pos.newMakeMove(&move)
+		if !pos.Check(side) {
+			ml.add(move)
+		}
+		pos.newUnmakeMove(&move)
+
 	}
 }
 
