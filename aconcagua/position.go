@@ -251,35 +251,7 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 }
 
 // LegalMoves returns an slice of Move of all legal moves for the side passed
-func (pos *Position) LegalMoves(side Color) (legalMoves []Move) {
-	bitboards := pos.getBitboards(side)
-
-	for piece, bb := range bitboards {
-		for bb > 0 {
-			pieceBB := bb.NextBit()
-			switch piece {
-			case 0:
-				legalMoves = append(legalMoves, getKingMoves(&pieceBB, pos, side)...)
-			case 1:
-				legalMoves = append(legalMoves, getQueenMoves(&pieceBB, pos, side)...)
-			case 2:
-				legalMoves = append(legalMoves, getRookMoves(&pieceBB, pos, side)...)
-			case 3:
-				legalMoves = append(legalMoves, getBishopMoves(&pieceBB, pos, side)...)
-			case 4:
-				legalMoves = append(legalMoves, getKnightMoves(&pieceBB, pos, side)...)
-			case 5:
-				legalMoves = append(legalMoves, getPawnMoves(&pieceBB, pos, side)...)
-			}
-		}
-	}
-	legalMoves = append(legalMoves, pos.legalCastles(side)...)
-
-	return
-}
-
-// newLegalMoves returns an slice of Move of all legal moves for the side passed
-func (pos *Position) newLegalMoves() *moveList {
+func (pos *Position) LegalMoves() *moveList {
 	bitboards := pos.getBitboards(pos.Turn)
 	ml := newMoveList()
 
@@ -288,78 +260,26 @@ func (pos *Position) newLegalMoves() *moveList {
 			pieceBB := bb.NextBit()
 			switch piece {
 			case 0:
-				newKingMoves(&pieceBB, pos, pos.Turn, ml)
+				genKingMoves(&pieceBB, pos, pos.Turn, ml)
 			case 1:
-				newQueenMoves(&pieceBB, pos, pos.Turn, ml)
+				genQueenMoves(&pieceBB, pos, pos.Turn, ml)
 			case 2:
-				newRookMoves(&pieceBB, pos, pos.Turn, ml)
+				genRookMoves(&pieceBB, pos, pos.Turn, ml)
 			case 3:
-				newBishopMoves(&pieceBB, pos, pos.Turn, ml)
+				genBishopMoves(&pieceBB, pos, pos.Turn, ml)
 			case 4:
-				newKnightMoves(&pieceBB, pos, pos.Turn, ml)
+				genKnightMoves(&pieceBB, pos, pos.Turn, ml)
 			case 5:
-				newPawnMoves(&pieceBB, pos, pos.Turn, ml)
+				genPawnMoves(&pieceBB, pos, pos.Turn, ml)
 			}
 		}
 	}
-	// add new ep captures...
 	genEpPawnCaptures(pos, pos.Turn, ml)
 	return ml
 }
 
-// legalCastles returns the castles moves the passed side can make
-func (pos *Position) legalCastles(side Color) (castle []Move) {
-	// TODO: refactor for better readability
-	if pos.Check(side) {
-		return
-	}
-	king := pieceOfColor[King][side]
-
-	castlePathsBB := []Bitboard{0x60, 0xE, 0x6000000000000000, 0xE00000000000000}
-	passingKingPathBB := []Bitboard{0x60, 0xC, 0x6000000000000000, 0xC00000000000000}
-
-	move := newMove().
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights).
-		setEpTargetBefore(pos.enPassantTarget).
-		setPiece(king)
-
-	if side == White {
-		canCastleShort := castlePathsBB[0]&(^pos.EmptySquares()|pos.AttackedSquares(side.Opponent())) == 0
-		canCastleLong := (castlePathsBB[1] & ^pos.EmptySquares())|(passingKingPathBB[1]&pos.AttackedSquares(side.Opponent())) == 0
-
-		if pos.castlingRights.canCastle(K) && canCastleShort {
-			castle = append(castle, *move.setFromSq(4).setToSq(6).setMoveType(Castle))
-			move = newMove().
-				setRule50Before(pos.halfmoveClock).
-				setCastleRightsBefore(pos.castlingRights).
-				setEpTargetBefore(pos.enPassantTarget).
-				setPiece(king)
-		}
-		if pos.castlingRights.canCastle(Q) && canCastleLong {
-			castle = append(castle, *move.setFromSq(4).setToSq(2).setMoveType(Castle))
-		}
-	} else {
-		canCastleShort := castlePathsBB[2]&(^pos.EmptySquares()|pos.AttackedSquares(side.Opponent())) == 0
-		canCastleLong := (castlePathsBB[3] & ^pos.EmptySquares())|(passingKingPathBB[3]&pos.AttackedSquares(side.Opponent())) == 0
-
-		if pos.castlingRights.canCastle(k) && canCastleShort {
-			castle = append(castle, *move.setFromSq(60).setToSq(62).setMoveType(Castle))
-			move = newMove().
-				setRule50Before(pos.halfmoveClock).
-				setCastleRightsBefore(pos.castlingRights).
-				setEpTargetBefore(pos.enPassantTarget).
-				setPiece(king)
-		}
-		if pos.castlingRights.canCastle(q) && canCastleLong {
-			castle = append(castle, *move.setFromSq(60).setToSq(58).setMoveType(Castle))
-		}
-	}
-	return
-}
-
-// newMakeMove executes a chess move, updating the board state
-func (pos *Position) newMakeMove(move *chessMove) {
+// MakeMove executes a chess move, updating the board state
+func (pos *Position) MakeMove(move *Move) {
 	pieceToMove, _ := pos.PieceAt(squareReference[move.from()])
 	pieceCaptured := pos.getCapturedPiece(move)
 
@@ -370,7 +290,7 @@ func (pos *Position) newMakeMove(move *chessMove) {
 		uint16(pos.halfmoveClock),
 	)
 	pos.positionHistory.add(positionBefore, pos.castlingRights)
-	newUpdateCastleRights(pos, move)
+	UpdateCastleRights(pos, move)
 
 	pos.RemovePiece(bitboardFromIndex(move.from()))
 	pos.updateMoveState()
@@ -392,7 +312,7 @@ func (pos *Position) updateMoveState() {
 }
 
 // handleSpecialMoveTypes processes different types of chess moves
-func (pos *Position) handleSpecialMoveTypes(move *chessMove, pieceToMove *Piece) {
+func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *Piece) {
 	switch flag := move.flag(); flag {
 	case quiet:
 		pos.handleQuietMove(*pieceToMove)
@@ -418,7 +338,7 @@ func (pos *Position) handleQuietMove(pieceToMove Piece) {
 }
 
 // handleDoublePawnPush sets en passant target square
-func (pos *Position) handleDoublePawnPush(move chessMove, pieceToMove Piece) {
+func (pos *Position) handleDoublePawnPush(move Move, pieceToMove Piece) {
 	if pieceToMove == WhitePawn {
 		pos.enPassantTarget = bitboardFromIndex(move.to()) >> 8
 	} else {
@@ -427,13 +347,13 @@ func (pos *Position) handleDoublePawnPush(move chessMove, pieceToMove Piece) {
 }
 
 // handleCapture removes captured piece and resets halfmove clock
-func (pos *Position) handleCapture(move chessMove) {
+func (pos *Position) handleCapture(move Move) {
 	pos.RemovePiece(bitboardFromIndex(move.to()))
 	pos.halfmoveClock = 0
 }
 
 // handlePromotion processes pawn promotion
-func (pos *Position) handlePromotion(move chessMove, flag int, pieceToMove *Piece) {
+func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *Piece) {
 	pos.RemovePiece(bitboardFromIndex(move.to()))
 	*pieceToMove = getPromotedToPiece(flag, pos.Turn)
 
@@ -441,7 +361,7 @@ func (pos *Position) handlePromotion(move chessMove, flag int, pieceToMove *Piec
 }
 
 // handleEnPassantCapture removes the captured pawn in en passant
-func (pos *Position) handleEnPassantCapture(move chessMove, pieceToMove Piece) {
+func (pos *Position) handleEnPassantCapture(move Move, pieceToMove Piece) {
 	if pieceToMove == WhitePawn {
 		pos.Bitboards[BlackPawn] ^= bitboardFromIndex(move.to()) >> 8
 	} else {
@@ -466,7 +386,7 @@ func getPromotedToPiece(flag int, side Color) (piece Piece) {
 }
 
 // getCapturedPiece determines the piece captured in the move
-func (pos *Position) getCapturedPiece(move *chessMove) Piece {
+func (pos *Position) getCapturedPiece(move *Move) Piece {
 	if move.flag() == epCapture {
 		return pieceOfColor[Pawn][pos.Turn.Opponent()]
 	}
@@ -474,100 +394,8 @@ func (pos *Position) getCapturedPiece(move *chessMove) Piece {
 	return pieceCaptured
 }
 
-// MakeMove updates the position by making the move passed as parameter
-func (pos *Position) MakeMove(move *Move) {
-	pieceToAdd := Piece(move.Piece())
-	pos.RemovePiece(bitboardFromIndex(move.from()))
-
-	pos.enPassantTarget &= 0
-
-	if pos.Turn == Black {
-		pos.fullmoveNumber++
-	}
-	pos.halfmoveClock++
-
-	switch move.MoveType() {
-	case Normal:
-		if move.Piece() == int(WhitePawn) || move.Piece() == int(BlackPawn) {
-			pos.halfmoveClock = 0
-		}
-	case PawnDoublePush:
-		if move.Piece() == int(WhitePawn) {
-			pos.enPassantTarget = bitboardFromIndex(move.To()) >> 8
-		} else {
-			pos.enPassantTarget = bitboardFromIndex(move.To()) << 8
-		}
-		pos.halfmoveClock = 0
-	case Capture:
-		pos.RemovePiece(bitboardFromIndex(move.To()))
-		pos.halfmoveClock = 0
-	case Promotion:
-		pos.RemovePiece(bitboardFromIndex(move.To()))
-		pieceToAdd = Piece(move.promotedTo())
-		pos.halfmoveClock = 0
-	case Castle:
-		moveRookOnCastleMove(pos, castleType[move.ToUci()])
-	case EnPassant:
-		if move.Piece() == int(WhitePawn) {
-			pos.Bitboards[BlackPawn] ^= move.epTargetBefore() >> 8
-		} else {
-			pos.Bitboards[WhitePawn] ^= move.epTargetBefore() << 8
-		}
-		pos.halfmoveClock = 0
-	}
-
-	pos.Turn = pos.Turn.Opponent()
-	updateCastleRights(pos, move)
-
-	pos.AddPiece(pieceToAdd, squareReference[move.To()])
-
-	pos.Hash = zobristHash(pos)
-	return
-}
-
 // UnmakeMove undoes a the passed move in the postion
-func (pos *Position) UnmakeMove(move Move) {
-	pos.RemovePiece(bitboardFromIndex(move.To()))
-
-	if pos.Turn == White {
-		pos.fullmoveNumber--
-	}
-
-	pos.enPassantTarget = move.epTargetBefore()
-	pos.halfmoveClock = move.rule50Before()
-	pos.castlingRights = move.castleRightsBefore()
-
-	pieceToAdd := Piece(move.Piece())
-	switch move.MoveType() {
-	// case NORMAL:
-	// case PAWN_DOUBLE_PUSH:
-	case Capture:
-		pos.AddPiece(move.CapturedPiece(), squareReference[move.To()])
-	case Promotion:
-		pos.AddPiece(Piece(move.Piece()), squareReference[move.from()])
-		if move.CapturedPiece() > 0 {
-			pos.AddPiece(Piece(move.CapturedPiece()), squareReference[move.To()])
-		}
-	case Castle:
-		restoreRookOnCastle(pos, castleType[move.ToUci()])
-	case EnPassant:
-		restoreSq := move.To() + 8                    // 1 rank up
-		if pieceColor[Piece(move.Piece())] == White { // White ep capture
-			restoreSq = move.To() - 8 // 1 rank down
-		}
-		pos.AddPiece(pieceOfColor[Pawn][pos.Turn], squareReference[restoreSq])
-	}
-
-	pos.Turn = pos.Turn.Opponent()
-	// Add piece to destination sqaure
-	pos.AddPiece(pieceToAdd, squareReference[move.from()])
-
-	pos.Hash = zobristHash(pos)
-	return
-}
-
-// newUnmakeMove undoes a the passed move in the postion
-func (pos *Position) newUnmakeMove(move *chessMove) {
+func (pos *Position) UnmakeMove(move *Move) {
 	prevState, castle := pos.positionHistory.pop()
 	pos.RemovePiece(bitboardFromIndex(move.to()))
 
@@ -622,44 +450,7 @@ func restoreRookOnCastle(pos *Position, castle castling) {
 	pos.AddPiece(castleRook[castle], squareReference[rookTo])
 }
 
-// updateCastleRights updates the castle rigths based on the move passed if the
-// rook or the king has been moved or the move captured a rook on the corner
-func updateCastleRights(pos *Position, move *Move) {
-	piece := Piece(move.Piece())
-	switch piece {
-	case WhiteKing:
-		pos.castlingRights.remove(K | Q)
-	case WhiteRook:
-		if move.from() == Bsf(bitboardFromCoordinate("h1")) {
-			pos.castlingRights.remove(K)
-		} else {
-			pos.castlingRights.remove(Q)
-		}
-	case BlackKing:
-		pos.castlingRights.remove(k | q)
-	case BlackRook:
-		if move.from() == Bsf(bitboardFromCoordinate("h8")) {
-			pos.castlingRights.remove(k)
-		} else {
-			pos.castlingRights.remove(q)
-		}
-	}
-	// TO FIX BUG: if its a capture that captures a rook on a1, h1, a8 or h8, it should also update the castle rights...
-	if move.MoveType() == Capture || move.MoveType() == Promotion {
-		switch {
-		case move.To() == 0 && move.CapturedPiece() == WhiteRook:
-			pos.castlingRights.remove(Q)
-		case move.To() == 7 && move.CapturedPiece() == WhiteRook:
-			pos.castlingRights.remove(K)
-		case move.To() == 56 && move.CapturedPiece() == BlackRook:
-			pos.castlingRights.remove(q)
-		case move.To() == 63 && move.CapturedPiece() == BlackRook:
-			pos.castlingRights.remove(k)
-		}
-	}
-}
-
-func newUpdateCastleRights(pos *Position, move *chessMove) {
+func UpdateCastleRights(pos *Position, move *Move) {
 	piece, _ := pos.PieceAt(squareReference[move.from()])
 	switch piece {
 	case WhiteKing:
@@ -681,7 +472,7 @@ func newUpdateCastleRights(pos *Position, move *chessMove) {
 	}
 
 	capturedPiece, _ := pos.PieceAt(squareReference[move.to()])
-	if move.flag() == Capture || move.flag() == Promotion {
+	if move.flag() == capture || move.flag() > 5 {
 		switch {
 		case move.to() == 0 && capturedPiece == WhiteRook:
 			pos.castlingRights.remove(Q)
@@ -743,7 +534,7 @@ func (pos *Position) ToFen() (fen string) {
 
 // Checkmate returns if the passed side is in checkmate on the current position
 func (pos *Position) Checkmate(side Color) (checkmate bool) {
-	if len(pos.LegalMoves(side)) == 0 && pos.Check(side) {
+	if pos.LegalMoves().length == 0 && pos.Check(side) {
 		checkmate = true
 	} else {
 		checkmate = false
@@ -754,7 +545,7 @@ func (pos *Position) Checkmate(side Color) (checkmate bool) {
 // Stealmate returns if the passed side is in stealmate on the current position
 func (pos *Position) Stealmate(side Color) (stealmate bool) {
 	// Cannot be in check, and cannot have any legal moves
-	if len(pos.LegalMoves(side)) == 0 && !pos.Check(side) {
+	if pos.LegalMoves().length == 0 && !pos.Check(side) {
 		stealmate = true
 	} else {
 		stealmate = false

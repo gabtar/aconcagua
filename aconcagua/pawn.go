@@ -4,64 +4,6 @@ package aconcagua
 // PAWN ♙
 // -------------
 
-// pawnMoves returns a bitboard with the squares the pawn can move from the position passed
-// TODO: refactor...
-func getPawnMoves(p *Bitboard, pos *Position, side Color) (moves []Move) {
-	destinationsBB := pawnMoves(p, pos, side)
-	opponentPieces := pos.Pieces(side.Opponent())
-	piece := pieceOfColor[Pawn][side]
-	doublePushFrom := ranks[1]
-	doublePushTo := ranks[3]
-	queeningRank := ranks[7]
-	promotions := []Piece{WhiteKnight, WhiteBishop, WhiteRook, WhiteQueen}
-	if side == Black {
-		queeningRank = ranks[0]
-		doublePushFrom = ranks[6]
-		doublePushTo = ranks[4]
-		promotions = []Piece{BlackKnight, BlackBishop, BlackRook, BlackQueen}
-	}
-
-	for destinationsBB > 0 {
-		destSq := destinationsBB.NextBit()
-		move := newMove().
-			setFromSq(Bsf(*p)).
-			setToSq(Bsf(destSq)).
-			setPiece(piece).
-			setMoveType(Normal).
-			setEpTargetBefore(pos.enPassantTarget).
-			setRule50Before(pos.halfmoveClock).
-			setCastleRightsBefore(pos.castlingRights)
-
-		switch {
-		case (destSq & queeningRank) > 0: // NOTE: This must be  first because of promotion captures..
-			move.setMoveType(Promotion)
-			for _, promotedRole := range promotions {
-				if (destSq & opponentPieces) > 0 {
-					capturedPiece, _ := pos.PieceAt(squareReference[Bsf(destSq)])
-					move.setCapturedPiece(capturedPiece)
-				}
-				// FIX: temporary fix
-				move2 := *move
-				move2.setPromotedTo(promotedRole)
-				moves = append(moves, move2)
-			}
-		case (pos.enPassantTarget > 0) && (pos.enPassantTarget&destSq) > 0:
-			move.setMoveType(EnPassant)
-			moves = append(moves, *move)
-		case (opponentPieces & destSq) > 0:
-			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(destSq)])
-			move.setMoveType(Capture).setCapturedPiece(capturedPiece)
-			moves = append(moves, *move)
-		case (destSq&doublePushTo) > 0 && (*p&doublePushFrom) > 0:
-			move.setMoveType(PawnDoublePush)
-			moves = append(moves, *move)
-		default:
-			moves = append(moves, *move)
-		}
-	}
-	return
-}
-
 // pawnMoves returns a Bitboard with the squares a pawn can move to in the passed position
 func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	posibleCaptures := pawnAttacks(p, side) & pos.Pieces(side.Opponent())
@@ -129,8 +71,8 @@ func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bi
 	return
 }
 
-// newPawnMoves returns a moves array with the new pawn moves in chessMove format
-func newPawnMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
+// genPawnMoves generates the pawn moves in the move list
+func genPawnMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 	toSquares := pawnMoves(from, pos, side)
 
 	for toSquares > 0 {
@@ -209,11 +151,11 @@ func genEpPawnCaptures(pos *Position, side Color, ml *moveList) {
 
 		move := *encodeMove(uint16(Bsf(fromBB)), uint16(Bsf(pos.enPassantTarget)), epCapture)
 
-		pos.newMakeMove(&move)
+		pos.MakeMove(&move)
 		if !pos.Check(side) {
 			ml.add(move)
 		}
-		pos.newUnmakeMove(&move)
+		pos.UnmakeMove(&move)
 
 	}
 }

@@ -22,24 +22,24 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 - [x] Use a new MoveList with sort method depending on depth
 - [x] Generate the legal moves on a pre-alocated move list
 - [x] Make a separate function for ep captures, to just run once instead of running with each pawn move
-- [ ] Implement a sort whithin the move list depending on move score
+- [x] Implement a sort whithin the move list depending on move score
+- [x] Use a chessMove principal variation...
 
 #### Evaluation:
 - [x] Refactor to use PeSTO evaluation function(tapered eval)
 
 #### Search:
-- [x] Aspiration windows
-- [x] Principal variation search
-- [x] Quiescent search
-- [x] Limit quiescent search (needs further work!)
-- [x] Add checkmate detection
+- [ ] Adapt to new move format
+    - [ ] Transposition table
+    - [ ] Quiescent search
+    - [ ] Add checkmate detection
+    - [ ] History heruistic
+    - [ ] Mate search
+- [ ] Refactor Transposition table
+- [ ] Limit quiescent search
 - [ ] Null move pruning
 - [x] Improve move ordering
-    - [x] Killer moves
-    - [x] History heruistic
-    - [x] Improve MVV-LVA
 - [ ] Detect threefold repetition - use zobrist hash
-- [ ] Refactor Transposition table
 
 ### Engine
 - [x] Create an engine struct with main parameters(current best move, depth, etc) - Add search state

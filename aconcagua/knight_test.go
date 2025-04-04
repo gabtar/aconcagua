@@ -79,8 +79,8 @@ func TestNewKnightMoves(t *testing.T) {
 	knightBB := bitboardFromCoordinate("b1")
 	ml := newMoveList()
 
-	expected := []chessMove{*encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
-	newKnightMoves(&knightBB, pos, White, ml)
+	expected := []Move{*encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
+	genKnightMoves(&knightBB, pos, White, ml)
 	got := ml.moves
 
 	if got[0] != expected[0] {

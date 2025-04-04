@@ -154,7 +154,7 @@ func TestNewRookMoves(t *testing.T) {
 	rookBB := bitboardFromCoordinate("a8")
 	ml := newMoveList()
 
-	newRookMoves(&rookBB, pos, Black, ml)
+	genRookMoves(&rookBB, pos, Black, ml)
 	expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
 
 	expected := len(expectedSquares)

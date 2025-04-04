@@ -20,11 +20,6 @@ func (ph *PositionHistory) pop() (pp positionBefore, cr castling) {
 	return ph.previousPosition[ph.currentIndex], ph.previousCastleRigths[ph.currentIndex]
 }
 
-// reset resets the position history
-func (ph *PositionHistory) reset() {
-	ph.currentIndex = 0
-}
-
 // newPositionHistory returns a new PositionHistory
 func newPositionHistory() *PositionHistory {
 	return &PositionHistory{}

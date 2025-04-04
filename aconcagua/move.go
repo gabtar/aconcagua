@@ -1,183 +1,112 @@
 package aconcagua
 
-// Type of move
+// constants representing the type of move(flags)
 const (
-	Normal = iota
-	Castle
-	PawnDoublePush
-	EnPassant
-	Promotion
-	Capture
+	quiet = iota
+	doublePawnPush
+	kingsideCastle
+	queensideCastle
+	capture
+	epCapture
+	// Promotions
+	knightPromotion
+	bishopPromotion
+	rookPromotion
+	queenPromotion
+	knightCapturePromotion
+	bishopCapturePromotion
+	rookCapturePromotion
+	queenCapturePromotion
 )
 
-// move stores all information related to a chess move
-// The encoding is as follows:
-// We use the bits notation to describe the move
-// 6 bits to describe the from square (2^6) - 0 to 64
-// 6 bits to describe the destination square (2^6) - 0 to 64
-// 4 bits to describe the type of the piece (2^4) (12 types now) - Not necessary needed
-// 4 bits to describe the promotedToPiece (2^4) (12 types now)
-// 3 bits to describe the type of move (2^3) (6 types)
+// Move represents an encoded chess move on the board
+// the move is represented by 16 bits of information
+// first 6 bits for the from square (1-64)
+// second 6 bits for the to square (1-64)
+// last 4 bits for the move flag/type
+type Move uint16
 
-// 32 bits for describe the state of the board before "making" the move. For unmake move purposes only!
+// encodeMove returns a reference to an encoded chess move with the values passed
+func encodeMove(from uint16, to uint16, flag uint16) *Move {
+	mv := Move(from | to<<6 | flag<<12)
+	return &mv
+}
 
-// NOTE: For unmaking moves purposes only
-// 4 bits to describe the type of the piece captured (2^4) (12 types)
-// 6 bits to describe the old en passant target square
-// 16 bits to store the evaluation score after the move - For move ordering purposes
-// Total := 34 bits, fits in a 64 int
-
-type Move uint64
-
-// from returns the number of the origin square of the move
+// from returns the number of the origin square of the move in Little-Endian Rank-File Mapping notation
 func (m *Move) from() int {
 	return int(*m & 0b111111)
 }
 
-// To returns the number of the destination square of the move
-func (m *Move) To() int {
+// to returns the number of the origin square of the move in Little-Endian Rank-File Mapping notation
+func (m *Move) to() int {
 	return int((*m & (0b111111 << 6)) >> 6)
 }
 
-// Piece returns the Piece which is being moved
-func (m *Move) Piece() int {
+// flag returns the flag corresponding to the type of the move
+func (m *Move) flag() int {
 	return int((*m & (0b1111 << 12)) >> 12)
 }
 
-// promotedTo returns the piece which is going to be replaced by the pawn
-func (m *Move) promotedTo() int {
-	return int((*m & (0b1111 << 16)) >> 16)
-}
+// String returns the long algebraic notation of the move used in uci protocol
+func (m *Move) String() (move string) {
+	move += squareReference[m.from()]
+	move += squareReference[m.to()]
+	flag := m.flag()
 
-// MoveType returns the type of move
-func (m *Move) MoveType() int {
-	return int((*m & (0b1111 << 20)) >> 20)
-}
-
-// Data for unmaking moves purposes
-// --------------------------------
-
-// capturedPiece 4 bits 0000
-// epTargetBefore 6 bits 000000
-// rule50Before 6 bits 000000
-// castleRightsBefore 4 bits 0000
-
-// CapturedPiece
-func (m *Move) CapturedPiece() Piece {
-	return Piece((*m & (0b1111 << 24)) >> 24)
-}
-
-// epTargetBefore
-func (m *Move) epTargetBefore() Bitboard {
-	// Check non zero...
-	indexBB := int((*m & (0b111111 << 28)) >> 28)
-	if indexBB == 0 {
-		return Bitboard(0)
-	}
-
-	return bitboardFromIndex(indexBB)
-}
-
-// rule50Before
-func (m *Move) rule50Before() int {
-	return int((*m & (0b111111 << 34)) >> 34)
-}
-
-// castleRightsBefore
-func (m *Move) castleRightsBefore() castling {
-	return castling((*m & (0b1111 << 40)) >> 40)
-}
-
-// Score returns the Score evaluation after the move has been made
-func (m *Move) Score() int {
-	return int((*m & (0b1111111111111111 << 44)) >> 44)
-}
-
-// ToUci returns the move in UCI format (starting square string -> destinatnion square string)
-func (m *Move) ToUci() (uciString string) {
-	uciString += squareReference[m.from()]
-	uciString += squareReference[m.To()]
-	if m.MoveType() == Promotion {
-		promotedTo := Piece(m.promotedTo())
-		switch promotedTo {
-		case WhiteQueen, BlackQueen:
-			uciString += "q"
-		case WhiteRook, BlackRook:
-			uciString += "r"
-		case WhiteBishop, BlackBishop:
-			uciString += "b"
-		case WhiteKnight, BlackKnight:
-			uciString += "n"
+	if flag > 5 { // NOTE: >5 all are promotions
+		switch flag {
+		case knightPromotion, knightCapturePromotion:
+			move += "n"
+		case bishopPromotion, bishopCapturePromotion:
+			move += "b"
+		case rookPromotion, rookCapturePromotion:
+			move += "r"
+		case queenCapturePromotion, queenPromotion:
+			move += "q"
 		}
 	}
 	return
 }
 
-// newMove returns a reference to a Move
-func newMove() *Move {
-	return new(Move)
+// TODO: move ordering idea
+// have 2 separated list for moves an scores
+// and then sort all of them at the same time
+// moves []
+// scores []
+
+// store board state to undo move
+// type of piece moved -> 4 bit
+// type of piece captured if any -> 4 bit
+// epTarget -> 6 bit (0-64)
+// rule50 -> 6 bit
+// castles... -> separate castle struct
+
+type positionBefore uint32
+
+// encodePositionBefore returns a reference to an encoded board state before the move
+func encodePositionBefore(pieceMoved uint16, pieceCaptured uint16, epTarget uint16, rule50 uint16) positionBefore {
+	rule50uint32 := positionBefore(uint32(rule50) << 15)
+	bb := positionBefore(pieceMoved | pieceCaptured<<4 | epTarget<<8)
+	bb = bb | rule50uint32
+	return bb
 }
 
-// setFromSq sets the origin square in the Move
-func (m *Move) setFromSq(from int) *Move {
-	*m |= Move(from)
-	return m
+// pieceMoved returns the type of the piece pieceMoved
+func (bb *positionBefore) pieceMoved() int {
+	return int(*bb & 0b1111)
 }
 
-// setToSq sets the destination square in the Move
-func (m *Move) setToSq(to int) *Move {
-	*m |= Move(to << 6)
-	return m
+// pieceCaptured returns the type of the piece pieceCaptured
+func (bb *positionBefore) pieceCaptured() int {
+	return int((*bb & (0b1111 << 4)) >> 4)
 }
 
-// setPiece sets the piece moved in the Move
-func (m *Move) setPiece(piece Piece) *Move {
-	*m |= Move(int(piece) << 12)
-	return m
+// epTarget returns the en passant target square
+func (bb *positionBefore) epTarget() int {
+	return int((*bb & (0b111111 << 8)) >> 8)
 }
 
-// setPromotedTo sets the piece which is going to be promoted to in the Move
-func (m *Move) setPromotedTo(piece Piece) *Move {
-	*m |= Move(int(piece) << 16)
-	return m
-}
-
-// setMoveType sets the type of the move
-func (m *Move) setMoveType(moveType int) *Move {
-	*m |= Move(moveType << 20)
-	return m
-}
-
-// setCapturedPiece sets the piece captured during the move
-func (m *Move) setCapturedPiece(piece Piece) *Move {
-	*m |= Move(int(piece) << 24)
-	return m
-}
-
-// setEpTargetBefore sets the en passant square of the position before making the move
-func (m *Move) setEpTargetBefore(epTarget Bitboard) *Move {
-	// NOTE: need to do this because of Bsf(0) == 64.
-	if epTarget == 0 {
-		return m
-	}
-	*m |= Move(Bsf(epTarget) << 28)
-	return m
-}
-
-// setRule50Before sets the halfmoveClock of the position before making the move
-func (m *Move) setRule50Before(halfmoveClock int) *Move {
-	*m |= Move(halfmoveClock << 34)
-	return m
-}
-
-// setCastleRightsBefore sets the caslte rights of the position before making the move
-func (m *Move) setCastleRightsBefore(castles castling) *Move {
-	*m |= Move(int(castles) << 40)
-	return m
-}
-
-// SetScore sets the score passed in centipawns evaluation
-func (m *Move) SetScore(score int) *Move {
-	*m |= Move(score << 44)
-	return m
+// rule50 returns the rule50 counter before the move
+func (bb *positionBefore) rule50() int {
+	return int((*bb & (0b111111 << 15)) >> 15)
 }

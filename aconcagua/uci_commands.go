@@ -58,8 +58,8 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 
 	if movesIndex != -1 {
 		for _, move := range params[movesIndex:] {
-			for _, legalMove := range engine.pos.LegalMoves(engine.pos.Turn) {
-				if legalMove.ToUci() == move {
+			for _, legalMove := range engine.pos.LegalMoves().moves {
+				if legalMove.String() == move {
 					engine.pos.MakeMove(&legalMove)
 				}
 			}
@@ -74,7 +74,7 @@ func isReadyCommand(en *Engine, stdout chan string, params ...string) {
 
 // goCommand starts looking for the best move in the current position
 func goCommand(en *Engine, stdout chan string, params ...string) {
-	en.searchState.stop = false
+	en.search.stop = false
 	// TODO: implement remaining 'go' uci options
 
 	depth := 5 // Default depth
@@ -84,19 +84,21 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 		depth, _ = strconv.Atoi(params[dIndex+1])
 	}
 
-	en.searching = true
-	score, bestMove := Search(&engine.pos, &engine.searchState, depth, stdout)
-	absScore := abs(score)
+	score := root(&en.pos, &en.search, depth, stdout)
+	pv := en.search.pv
 
-	if absScore >= MateScore {
-		mateIn := ((depth - (absScore - MateScore)) + 1) / 2 // moves, not ply!
-		stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
-	} else {
-		stdout <- "info score cp " + strconv.Itoa(score)
-	}
-	stdout <- "bestmove " + bestMove[0].ToUci()
+	// en.searching = true
+	// score, bestMove := Search(&engine.pos, &engine.searchState, depth, stdout)
+	// absScore := abs(score)
 
-	en.searching = false
+	// if absScore >= MateScore {
+	// 	mateIn := ((depth - (absScore - MateScore)) + 1) / 2 // moves, not ply!
+	// 	stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
+	// } else {
+	// 	stdout <- "info score cp " + strconv.Itoa(score)
+	// }
+	stdout <- "info score cp " + strconv.Itoa(score)
+	stdout <- "bestmove " + (*pv)[0].String()
 }
 
 // abs returns the absolute value of the number passed
@@ -109,10 +111,7 @@ func abs(number int) int {
 
 // stopCommand
 func stopCommand(en *Engine, stout chan string, params ...string) {
-	if en.searching {
-		en.searchState.stop = true
-	}
-
+	en.search.stop = true
 }
 
 // readStdin reads strings from standard input (from GUI to engine)

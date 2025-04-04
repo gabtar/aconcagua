@@ -72,33 +72,6 @@ var knightAttackSquares = [64]Bitboard{
 	0x20400000000000,
 }
 
-// getKnightMoves returns a move slice of all posible moves of the knight passed
-func getKnightMoves(b *Bitboard, pos *Position, side Color) (moves []Move) {
-	movesBB := knightMoves(b, pos, side)
-	pieces := ^pos.EmptySquares()
-	from := Bsf(*b)
-	piece := pieceOfColor[Knight][side]
-
-	for movesBB > 0 {
-		to := movesBB.NextBit()
-		move := newMove().
-			setFromSq(from).
-			setToSq(Bsf(to)).
-			setPiece(piece).
-			setMoveType(Normal).
-			setEpTargetBefore(pos.enPassantTarget).
-			setRule50Before(pos.halfmoveClock).
-			setCastleRightsBefore(pos.castlingRights)
-
-		if to&pieces > 0 {
-			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(to)])
-			move.setMoveType(Capture).setCapturedPiece(capturedPiece)
-		}
-		moves = append(moves, *move)
-	}
-	return
-}
-
 // knightMoves returns a bitboard with the legal moves of the knight from the bitboard passed
 func knightMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	// If the knight is pinned it can move at all
@@ -110,8 +83,8 @@ func knightMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	return
 }
 
-// newKnightMoves returns a moves array with the knight moves in chessMove format
-func newKnightMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
+// genKnightMoves generates the knight moves in the move list
+func genKnightMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 	toSquares := knightMoves(from, pos, side)
 	opponentPieces := pos.Pieces(side.Opponent())
 

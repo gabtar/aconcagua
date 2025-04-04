@@ -4,33 +4,6 @@ package aconcagua
 // ROOK ♖
 // -------------
 
-// getRookMoves returns a move slice with all the legal moves of a rook from the bitboard passed
-func getRookMoves(r *Bitboard, pos *Position, side Color) (moves []Move) {
-	movesBB := rookMoves(r, pos, side)
-	pieces := ^pos.EmptySquares()
-	from := Bsf(*r)
-	piece := pieceOfColor[Rook][side]
-
-	for movesBB > 0 {
-		to := movesBB.NextBit()
-		move := newMove().
-			setFromSq(from).
-			setToSq(Bsf(to)).
-			setPiece(piece).
-			setMoveType(Normal).
-			setEpTargetBefore(pos.enPassantTarget).
-			setRule50Before(pos.halfmoveClock).
-			setCastleRightsBefore(pos.castlingRights)
-
-		if to&pieces > 0 {
-			capturedPiece, _ := pos.PieceAt(squareReference[Bsf(to)])
-			move.setMoveType(Capture).setCapturedPiece(capturedPiece)
-		}
-		moves = append(moves, *move)
-	}
-	return
-}
-
 // rookMoves returns a bitboard with the legal moves of the rook from the bitboard passed
 func rookMoves(r *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	return rookAttacks(r, pos) & ^pos.Pieces(side) &
@@ -53,8 +26,8 @@ func rookAttacks(r *Bitboard, pos *Position) (attacks Bitboard) {
 	return
 }
 
-// newRookMoves returns a moves array with the rook moves in chessMove format
-func newRookMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
+// genRookMoves generates the rook moves in the move list
+func genRookMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 	toSquares := rookMoves(from, pos, side)
 	opponentPieces := pos.Pieces(side.Opponent())
 

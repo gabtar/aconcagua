@@ -134,7 +134,7 @@ func TestNewBishopMoves(t *testing.T) {
 	expectedSquares := []string{"h7", "h5", "f7"}
 
 	expected := len(expectedSquares)
-	newBishopMoves(&bishopBB, pos, White, ml)
+	genBishopMoves(&bishopBB, pos, White, ml)
 	got := ml.length
 
 	if got != expected {

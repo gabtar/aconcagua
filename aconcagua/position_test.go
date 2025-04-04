@@ -111,44 +111,11 @@ func TestPinnedPieceKnightFail(t *testing.T) {
 	}
 }
 
-func TestShortLegalCastleForWhite(t *testing.T) {
-	pos := From("8/8/8/8/8/8/8/4K2R w K - 0 1")
-
-	expected := 1
-	got := len(pos.legalCastles(White))
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestShortIlegalCastleForWhite(t *testing.T) {
-	pos := From("8/8/8/2b5/8/8/8/4K2R w K - 0 1")
-
-	expected := 0
-	got := len(pos.legalCastles(White))
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestLongIllegalCastleForBlack(t *testing.T) {
-	pos := From("rn2k3/8/8/8/8/8/8/8 w q - 1 1")
-
-	expected := 0
-	got := len(pos.legalCastles(Black))
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 func TestLegalMovesOnAPositionWithPromotion(t *testing.T) {
 	pos := From("3r2k1/5ppp/8/8/8/8/pp4PP/5R1K b - - 0 1")
 
 	expected := 28
-	got := len(pos.LegalMoves(Black))
+	got := pos.LegalMoves().length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -159,7 +126,7 @@ func TestLegalMovesOnAPositionIllegalLongCastle(t *testing.T) {
 	pos := From("6k1/5ppp/8/7q/7b/8/5PPP/RN2K2R w KQ - 1 1")
 
 	expected := 18
-	got := len(pos.LegalMoves(White))
+	got := pos.LegalMoves().length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -170,7 +137,7 @@ func TestLegalMovesOnAPositionWithDoubleEnPassantCaptures(t *testing.T) {
 	pos := From("6k1/5bpp/8/1PpPN3/8/8/6PP/6K1 w - c6 0 1")
 
 	expected := 19
-	got := len(pos.LegalMoves(White))
+	got := pos.LegalMoves().length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -181,7 +148,7 @@ func TestLegalMovesOnMultiplePinsWithCheck(t *testing.T) {
 	pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/1R4K1 b - - 0 1")
 
 	expected := 5
-	got := len(pos.LegalMoves(Black))
+	got := pos.LegalMoves().length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -192,7 +159,7 @@ func TestLegalMovesOnMultiplePinsWithCheckTwo(t *testing.T) {
 	pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/2R3K1 b - - 0 1")
 
 	expected := 4 // 3 of king 1 block of the knight
-	got := len(pos.LegalMoves(Black))
+	got := pos.LegalMoves().length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -320,11 +287,7 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 
 	from := Bsf(bitboardFromCoordinate("e3"))
 	to := Bsf(bitboardFromCoordinate("d4"))
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(WhitePawn).
-		setMoveType(Capture)
+	move := encodeMove(uint16(from), uint16(to), capture)
 
 	pos.MakeMove(move)
 
@@ -341,35 +304,19 @@ func TestZobristUpdate(t *testing.T) {
 
 	from := Bsf(bitboardFromCoordinate("g1"))
 	to := Bsf(bitboardFromCoordinate("f3"))
-	move1 := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(WhitePawn).
-		setMoveType(Normal)
+	move1 := encodeMove(uint16(from), uint16(to), quiet)
 
 	from = Bsf(bitboardFromCoordinate("b7"))
 	to = Bsf(bitboardFromCoordinate("c5"))
-	move2 := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(BlackPawn).
-		setMoveType(Normal)
+	move2 := encodeMove(uint16(from), uint16(to), quiet)
 
 	from = Bsf(bitboardFromCoordinate("b1"))
 	to = Bsf(bitboardFromCoordinate("c3"))
-	move3 := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(WhiteKnight).
-		setMoveType(Normal)
+	move3 := encodeMove(uint16(from), uint16(to), quiet)
 
 	from = Bsf(bitboardFromCoordinate("g8"))
 	to = Bsf(bitboardFromCoordinate("f6"))
-	move4 := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(BlackKnight).
-		setMoveType(Normal)
+	move4 := encodeMove(uint16(from), uint16(to), quiet)
 
 	pos2 := *pos
 
@@ -405,20 +352,13 @@ func TestUnmakeInNormalMove(t *testing.T) {
 	from := Bsf(bitboardFromCoordinate("g1"))
 	to := Bsf(bitboardFromCoordinate("f3"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(WhiteKnight).
-		setMoveType(Normal).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
+	move := encodeMove(uint16(from), uint16(to), quiet)
 
 	expected := pos.Hash
 
 	// Make and restore
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.Hash
 
@@ -433,19 +373,12 @@ func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
 	from := Bsf(bitboardFromCoordinate("e2"))
 	to := Bsf(bitboardFromCoordinate("e4"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(WhitePawn).
-		setMoveType(Normal).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
+	move := encodeMove(uint16(from), uint16(to), doublePawnPush)
 
 	expected := pos.ToFen() // Orifinal position
 
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.ToFen()
 
@@ -454,25 +387,18 @@ func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
 	}
 }
 
-func TestUnmakeMoveNormalMove(t *testing.T) {
+func TestUnmakeMoveQuietMove(t *testing.T) {
 	pos := From("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1") // Position. 1. e4 (black to move)
 
 	from := Bsf(bitboardFromCoordinate("e7"))
 	to := Bsf(bitboardFromCoordinate("e5"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(BlackPawn).
-		setMoveType(Normal).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
+	move := encodeMove(uint16(from), uint16(to), quiet)
 
 	expected := pos.ToFen()
 
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.ToFen()
 
@@ -487,20 +413,12 @@ func TestUnmakeCapture(t *testing.T) {
 	from := Bsf(bitboardFromCoordinate("e3"))
 	to := Bsf(bitboardFromCoordinate("b6"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(WhiteBishop).
-		setMoveType(Capture).
-		setCapturedPiece(BlackRook).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
+	move := encodeMove(uint16(from), uint16(to), capture)
 
 	expected := pos.ToFen()
 
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.ToFen()
 
@@ -515,20 +433,12 @@ func TestUnmakeCaptureThatChangesCastleRights(t *testing.T) {
 	from := Bsf(bitboardFromCoordinate("b7"))
 	to := Bsf(bitboardFromCoordinate("h1"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(BlackBishop).
-		setMoveType(Capture).
-		setCapturedPiece(WhiteRook).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
+	move := encodeMove(uint16(from), uint16(to), capture)
 
 	expected := pos.ToFen()
 
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.ToFen()
 
@@ -543,20 +453,12 @@ func TestUnmakePromotionRestoresThePawnTo7thRank(t *testing.T) {
 	from := Bsf(bitboardFromCoordinate("e7"))
 	to := Bsf(bitboardFromCoordinate("e8"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(WhitePawn).
-		setMoveType(Promotion).
-		setPromotedTo(WhiteQueen).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
+	move := encodeMove(uint16(from), uint16(to), queenPromotion)
 
 	expected := pos.ToFen()
 
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.ToFen()
 
@@ -571,19 +473,11 @@ func TestUnmakeCastleForWhite(t *testing.T) {
 	from := Bsf(bitboardFromCoordinate("e1"))
 	to := Bsf(bitboardFromCoordinate("c1"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(WhiteKing).
-		setMoveType(Castle).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
-
+	move := encodeMove(uint16(from), uint16(to), queensideCastle)
 	expected := pos.ToFen()
 
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.ToFen()
 
@@ -598,19 +492,11 @@ func TestUnmakeCastleForBlack(t *testing.T) {
 	from := Bsf(bitboardFromCoordinate("e8"))
 	to := Bsf(bitboardFromCoordinate("c8"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(BlackKing).
-		setMoveType(Castle).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
-
+	move := encodeMove(uint16(from), uint16(to), queensideCastle)
 	expected := pos.ToFen()
 
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.ToFen()
 
@@ -625,19 +511,11 @@ func TestUnmakeEnPassantCaptureForBlack(t *testing.T) {
 	from := Bsf(bitboardFromCoordinate("c4"))
 	to := Bsf(bitboardFromCoordinate("b3"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(BlackPawn).
-		setMoveType(EnPassant).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
-
+	move := encodeMove(uint16(from), uint16(to), epCapture)
 	expected := pos.ToFen()
 
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.ToFen()
 
@@ -652,19 +530,11 @@ func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
 	from := Bsf(bitboardFromCoordinate("d5"))
 	to := Bsf(bitboardFromCoordinate("c6"))
 
-	move := newMove().
-		setFromSq(from).
-		setToSq(to).
-		setPiece(WhitePawn).
-		setMoveType(EnPassant).
-		setEpTargetBefore(pos.enPassantTarget).
-		setRule50Before(pos.halfmoveClock).
-		setCastleRightsBefore(pos.castlingRights)
-
+	move := encodeMove(uint16(from), uint16(to), epCapture)
 	expected := pos.ToFen()
 
 	pos.MakeMove(move)
-	pos.UnmakeMove(*move)
+	pos.UnmakeMove(move)
 
 	got := pos.ToFen()
 
@@ -673,26 +543,7 @@ func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
 	}
 }
 
-func TestNewMakeMoveWithEpCapture(t *testing.T) {
-	pos := From("5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1")
-
-	from := Bsf(bitboardFromCoordinate("d5"))
-	to := Bsf(bitboardFromCoordinate("c6"))
-
-	move := encodeMove(uint16(from), uint16(to), epCapture)
-
-	expected := "5rk1/pp3ppp/2P1pn2/8/8/2P3P1/PP3PBP/4R1K1 b - - 0 1"
-
-	pos.newMakeMove(move)
-
-	got := pos.ToFen()
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestNewMakeMoveWithPromotionCapture(t *testing.T) {
+func TestMakeMoveWithPromotionCapture(t *testing.T) {
 	pos := From("8/8/2kq1N2/2pp4/1p6/4R3/p4PPP/1N4K1 b - - 0 1")
 
 	from := Bsf(bitboardFromCoordinate("a2"))
@@ -702,7 +553,7 @@ func TestNewMakeMoveWithPromotionCapture(t *testing.T) {
 
 	expected := "8/8/2kq1N2/2pp4/1p6/4R3/5PPP/1q4K1 w - - 0 2"
 
-	pos.newMakeMove(move)
+	pos.MakeMove(move)
 
 	got := pos.ToFen()
 
@@ -711,16 +562,16 @@ func TestNewMakeMoveWithPromotionCapture(t *testing.T) {
 	}
 }
 
-func TestNewUnmakeMoveWithEpCapture(t *testing.T) {
+func TestUnmakeMoveWithEpCapture(t *testing.T) {
 	pos := From("5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1")
 
 	from := Bsf(bitboardFromCoordinate("d5"))
 	to := Bsf(bitboardFromCoordinate("c6"))
 
 	move := encodeMove(uint16(from), uint16(to), epCapture)
-	pos.newMakeMove(move)
+	pos.MakeMove(move)
 
-	pos.newUnmakeMove(move)
+	pos.UnmakeMove(move)
 
 	expected := "5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1"
 	got := pos.ToFen()
@@ -731,7 +582,7 @@ func TestNewUnmakeMoveWithEpCapture(t *testing.T) {
 
 }
 
-func TestNewUnmakeMoveWithKinigtMatePromotion(t *testing.T) {
+func TestUnmakeMoveWithKinigtMatePromotion(t *testing.T) {
 	pos := From("8/p7/1pkb4/2p5/8/6PP/5pNK/6BQ b - - 50 1")
 
 	from := Bsf(bitboardFromCoordinate("f2"))
@@ -739,8 +590,8 @@ func TestNewUnmakeMoveWithKinigtMatePromotion(t *testing.T) {
 
 	move := encodeMove(uint16(from), uint16(to), knightPromotion)
 
-	pos.newMakeMove(move)
-	pos.newUnmakeMove(move)
+	pos.MakeMove(move)
+	pos.UnmakeMove(move)
 
 	expected := "8/p7/1pkb4/2p5/8/6PP/5pNK/6BQ b - - 50 1"
 	got := pos.ToFen()

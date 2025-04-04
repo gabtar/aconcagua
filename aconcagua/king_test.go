@@ -187,7 +187,7 @@ func TestKingCannotCastleLongIfItsInCheck(t *testing.T) {
 	}
 }
 
-func TestNewKingMoves(t *testing.T) {
+func TestKingMoves(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
@@ -197,7 +197,7 @@ func TestNewKingMoves(t *testing.T) {
 	ml := newMoveList()
 
 	expected := 7
-	newKingMoves(&kingBB, pos, White, ml)
+	genKingMoves(&kingBB, pos, White, ml)
 	got := ml.length
 
 	if got != expected {

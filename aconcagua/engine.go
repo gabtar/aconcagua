@@ -8,26 +8,24 @@ import (
 var engine Engine = Engine{pos: *InitialPosition()}
 
 type Engine struct {
-	pos         Position
-	searching   bool // whenever the engine is looking for a position
-	searchState SearchState
+	pos    Position
+	search NewSearch
 }
 
 func NewEngine() *Engine {
 	return &Engine{
-		pos:       *EmptyPosition(),
-		searching: false,
-		searchState: SearchState{
+		pos: *InitialPosition(),
+		search: NewSearch{
 			nodes:        0,
 			currentDepth: 0,
 			maxDepth:     0,
-			pv:           newPrincipalVariation(),
-			killers:      [100]KillerMoves{},
-			history:      HistoryMoves{},
+			pv:           newPV(),
+			killers:      [100]Killer{},
 			time:         time.Now(),
 			totalTime:    time.Now(),
 			stop:         false,
 		},
+
 		// TODO: engine options
 	}
 }

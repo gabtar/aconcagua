@@ -3,14 +3,14 @@ package aconcagua
 import "testing"
 
 func TestAdd(t *testing.T) {
-	pv := newPrincipalVariation()
-	branchPv := newPrincipalVariation()
+	pv := newPV()
+	branchPv := newPV()
 
-	m0 := Move(0)
-	m1 := Move(1)
+	m0 := encodeMove(0, 0, quiet)
+	m1 := encodeMove(1, 0, capture)
 
-	pv.insert(m0, branchPv)
-	pv.insert(m1, pv)
+	pv.insert(*m0, branchPv)
+	pv.insert(*m1, pv)
 
 	expected := 2
 	got := len(*pv)
