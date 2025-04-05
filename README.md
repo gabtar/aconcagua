@@ -30,11 +30,9 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 #### Search:
 - [ ] Adapt to new move format
-    - [ ] Transposition table
-    - [ ] Quiescent search
-    - [ ] Add checkmate detection
+    - [x] Quiescent search
     - [ ] History heruistic
-    - [ ] Mate search
+    - [x] Add checkmate/stealmate detection
 - [ ] Refactor Transposition table
 - [ ] Limit quiescent search
 - [ ] Null move pruning

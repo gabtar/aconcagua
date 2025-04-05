@@ -36,3 +36,22 @@ func TestSortMoves(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestCapturesOnly(t *testing.T) {
+	ml := newMoveList()
+
+	ml.add(*encodeMove(1, 0, quiet))
+	ml.add(*encodeMove(2, 0, capture))
+	ml.add(*encodeMove(3, 0, epCapture))
+	ml.add(*encodeMove(4, 0, capture))
+
+	ml.capturesOnly()
+
+	expected := 2
+	got := ml.length
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+}

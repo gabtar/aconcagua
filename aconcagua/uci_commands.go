@@ -87,17 +87,16 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 	score := root(&en.pos, &en.search, depth, stdout)
 	pv := en.search.pv
 
-	// en.searching = true
-	// score, bestMove := Search(&engine.pos, &engine.searchState, depth, stdout)
-	// absScore := abs(score)
+	absScore := abs(score)
+	if absScore >= MateScore {
+		mateIn := ((depth - (absScore - MateScore)) + 1) / 2 // moves, not ply!
+		// FIX: mate is always positive
+		// conveninion should be if white is getting mated then the score is negative
+		stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
+	} else {
+		stdout <- "info score cp " + strconv.Itoa(score)
+	}
 
-	// if absScore >= MateScore {
-	// 	mateIn := ((depth - (absScore - MateScore)) + 1) / 2 // moves, not ply!
-	// 	stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
-	// } else {
-	// 	stdout <- "info score cp " + strconv.Itoa(score)
-	// }
-	stdout <- "info score cp " + strconv.Itoa(score)
 	stdout <- "bestmove " + (*pv)[0].String()
 }
 

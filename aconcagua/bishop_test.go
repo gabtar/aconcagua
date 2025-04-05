@@ -123,7 +123,7 @@ func TestBishpMovesWhenTheBishopIsPinned(t *testing.T) {
 	}
 }
 
-func TestNewBishopMoves(t *testing.T) {
+func TestBishopMoves(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteBishop, "g6")
 	pos.AddPiece(WhiteKnight, "e8") // Cannot move, blocked by same color knight

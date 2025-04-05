@@ -68,12 +68,6 @@ func (m *Move) String() (move string) {
 	return
 }
 
-// TODO: move ordering idea
-// have 2 separated list for moves an scores
-// and then sort all of them at the same time
-// moves []
-// scores []
-
 // store board state to undo move
 // type of piece moved -> 4 bit
 // type of piece captured if any -> 4 bit
@@ -92,21 +86,21 @@ func encodePositionBefore(pieceMoved uint16, pieceCaptured uint16, epTarget uint
 }
 
 // pieceMoved returns the type of the piece pieceMoved
-func (bb *positionBefore) pieceMoved() int {
-	return int(*bb & 0b1111)
+func (pb *positionBefore) pieceMoved() int {
+	return int(*pb & 0b1111)
 }
 
 // pieceCaptured returns the type of the piece pieceCaptured
-func (bb *positionBefore) pieceCaptured() int {
-	return int((*bb & (0b1111 << 4)) >> 4)
+func (pb *positionBefore) pieceCaptured() int {
+	return int((*pb & (0b1111 << 4)) >> 4)
 }
 
 // epTarget returns the en passant target square
-func (bb *positionBefore) epTarget() int {
-	return int((*bb & (0b111111 << 8)) >> 8)
+func (pb *positionBefore) epTarget() int {
+	return int((*pb & (0b111111 << 8)) >> 8)
 }
 
 // rule50 returns the rule50 counter before the move
-func (bb *positionBefore) rule50() int {
-	return int((*bb & (0b111111 << 15)) >> 15)
+func (pb *positionBefore) rule50() int {
+	return int((*pb & (0b111111 << 15)) >> 15)
 }

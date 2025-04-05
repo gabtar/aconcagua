@@ -9,13 +9,13 @@ var engine Engine = Engine{pos: *InitialPosition()}
 
 type Engine struct {
 	pos    Position
-	search NewSearch
+	search Search
 }
 
 func NewEngine() *Engine {
 	return &Engine{
 		pos: *InitialPosition(),
-		search: NewSearch{
+		search: Search{
 			nodes:        0,
 			currentDepth: 0,
 			maxDepth:     0,

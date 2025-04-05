@@ -70,7 +70,7 @@ func TestKnightMovesWhenPinned(t *testing.T) {
 
 }
 
-func TestNewKnightMoves(t *testing.T) {
+func TestKnightMoves(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteKnight, "b1")
 	pos.AddPiece(BlackBishop, "c3")

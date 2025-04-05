@@ -146,7 +146,7 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 
 }
 
-func TestNewRookMoves(t *testing.T) {
+func TestRookMoves(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(WhiteKnight, "a4") // Can move(capture) white knight on a4

@@ -22,16 +22,24 @@ func newMoveList() *moveList {
 	}
 }
 
-// TODO: sort and score the moves...
 // sort sort the scores in the move list according to the scores array passed
 func (ml *moveList) sort(scores []int) {
-
 	for i := 0; i < ml.length-1; i++ {
 		for j := 0; j < ml.length-i-1; j++ {
 			if scores[j] < scores[j+1] {
 				ml.moves[j], ml.moves[j+1] = ml.moves[j+1], ml.moves[j]
 				scores[j], scores[j+1] = scores[j+1], scores[j]
 			}
+		}
+	}
+}
+
+// capturesOnly removes all moves that are not captures
+func (ml *moveList) capturesOnly() {
+	for i := ml.length - 1; i >= 0; i-- {
+		if ml.moves[i].flag() != capture {
+			ml.length--
+			ml.moves[i] = ml.moves[ml.length]
 		}
 	}
 }
