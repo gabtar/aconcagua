@@ -10,7 +10,7 @@ import (
 const MateScore = 100000
 
 // HistoryMoves stores moves score during search by from/to square
-type HistoryMoves [2][64][64]int
+type HistoryMoves [12][64]int
 
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
 func isCheckmateOrStealmate(pos *Position, ml *moveList, depth *int) (int, bool) {
@@ -65,25 +65,23 @@ func scoreMoves(pos *Position, ml *moveList, s *Search, ply int) []int {
 				scores[i] = 40
 				continue
 			}
-
 		}
-
-		// scores[i] = s.historyMoves[pos.Turn][ml.moves[i].from()][ml.moves[i].to()]
 	}
 
 	return scores
 }
 
 type Search struct {
-	nodes        int
-	currentDepth int
-	maxDepth     int
-	pv           *PV
-	killers      [100]Killer
-	historyMoves HistoryMoves
-	time         time.Time
-	totalTime    time.Time
-	stop         bool
+	nodes              int
+	currentDepth       int
+	maxDepth           int
+	pv                 *PV
+	killers            [100]Killer
+	historyMoves       HistoryMoves
+	transpositionTable *TranspositionTable
+	time               time.Time
+	totalTime          time.Time
+	stop               bool
 }
 
 // init initializes the Search struct
@@ -93,6 +91,7 @@ func (s *Search) init(depth int) {
 	s.maxDepth = depth
 	s.pv = newPV()
 	s.killers = [100]Killer{}
+	s.transpositionTable = NewTranspositionTable(64)
 	s.time = time.Now()
 	s.totalTime = time.Now()
 	s.stop = false
@@ -156,6 +155,14 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV) i
 		return alpha
 	}
 
+	// TODO: Probe hash with alpha/beta
+	// move ordering w/ tt score....
+	value, exists := s.transpositionTable.probe(pos.Hash, depth, alpha, beta)
+	if exists {
+		return value
+	}
+
+	flag := FlagUpperBound
 	foundPv := false
 	ply := s.currentDepth - depth
 	s.nodes++
@@ -170,7 +177,8 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV) i
 	}
 
 	if depth == 0 {
-		return quiescent(pos, s, alpha, beta) // Fixed quiescent search dept
+		s.transpositionTable.store(pos.Hash, depth, FlagExact, Eval(pos))
+		return quiescent(pos, s, alpha, beta)
 	}
 
 	for i := 0; i < moves.length; i++ {
@@ -189,14 +197,13 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV) i
 		pos.UnmakeMove(&moves.moves[i])
 
 		if newScore >= beta {
+			s.transpositionTable.store(pos.Hash, depth, FlagUpperBound, newScore)
 			s.killers[ply].add(moves.moves[i])
 			return beta
 		}
 
 		if newScore > alpha {
-			// if moves.moves[i].flag() == quiet {
-			// 	s.historyMoves[pos.Turn][moves.moves[i].from()][moves.moves[i].to()]++
-			// }
+			flag = FlagExact
 
 			alpha = newScore
 			pv.insert(moves.moves[i], branchPv)
@@ -204,6 +211,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV) i
 		}
 	}
 
+	s.transpositionTable.store(pos.Hash, depth, flag, alpha)
 	return alpha
 }
 
