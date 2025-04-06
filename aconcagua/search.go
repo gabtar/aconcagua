@@ -9,9 +9,6 @@ import (
 // MateScore defines a base score for detecting checkmates
 const MateScore = 100000
 
-// HistoryMoves stores moves score during search by from/to square
-type HistoryMoves [12][64]int
-
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
 func isCheckmateOrStealmate(pos *Position, ml *moveList, depth *int) (int, bool) {
 	found := ml.length == 0
@@ -77,7 +74,6 @@ type Search struct {
 	maxDepth           int
 	pv                 *PV
 	killers            [100]Killer
-	historyMoves       HistoryMoves
 	transpositionTable *TranspositionTable
 	time               time.Time
 	totalTime          time.Time

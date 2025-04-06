@@ -63,6 +63,7 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 					engine.pos.MakeMove(&legalMove)
 				}
 			}
+			en.pos.positionHistory = *NewPositionHistory()
 		}
 	}
 }
