@@ -122,7 +122,7 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 		}
 		s.reset(d)
 
-		bestMoveScore = negamax(pos, s, d, alpha, beta, s.pv)
+		bestMoveScore = negamax(pos, s, d, alpha, beta, s.pv, true)
 
 		// Set aspiration window
 		if bestMoveScore <= alpha || bestMoveScore >= beta {
@@ -146,16 +146,14 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
-func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV) int {
+func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, nullMoveAllowed bool) int {
 	if s.stop {
 		return alpha
 	}
 
-	// TODO: Probe hash with alpha/beta
-	// move ordering w/ tt score....
-	value, exists := s.transpositionTable.probe(pos.Hash, depth, alpha, beta)
+	ttScore, exists := s.transpositionTable.probe(pos.Hash, depth, alpha, beta)
 	if exists {
-		return value
+		return ttScore
 	}
 
 	flag := FlagUpperBound
@@ -174,7 +172,28 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV) i
 
 	if depth == 0 {
 		s.transpositionTable.store(pos.Hash, depth, FlagExact, Eval(pos))
-		return quiescent(pos, s, alpha, beta)
+		return quiescent(pos, s, alpha, beta, 5) // Limit qs to 5 depth
+	}
+
+	// Null Move Pruning
+	// R = 2
+	if depth >= 3 && !pos.Check(pos.Turn) && nullMoveAllowed {
+		// Do null move - Extract method!!!
+		pos.Turn = pos.Turn.Opponent()
+		ep := pos.enPassantTarget
+		pos.enPassantTarget = 0 // NOTE: IMPORTANT!!!! - If not done search goes inestable and outputs random moves eg. promotions....
+		pos.Hash = zobristHash(pos)
+
+		sc := -negamax(pos, s, depth-3, -beta, -beta+1, newPV(), false)
+
+		// Restore null move
+		pos.Turn = pos.Turn.Opponent()
+		pos.enPassantTarget = ep
+		pos.Hash = zobristHash(pos)
+
+		if sc >= beta {
+			return beta
+		}
 	}
 
 	for i := 0; i < moves.length; i++ {
@@ -182,12 +201,12 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV) i
 		newScore := math.MinInt + 1
 
 		if foundPv {
-			newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv)
+			newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv, true)
 			if newScore > alpha && newScore < beta {
-				newScore = -negamax(pos, s, depth-1, -beta, -newScore, branchPv)
+				newScore = -negamax(pos, s, depth-1, -beta, -newScore, branchPv, true)
 			}
 		} else {
-			newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv)
+			newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv, true)
 		}
 
 		pos.UnmakeMove(&moves.moves[i])
@@ -212,15 +231,21 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV) i
 }
 
 // quiescent s an evaluation function that takes into account some dynamic possibilities
-func quiescent(pos *Position, s *Search, alpha int, beta int) int {
+func quiescent(pos *Position, s *Search, alpha int, beta int, depth int) int {
 	if s.stop {
 		return alpha
 	}
+
 	score := Eval(pos)
+
+	if depth == 0 {
+		return score
+	}
 
 	if score >= beta {
 		return beta
 	}
+
 	if score > alpha {
 		alpha = score
 	}
@@ -230,7 +255,7 @@ func quiescent(pos *Position, s *Search, alpha int, beta int) int {
 
 	for i := 0; i < ml.length; i++ {
 		pos.MakeMove(&ml.moves[i])
-		score = -quiescent(pos, s, -beta, -alpha)
+		score = -quiescent(pos, s, -beta, -alpha, depth-1)
 		pos.UnmakeMove(&ml.moves[i])
 		if score >= beta {
 			return beta

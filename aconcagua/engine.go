@@ -5,11 +5,10 @@ import (
 	"time"
 )
 
-var engine Engine = Engine{pos: *InitialPosition()}
-
 type Engine struct {
-	pos    Position
-	search Search
+	pos       Position
+	search    Search
+	searching bool
 }
 
 func NewEngine() *Engine {
@@ -26,7 +25,7 @@ func NewEngine() *Engine {
 			stop:         false,
 		},
 
-		// TODO: engine options
+		// TODO: engine options/settings
 	}
 }
 
@@ -47,7 +46,7 @@ func (en *Engine) StartUci() {
 		}
 
 		commands := strings.Split(strings.TrimSpace(command), " ")
-		go engine.execute(commands[0], stdout, commands[1:]...)
+		go en.execute(commands[0], stdout, commands[1:]...)
 	}
 
 }

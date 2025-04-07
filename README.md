@@ -33,9 +33,10 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
     - [x] Quiescent search
     - [ ] History heruistic
     - [x] Add checkmate/stealmate detection
-- [ ] Refactor Transposition table
-- [ ] Limit quiescent search
-- [ ] Null move pruning
+- [ ] Add time controls
+- [ ] Refactor Transposition table to use w/ move ordering...
+- [x] Limit quiescent search -> 5 depth
+- [x] Null move pruning
 - [x] Improve move ordering
 - [ ] Detect threefold repetition - use zobrist hash
 

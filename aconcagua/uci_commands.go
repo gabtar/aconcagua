@@ -46,7 +46,7 @@ func uciCommand(en *Engine, stdout chan string, params ...string) {
 // positionCommand implements the position uci command
 func positionCommand(en *Engine, stdout chan string, params ...string) {
 	if params[0] == "startpos" {
-		engine.pos = *From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+		en.pos = *From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 	} else if params[0] == "fen" {
 		fen := strings.Join(params[1:], " ")
 		en.pos = *From(fen)
@@ -58,12 +58,12 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 
 	if movesIndex != -1 {
 		for _, move := range params[movesIndex:] {
-			for _, legalMove := range engine.pos.LegalMoves().moves {
+			for _, legalMove := range en.pos.LegalMoves().moves {
 				if legalMove.String() == move {
-					engine.pos.MakeMove(&legalMove)
+					en.pos.MakeMove(&legalMove)
+					en.pos.positionHistory = *NewPositionHistory()
 				}
 			}
-			en.pos.positionHistory = *NewPositionHistory()
 		}
 	}
 }
@@ -75,6 +75,10 @@ func isReadyCommand(en *Engine, stdout chan string, params ...string) {
 
 // goCommand starts looking for the best move in the current position
 func goCommand(en *Engine, stdout chan string, params ...string) {
+
+	// TODO: Lock position/engine to avoid race conditions
+	time.Sleep(50 * time.Millisecond)
+
 	en.search.stop = false
 	// TODO: implement remaining 'go' uci options
 
@@ -158,7 +162,7 @@ func perftCommand(en *Engine, stdout chan string, params ...string) {
 		stdout <- "invalid command"
 		return
 	}
-	stdout <- "nodes " + strconv.FormatUint(engine.pos.Perft(depth), 10)
+	stdout <- "nodes " + strconv.FormatUint(en.pos.Perft(depth), 10)
 	depthTime := time.Since(start)
 	stdout <- fmt.Sprintf("info time %v seconds", depthTime.Seconds())
 }
@@ -170,7 +174,7 @@ func divideCommand(en *Engine, stdout chan string, params ...string) {
 		stdout <- "invalid command"
 		return
 	}
-	for _, perft := range strings.Split(engine.pos.Divide(depth), ",") {
+	for _, perft := range strings.Split(en.pos.Divide(depth), ",") {
 		stdout <- perft
 	}
 }
