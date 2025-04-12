@@ -12,11 +12,12 @@ import (
 type UciCommand func(en *Engine, stdout chan string, params ...string)
 
 var uciCommands map[string]UciCommand = map[string]UciCommand{
-	"uci":      uciCommand,
-	"isready":  isReadyCommand,
-	"position": positionCommand,
-	"go":       goCommand,
-	"stop":     stopCommand,
+	"uci":        uciCommand,
+	"ucinewgame": uciNewGameCommand,
+	"isready":    isReadyCommand,
+	"position":   positionCommand,
+	"go":         goCommand,
+	"stop":       stopCommand,
 
 	// utility/debug commands
 	"d":      printBoardCommand,
@@ -37,10 +38,14 @@ func (en *Engine) execute(command string, stdout chan string, params ...string) 
 
 // uciCommand takes care of uciok command from gui
 func uciCommand(en *Engine, stdout chan string, params ...string) {
-	// TODO: add more data/options of the engine. Checkout the stockfish's uciok implementation
 	stdout <- "id aconcagua"
 	stdout <- "author gabtar"
 	stdout <- "uciok"
+}
+
+// uciNewGameCommand starts a new game
+func uciNewGameCommand(en *Engine, stdout chan string, params ...string) {
+	en.pos = *InitialPosition()
 }
 
 // positionCommand implements the position uci command
@@ -75,28 +80,50 @@ func isReadyCommand(en *Engine, stdout chan string, params ...string) {
 
 // goCommand starts looking for the best move in the current position
 func goCommand(en *Engine, stdout chan string, params ...string) {
+	score := 0
+	depth := findParam(params, "depth")
+	wtime := findParam(params, "wtime")
+	btime := findParam(params, "btime")
+	movetime := findParam(params, "movetime")
 
-	// TODO: Lock position/engine to avoid race conditions
-	time.Sleep(50 * time.Millisecond)
+	if movetime != -1 {
+		depth = 100
 
-	en.search.stop = false
-	// TODO: implement remaining 'go' uci options
+		go func() {
+			moveTime, _ := strconv.Atoi(params[movetime+1])
+			time.Sleep(time.Duration(moveTime) * time.Millisecond)
+			en.search.stop = true
+		}()
 
-	depth := 5 // Default depth
+	} else if wtime != -1 && btime != -1 {
+		wtime, _ = strconv.Atoi(params[wtime+1])
+		btime, _ = strconv.Atoi(params[btime+1])
 
-	dIndex := findParam(params, "depth")
-	if dIndex != -1 {
-		depth, _ = strconv.Atoi(params[dIndex+1])
+		engineTime := wtime
+		if en.pos.Turn == Black {
+			engineTime = btime
+		}
+		en.timeControl.timeLeftInMiliseconds = engineTime
+		en.timeControl.setSearchTime(en.pos.fullmoveNumber / 2)
+		depth = 100
+
+		go func() {
+			time.Sleep(time.Duration(en.timeControl.searchTimeInMiliseconds) * time.Millisecond)
+			en.search.stop = true
+		}()
+
+	} else if depth != -1 {
+		depth, _ = strconv.Atoi(params[depth+1])
+	} else {
+		depth = 8
 	}
 
-	score := root(&en.pos, &en.search, depth, stdout)
+	score = root(&en.pos, &en.search, depth, stdout)
 	pv := en.search.pv
 
 	absScore := abs(score)
 	if absScore >= MateScore {
-		mateIn := ((depth - (absScore - MateScore)) + 1) / 2 // moves, not ply!
-		// FIX: mate is always positive
-		// conveninion should be if white is getting mated then the score is negative
+		mateIn := ((depth - (absScore - MateScore)) + 1) / 2 // NOTE: in full moves, not ply!
 		stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
 	} else {
 		stdout <- "info score cp " + strconv.Itoa(score)
@@ -133,6 +160,7 @@ func readStdin(input chan string) {
 // writeStdout writes strings to standard output (form engine to GUI)
 func writeStdout(output <-chan string) {
 	for cmd := range output {
+		strings.TrimSpace(cmd)
 		fmt.Println(cmd)
 	}
 }

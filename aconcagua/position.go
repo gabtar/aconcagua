@@ -1,7 +1,6 @@
 package aconcagua
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 )
@@ -100,9 +99,8 @@ type Position struct {
 	positionHistory PositionHistory
 }
 
-// TODO: create a no piece/empty square constant instead of error
 // pieceAt returns a Piece at the given square coordinate in the Position or error
-func (pos *Position) PieceAt(square string) (piece Piece, e error) {
+func (pos *Position) PieceAt(square string) (piece Piece) {
 	bitboardSquare := bitboardFromCoordinate(square)
 
 	for index, bitboard := range pos.Bitboards {
@@ -113,7 +111,6 @@ func (pos *Position) PieceAt(square string) (piece Piece, e error) {
 	}
 
 	piece = NoPiece
-	e = errors.New("no piece")
 	return
 }
 
@@ -280,7 +277,7 @@ func (pos *Position) LegalMoves() *moveList {
 
 // MakeMove executes a chess move, updating the board state
 func (pos *Position) MakeMove(move *Move) {
-	pieceToMove, _ := pos.PieceAt(squareReference[move.from()])
+	pieceToMove := pos.PieceAt(squareReference[move.from()])
 	pieceCaptured := pos.getCapturedPiece(move)
 
 	positionBefore := encodePositionBefore(
@@ -390,7 +387,7 @@ func (pos *Position) getCapturedPiece(move *Move) Piece {
 	if move.flag() == epCapture {
 		return pieceOfColor[Pawn][pos.Turn.Opponent()]
 	}
-	pieceCaptured, _ := pos.PieceAt(squareReference[move.to()])
+	pieceCaptured := pos.PieceAt(squareReference[move.to()])
 	return pieceCaptured
 }
 
@@ -451,7 +448,7 @@ func restoreRookOnCastle(pos *Position, castle castling) {
 }
 
 func UpdateCastleRights(pos *Position, move *Move) {
-	piece, _ := pos.PieceAt(squareReference[move.from()])
+	piece := pos.PieceAt(squareReference[move.from()])
 	switch piece {
 	case WhiteKing:
 		pos.castlingRights.remove(K | Q)
@@ -471,7 +468,7 @@ func UpdateCastleRights(pos *Position, move *Move) {
 		}
 	}
 
-	capturedPiece, _ := pos.PieceAt(squareReference[move.to()])
+	capturedPiece := pos.PieceAt(squareReference[move.to()])
 	if move.flag() == capture || move.flag() > 5 {
 		switch {
 		case move.to() == 0 && capturedPiece == WhiteRook:
@@ -485,6 +482,22 @@ func UpdateCastleRights(pos *Position, move *Move) {
 		}
 	}
 
+}
+
+// makeNullMove performs a null move
+func (pos *Position) makeNullMove() Bitboard {
+	pos.Turn = pos.Turn.Opponent()
+	ep := pos.enPassantTarget
+	pos.enPassantTarget = 0 // NOTE: IMPORTANT!!!! - If not done search goes inestable and outputs random moves eg. promotions....
+	pos.Hash = zobristHash(pos)
+	return ep
+}
+
+// unmakeNullMove restores the position after a null move
+func (pos *Position) unmakeNullMove(ep Bitboard) {
+	pos.Turn = pos.Turn.Opponent()
+	pos.enPassantTarget = ep
+	pos.Hash = zobristHash(pos)
 }
 
 // ToFen serializes the position as a fen string

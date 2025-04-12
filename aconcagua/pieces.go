@@ -107,7 +107,7 @@ var raysAttacks [8][64]Bitboard = [8][64]Bitboard{
 // isPinned returns if the passed piece is pinned in the passed position
 func isPinned(piece *Bitboard, side Color, pos *Position) bool {
 	kingBB := pos.KingPosition(side)
-	// FIX: Needed because some test are without king
+
 	if kingBB == 0 {
 		return false
 	}
@@ -132,8 +132,8 @@ func isPinned(piece *Bitboard, side Color, pos *Position) bool {
 		secondBB = bitboardFromIndex(63 - Bsr(piecesInLine & ^firstBB))
 	}
 
-	pieceOne, _ := pos.PieceAt(squareReference[Bsf(firstBB)])
-	pieceTwo, _ := pos.PieceAt(squareReference[Bsf(secondBB)])
+	pieceOne := pos.PieceAt(squareReference[Bsf(firstBB)])
+	pieceTwo := pos.PieceAt(squareReference[Bsf(secondBB)])
 
 	withoutPinnedPiece := *pos
 	withoutPinnedPiece.RemovePiece(*piece)
@@ -249,7 +249,7 @@ func checkRestrictedMoves(piece Bitboard, side Color, pos *Position) (allowedSqu
 		allowedSquares = AllSquares
 	case checkingPieces.count() == 1:
 		checker := checkingPieces.NextBit()
-		piece, _ := pos.PieceAt(squareReference[Bsf(checker)])
+		piece := pos.PieceAt(squareReference[Bsf(checker)])
 
 		if isSliding(piece) {
 			king := pos.KingPosition(side)

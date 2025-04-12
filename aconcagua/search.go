@@ -43,8 +43,8 @@ func scoreMoves(pos *Position, ml *moveList, s *Search, ply int) []int {
 		}
 
 		if ml.moves[i].flag() == capture {
-			victim, _ := pos.PieceAt(squareReference[ml.moves[i].from()])
-			aggresor, _ := pos.PieceAt(squareReference[ml.moves[i].to()])
+			victim := pos.PieceAt(squareReference[ml.moves[i].from()])
+			aggresor := pos.PieceAt(squareReference[ml.moves[i].to()])
 
 			if victim > 5 {
 				victim -= 6
@@ -109,8 +109,6 @@ func (k *Killer) add(move Move) {
 
 // root is the entry point of the search
 func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveScore int) {
-	// NOTE: not sure if returning the bestMove is necessary. Its contained in the NewSearch struct
-
 	alpha := math.MinInt + 1 // NOTE: +1 Needed to avoid overflow when inverting alpha and beta in negamax
 	beta := math.MaxInt
 	s.init(maxDepth)
@@ -124,16 +122,15 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 
 		bestMoveScore = negamax(pos, s, d, alpha, beta, s.pv, true)
 
-		// Set aspiration window
 		if bestMoveScore <= alpha || bestMoveScore >= beta {
 			alpha = math.MinInt + 1
 			beta = math.MaxInt
 			d--
 			continue
 		}
-		// TODO: try diferent window values...
-		alpha = bestMoveScore - 50
-		beta = bestMoveScore + 50
+
+		alpha = bestMoveScore - 45
+		beta = bestMoveScore + 45
 
 		depthTime := time.Since(s.time)
 		s.time = time.Now()
@@ -148,7 +145,7 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 // for a fixed depth
 func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, nullMoveAllowed bool) int {
 	if s.stop {
-		return alpha
+		return 0
 	}
 
 	ttScore, exists := s.transpositionTable.probe(pos.Hash, depth, alpha, beta)
@@ -175,21 +172,10 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		return quiescent(pos, s, alpha, beta, 5) // Limit qs to 5 depth
 	}
 
-	// Null Move Pruning
-	// R = 2
 	if depth >= 3 && !pos.Check(pos.Turn) && nullMoveAllowed {
-		// Do null move - Extract method!!!
-		pos.Turn = pos.Turn.Opponent()
-		ep := pos.enPassantTarget
-		pos.enPassantTarget = 0 // NOTE: IMPORTANT!!!! - If not done search goes inestable and outputs random moves eg. promotions....
-		pos.Hash = zobristHash(pos)
-
-		sc := -negamax(pos, s, depth-3, -beta, -beta+1, newPV(), false)
-
-		// Restore null move
-		pos.Turn = pos.Turn.Opponent()
-		pos.enPassantTarget = ep
-		pos.Hash = zobristHash(pos)
+		ep := pos.makeNullMove()
+		sc := -negamax(pos, s, depth-3, -beta, -beta+1, branchPv, false)
+		pos.unmakeNullMove(ep)
 
 		if sc >= beta {
 			return beta
@@ -230,10 +216,10 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 	return alpha
 }
 
-// quiescent s an evaluation function that takes into account some dynamic possibilities
+// quiescent is an evaluation function that takes into account some dynamic possibilities
 func quiescent(pos *Position, s *Search, alpha int, beta int, depth int) int {
 	if s.stop {
-		return alpha
+		return 0
 	}
 
 	score := Eval(pos)

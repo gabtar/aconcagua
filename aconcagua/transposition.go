@@ -13,8 +13,6 @@ const DefaultTableSizeInMb = 64
 // depth is the depth of the position - 32bits
 // flag is the evaluation flag - 32bits
 // score is the evaluation score - 32bits
-// TODO:  move is the best move - 16bits - for move ordering purposes only if exact!
-// Total entry size is 176bits = 160 bits / 8 = 20 bytes
 type TTEntry struct {
 	key   uint64
 	depth int

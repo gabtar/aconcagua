@@ -6,9 +6,9 @@ import (
 )
 
 type Engine struct {
-	pos       Position
-	search    Search
-	searching bool
+	pos         Position
+	search      Search
+	timeControl TimeControl
 }
 
 func NewEngine() *Engine {
@@ -24,8 +24,7 @@ func NewEngine() *Engine {
 			totalTime:    time.Now(),
 			stop:         false,
 		},
-
-		// TODO: engine options/settings
+		timeControl: TimeControl{},
 	}
 }
 

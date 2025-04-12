@@ -87,7 +87,7 @@ func TestPinnedPiece(t *testing.T) {
 	pos.AddPiece(BlackKing, "c7")
 	pos.AddPiece(BlackRook, "c6")
 	pos.AddPiece(WhiteRook, "c1")
-	blackRook, _ := pos.PieceAt("c6")
+	blackRook := pos.PieceAt("c6")
 	from := bitboardFromCoordinate("c6")
 
 	expected := true
@@ -100,7 +100,7 @@ func TestPinnedPiece(t *testing.T) {
 
 func TestPinnedPieceKnightFail(t *testing.T) {
 	pos := From("rnQq1k1r/pp2bppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R b KQ - 1 8")
-	blackKnight, _ := pos.PieceAt("b8")
+	blackKnight := pos.PieceAt("b8")
 	from := bitboardFromCoordinate("b8")
 
 	expected := false

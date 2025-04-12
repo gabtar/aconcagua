@@ -27,5 +27,6 @@ func (pv *PV) String() string {
 	for _, m := range *pv {
 		moves += m.String() + " "
 	}
+	moves = moves[:len(moves)-1]
 	return moves
 }
