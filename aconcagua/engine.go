@@ -45,7 +45,7 @@ func (en *Engine) StartUci() {
 		}
 
 		commands := strings.Split(strings.TrimSpace(command), " ")
-		go en.execute(commands[0], stdout, commands[1:]...)
+		en.execute(commands[0], stdout, commands[1:]...)
 	}
 
 }

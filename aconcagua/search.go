@@ -6,8 +6,12 @@ import (
 	"time"
 )
 
-// MateScore defines a base score for detecting checkmates
-const MateScore = 100000
+// Constants to use in the search
+const (
+	MateScore = 100000
+	MinInt    = math.MinInt + 2 // NOTE: use +2 to avoid overflow when inverting due to negamax
+	MaxInt    = math.MaxInt - 2
+)
 
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
 func isCheckmateOrStealmate(pos *Position, ml *moveList, depth *int) (int, bool) {
@@ -109,22 +113,18 @@ func (k *Killer) add(move Move) {
 
 // root is the entry point of the search
 func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveScore int) {
-	alpha := math.MinInt + 1 // NOTE: +1 Needed to avoid overflow when inverting alpha and beta in negamax
-	beta := math.MaxInt
+	alpha := MinInt
+	beta := MaxInt
 	s.init(maxDepth)
 
 	for d := 1; d <= maxDepth; d++ {
-		// stop search if stop command has been sended
-		if s.stop {
-			break
-		}
 		s.reset(d)
-
+		bm, _ := s.pv.moveAt(0)
 		bestMoveScore = negamax(pos, s, d, alpha, beta, s.pv, true)
 
 		if bestMoveScore <= alpha || bestMoveScore >= beta {
-			alpha = math.MinInt + 1
-			beta = math.MaxInt
+			alpha = MinInt
+			beta = MaxInt
 			d--
 			continue
 		}
@@ -136,6 +136,11 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 		s.time = time.Now()
 
 		stdout <- fmt.Sprintf("info depth %d nodes %d time %v pv %v", d, s.nodes, depthTime.Milliseconds(), s.pv)
+
+		if s.stop {
+			(*s.pv)[0] = bm // set best move of last iteration if stop
+			break
+		}
 	}
 
 	return
@@ -184,12 +189,12 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 
 	for i := 0; i < moves.length; i++ {
 		pos.MakeMove(&moves.moves[i])
-		newScore := math.MinInt + 1
+		newScore := MinInt
 
 		if foundPv {
-			newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv, true)
+			newScore = -negamax(pos, s, depth-1, -alpha-1, -alpha, branchPv, true)
 			if newScore > alpha && newScore < beta {
-				newScore = -negamax(pos, s, depth-1, -beta, -newScore, branchPv, true)
+				newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv, true)
 			}
 		} else {
 			newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv, true)
