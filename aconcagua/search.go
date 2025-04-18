@@ -92,6 +92,7 @@ func (s *Search) init(depth int) {
 	s.pv = newPV()
 	s.killers = [100]Killer{}
 	s.transpositionTable = NewTranspositionTable(64)
+	s.pv = newPV()
 	s.time = time.Now()
 	s.totalTime = time.Now()
 	s.stop = false
@@ -103,12 +104,15 @@ func (s *Search) reset(currentDepth int) {
 	s.nodes = 0
 }
 
-// new killer
+// Killer is a list of quiet moves that produces a beta cutoff
 type Killer [2]Move
 
+// add adds a non capture move to the killer list
 func (k *Killer) add(move Move) {
-	k[1] = k[0]
-	k[0] = move
+	if move.flag() != capture {
+		k[1] = k[0]
+		k[0] = move
+	}
 }
 
 // root is the entry point of the search
@@ -138,7 +142,7 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 		stdout <- fmt.Sprintf("info depth %d nodes %d time %v pv %v", d, s.nodes, depthTime.Milliseconds(), s.pv)
 
 		if s.stop {
-			(*s.pv)[0] = bm // set best move of last iteration if stop
+			(*s.pv)[0] = bm // set best move of last iteration if stoped due to time
 			break
 		}
 	}
@@ -158,7 +162,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		return ttScore
 	}
 
-	flag := FlagUpperBound
+	flag := FlagLowerBound
 	foundPv := false
 	ply := s.currentDepth - depth
 	s.nodes++
@@ -174,7 +178,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 
 	if depth == 0 {
 		s.transpositionTable.store(pos.Hash, depth, FlagExact, Eval(pos))
-		return quiescent(pos, s, alpha, beta, 5) // Limit qs to 5 depth
+		return quiescent(pos, s, alpha, beta)
 	}
 
 	if depth >= 3 && !pos.Check(pos.Turn) && nullMoveAllowed {
@@ -222,16 +226,12 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 }
 
 // quiescent is an evaluation function that takes into account some dynamic possibilities
-func quiescent(pos *Position, s *Search, alpha int, beta int, depth int) int {
+func quiescent(pos *Position, s *Search, alpha int, beta int) int {
 	if s.stop {
 		return 0
 	}
 
 	score := Eval(pos)
-
-	if depth == 0 {
-		return score
-	}
 
 	if score >= beta {
 		return beta
@@ -246,7 +246,7 @@ func quiescent(pos *Position, s *Search, alpha int, beta int, depth int) int {
 
 	for i := 0; i < ml.length; i++ {
 		pos.MakeMove(&ml.moves[i])
-		score = -quiescent(pos, s, -beta, -alpha, depth-1)
+		score = -quiescent(pos, s, -beta, -alpha)
 		pos.UnmakeMove(&ml.moves[i])
 		if score >= beta {
 			return beta
