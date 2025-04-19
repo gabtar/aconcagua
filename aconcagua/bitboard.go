@@ -88,13 +88,13 @@ func (b *Bitboard) NextBit() (bb Bitboard) {
 	return
 }
 
-// bsf (bit scan forward) returns the bit-index of the least significant 1
+// Bsf (bit scan forward) returns the bit-index of the least significant 1
 // bit (LS1B) in an integer Bitboard(uint64)
 func Bsf(bitboard Bitboard) int {
 	return bits.TrailingZeros64(uint64(bitboard))
 }
 
-// bsr (bit scan reverse) returns the bit-index of the most significant 1
+// Bsr (bit scan reverse) returns the bit-index of the most significant 1
 // bit (MS1B) in an integer Bitboard(uint64)
 func Bsr(bitboard Bitboard) int {
 	return bits.LeadingZeros64(uint64(bitboard))

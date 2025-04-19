@@ -195,6 +195,30 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		pos.MakeMove(&moves.moves[i])
 		newScore := MinInt
 
+		// Notes:
+		// Late Move Reductions conditions
+		// 1. Apply LMR to quiet moves only
+		// 2. Apply for depth from a certain depth. Tipically after 3/4 moves
+		// 3. Not apply if we are in PV nodes
+		// 4. Not apply if we are in check
+		isQuietMove := moves.moves[i].flag() == quiet && !pos.Check(pos.Turn)
+		applyLMR := depth >= 3 && !foundPv && isQuietMove && i >= 4
+		if applyLMR {
+			// LMR strategy:
+			// If the reduced search beats alpha, we need to re-search -> Go to PVS
+			// Skip to next move if reduced search failed low
+
+			// Reduced depth search with null window
+			reduction := 1
+			newScore = -negamax(pos, s, depth-1-reduction, -alpha-1, -alpha, branchPv, false)
+
+			if newScore <= alpha {
+				pos.UnmakeMove(&moves.moves[i])
+				continue
+			}
+		}
+
+		// PVS
 		if foundPv {
 			newScore = -negamax(pos, s, depth-1, -alpha-1, -alpha, branchPv, true)
 			if newScore > alpha && newScore < beta {

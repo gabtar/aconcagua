@@ -41,6 +41,4 @@ func genBishopMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 
 		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
 	}
-
-	return
 }
