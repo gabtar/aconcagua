@@ -123,8 +123,18 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 
 	for d := 1; d <= maxDepth; d++ {
 		s.reset(d)
-		bm, _ := s.pv.moveAt(0)
+
+		lastPv := *(s.pv)
+		lastScore := bestMoveScore
+
 		bestMoveScore = negamax(pos, s, d, alpha, beta, s.pv, true)
+
+		// If stop by time, set last iteration score and best move/pv
+		if s.stop {
+			bestMoveScore = lastScore
+			s.pv = &lastPv
+			break
+		}
 
 		if bestMoveScore <= alpha || bestMoveScore >= beta {
 			alpha = MinInt
@@ -138,13 +148,7 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 
 		depthTime := time.Since(s.time)
 		s.time = time.Now()
-
 		stdout <- fmt.Sprintf("info depth %d nodes %d time %v pv %v", d, s.nodes, depthTime.Milliseconds(), s.pv)
-
-		if s.stop {
-			(*s.pv)[0] = bm // set best move of last iteration if stoped due to time
-			break
-		}
 	}
 
 	return
@@ -162,7 +166,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		return ttScore
 	}
 
-	flag := FlagLowerBound
+	flag := FlagAlpha
 	foundPv := false
 	ply := s.currentDepth - depth
 	s.nodes++
@@ -181,9 +185,9 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		return quiescent(pos, s, alpha, beta)
 	}
 
-	if depth >= 3 && !pos.Check(pos.Turn) && nullMoveAllowed {
+	if depth >= 4 && !pos.Check(pos.Turn) && nullMoveAllowed {
 		ep := pos.makeNullMove()
-		sc := -negamax(pos, s, depth-3, -beta, -beta+1, branchPv, false)
+		sc := -negamax(pos, s, depth-4, -beta, -beta+1, branchPv, false)
 		pos.unmakeNullMove(ep)
 
 		if sc >= beta {
@@ -195,20 +199,9 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		pos.MakeMove(&moves.moves[i])
 		newScore := MinInt
 
-		// Notes:
-		// Late Move Reductions conditions
-		// 1. Apply LMR to quiet moves only
-		// 2. Apply for depth from a certain depth. Tipically after 3/4 moves
-		// 3. Not apply if we are in PV nodes
-		// 4. Not apply if we are in check
 		isQuietMove := moves.moves[i].flag() == quiet && !pos.Check(pos.Turn)
 		applyLMR := depth >= 3 && !foundPv && isQuietMove && i >= 4
 		if applyLMR {
-			// LMR strategy:
-			// If the reduced search beats alpha, we need to re-search -> Go to PVS
-			// Skip to next move if reduced search failed low
-
-			// Reduced depth search with null window
 			reduction := 1
 			newScore = -negamax(pos, s, depth-1-reduction, -alpha-1, -alpha, branchPv, false)
 
@@ -231,7 +224,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		pos.UnmakeMove(&moves.moves[i])
 
 		if newScore >= beta {
-			s.transpositionTable.store(pos.Hash, depth, FlagUpperBound, newScore)
+			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta)
 			s.killers[ply].add(moves.moves[i])
 			return beta
 		}

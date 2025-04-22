@@ -1,9 +1,9 @@
 package aconcagua
 
 const (
-	FlagExact      = iota
-	FlagUpperBound // less than alpha
-	FlagLowerBound // beta cutoff
+	FlagExact = iota
+	FlagAlpha
+	FlagBeta
 )
 
 const DefaultTableSizeInMb = 64
@@ -57,11 +57,11 @@ func (tt *TranspositionTable) probe(key uint64, depth int, alpha int, beta int) 
 		if entry.flag == FlagExact {
 			return entry.score, true
 		}
-		if entry.flag == FlagUpperBound && entry.score >= beta {
-			return beta, true
-		}
-		if entry.flag == FlagLowerBound && entry.score <= alpha {
+		if entry.flag == FlagAlpha && entry.score <= alpha {
 			return alpha, true
+		}
+		if entry.flag == FlagBeta && entry.score >= beta {
+			return beta, true
 		}
 	}
 	return 0, false
