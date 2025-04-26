@@ -181,7 +181,6 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 	}
 
 	if depth == 0 {
-		s.transpositionTable.store(pos.Hash, depth, FlagExact, Eval(pos))
 		return quiescent(pos, s, alpha, beta)
 	}
 

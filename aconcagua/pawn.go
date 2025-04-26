@@ -7,7 +7,6 @@ package aconcagua
 // pawnMoves returns a Bitboard with the squares a pawn can move to in the passed position
 func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	posibleCaptures := pawnAttacks(p, side) & pos.Pieces(side.Opponent())
-	// posibleEnPassant := pawnEnPassantCaptures(p, pos, side)
 	posiblesMoves := Bitboard(0)
 
 	if side == White {

@@ -28,7 +28,7 @@ type TranspositionTable struct {
 
 // NewTranspositionTable returns a pointer to a new TranspositionTable with the passed size
 func NewTranspositionTable(sizeInMb int) *TranspositionTable {
-	entrySizeInBytes := 22
+	entrySizeInBytes := 20 // 64bits + 32bits + 32bits + 32bits = 160bits / 8 = 20 bytes
 	size := uint64(sizeInMb * 1024 * 1024 / entrySizeInBytes)
 	return &TranspositionTable{
 		entries: make([]TTEntry, size),
