@@ -171,6 +171,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 	ply := s.currentDepth - depth
 	s.nodes++
 	branchPv := newPV()
+	futilityPruningAllowed := false
 
 	moves := pos.LegalMoves()
 	moves.sort(scoreMoves(pos, moves, s, ply))
@@ -184,6 +185,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		return quiescent(pos, s, alpha, beta)
 	}
 
+	// Null Move Pruning
 	if depth >= 4 && !pos.Check(pos.Turn) && nullMoveAllowed {
 		ep := pos.makeNullMove()
 		sc := -negamax(pos, s, depth-4, -beta, -beta+1, branchPv, false)
@@ -194,23 +196,44 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		}
 	}
 
-	for i := 0; i < moves.length; i++ {
-		pos.MakeMove(&moves.moves[i])
-		newScore := MinInt
+	// Futility pruning(from chess programming wiki...)
+	// 	For tactical stability, even in such a node we ought to search the following moves:
+	//
+	//     captures (either all or less typically only those that are capable of raising the score above alpha + margin)
+	//     moves that give check
+	//
+	// Futility pruning is not used when the side to move is in check , or when either alpha or beta are close to the mate value, since it would leave the program blind to certain checkmates. Tord Romstad reported that in his early program Gothmog one more condition was necessary - namely that futility pruning requires checking for the existence of at least one legal move [2] [3] to avoid returning erroneous stalemate scores. As replied by Omid David: then simply return alpha (to fail low but hard).
+	// Futility pruning flag
+	if depth == 1 && alpha > -MateScore && beta < MateScore {
+		futilityMargin := 280
+		sc := Eval(pos)
+		futilityPruningAllowed = sc+futilityMargin <= alpha
+	}
 
-		isQuietMove := moves.moves[i].flag() == quiet && !pos.Check(pos.Turn)
-		applyLMR := depth >= 3 && !foundPv && isQuietMove && i >= 4
+	for moveNumber := 0; moveNumber < moves.length; moveNumber++ {
+		pos.MakeMove(&moves.moves[moveNumber])
+		newScore := MinInt
+		isQuietMove := moves.moves[moveNumber].flag() == quiet && !pos.Check(pos.Turn)
+
+		// Futility Pruning
+		if futilityPruningAllowed && isQuietMove && !foundPv && moveNumber > 0 {
+			pos.UnmakeMove(&moves.moves[moveNumber])
+			continue
+		}
+
+		// Late Moves Reduction
+		applyLMR := depth >= 3 && !foundPv && isQuietMove && moveNumber >= 4
 		if applyLMR {
 			reduction := 1
 			newScore = -negamax(pos, s, depth-1-reduction, -alpha-1, -alpha, branchPv, false)
 
 			if newScore <= alpha {
-				pos.UnmakeMove(&moves.moves[i])
+				pos.UnmakeMove(&moves.moves[moveNumber])
 				continue
 			}
 		}
 
-		// PVS
+		// Principal Variation Search
 		if foundPv {
 			newScore = -negamax(pos, s, depth-1, -alpha-1, -alpha, branchPv, true)
 			if newScore > alpha && newScore < beta {
@@ -220,11 +243,11 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 			newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv, true)
 		}
 
-		pos.UnmakeMove(&moves.moves[i])
+		pos.UnmakeMove(&moves.moves[moveNumber])
 
 		if newScore >= beta {
 			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta)
-			s.killers[ply].add(moves.moves[i])
+			s.killers[ply].add(moves.moves[moveNumber])
 			return beta
 		}
 
@@ -232,7 +255,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 			flag = FlagExact
 
 			alpha = newScore
-			pv.insert(moves.moves[i], branchPv)
+			pv.insert(moves.moves[moveNumber], branchPv)
 			foundPv = true
 		}
 	}
