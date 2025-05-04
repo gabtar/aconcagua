@@ -91,7 +91,7 @@ func (s *Search) init(depth int) {
 	s.maxDepth = depth
 	s.pv = newPV()
 	s.killers = [100]Killer{}
-	s.transpositionTable = NewTranspositionTable(64)
+	s.transpositionTable = NewTranspositionTable(DefaultTableSizeInMb)
 	s.pv = newPV()
 	s.time = time.Now()
 	s.totalTime = time.Now()
@@ -196,18 +196,11 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		}
 	}
 
-	// Futility pruning(from chess programming wiki...)
-	// 	For tactical stability, even in such a node we ought to search the following moves:
-	//
-	//     captures (either all or less typically only those that are capable of raising the score above alpha + margin)
-	//     moves that give check
-	//
-	// Futility pruning is not used when the side to move is in check , or when either alpha or beta are close to the mate value, since it would leave the program blind to certain checkmates. Tord Romstad reported that in his early program Gothmog one more condition was necessary - namely that futility pruning requires checking for the existence of at least one legal move [2] [3] to avoid returning erroneous stalemate scores. As replied by Omid David: then simply return alpha (to fail low but hard).
 	// Futility pruning flag
-	if depth == 1 && alpha > -MateScore && beta < MateScore {
-		futilityMargin := 280
+	if depth <= 3 && alpha > -MateScore && beta < MateScore {
+		futilityMargin := []int{0, 280, 500, 900}
 		sc := Eval(pos)
-		futilityPruningAllowed = sc+futilityMargin <= alpha
+		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
 	for moveNumber := 0; moveNumber < moves.length; moveNumber++ {
