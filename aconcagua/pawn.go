@@ -39,37 +39,6 @@ func pawnAttacks(p *Bitboard, side Color) (attacks Bitboard) {
 	return
 }
 
-// pawnEnPassantCaptures the bitboard with the squares the pawn can capture en passant
-func pawnEnPassantCaptures(p *Bitboard, pos *Position, side Color) (enPassant Bitboard) {
-	caughtPawn := pos.enPassantTarget >> 8
-	if side == Black {
-		caughtPawn = pos.enPassantTarget << 8
-	}
-	afterEp := *pos
-	afterEp.RemovePiece(caughtPawn)
-	afterEp.RemovePiece(*p)
-	afterEp.Bitboards[pieceOfColor[Pawn][side]] |= pos.enPassantTarget
-
-	if pos.enPassantTarget == 0 || afterEp.Check(side) {
-		return
-	}
-
-	if pos.CheckingPieces(side) == caughtPawn && (pawnAttacks(p, side)&pos.enPassantTarget) > 0 {
-		if side == White {
-			enPassant |= caughtPawn << 8
-		} else {
-			enPassant |= caughtPawn >> 8
-		}
-	}
-
-	enPassant |= pos.enPassantTarget &
-		pawnAttacks(p, side) &
-		pinRestrictedDirection(p, side, pos) &
-		checkRestrictedMoves(*p, side, pos)
-
-	return
-}
-
 // genPawnMoves generates the pawn moves in the move list
 func genPawnMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
 	toSquares := pawnMoves(from, pos, side)
