@@ -1,11 +1,17 @@
 package aconcagua
 
-// PolyGlotKeys is a list of keys for the PolyGlot opening book format
+import (
+	"encoding/binary"
+	"os"
+)
+
+// PolyglotKeys is a list of (zobrist) keys for use in the polyglot format opening book
 // PieceKeys     (offset:   0, length: 768) 12 pieces * 64 squares (768)
 // CastleKeys    (offset: 768, length:   4) 4 castling rights
 // EnPassantKeys (offset: 772, length:   8) 8 files for possible en passant
 // TurnKeys      (offset: 780, length:   1) 1 bit to identify turn to move
-var PolyGlotKeys [781]uint64 = [781]uint64{
+// source: http://hgm.nubati.net/book_format.html
+var PolyglotKeys [781]uint64 = [781]uint64{
 	0x9D39247E33776D41, 0x2AF7398005AAA5C7, 0x44DB015024623547, 0x9C15F73E62A76AE2, 0x75834465489C0C89, 0x3290AC3A203001BF, 0x0FBBAD1F61042279, 0xE83A908FF2FB60CA,
 	0x0D7E765D58755C10, 0x1A083822CEAFE02D, 0x9605D5F0E25EC3B0, 0xD021FF5CD13A2ED5, 0x40BDF15D4A672E32, 0x011355146FD56395, 0x5DB4832046F3D9E5, 0x239F8B2D7FF719CC,
 	0x05D1A1AE85B49AA1, 0x679F848F6E8FC971, 0x7449BBFF801FED0B, 0x7D11CDB1C3B7ADF0, 0x82C7709E781EB7CC, 0xF3218F1C9510786C, 0x331478F3AF51BBE6, 0x4BB38DE5E7219443,
@@ -106,8 +112,8 @@ var PolyGlotKeys [781]uint64 = [781]uint64{
 	0xCF3145DE0ADD4289, 0xD0E4427A5514FB72, 0x77C621CC9FB3A483, 0x67A34DAC4356550B, 0xF8D626AAAF278509,
 }
 
-// PolyGlotKeyFromPosition returns the key for a given position
-func PolyGlotKeyFromPosition(pos *Position) (key uint64) {
+// PolyglotHashFromPosition returns the polyglot hash for a given position
+func PolyglotHashFromPosition(pos *Position) (key uint64) {
 	// references Aconcagua internal Position piece representation to Polyglot piece representation
 	polyglotPieceIndexReference := [12]int{11, 9, 7, 5, 3, 1, 10, 8, 6, 4, 2, 0}
 
@@ -115,41 +121,76 @@ func PolyGlotKeyFromPosition(pos *Position) (key uint64) {
 		for bb > 0 {
 			sqNumber := Bsf(bb)
 			index := 64*polyglotPieceIndexReference[pieceType] + sqNumber
-			key = key ^ PolyGlotKeys[index]
+			key = key ^ PolyglotKeys[index]
 			bb &= ^Bitboard(0b1 << sqNumber)
 		}
 	}
 
 	for idx, castl := range []castling{K, Q, k, q} {
 		if pos.castlingRights.canCastle(castl) {
-			key = key ^ PolyGlotKeys[768+idx]
+			key = key ^ PolyglotKeys[768+idx]
 		}
 	}
 
 	if pos.enPassantTarget != 0 {
-		// TODO: remove duplication with generating ep captures function
-		epShift := pos.enPassantTarget >> 8
-		if pos.Turn == Black {
-			epShift = epShift << 16
-		}
-
-		notInHFile := epShift & ^(epShift & files[7])
-		notInAFile := epShift & ^(epShift & files[0])
-
-		from := pos.getBitboards(pos.Turn)[5] & (notInAFile>>1 | notInHFile<<1)
-
+		from := potentialEpCapturers(pos, pos.Turn)
 		if from > 0 {
-			key = key ^ PolyGlotKeys[772+Bsf(pos.enPassantTarget)%8]
+			key = key ^ PolyglotKeys[772+Bsf(pos.enPassantTarget)%8]
 		}
 	}
 
 	if pos.Turn == White {
-		key = key ^ PolyGlotKeys[780]
+		key = key ^ PolyglotKeys[780]
 	}
-
 	return
 }
 
 // TODO: load a *.bin file with the opening book
 // TODO: find a position in the opening book
 // TODO: convert polyGlot move representation to Aconcagua move representation
+
+const PolyGlotBookEntrySizeInBytes = 16
+
+// PolyglotBookEntry represents a polyglot opening book entry
+type PolyglotBookEntry struct {
+	Key    uint64
+	Move   uint16
+	Weight uint16
+	Learn  uint32
+}
+
+// PolyglotBook represents a polyglot opening book
+type PolyglotBook struct {
+	entries []PolyglotBookEntry
+	Size    uint64
+}
+
+// load loads a polyglot opening book
+func (pb *PolyglotBook) Load(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	pb.Size = uint64(stat.Size() / PolyGlotBookEntrySizeInBytes)
+
+	pb.entries = make([]PolyglotBookEntry, pb.Size)
+	err = binary.Read(file, binary.LittleEndian, &pb.entries)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// find looks up a position in the polyglot opening book
+func (pb *PolyglotBook) find(key uint64) {
+	// TODO: find a position in the opening book
+	// NOTE on Polyglot book entries
+	// The entries are ordered according to key. Lowest key first.
+}
