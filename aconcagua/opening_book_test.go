@@ -49,7 +49,7 @@ func TestLoadBook(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %v", err)
 	}
-	defer os.Remove(tmpfile.Name()) // Clean up after the test
+	defer os.Remove(tmpfile.Name())
 
 	err = binary.Write(tmpfile, binary.LittleEndian, &data)
 	if err != nil {
@@ -62,7 +62,62 @@ func TestLoadBook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if polyglotBook.Size != 5 {
-		t.Errorf("Expected: %v, got: %v", 5, polyglotBook.Size)
+	if polyglotBook.size != 5 {
+		t.Errorf("Expected: %v, got: %v", 5, polyglotBook.size)
+	}
+}
+
+func TestFindEntryInPolyglotBook(t *testing.T) {
+	// NOTE: polyglotBook move encoding
+	// "move" is a bit field with the following meaning (bit 0 is the least significant bit)
+	// uses 3 bits for each section
+	//        000           001       100         011      100      = 0b000001100011100
+	// promotion piece | from row | from file | to row | to file
+	//         0             2         e         4         e     =  e2e4
+	// Promotion pieces are encoded as follows
+	// 	none      0   (0b000)
+	// knight     1   (0b001)
+	// bishop     2   (0b010)
+	// rook       3   (0b011)
+	// queen      4   (0b100)
+	// source: http://hgm.nubati.net/book_format.html
+
+	entries := []PolyglotBookEntry{
+		{Key: 0x463b96181691fc9c, Move: 0b000001100011100, Weight: 0x0000, Learn: 0x00000000}, // Move: e2e4
+		{Key: 0x823c9b50fd114196, Move: 0b000000110010101, Weight: 0x0000, Learn: 0x00000000}, // Move: g1f3
+	}
+	polyglotBook := PolyglotBook{entries: entries, size: 2}
+
+	expected := entries[1].Move
+	got := polyglotBook.find(0x823c9b50fd114196).Move
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestEntryNotFoundInPolyglotBook(t *testing.T) {
+	entries := []PolyglotBookEntry{
+		{Key: 0x463b96181691fc9c, Move: 0b000001100011100, Weight: 0x0000, Learn: 0x00000000}, // Move: e2e4
+		{Key: 0x823c9b50fd114196, Move: 0b000000110010101, Weight: 0x0000, Learn: 0x00000000}, // Move: g1f3
+	}
+	polyglotBook := PolyglotBook{entries: entries, size: 2}
+
+	expected := PolyglotBookEntry{}
+	got := polyglotBook.find(0x0000000000000000)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPolyglotMoveString(t *testing.T) {
+	polyglotMove := PolyglotMove(0b000001100011100) // e2e4
+
+	expected := "e2e4"
+	got := polyglotMove.String()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }

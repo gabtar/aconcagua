@@ -145,10 +145,6 @@ func PolyglotHashFromPosition(pos *Position) (key uint64) {
 	return
 }
 
-// TODO: load a *.bin file with the opening book
-// TODO: find a position in the opening book
-// TODO: convert polyGlot move representation to Aconcagua move representation
-
 const PolyGlotBookEntrySizeInBytes = 16
 
 // PolyglotBookEntry represents a polyglot opening book entry
@@ -159,10 +155,31 @@ type PolyglotBookEntry struct {
 	Learn  uint32
 }
 
+// PolyglotMove represents a move in the polyglot opening book format
+type PolyglotMove uint16
+
+// String returns a string representation of a PolyglotMove
+func (pm *PolyglotMove) String() string {
+	// NOTE: castling moves in polyglot uses chess960 format
+
+	toFile := int(*pm & 0b111)
+	toRow := int((*pm & (0b111 << 3)) >> 3)
+	toSq := squareReference[8*toRow+toFile]
+
+	fromFile := int((*pm & (0b111 << 6)) >> 6)
+	fromRow := int((*pm & (0b111 << 9)) >> 9)
+	fromSq := squareReference[8*fromRow+fromFile]
+
+	promotion := int(*pm & (0b111 << 12) >> 12)
+	promoChar := []string{"", "k", "b", "r", "q"}
+
+	return fromSq + toSq + promoChar[promotion]
+}
+
 // PolyglotBook represents a polyglot opening book
 type PolyglotBook struct {
 	entries []PolyglotBookEntry
-	Size    uint64
+	size    uint64
 }
 
 // load loads a polyglot opening book
@@ -177,9 +194,9 @@ func (pb *PolyglotBook) Load(filename string) error {
 	if err != nil {
 		return err
 	}
-	pb.Size = uint64(stat.Size() / PolyGlotBookEntrySizeInBytes)
+	pb.size = uint64(stat.Size() / PolyGlotBookEntrySizeInBytes)
 
-	pb.entries = make([]PolyglotBookEntry, pb.Size)
+	pb.entries = make([]PolyglotBookEntry, pb.size)
 	err = binary.Read(file, binary.LittleEndian, &pb.entries)
 	if err != nil {
 		return err
@@ -189,8 +206,17 @@ func (pb *PolyglotBook) Load(filename string) error {
 }
 
 // find looks up a position in the polyglot opening book
-func (pb *PolyglotBook) find(key uint64) {
-	// TODO: find a position in the opening book
-	// NOTE on Polyglot book entries
+func (pb *PolyglotBook) find(key uint64) (entry PolyglotBookEntry) {
+	// TODO: try to implement a binary search because
 	// The entries are ordered according to key. Lowest key first.
+
+	// TODO: return multiple entries when a position has multiple opening variants
+	// or maybe compare Weight of the entries and select the best one
+	for i := uint64(0); i < pb.size; i++ {
+		if pb.entries[i].Key == key {
+			return pb.entries[i]
+		}
+	}
+
+	return
 }
