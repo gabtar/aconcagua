@@ -2,6 +2,7 @@ package aconcagua
 
 import (
 	"encoding/binary"
+	"math/rand"
 	"os"
 )
 
@@ -197,7 +198,7 @@ func (pb *PolyglotBook) Load(filename string) error {
 	pb.size = uint64(stat.Size() / PolyGlotBookEntrySizeInBytes)
 
 	pb.entries = make([]PolyglotBookEntry, pb.size)
-	err = binary.Read(file, binary.LittleEndian, &pb.entries)
+	err = binary.Read(file, binary.BigEndian, &pb.entries)
 	if err != nil {
 		return err
 	}
@@ -205,18 +206,44 @@ func (pb *PolyglotBook) Load(filename string) error {
 	return nil
 }
 
-// find looks up a position in the polyglot opening book
-func (pb *PolyglotBook) find(key uint64) (entry PolyglotBookEntry) {
-	// TODO: try to implement a binary search because
-	// The entries are ordered according to key. Lowest key first.
+// pickRandomOpeningVariation picks a random opening variation for a given position
+func (pb *PolyglotBook) pickRandomOpeningVariation(key uint64) (entry PolyglotBookEntry) {
+	variants := []PolyglotBookEntry{}
 
-	// TODO: return multiple entries when a position has multiple opening variants
-	// or maybe compare Weight of the entries and select the best one
-	for i := uint64(0); i < pb.size; i++ {
-		if pb.entries[i].Key == key {
-			return pb.entries[i]
+	index := polyglotEntriesBinarySearch(pb.entries, key)
+	if index != -1 {
+		for {
+			variants = append(variants, pb.entries[index])
+			index++
+			if index >= len(pb.entries) || pb.entries[index].Key != key {
+				break
+			}
 		}
 	}
 
+	if len(variants) > 0 {
+		selection := rand.Intn(len(variants))
+		entry = variants[selection]
+	}
 	return
+}
+
+// polyglotEntriesBinarySearch performs a binary search on the polyglot opening book
+func polyglotEntriesBinarySearch(entries []PolyglotBookEntry, key uint64) (index int) {
+	low := 0
+	high := len(entries) - 1
+
+	for low <= high {
+		mid := (low + high) / 2
+		midKey := entries[mid].Key
+
+		if key < midKey {
+			high = mid - 1
+		} else if key > midKey {
+			low = mid + 1
+		} else {
+			return mid
+		}
+	}
+	return -1
 }

@@ -89,7 +89,7 @@ func TestFindEntryInPolyglotBook(t *testing.T) {
 	polyglotBook := PolyglotBook{entries: entries, size: 2}
 
 	expected := entries[1].Move
-	got := polyglotBook.find(0x823c9b50fd114196).Move
+	got := polyglotBook.pickRandomOpeningVariation(0x823c9b50fd114196).Move
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -104,7 +104,7 @@ func TestEntryNotFoundInPolyglotBook(t *testing.T) {
 	polyglotBook := PolyglotBook{entries: entries, size: 2}
 
 	expected := PolyglotBookEntry{}
-	got := polyglotBook.find(0x0000000000000000)
+	got := polyglotBook.pickRandomOpeningVariation(0x0000000000000000)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

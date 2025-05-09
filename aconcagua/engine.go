@@ -5,12 +5,21 @@ import (
 	"time"
 )
 
+// Engine represents a chess engine
 type Engine struct {
 	pos         Position
 	search      Search
 	timeControl TimeControl
+	openingBook PolyglotBook
+	options     Options
 }
 
+// Options are various engine options that can be set
+type Options struct {
+	useOpeningBook bool
+}
+
+// NewEngine returns a new Engine instance
 func NewEngine() *Engine {
 	return &Engine{
 		pos: *InitialPosition(),
@@ -25,10 +34,14 @@ func NewEngine() *Engine {
 			stop:         false,
 		},
 		timeControl: TimeControl{},
+		openingBook: PolyglotBook{},
+		options: Options{
+			useOpeningBook: false,
+		},
 	}
 }
 
-// StartUci initializes the Uci Protocol in the engine
+// StartUci initializes the Uci Protocol loop in the engine
 func (en *Engine) StartUci() {
 	stdin := make(chan string)
 	stdout := make(chan string)
@@ -47,5 +60,31 @@ func (en *Engine) StartUci() {
 		commands := strings.Split(strings.TrimSpace(command), " ")
 		en.execute(commands[0], stdout, commands[1:]...)
 	}
+}
 
+// execute executes a command
+func (en *Engine) execute(command string, stdout chan string, params ...string) {
+	var uciCommands map[string]UciCommand = map[string]UciCommand{
+		"uci":        uciCommand,
+		"ucinewgame": uciNewGameCommand,
+		"isready":    isReadyCommand,
+		"position":   positionCommand,
+		"go":         goCommand,
+		"stop":       stopCommand,
+		"setoption":  setOptionCommand,
+
+		// utility/debug commands
+		"d":      printBoardCommand,
+		"perft":  perftCommand,
+		"divide": divideCommand,
+	}
+
+	comm, exists := uciCommands[command]
+
+	if !exists {
+		stdout <- "invalid command"
+		return
+	}
+
+	comm(en, stdout, params...)
 }

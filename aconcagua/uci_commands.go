@@ -9,37 +9,16 @@ import (
 	"time"
 )
 
+// UciCommand handles a uci command instruction from the gui
 type UciCommand func(en *Engine, stdout chan string, params ...string)
 
-var uciCommands map[string]UciCommand = map[string]UciCommand{
-	"uci":        uciCommand,
-	"ucinewgame": uciNewGameCommand,
-	"isready":    isReadyCommand,
-	"position":   positionCommand,
-	"go":         goCommand,
-	"stop":       stopCommand,
-
-	// utility/debug commands
-	"d":      printBoardCommand,
-	"perft":  perftCommand,
-	"divide": divideCommand,
-}
-
-func (en *Engine) execute(command string, stdout chan string, params ...string) {
-	comm, exists := uciCommands[command]
-
-	if !exists {
-		stdout <- "invalid command"
-		return
-	}
-
-	comm(en, stdout, params...)
-}
-
-// uciCommand takes care of uciok command from gui
+// uciCommand takes care of uci command from gui
 func uciCommand(en *Engine, stdout chan string, params ...string) {
 	stdout <- "id aconcagua"
 	stdout <- "author gabtar"
+	stdout <- ""
+	stdout <- "option name BookPath type string default <empty>"
+	stdout <- "option name UseBook type button"
 	stdout <- "uciok"
 }
 
@@ -48,7 +27,7 @@ func uciNewGameCommand(en *Engine, stdout chan string, params ...string) {
 	en.pos = *InitialPosition()
 }
 
-// positionCommand implements the position uci command
+// positionCommand sets up the current position
 func positionCommand(en *Engine, stdout chan string, params ...string) {
 	if params[0] == "startpos" {
 		en.pos = *From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
@@ -80,6 +59,16 @@ func isReadyCommand(en *Engine, stdout chan string, params ...string) {
 
 // goCommand starts looking for the best move in the current position
 func goCommand(en *Engine, stdout chan string, params ...string) {
+	if en.options.useOpeningBook {
+		polyglotEntry := en.openingBook.pickRandomOpeningVariation(PolyglotHashFromPosition(&en.pos))
+		polyglotMove := PolyglotMove(polyglotEntry.Move)
+
+		if polyglotMove != PolyglotMove(0) {
+			stdout <- "bestmove " + polyglotMove.String()
+			return
+		}
+	}
+
 	score := 0
 	depth := findParam(params, "depth")
 	wtime := findParam(params, "wtime")
@@ -132,6 +121,30 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 
 		stdout <- "bestmove " + (*pv)[0].String()
 	}()
+}
+
+// setOptionCommand sets an option on the engine
+func setOptionCommand(en *Engine, stdout chan string, params ...string) {
+	// TODO: for now just to setup opening book. Later will handle more options. eg hash table size, etc
+
+	// sample usage: setoption name bookpath value <bookfilename>
+	if strings.ToLower(params[1]) == "bookpath" {
+		err := en.openingBook.Load(params[3])
+
+		if err != nil {
+			stdout <- "option name BookPath value " + err.Error()
+			return
+		}
+
+		stdout <- "option name BookPath set entries found " + strconv.Itoa(int(en.openingBook.size))
+	}
+
+	// sample usage: setoption name usebook
+	if strings.ToLower(params[1]) == "usebook" {
+		en.options.useOpeningBook = !en.options.useOpeningBook
+		stdout <- "option name UseBook value " + strconv.FormatBool(en.options.useOpeningBook)
+	}
+
 }
 
 // abs returns the absolute value of the number passed
