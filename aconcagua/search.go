@@ -14,13 +14,13 @@ const (
 )
 
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
-func isCheckmateOrStealmate(pos *Position, ml *moveList, depth *int) (int, bool) {
+func isCheckmateOrStealmate(pos *Position, ml *moveList, ply int) (int, bool) {
 	found := ml.length == 0
 	if found {
 		if !pos.Check(pos.Turn) {
 			return 0, found
 		}
-		return -MateScore - *depth, found
+		return -MateScore + ply, found
 	}
 
 	return 0, false
@@ -176,7 +176,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 	moves := pos.LegalMoves()
 	moves.sort(scoreMoves(pos, moves, s, ply))
 
-	score, checkOrStealmateFound := isCheckmateOrStealmate(pos, moves, &depth)
+	score, checkOrStealmateFound := isCheckmateOrStealmate(pos, moves, ply)
 	if checkOrStealmateFound {
 		return score
 	}

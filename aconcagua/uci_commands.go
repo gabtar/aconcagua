@@ -112,8 +112,8 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 		pv := en.search.pv
 
 		absScore := abs(score)
-		if absScore >= MateScore {
-			mateIn := ((depth - (absScore - MateScore)) + 1) / 2 // NOTE: in full moves, not ply!
+		if absScore <= MateScore {
+			mateIn := (MateScore - absScore + 1) / 2 // NOTE: in full moves, not ply!
 			stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
 		} else {
 			stdout <- "info score cp " + strconv.Itoa(score)
