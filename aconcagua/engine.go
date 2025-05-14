@@ -2,14 +2,13 @@ package aconcagua
 
 import (
 	"strings"
-	"time"
 )
 
 // Engine represents a chess engine
 type Engine struct {
 	pos         Position
 	search      Search
-	timeControl TimeControl
+	timeControl *TimeControl
 	openingBook PolyglotBook
 	options     Options
 }
@@ -21,19 +20,19 @@ type Options struct {
 
 // NewEngine returns a new Engine instance
 func NewEngine() *Engine {
+	tc := TimeControl{}
+
 	return &Engine{
-		pos: *InitialPosition(),
+		pos:         *InitialPosition(),
+		timeControl: &tc,
 		search: Search{
 			nodes:        0,
 			currentDepth: 0,
 			maxDepth:     0,
 			pv:           newPV(),
 			killers:      [100]Killer{},
-			time:         time.Now(),
-			totalTime:    time.Now(),
-			stop:         false,
+			timeControl:  &tc,
 		},
-		timeControl: TimeControl{},
 		openingBook: PolyglotBook{},
 		options: Options{
 			useOpeningBook: false,

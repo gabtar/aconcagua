@@ -72,6 +72,7 @@ func scoreMoves(pos *Position, ml *moveList, s *Search, ply int) []int {
 	return scores
 }
 
+// Search is the main struct for the search
 type Search struct {
 	nodes              int
 	currentDepth       int
@@ -79,9 +80,7 @@ type Search struct {
 	pv                 *PV
 	killers            [100]Killer
 	transpositionTable *TranspositionTable
-	time               time.Time
-	totalTime          time.Time
-	stop               bool
+	timeControl        *TimeControl
 }
 
 // init initializes the Search struct
@@ -93,9 +92,6 @@ func (s *Search) init(depth int) {
 	s.killers = [100]Killer{}
 	s.transpositionTable = NewTranspositionTable(DefaultTableSizeInMb)
 	s.pv = newPV()
-	s.time = time.Now()
-	s.totalTime = time.Now()
-	s.stop = false
 }
 
 // reset sets the new iteration parameters in the NewSearch
@@ -116,7 +112,7 @@ func (k *Killer) add(move Move) {
 }
 
 // root is the entry point of the search
-func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveScore int) {
+func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int) {
 	alpha := MinInt
 	beta := MaxInt
 	s.init(maxDepth)
@@ -127,10 +123,10 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 		lastPv := *(s.pv)
 		lastScore := bestMoveScore
 
-		bestMoveScore = negamax(pos, s, d, alpha, beta, s.pv, true)
+		bestMoveScore = s.negamax(pos, d, alpha, beta, s.pv, true)
 
 		// If stop by time, set last iteration score and best move/pv
-		if s.stop {
+		if s.timeControl.stop {
 			bestMoveScore = lastScore
 			s.pv = &lastPv
 			break
@@ -146,8 +142,8 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 		alpha = bestMoveScore - 45
 		beta = bestMoveScore + 45
 
-		depthTime := time.Since(s.time)
-		s.time = time.Now()
+		depthTime := time.Since(s.timeControl.iterationStartTime)
+		s.timeControl.iterationStartTime = time.Now()
 		stdout <- fmt.Sprintf("info depth %d nodes %d time %v pv %v", d, s.nodes, depthTime.Milliseconds(), s.pv)
 	}
 
@@ -156,8 +152,8 @@ func root(pos *Position, s *Search, maxDepth int, stdout chan string) (bestMoveS
 
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
-func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, nullMoveAllowed bool) int {
-	if s.stop {
+func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, nullMoveAllowed bool) int {
+	if s.timeControl.stop {
 		return 0
 	}
 
@@ -168,6 +164,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 
 	flag := FlagAlpha
 	foundPv := false
+	check := pos.Check(pos.Turn)
 	ply := s.currentDepth - depth
 	s.nodes++
 	branchPv := newPV()
@@ -186,9 +183,9 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 	}
 
 	// Null Move Pruning
-	if depth >= 4 && !pos.Check(pos.Turn) && nullMoveAllowed {
+	if depth >= 4 && !check && nullMoveAllowed {
 		ep := pos.makeNullMove()
-		sc := -negamax(pos, s, depth-4, -beta, -beta+1, branchPv, false)
+		sc := -s.negamax(pos, depth-4, -beta, -beta+1, branchPv, false)
 		pos.unmakeNullMove(ep)
 
 		if sc >= beta {
@@ -206,7 +203,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 	for moveNumber := 0; moveNumber < moves.length; moveNumber++ {
 		pos.MakeMove(&moves.moves[moveNumber])
 		newScore := MinInt
-		isQuietMove := moves.moves[moveNumber].flag() == quiet && !pos.Check(pos.Turn)
+		isQuietMove := moves.moves[moveNumber].flag() == quiet && !check
 
 		// Futility Pruning
 		if futilityPruningAllowed && isQuietMove && !foundPv && moveNumber > 0 {
@@ -218,7 +215,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 		applyLMR := depth >= 3 && !foundPv && isQuietMove && moveNumber >= 4
 		if applyLMR {
 			reduction := 1
-			newScore = -negamax(pos, s, depth-1-reduction, -alpha-1, -alpha, branchPv, false)
+			newScore = -s.negamax(pos, depth-1-reduction, -alpha-1, -alpha, branchPv, false)
 
 			if newScore <= alpha {
 				pos.UnmakeMove(&moves.moves[moveNumber])
@@ -228,12 +225,12 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 
 		// Principal Variation Search
 		if foundPv {
-			newScore = -negamax(pos, s, depth-1, -alpha-1, -alpha, branchPv, true)
+			newScore = -s.negamax(pos, depth-1, -alpha-1, -alpha, branchPv, true)
 			if newScore > alpha && newScore < beta {
-				newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv, true)
+				newScore = -s.negamax(pos, depth-1, -beta, -alpha, branchPv, true)
 			}
 		} else {
-			newScore = -negamax(pos, s, depth-1, -beta, -alpha, branchPv, true)
+			newScore = -s.negamax(pos, depth-1, -beta, -alpha, branchPv, true)
 		}
 
 		pos.UnmakeMove(&moves.moves[moveNumber])
@@ -259,7 +256,7 @@ func negamax(pos *Position, s *Search, depth int, alpha int, beta int, pv *PV, n
 
 // quiescent is an evaluation function that takes into account some dynamic possibilities
 func quiescent(pos *Position, s *Search, alpha int, beta int) int {
-	if s.stop {
+	if s.timeControl.stop {
 		return 0
 	}
 

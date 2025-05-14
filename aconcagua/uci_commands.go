@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // UciCommand handles a uci command instruction from the gui
@@ -68,51 +67,28 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 			return
 		}
 	}
+	depth := 10 // max default depth search
 
-	score := 0
-	depth := findParam(params, "depth")
+	depthIndex := findParam(params, "depth")
 	wtime := findParam(params, "wtime")
 	btime := findParam(params, "btime")
 	movetime := findParam(params, "movetime")
 
-	if movetime != -1 {
-		depth = 100
+	searchStrategy, clock := timeStrategy(params, depth, wtime, btime, movetime)
+	en.timeControl.init(searchStrategy, int(en.pos.Turn), en.pos.fullmoveNumber, clock)
 
-		go func() {
-			moveTime, _ := strconv.Atoi(params[movetime+1])
-			time.Sleep(time.Duration(moveTime) * time.Millisecond)
-			en.search.stop = true
-		}()
-
-	} else if wtime != -1 && btime != -1 {
-		wtime, _ = strconv.Atoi(params[wtime+1])
-		btime, _ = strconv.Atoi(params[btime+1])
-
-		engineTime := wtime
-		if en.pos.Turn == Black {
-			engineTime = btime
-		}
-		en.timeControl.timeLeftInMiliseconds = engineTime
-		en.timeControl.setSearchTime(en.pos.fullmoveNumber / 2)
-		depth = 100
-
-		go func() {
-			time.Sleep(time.Duration(en.timeControl.searchTimeInMiliseconds) * time.Millisecond)
-			en.search.stop = true
-		}()
-
-	} else if depth != -1 {
-		depth, _ = strconv.Atoi(params[depth+1])
-	} else {
-		depth = 8
+	// Set default depth if not passed
+	if depthIndex != -1 {
+		depth, _ = strconv.Atoi(params[depthIndex+1])
 	}
 
 	go func() {
-		score = root(&en.pos, &en.search, depth, stdout)
+		score := en.search.root(&en.pos, depth, stdout)
 		pv := en.search.pv
 
 		absScore := abs(score)
-		if absScore <= MateScore {
+		isMate := absScore >= MateScore-depth
+		if isMate {
 			mateIn := (MateScore - absScore + 1) / 2 // NOTE: in full moves, not ply!
 			stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
 		} else {
@@ -121,6 +97,23 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 
 		stdout <- "bestmove " + (*pv)[0].String()
 	}()
+}
+
+// timeStrategy returns the search strategy and the clock for a search
+func timeStrategy(params []string, depth int, wtime int, btime int, movetime int) (int, Clock) {
+	if movetime != -1 {
+		movetime, _ = strconv.Atoi(params[movetime+1])
+		return MoveTimeStrategy, Clock{0, 0, 0, 0, movetime}
+	}
+	if wtime != -1 && btime != -1 {
+		wtime, _ = strconv.Atoi(params[wtime+1])
+		btime, _ = strconv.Atoi(params[btime+1])
+		return TimeLeftStrategy, Clock{wtime, btime, 0, 0, 0}
+	}
+	if depth != -1 {
+		return DepthStrategy, Clock{0, 0, 0, 0, 0}
+	}
+	return InfiniteStrategy, Clock{0, 0, 0, 0, 0}
 }
 
 // setOptionCommand sets an option on the engine
@@ -157,7 +150,7 @@ func abs(number int) int {
 
 // stopCommand
 func stopCommand(en *Engine, stout chan string, params ...string) {
-	en.search.stop = true
+	en.search.timeControl.stop = true
 }
 
 // readStdin reads strings from standard input (from GUI to engine)

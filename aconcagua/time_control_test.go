@@ -2,32 +2,37 @@ package aconcagua
 
 import "testing"
 
-func TestSetSerachTimeForMoves1To20(t *testing.T) {
-	tc := TimeControl{
-		timeLeftInMiliseconds: 60 * 1000, // 60 seconds
+func TestCalculateSearchTime(t *testing.T) {
+	tc := TimeControl{}
+
+	tc.init(MoveTimeStrategy, 1, 1, Clock{moveTime: 10})
+
+	if tc.calculateSearchTime(MoveTimeStrategy, 1, 1, Clock{moveTime: 10}) != 10 {
+		t.Errorf("Expected: %v, got: %v", 10, tc.calculateSearchTime(MoveTimeStrategy, 1, 1, Clock{moveTime: 10}))
 	}
+}
 
-	tc.setSearchTime(5)
+func TestCalculateSearchTimeWithTimeLeftStrategy(t *testing.T) {
+	tc := TimeControl{}
 
-	expected := 1800 // moves 1 - 20
-	got := tc.searchTimeInMiliseconds
+	tc.init(TimeLeftStrategy, 1, 1, Clock{wtime: 100, btime: 100})
 
-	if got != expected {
+	expected := 3
+	got := tc.calculateSearchTime(TimeLeftStrategy, 1, 1, Clock{wtime: 100, btime: 100})
+
+	if expected != got {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
 
-func TestSetSerachTimeForMoves21To40(t *testing.T) {
-	tc := TimeControl{
-		timeLeftInMiliseconds: 60 * 1000, // 60 seconds
-	}
+func TestCalculateSearchTimeWithMoveTimeStrategy(t *testing.T) {
+	tc := TimeControl{}
 
-	tc.setSearchTime(25)
+	tc.init(MoveTimeStrategy, 1, 1, Clock{moveTime: 10})
+	expected := 10
+	got := tc.calculateSearchTime(MoveTimeStrategy, 1, 1, Clock{moveTime: 10})
 
-	expected := 900 // moves 21 - 40
-	got := tc.searchTimeInMiliseconds
-
-	if got != expected {
+	if expected != got {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
