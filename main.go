@@ -5,6 +5,8 @@ import (
 )
 
 func main() {
-	eng := aconcagua.NewEngine()
-	eng.StartUci()
+	// eng := aconcagua.NewEngine()
+	// eng.StartUci()
+
+	aconcagua.GenerateMagicNumbersForBishopsAndRooks()
 }
