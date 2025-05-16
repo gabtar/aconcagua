@@ -26,7 +26,12 @@ func findMagicNumber(square int, isRook bool) (magic Bitboard) {
 	blockersPatterns := make([]Bitboard, blockersConfigurations)
 	for i := 0; i < blockersConfigurations; i++ {
 		blockersPatterns[i] = generateBlockConfiguration(i, attackMask)
-		attacksPatterns[i] = rooksAttacksWithBlockers(square, blockersPatterns[i])
+
+		if isRook {
+			attacksPatterns[i] = rooksAttacksWithBlockers(square, blockersPatterns[i])
+		} else {
+			attacksPatterns[i] = bishopAttacksWithBlockers(square, blockersPatterns[i])
+		}
 	}
 
 	for i := 0; i < 1000000; i++ {

@@ -32,7 +32,7 @@ func TestRook(t *testing.T) {
 	expectedSquares := []string{"a2", "b3", "d3", "d5", "e6", "f7", "b5", "a6"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := rook(32, Bitboard(1<<35))
+	got := bishop(13, Bitboard(1<<34))
 
 	got.Print()
 
