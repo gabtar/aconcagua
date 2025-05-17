@@ -13,7 +13,7 @@ func TestBishopAttacksOnEmptyBoard(t *testing.T) {
 	expectedSquares := []string{"g2", "f3", "e4", "d5", "c6", "b7", "a8"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := bishopAttacks(&bishopBB, pos)
+	got := bishopMagicAttacks(Bsf(bishopBB), pos.Pieces(White)|pos.Pieces(Black))
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -29,7 +29,7 @@ func TestBishopAttacksWithBlockedSquares(t *testing.T) {
 	expectedSquares := []string{"f2", "g1", "d4", "c5", "b6", "a7", "f4", "g5", "d2", "c1"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := bishopAttacks(&bishopBB, pos)
+	got := bishopMagicAttacks(Bsf(bishopBB), pos.Pieces(White)|pos.Pieces(Black))
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

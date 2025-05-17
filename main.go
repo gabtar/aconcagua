@@ -5,8 +5,6 @@ import (
 )
 
 func main() {
-
 	eng := aconcagua.NewEngine()
 	eng.StartUci()
-
 }

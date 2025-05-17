@@ -6,24 +6,17 @@ package aconcagua
 
 // rookMoves returns a bitboard with the legal moves of the rook from the bitboard passed
 func rookMoves(r *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	return rookAttacks(r, pos) & ^pos.Pieces(side) &
+	return rookMagicAttacks(Bsf(*r), pos.Pieces(White)|pos.Pieces(Black)) &
+		^pos.Pieces(side) &
 		pinRestrictedDirection(r, side, pos) &
 		checkRestrictedMoves(*r, side, pos)
 }
 
-// rookAttacks retuns all squares a rook attacks from the passed square
-func rookAttacks(r *Bitboard, pos *Position) (attacks Bitboard) {
-	square := Bsf(*r)
-
-	for _, direction := range []uint64{NORTH, SOUTH, WEST, EAST} {
-		attacks |= raysAttacks[direction][square]
-		nearestBlocker := nearestPieceInDirection(r, pos, direction)
-
-		if nearestBlocker > 0 {
-			attacks &= ^raysAttacks[direction][Bsf(nearestBlocker)]
-		}
-	}
-	return
+// rookMagicAttacks returns a bitboard with the attack mask of a rook from the square passed taking into account the blockers
+func rookMagicAttacks(square int, blocks Bitboard) Bitboard {
+	blocks &= rooksMaskTable[square]
+	magicIndex := (blocks * rookMagics[square]) >> (64 - rooksMaskTable[square].count())
+	return rookAttacksTable[square][magicIndex]
 }
 
 // genRookMoves generates the rook moves in the move list

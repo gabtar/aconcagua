@@ -6,7 +6,8 @@ package aconcagua
 
 // queenAttacks returns a Bitboard with all the squares a queen is attacking
 func queenAttacks(q *Bitboard, pos *Position) (attacks Bitboard) {
-	attacks = rookAttacks(q, pos) | bishopAttacks(q, pos)
+	blockers := pos.Pieces(White) | pos.Pieces(Black)
+	attacks = rookMagicAttacks(Bsf(*q), blockers) | bishopMagicAttacks(Bsf(*q), blockers)
 	return
 }
 

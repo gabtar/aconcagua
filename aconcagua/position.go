@@ -167,9 +167,9 @@ func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	case WhiteQueen, BlackQueen:
 		attacks |= queenAttacks(&from, pos)
 	case WhiteRook, BlackRook:
-		attacks |= rookAttacks(&from, pos)
+		attacks |= rookMagicAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteBishop, BlackBishop:
-		attacks |= bishopAttacks(&from, pos)
+		attacks |= bishopMagicAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteKnight, BlackKnight:
 		attacks |= knightAttackSquares[Bsf(from)]
 	case WhitePawn:

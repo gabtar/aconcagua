@@ -5,7 +5,7 @@ import "testing"
 func TestNewTranspositionTable(t *testing.T) {
 	tt := NewTranspositionTable(64)
 
-	expected := uint64(64 * 1024 * 1024 / 22)
+	expected := uint64(64 * 1024 * 1024 / 20)
 	got := tt.size
 
 	if got != expected {
@@ -27,11 +27,11 @@ func TestProbeFlagExact(t *testing.T) {
 	}
 }
 
-func TestProbeFlagLowerBound(t *testing.T) {
+func TestProbeFlagAlpha(t *testing.T) {
 	tt := NewTranspositionTable(64)
 	alpha := 0
 
-	tt.store(1, 1, FlagLowerBound, 1)
+	tt.store(1, 1, FlagAlpha, 1)
 
 	got, _ := tt.probe(1, 1, alpha, 0)
 	expected := alpha
@@ -41,11 +41,11 @@ func TestProbeFlagLowerBound(t *testing.T) {
 	}
 }
 
-func TestProbeFlagUpperBound(t *testing.T) {
+func TestProbeFlagBeta(t *testing.T) {
 	tt := NewTranspositionTable(64)
 	beta := 0
 
-	tt.store(1, 1, FlagUpperBound, 1)
+	tt.store(1, 1, FlagBeta, 1)
 
 	got, _ := tt.probe(1, 1, 0, beta)
 	expected := beta
