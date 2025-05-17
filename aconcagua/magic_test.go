@@ -25,22 +25,6 @@ func TestBishopRelevantMask(t *testing.T) {
 	}
 }
 
-func TestRook(t *testing.T) {
-	// pos := EmptyPosition()
-
-	// bishopBB := bitboardFromCoordinate("c4")
-	expectedSquares := []string{"a2", "b3", "d3", "d5", "e6", "f7", "b5", "a6"}
-
-	expected := bitboardFromCoordinates(expectedSquares)
-	got := bishop(13, Bitboard(1<<34))
-
-	got.Print()
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 func TestRookAttacksWithBlockers(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteRook, "c4")
@@ -55,5 +39,47 @@ func TestRookAttacksWithBlockers(t *testing.T) {
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
+}
 
+func TestBishopAttacksWithBlockers(t *testing.T) {
+	expectedSquares := []string{"a1", "c1", "a3", "c3", "d4", "e5", "f6"}
+
+	expected := bitboardFromCoordinates(expectedSquares)
+	got := bishopAttacksWithBlockers(9, Bitboard(1<<45)) // from b2 square, with blocker in f6
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestRookAttacksSquares(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(BlackRook, "f8")
+	pos.AddPiece(WhiteBishop, "f6")
+	pos.AddPiece(BlackKing, "e8")
+
+	expectedSquares := []string{"h8", "g8", "e8", "f7", "f6"}
+
+	expected := bitboardFromCoordinates(expectedSquares)
+	got := rookMagicAttacks(Bsf(bitboardFromCoordinate("f8")), pos.Pieces(White)|pos.Pieces(Black))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestBishopAttacksSquares(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(WhiteBishop, "c5")
+	pos.AddPiece(BlackKing, "d4")
+	pos.AddPiece(WhiteRook, "f8")
+
+	expectedSquares := []string{"a3", "b4", "a7", "b6", "d6", "e7", "f8", "d4"}
+
+	expected := bitboardFromCoordinates(expectedSquares)
+	got := bishopMagicAttacks(Bsf(bitboardFromCoordinate("c5")), pos.Pieces(White)|pos.Pieces(Black))
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
 }

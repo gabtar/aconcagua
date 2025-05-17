@@ -12,7 +12,7 @@ func TestRookAttacksOnEmptyBoard(t *testing.T) {
 		"a4", "b4", "c4", "d4", "f4", "g4", "h4"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := rookAttacks(&rookBB, pos)
+	got := rookMagicAttacks(Bsf(rookBB), pos.Pieces(White)|pos.Pieces(Black))
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -29,7 +29,7 @@ func TestRookAttacksWithBlockedSquares(t *testing.T) {
 		"c4", "d4", "f4", "g4", "h4"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := rookAttacks(&rookBB, pos)
+	got := rookMagicAttacks(Bsf(rookBB), pos.Pieces(White)|pos.Pieces(Black))
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -48,7 +48,7 @@ func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
 	expectedSquares := []string{"b4", "b2", "a3", "c3"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := rookAttacks(&rookBB, pos)
+	got := rookMagicAttacks(Bsf(rookBB), pos.Pieces(White)|pos.Pieces(Black))
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

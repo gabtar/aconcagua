@@ -261,20 +261,6 @@ func checkRestrictedMoves(piece Bitboard, side Color, pos *Position) (allowedSqu
 	return
 }
 
-// nearestPieceInDirection returns a bitboard with the nearest piece in the direction passed
-func nearestPieceInDirection(b *Bitboard, pos *Position, dir uint64) (nearestBlocker Bitboard) {
-	blockers := ^pos.EmptySquares()
-	blockersInDirection := blockers & raysAttacks[dir][Bsf(*b)]
-
-	switch dir {
-	case NORTH, EAST, NORTHEAST, NORTHWEST:
-		nearestBlocker = bitboardFromIndex(Bsf(blockersInDirection))
-	case SOUTH, WEST, SOUTHEAST, SOUTHWEST:
-		nearestBlocker = bitboardFromIndex(63 - Bsr(blockersInDirection))
-	}
-	return
-}
-
 // isSliding returns a the passed Piece is an sliding piece(Queen, Rook or Bishop)
 func isSliding(piece Piece) bool {
 	if piece == WhiteQueen || piece == WhiteRook ||

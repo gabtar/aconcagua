@@ -16,9 +16,11 @@ Builds an `aconcagua` executable, a uci compatible engine that can be used with 
 
 - UCI protocol compatible
 - Bitboards representation
+- Magic bitboards
 - Iterative deepening
 - Quiescence search
 - Late move reductions
+- Futility pruning
 - Aspiration window
 - Pieces Square Tables
 - Principal Variation Search

@@ -56,20 +56,6 @@ func generateBlockConfiguration(index int, mask Bitboard) Bitboard {
 	return blocks
 }
 
-// bishop returns a bitboard with bishop attacks from the given square with the given blocks
-func bishop(square int, blocks Bitboard) Bitboard {
-	blocks &= bishopMaskTable[square]
-	magicIndex := (blocks * bishopMagics[square]) >> (64 - bishopMaskTable[square].count())
-	return bishopAttacksTable[square][magicIndex]
-}
-
-// rook returns a bitboard with rook attacks from the given square with the given blocks
-func rook(square int, blocks Bitboard) Bitboard {
-	blocks &= rooksMaskTable[square]
-	magicIndex := (blocks * rookMagics[square]) >> (64 - rooksMaskTable[square].count())
-	return rookAttacksTable[square][magicIndex]
-}
-
 // rookMask returns a Bitboard with all the squares a rook is attacking
 // rookMask does not take into account the edges (no outer squares)
 func rookMask(square int) (attacks Bitboard) {

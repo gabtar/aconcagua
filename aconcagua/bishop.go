@@ -6,24 +6,17 @@ package aconcagua
 
 // bishopMoves returns a bitboard with the legal moves of the bishop from the bitboard passed
 func bishopMoves(b *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	return bishopAttacks(b, pos) & ^pos.Pieces(side) &
+	return bishopMagicAttacks(Bsf(*b), pos.Pieces(White)|pos.Pieces(Black)) &
+		^pos.Pieces(side) &
 		pinRestrictedDirection(b, side, pos) &
 		checkRestrictedMoves(*b, side, pos)
 }
 
-// bishopAttacks returns a bitboard with the attacks of a bishop from the bitboard passed
-func bishopAttacks(b *Bitboard, pos *Position) (attacks Bitboard) {
-	square := Bsf(*b)
-
-	for _, direction := range []uint64{NORTHEAST, SOUTHEAST, SOUTHWEST, NORTHWEST} {
-		attacks |= raysAttacks[direction][square]
-		nearestBlocker := nearestPieceInDirection(b, pos, direction)
-
-		if nearestBlocker > 0 {
-			attacks &= ^raysAttacks[direction][Bsf(nearestBlocker)]
-		}
-	}
-	return
+// bishopMagicAttacks returns a bitboard with the attack mask of a bishop from the square passed taking into account the blockers
+func bishopMagicAttacks(square int, blocks Bitboard) Bitboard {
+	blocks &= bishopMaskTable[square]
+	magicIndex := (blocks * bishopMagics[square]) >> (64 - bishopMaskTable[square].count())
+	return bishopAttacksTable[square][magicIndex]
 }
 
 // genBishopMoves generates the bishop moves in the move list

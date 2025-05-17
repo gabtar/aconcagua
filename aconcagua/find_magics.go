@@ -6,6 +6,7 @@ import (
 )
 
 // find_magics.go is an utility to find the magic numbers for the bitboards
+
 // based on the original code of Tord Romstad's proposal to find magics:
 // Just trying out random numbers with a low number of nonzero bits until you find a number which works
 // is by far the fastest and easiest way to generate the magic numbers, in my experience. On my Core Duo 2.8 GHz,
@@ -59,7 +60,8 @@ func findMagicNumber(square int, isRook bool) (magic Bitboard) {
 	return
 }
 
-func GenerateMagicNumbersForBishopsAndRooks() {
+// GenerateMagicNumbersForRooksAndBishops prints the magic number for each square of the board for a bishop and a rook
+func GenerateMagicNumbersForRooksAndBishops() {
 	fmt.Println("Rooks magic numbers: ")
 	fmt.Println("---------------------")
 	for i := 0; i < 64; i++ {
