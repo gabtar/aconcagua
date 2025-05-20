@@ -9,7 +9,7 @@ func bishopMoves(b *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	return bishopMagicAttacks(Bsf(*b), pos.Pieces(White)|pos.Pieces(Black)) &
 		^pos.Pieces(side) &
 		pinRestrictedDirection(b, side, pos) &
-		checkRestrictedMoves(*b, side, pos)
+		checkRestrictedMoves(side, pos)
 }
 
 // bishopMagicAttacks returns a bitboard with the attack mask of a bishop from the square passed taking into account the blockers

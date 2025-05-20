@@ -79,7 +79,7 @@ func knightMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 		return Bitboard(0)
 	}
 	moves = knightAttackSquares[Bsf(*k)] & ^pos.Pieces(side) &
-		checkRestrictedMoves(*k, side, pos)
+		checkRestrictedMoves(side, pos)
 	return
 }
 

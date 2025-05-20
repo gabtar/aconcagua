@@ -426,7 +426,6 @@ func (pos *Position) UnmakeMove(move *Move) {
 	pos.Turn = pos.Turn.Opponent()
 	pos.AddPiece(pieceToAdd, squareReference[move.from()])
 	pos.Hash = zobristHash(pos)
-	return
 }
 
 // moveRook updates the rook position for the castle passed
@@ -617,7 +616,7 @@ func (pos *Position) bishops(side Color) Bitboard {
 	}
 }
 
-// Print prints the Position to the terminal from white's view perspective
+// String prints the Position to the terminal from white's view perspective
 func (pos *Position) String() string {
 	position := ""
 	board := toRuneArray(pos)

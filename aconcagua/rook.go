@@ -9,7 +9,7 @@ func rookMoves(r *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	return rookMagicAttacks(Bsf(*r), pos.Pieces(White)|pos.Pieces(Black)) &
 		^pos.Pieces(side) &
 		pinRestrictedDirection(r, side, pos) &
-		checkRestrictedMoves(*r, side, pos)
+		checkRestrictedMoves(side, pos)
 }
 
 // rookMagicAttacks returns a bitboard with the attack mask of a rook from the square passed taking into account the blockers

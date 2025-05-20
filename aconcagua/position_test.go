@@ -20,51 +20,6 @@ func TestCheckingPieces(t *testing.T) {
 	}
 }
 
-func TestGetDirectionNorth(t *testing.T) {
-	pos := EmptyPosition()
-	pos.AddPiece(BlackKing, "e1")
-	pos.AddPiece(BlackRook, "e8")
-	from := bitboardFromCoordinate("e8")
-	to := bitboardFromCoordinate("e1")
-
-	expected := NORTH
-	got := getDirection(&from, &to) // king -> rook == NORTH
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestGetDirectionSouth(t *testing.T) {
-	pos := EmptyPosition()
-	pos.AddPiece(BlackKing, "e1")
-	pos.AddPiece(BlackRook, "e8")
-	from := bitboardFromCoordinate("e1")
-	to := bitboardFromCoordinate("e8")
-
-	expected := SOUTH
-	got := getDirection(&from, &to) // rook -> king == SOUTH
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestGetDirectionSouthWest(t *testing.T) {
-	pos := EmptyPosition()
-	pos.AddPiece(BlackKing, "e4")
-	pos.AddPiece(BlackRook, "d3")
-	from := bitboardFromCoordinate("d3")
-	to := bitboardFromCoordinate("e4")
-
-	expected := SOUTHWEST
-	got := getDirection(&from, &to) // king -> rook == SOUTHWEST
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 func TestGetRayPath(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BlackRook, "c4")

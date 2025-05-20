@@ -21,7 +21,7 @@ func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
 
 	moves = (posibleCaptures | posiblesMoves) &
 		pinRestrictedDirection(p, side, pos) &
-		checkRestrictedMoves(*p, side, pos)
+		checkRestrictedMoves(side, pos)
 
 	return
 }
