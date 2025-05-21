@@ -2,42 +2,6 @@ package aconcagua
 
 import "testing"
 
-func TestDirectionsFromA1ToA8(t *testing.T) {
-	expected := NORTH
-	got := directions[0][56] // a1 to a8
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestDirectionsFromA1ToH8(t *testing.T) {
-	expected := NORTHEAST
-	got := directions[0][63] // a1 to h8
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestDirectionsFromE4ToD5(t *testing.T) {
-	expected := NORTHWEST
-	got := directions[28][35] // e4 to d5
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestDirectionsFromE4ToC5(t *testing.T) {
-	expected := INVALID
-	got := directions[28][34] // e4 to c5
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 func TestStraightPinnedPieces(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteKing, "e1")
@@ -88,6 +52,34 @@ func TestPinnedPiecesOnBlack(t *testing.T) {
 
 	expected := Bitboard(1 << 55) // knight on h7
 	got := pos.pinnedPieces(Black)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestCheckRestrictedSquares(t *testing.T) {
+	pos := From("8/8/8/8/1k4PP/1bp1r2K/8/5N2 w - - 0 1")
+	checkingSliders := pos.Bitboards[BlackRook] // Black Rook on e3
+	checkingNonSliders := Bitboard(0)
+
+	expected := checkRestrictedMoves(White, pos)
+	got := checkRestrictedSquares(pos.KingPosition(White), checkingSliders, checkingNonSliders)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPinRestrictedSquares(t *testing.T) {
+	pos := From("2br2k1/5pp1/5p2/R4BP1/5PKP/8/8/8 w - - 0 1") // bishop on f5 is pinned can only move along the h4-c8 diagonal
+
+	piece := pos.Bitboards[WhiteBishop]
+	king := pos.KingPosition(White)
+	pinnedPieces := pos.pinnedPieces(White)
+
+	expected := pinRestrictedDirection(&piece, White, pos)
+	got := pinRestrictedSquares(piece, king, pinnedPieces)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

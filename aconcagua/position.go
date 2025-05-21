@@ -171,7 +171,7 @@ func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	case WhiteBishop, BlackBishop:
 		attacks |= bishopMagicAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteKnight, BlackKnight:
-		attacks |= knightAttackSquares[Bsf(from)]
+		attacks |= knightAttacksTable[Bsf(from)]
 	case WhitePawn:
 		attacks |= pawnAttacks(&from, White)
 	case BlackPawn:
@@ -180,18 +180,22 @@ func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	return
 }
 
-// checkingPieces returns an Bitboard of squares that contain pieces attacking the king of the side passed
-func (pos *Position) CheckingPieces(side Color) (kingAttackers Bitboard) {
+// checkingPieces returns a Bitboard with the pieces that are checking the passed side, if the flag onlySliders is true
+// only sliding pieces will be returned
+func (pos *Position) CheckingPieces(side Color, onlySliders bool) (kingAttackers Bitboard) {
 	if !pos.Check(side) {
 		return
 	}
 
 	kingSq := pos.KingPosition(side)
-
 	startingPieceNumber := startingPieceNumber(side.Opponent())
 
 	for i, bitboard := range pos.getBitboards(side.Opponent()) {
 		piece := Piece(startingPieceNumber + i)
+
+		if onlySliders && !isSliding(piece) {
+			continue
+		}
 
 		for bitboard > 0 {
 			sq := bitboard.NextBit()

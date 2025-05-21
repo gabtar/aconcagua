@@ -12,7 +12,7 @@ func TestKnightAttacks(t *testing.T) {
 	expectedSquares := []string{"d6", "f6", "d2", "f2", "g5", "g3", "c5", "c3"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := knightAttackSquares[Bsf(knightBB)]
+	got := knightAttacksTable[Bsf(knightBB)]
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
