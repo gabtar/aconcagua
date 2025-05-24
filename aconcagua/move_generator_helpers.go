@@ -31,6 +31,29 @@ func init() {
 	knightAttacksTable = generateKnightAttacks()
 }
 
+// PositionData contains relevant data for legal move validations of a position
+type PositionData struct {
+	kingPosition           Bitboard
+	checkRestrictedSquares Bitboard
+	pinnedPieces           Bitboard
+	allies                 Bitboard
+	enemies                Bitboard
+}
+
+// generatePositionData returns the position data for the current position
+func (pos *Position) generatePositionData() PositionData {
+	checkingPieces, checkingSliders := pos.CheckingPieces(pos.Turn)
+	checkRestrictedSquares := checkRestrictedSquares(pos.KingPosition(pos.Turn), checkingSliders, checkingPieces&^checkingSliders)
+
+	return PositionData{
+		kingPosition:           pos.KingPosition(pos.Turn),
+		checkRestrictedSquares: checkRestrictedSquares,
+		pinnedPieces:           pos.pinnedPieces(pos.Turn),
+		allies:                 pos.Pieces(pos.Turn),
+		enemies:                pos.Pieces(pos.Turn.Opponent()),
+	}
+}
+
 // generateDirections generates all posible directions between all squares in the board
 func generateDirections() (directions [64][64]uint64) {
 	for from := 0; from < 64; from++ {
@@ -169,4 +192,88 @@ func getRayPath(from *Bitboard, to *Bitboard) (rayPath Bitboard) {
 func isSliding(piece Piece) bool {
 	return (piece >= WhiteQueen && piece <= WhiteBishop) ||
 		(piece >= BlackQueen && piece <= BlackBishop)
+}
+
+// canCastleShort checks if the king can castle short on the pased position
+func canCastleShort(from *Bitboard, pos *Position, side Color) bool {
+	if !pos.castlingRights.canCastle(K) && side == White {
+		return false
+	}
+	if !pos.castlingRights.canCastle(k) && side == Black {
+		return false
+	}
+
+	shortCastlePath := (files[5] | files[6]) & (*from<<2 | *from<<1)
+	kingSquaresAttacked := pos.AttackedSquares(side.Opponent())&(shortCastlePath|*from) > 0
+	kingSquaresClear := pos.EmptySquares()&shortCastlePath == shortCastlePath
+
+	if !kingSquaresAttacked && kingSquaresClear {
+		return true
+	}
+
+	return false
+}
+
+// canCastleLong checks if the king can castle long
+func canCastleLong(from *Bitboard, pos *Position, side Color) bool {
+	if !pos.castlingRights.canCastle(Q) && side == White {
+		return false
+	}
+	if !pos.castlingRights.canCastle(q) && side == Black {
+		return false
+	}
+
+	longCastlePath := (files[1] | files[2] | files[3]) & (*from>>3 | *from>>2 | *from>>1)
+	kingPassSquares := *from>>2 | *from>>1 | *from
+	kingSquaresAttacked := pos.AttackedSquares(side.Opponent())&(kingPassSquares) > 0
+	kingSquaresClear := pos.EmptySquares()&longCastlePath == longCastlePath
+
+	if !kingSquaresAttacked && kingSquaresClear {
+		return true
+	}
+
+	return false
+}
+
+// pawnMoveFlag returns the move flag for the pawn move
+func pawnMoveFlag(from *Bitboard, to *Bitboard, pd *PositionData, side Color) uint16 {
+	fromSq := Bsf(*from)
+	toSq := Bsf(*to)
+	promotion := lastRank(side) & *to
+
+	switch {
+	case promotion > 0 && pd.enemies&*to > 0:
+		return knightCapturePromotion
+	case promotion > 0:
+		return knightPromotion
+	case toSq-fromSq == 16 || fromSq-toSq == 16:
+		return doublePawnPush
+	case pd.enemies&*to > 0:
+		return capture
+	default:
+		return quiet
+	}
+}
+
+// potentialEpCapturers returns a bitboard with the potential pawn that can caputure enPassant
+func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
+	epShift := pos.enPassantTarget >> 8
+	if side == Black {
+		epShift = epShift << 16
+	}
+	notInHFile := epShift & ^(epShift & files[7])
+	notInAFile := epShift & ^(epShift & files[0])
+
+	epCaptures |= pos.getBitboards(side)[5] & (notInAFile>>1 | notInHFile<<1)
+	return
+}
+
+// lastRank returns the rank of the last rank for the side passed
+func lastRank(side Color) (rank Bitboard) {
+	if side == White {
+		rank = ranks[7]
+	} else {
+		rank = ranks[0]
+	}
+	return
 }

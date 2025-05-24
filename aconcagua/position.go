@@ -137,16 +137,18 @@ func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 // AttackedSquares returns a bitboard with all squares attacked by the passed side
 func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
 	startingPiece := startingPieceNumber(side)
+	bitboards := pos.getBitboards(side)
 
-	for i, bitboard := range pos.getBitboards(side) {
+	for i, bb := range bitboards[0:5] {
 		piece := Piece(startingPiece + i)
-		sq := bitboard.NextBit()
+		sq := bb.NextBit()
 
 		for sq > 0 {
 			attackedSquares |= Attacks(piece, sq, pos)
-			sq = bitboard.NextBit()
+			sq = bb.NextBit()
 		}
 	}
+	attackedSquares |= pawnAttacks(&bitboards[5], side)
 
 	return
 }
@@ -167,9 +169,9 @@ func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	case WhiteQueen, BlackQueen:
 		attacks |= queenAttacks(&from, pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteRook, BlackRook:
-		attacks |= rookMagicAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
+		attacks |= rookAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteBishop, BlackBishop:
-		attacks |= bishopMagicAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
+		attacks |= bishopAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteKnight, BlackKnight:
 		attacks |= knightAttacksTable[Bsf(from)]
 	case WhitePawn:
@@ -239,7 +241,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 
 	for opponentDiagonalAttackers > 0 {
 		opponent := opponentDiagonalAttackers.NextBit()
-		opponentDiagonalRays := bishopMagicAttacks(Bsf(opponent), Bitboard(0))
+		opponentDiagonalRays := bishopAttacks(Bsf(opponent), Bitboard(0))
 		kingToOpponentPath := getRayPath(&opponent, &king)
 		intersectionRay := opponentDiagonalRays & kingToOpponentPath
 		piecesBetween := intersectionRay & ownPieces
@@ -252,7 +254,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 
 	for opponentOrthogonalAttackers > 0 {
 		opponent := opponentOrthogonalAttackers.NextBit()
-		opponentOrthogonalRays := rookMagicAttacks(Bsf(opponent), Bitboard(0))
+		opponentOrthogonalRays := rookAttacks(Bsf(opponent), Bitboard(0))
 		kingToOpponentPath := getRayPath(&opponent, &king)
 		intersectionRay := opponentOrthogonalRays & kingToOpponentPath
 		piecesBetween := intersectionRay & ownPieces
@@ -311,7 +313,7 @@ func (pos *Position) LegalMoves() *moveList {
 			case 4:
 				genKnightMoves(&pieceBB, pos, pos.Turn, ml, &positionData)
 			case 5:
-				genPawnMoves(&pieceBB, pos, pos.Turn, ml, &positionData)
+				genPawnMoves(&pieceBB, pos.Turn, ml, &positionData)
 			}
 		}
 	}
