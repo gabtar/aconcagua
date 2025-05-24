@@ -63,7 +63,7 @@ func TestCheckRestrictedSquares(t *testing.T) {
 	checkingSliders := pos.Bitboards[BlackRook] // Black Rook on e3
 	checkingNonSliders := Bitboard(0)
 
-	expected := checkRestrictedMoves(White, pos)
+	expected := bitboardFromCoordinates([]string{"e3", "f3", "g3"})
 	got := checkRestrictedSquares(pos.KingPosition(White), checkingSliders, checkingNonSliders)
 
 	if got != expected {
@@ -72,13 +72,13 @@ func TestCheckRestrictedSquares(t *testing.T) {
 }
 
 func TestPinRestrictedSquares(t *testing.T) {
-	pos := From("2br2k1/5pp1/5p2/R4BP1/5PKP/8/8/8 w - - 0 1") // bishop on f5 is pinned can only move along the h4-c8 diagonal
+	pos := From("2br2k1/5pp1/5p2/R4BP1/5PKP/8/8/8 w - - 0 1") // bishop on f5 is pinned can only move along the h3-c8 diagonal
 
 	piece := pos.Bitboards[WhiteBishop]
 	king := pos.KingPosition(White)
 	pinnedPieces := pos.pinnedPieces(White)
 
-	expected := pinRestrictedDirection(&piece, White, pos)
+	expected := bitboardFromCoordinates([]string{"h3", "g4", "f5", "e6", "d7", "c8"})
 	got := pinRestrictedSquares(piece, king, pinnedPieces)
 
 	if got != expected {

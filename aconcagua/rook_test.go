@@ -57,15 +57,17 @@ func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
 
 func TestRookMovesWithCaptures(t *testing.T) {
 	pos := EmptyPosition()
+	pos.Turn = Black
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(WhiteKnight, "a4") // Can move(capture) white knight on a4
 	pos.AddPiece(WhiteKnight, "c8") // Can move(capture) knight on c8
 	rookBB := bitboardFromCoordinate("a8")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := rookMoves(&rookBB, pos, Black)
+	got := rookMoves(&rookBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -78,11 +80,12 @@ func TestRookMovesWithBlockingPieces(t *testing.T) {
 	pos.AddPiece(BlackKnight, "g4") // Can move(capture) white knight on g4
 	pos.AddPiece(WhiteKnight, "f2") // Cannot move to f2, because its blocked by Knight
 	rookBB := bitboardFromCoordinate("g2")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"g1", "h2", "g3", "g4"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := rookMoves(&rookBB, pos, White)
+	got := rookMoves(&rookBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -91,15 +94,17 @@ func TestRookMovesWithBlockingPieces(t *testing.T) {
 
 func TestRookMoveWhenCanBlockCheck(t *testing.T) {
 	pos := EmptyPosition()
+	pos.Turn = Black
 	pos.AddPiece(BlackRook, "c6") // Black king is in check, so only legal move is Re6 blocking the check
 	pos.AddPiece(WhiteRook, "e1")
 	pos.AddPiece(BlackKing, "e8")
 	rookBB := bitboardFromCoordinate("c6")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"e6"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := rookMoves(&rookBB, pos, Black)
+	got := rookMoves(&rookBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -108,16 +113,18 @@ func TestRookMoveWhenCanBlockCheck(t *testing.T) {
 
 func TestRookMovesWhenKingInDoubleCheck(t *testing.T) {
 	pos := EmptyPosition()
+	pos.Turn = Black
 	pos.AddPiece(BlackRook, "c6")
 	pos.AddPiece(WhiteRook, "e1") // Gives check to the black king on e8
 	pos.AddPiece(WhiteRook, "a8") // Gives check to the black king on e8
 	pos.AddPiece(BlackKing, "e8")
 	rookBB := bitboardFromCoordinate("c6")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{} // The rook cannot move at all because of the double check in own king
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := rookMoves(&rookBB, pos, Black)
+	got := rookMoves(&rookBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -126,6 +133,7 @@ func TestRookMovesWhenKingInDoubleCheck(t *testing.T) {
 
 func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 	pos := EmptyPosition()
+	pos.Turn = Black
 	pos.AddPiece(BlackKing, "e8")
 	pos.AddPiece(BlackRook, "e4")
 	pos.AddPiece(WhiteRook, "e2")
@@ -134,11 +142,12 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 	// The rook can only move along the e file, becuase it's pinned if moves
 	// along the 4 rank, the king will be in check!
 	rookBB := bitboardFromCoordinate("e4")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"e3", "e5", "e6", "e7"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := rookMoves(&rookBB, pos, Black)
+	got := rookMoves(&rookBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -148,13 +157,15 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 
 func TestRookMoves(t *testing.T) {
 	pos := EmptyPosition()
+	pos.Turn = Black
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(WhiteKnight, "a4") // Can move(capture) white knight on a4
 	pos.AddPiece(WhiteKnight, "c8") // Can move(capture) knight on c8
 	rookBB := bitboardFromCoordinate("a8")
 	ml := newMoveList()
+	pd := pos.generatePositionData()
 
-	genRookMoves(&rookBB, pos, Black, ml)
+	genRookMoves(&rookBB, ml, &pd)
 	expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
 
 	expected := len(expectedSquares)

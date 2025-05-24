@@ -21,17 +21,19 @@ func TestKnightAttacks(t *testing.T) {
 
 func TestKnightMovesWhenBlockedBySameColorPieces(t *testing.T) {
 	pos := EmptyPosition()
+	pos.Turn = Black
 	pos.AddPiece(BlackKnight, "e4")
 	pos.AddPiece(BlackRook, "d6")
 	pos.AddPiece(BlackRook, "f6")
 	pos.AddPiece(BlackKing, "d2")
 	pos.AddPiece(BlackBishop, "f2")
 	knightBB := bitboardFromCoordinate("e4")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"g5", "g3", "c5", "c3"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := knightMoves(&knightBB, pos, Black)
+	got := knightMoves(&knightBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -45,9 +47,10 @@ func TestKnightMovesWithCaptures(t *testing.T) {
 	pos.AddPiece(WhiteRook, "a3")
 	pos.AddPiece(WhiteRook, "d2") // Blocks Knight move
 	knightBB := bitboardFromCoordinate("b1")
+	pd := pos.generatePositionData()
 
 	expected := bitboardFromCoordinate("c3") // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
-	got := knightMoves(&knightBB, pos, White)
+	got := knightMoves(&knightBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -60,9 +63,10 @@ func TestKnightMovesWhenPinned(t *testing.T) {
 	pos.AddPiece(BlackRook, "e8")
 	pos.AddPiece(WhiteKing, "e1")
 	knightBB := bitboardFromCoordinate("e4")
+	pd := pos.generatePositionData()
 
 	expected := Bitboard(0) // The Knight is pinned, it cannot move at all
-	got := knightMoves(&knightBB, pos, White)
+	got := knightMoves(&knightBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -77,10 +81,11 @@ func TestKnightMoves(t *testing.T) {
 	pos.AddPiece(WhiteRook, "a3")
 	pos.AddPiece(WhiteRook, "d2") // Blocks Knight move
 	knightBB := bitboardFromCoordinate("b1")
+	pd := pos.generatePositionData()
 	ml := newMoveList()
 
 	expected := []Move{*encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
-	genKnightMoves(&knightBB, pos, White, ml)
+	genKnightMoves(&knightBB, pos, White, ml, &pd)
 	got := ml.moves
 
 	if got[0] != expected[0] {

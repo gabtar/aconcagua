@@ -138,3 +138,35 @@ func generateKnightAttacks() (knightAttacksTable [64]Bitboard) {
 	}
 	return
 }
+
+// raysDirection returns the rays along the direction passed that intersects the
+// piece in the square passed
+func raysDirection(square Bitboard, direction uint64) Bitboard {
+	oppositeDirections := [8]uint64{SOUTH, SOUTHWEST, WEST, NORTHWEST, NORTH, NORTHEAST, EAST, SOUTHEAST}
+
+	return rayAttacks[direction][Bsf(square)] | square |
+		rayAttacks[oppositeDirections[direction]][Bsf(square)]
+}
+
+// getRayPath returns a Bitboard with the path between 2 bitboards pieces
+// (not including the 2 pieces)
+func getRayPath(from *Bitboard, to *Bitboard) (rayPath Bitboard) {
+	fromSq := Bsf(*from)
+	toSq := Bsf(*to)
+
+	fromDirection := directions[fromSq][toSq]
+	toDirection := directions[toSq][fromSq]
+
+	if fromDirection == INVALID || toDirection == INVALID {
+		return
+	}
+
+	return rayAttacks[fromDirection][fromSq] &
+		rayAttacks[toDirection][toSq]
+}
+
+// isSliding returns a the passed Piece is an sliding piece(Queen, Rook or Bishop)
+func isSliding(piece Piece) bool {
+	return (piece >= WhiteQueen && piece <= WhiteBishop) ||
+		(piece >= BlackQueen && piece <= BlackBishop)
+}

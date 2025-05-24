@@ -5,24 +5,23 @@ package aconcagua
 // -------------
 
 // pawnMoves returns a Bitboard with the squares a pawn can move to in the passed position
-func pawnMoves(p *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	posibleCaptures := pawnAttacks(p, side) & pos.Pieces(side.Opponent())
+func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
+	posibleCaptures := pawnAttacks(p, side) & pd.enemies
 	posiblesMoves := Bitboard(0)
+	emptySquares := ^(pd.allies | pd.enemies)
 
 	if side == White {
-		singleMove := *p << 8 & pos.EmptySquares()
-		firstPawnMoveAvailable := (*p & ranks[1]) << 16 & (singleMove << 8) & pos.EmptySquares()
+		singleMove := *p << 8 & emptySquares
+		firstPawnMoveAvailable := (*p & ranks[1]) << 16 & (singleMove << 8) & emptySquares
 		posiblesMoves = singleMove | firstPawnMoveAvailable
 	} else {
-		singleMove := *p >> 8 & pos.EmptySquares()
-		firstPawnMoveAvailable := (*p & ranks[6]) >> 16 & (singleMove >> 8) & pos.EmptySquares()
+		singleMove := *p >> 8 & emptySquares
+		firstPawnMoveAvailable := (*p & ranks[6]) >> 16 & (singleMove >> 8) & emptySquares
 		posiblesMoves = singleMove | firstPawnMoveAvailable
 	}
 
-	moves = (posibleCaptures | posiblesMoves) &
-		pinRestrictedDirection(p, side, pos) &
-		checkRestrictedMoves(side, pos)
-
+	moves = (posibleCaptures | posiblesMoves) & pd.checkRestrictedSquares &
+		pinRestrictedSquares(*p, pd.kingPosition, pd.pinnedPieces)
 	return
 }
 
@@ -40,8 +39,8 @@ func pawnAttacks(p *Bitboard, side Color) (attacks Bitboard) {
 }
 
 // genPawnMoves generates the pawn moves in the move list
-func genPawnMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
-	toSquares := pawnMoves(from, pos, side)
+func genPawnMoves(from *Bitboard, pos *Position, side Color, ml *moveList, pd *PositionData) {
+	toSquares := pawnMoves(from, pd, side)
 
 	for toSquares > 0 {
 		toSquare := toSquares.NextBit()

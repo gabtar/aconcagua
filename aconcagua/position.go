@@ -99,7 +99,7 @@ type Position struct {
 	positionHistory PositionHistory
 }
 
-// pieceAt returns a Piece at the given square coordinate in the Position or error
+// PieceAt returns a Piece at the given square coordinate in the Position or error
 func (pos *Position) PieceAt(square string) (piece Piece) {
 	bitboardSquare := bitboardFromCoordinate(square)
 
@@ -114,7 +114,7 @@ func (pos *Position) PieceAt(square string) (piece Piece) {
 	return
 }
 
-// addPiece adds to the position the Piece passed in the square passed
+// AddPiece adds to the position the Piece passed in the square passed
 func (pos *Position) AddPiece(piece Piece, square string) {
 	if piece == NoPiece {
 		return
@@ -124,7 +124,7 @@ func (pos *Position) AddPiece(piece Piece, square string) {
 	pos.Bitboards[piece] |= bitboardSquare
 }
 
-// emptySquares returns a Bitboard with the empty sqaures of the position
+// EmptySquares returns a Bitboard with the empty sqaures of the position
 func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 	emptySquares = AllSquares
 
@@ -134,7 +134,7 @@ func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 	return
 }
 
-// attackedSquares returns a bitboard with all squares attacked by the passed side
+// AttackedSquares returns a bitboard with all squares attacked by the passed side
 func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
 	startingPiece := startingPieceNumber(side)
 
@@ -165,7 +165,7 @@ func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	case WhiteKing, BlackKing:
 		attacks |= kingAttacks(&from)
 	case WhiteQueen, BlackQueen:
-		attacks |= queenAttacks(&from, pos)
+		attacks |= queenAttacks(&from, pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteRook, BlackRook:
 		attacks |= rookMagicAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteBishop, BlackBishop:
@@ -180,9 +180,8 @@ func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	return
 }
 
-// checkingPieces returns a Bitboard with the pieces that are checking the passed side, if the flag onlySliders is true
-// only sliding pieces will be returned
-func (pos *Position) CheckingPieces(side Color, onlySliders bool) (kingAttackers Bitboard) {
+// CheckingPieces returns two Bitboards, one with all the checking pieces and one with only the checking sliders pieces
+func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checkingSliders Bitboard) {
 	if !pos.Check(side) {
 		return
 	}
@@ -193,15 +192,14 @@ func (pos *Position) CheckingPieces(side Color, onlySliders bool) (kingAttackers
 	for i, bitboard := range pos.getBitboards(side.Opponent()) {
 		piece := Piece(startingPieceNumber + i)
 
-		if onlySliders && !isSliding(piece) {
-			continue
-		}
-
 		for bitboard > 0 {
 			sq := bitboard.NextBit()
 
 			if kingSq&Attacks(piece, sq, pos) > 0 {
-				kingAttackers |= sq
+				if isSliding(piece) {
+					checkingSliders |= sq
+				}
+				checkingPieces |= sq
 			}
 		}
 
@@ -227,13 +225,54 @@ func (pos *Position) Check(side Color) (inCheck bool) {
 	return
 }
 
+// pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
+func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
+	king := pos.KingPosition(side)
+	opponentDiagonalAttackers := pos.Bitboards[int(side.Opponent())*6+int(WhiteQueen)] | pos.Bitboards[int(side.Opponent())*6+int(WhiteBishop)]
+	opponentOrthogonalAttackers := pos.Bitboards[int(side.Opponent())*6+int(WhiteQueen)] | pos.Bitboards[int(side.Opponent())*6+int(WhiteRook)]
+	ownPieces := pos.Pieces(side) &^ king
+	opponentPieces := pos.Pieces(side.Opponent())
+
+	if king == 0 {
+		return
+	}
+
+	for opponentDiagonalAttackers > 0 {
+		opponent := opponentDiagonalAttackers.NextBit()
+		opponentDiagonalRays := bishopMagicAttacks(Bsf(opponent), Bitboard(0))
+		kingToOpponentPath := getRayPath(&opponent, &king)
+		intersectionRay := opponentDiagonalRays & kingToOpponentPath
+		piecesBetween := intersectionRay & ownPieces
+		oponentPiecesBetween := intersectionRay & opponentPieces
+
+		if opponentDiagonalRays&king > 0 && piecesBetween.count() == 1 && oponentPiecesBetween == 0 {
+			pinned |= piecesBetween
+		}
+	}
+
+	for opponentOrthogonalAttackers > 0 {
+		opponent := opponentOrthogonalAttackers.NextBit()
+		opponentOrthogonalRays := rookMagicAttacks(Bsf(opponent), Bitboard(0))
+		kingToOpponentPath := getRayPath(&opponent, &king)
+		intersectionRay := opponentOrthogonalRays & kingToOpponentPath
+		piecesBetween := intersectionRay & ownPieces
+		oponentPiecesBetween := intersectionRay & opponentPieces
+
+		if opponentOrthogonalRays&king > 0 && piecesBetween.count() == 1 && oponentPiecesBetween == 0 {
+			pinned |= piecesBetween
+		}
+	}
+
+	return
+}
+
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
 	king = pos.Bitboards[pieceOfColor[King][side]]
 	return
 }
 
-// Remove Piece returns a new position without the piece passed
+// RemovePiece returns a new position without the piece passed
 func (pos *Position) RemovePiece(piece Bitboard) {
 	for role, bitboard := range pos.Bitboards {
 		if bitboard&piece > 0 {
@@ -255,6 +294,7 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 func (pos *Position) LegalMoves() *moveList {
 	bitboards := pos.getBitboards(pos.Turn)
 	ml := newMoveList()
+	positionData := pos.generatePositionData()
 
 	for piece, bb := range bitboards {
 		for bb > 0 {
@@ -263,15 +303,15 @@ func (pos *Position) LegalMoves() *moveList {
 			case 0:
 				genKingMoves(&pieceBB, pos, pos.Turn, ml)
 			case 1:
-				genQueenMoves(&pieceBB, pos, pos.Turn, ml)
+				genQueenMoves(&pieceBB, ml, &positionData)
 			case 2:
-				genRookMoves(&pieceBB, pos, pos.Turn, ml)
+				genRookMoves(&pieceBB, ml, &positionData)
 			case 3:
-				genBishopMoves(&pieceBB, pos, pos.Turn, ml)
+				genBishopMoves(&pieceBB, ml, &positionData)
 			case 4:
-				genKnightMoves(&pieceBB, pos, pos.Turn, ml)
+				genKnightMoves(&pieceBB, pos, pos.Turn, ml, &positionData)
 			case 5:
-				genPawnMoves(&pieceBB, pos, pos.Turn, ml)
+				genPawnMoves(&pieceBB, pos, pos.Turn, ml, &positionData)
 			}
 		}
 	}

@@ -38,15 +38,17 @@ func TestBishopAttacksWithBlockedSquares(t *testing.T) {
 
 func TestBishopMovesWithCaptures(t *testing.T) {
 	pos := EmptyPosition()
+	pos.Turn = Black
 	pos.AddPiece(BlackBishop, "c4")
 	pos.AddPiece(WhiteRook, "f7")   // Can move(capture) white rook on f7
 	pos.AddPiece(WhiteKnight, "d3") // Can move(capture) knight on d3
 	bishopBB := bitboardFromCoordinate("c4")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"a2", "b3", "d3", "d5", "e6", "f7", "b5", "a6"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := bishopMoves(&bishopBB, pos, Black)
+	got := bishopMoves(&bishopBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -59,11 +61,12 @@ func TestBishopMovesWithBlockingPieces(t *testing.T) {
 	pos.AddPiece(WhiteKnight, "e8") // Cannot move, blocked by same color knight
 	pos.AddPiece(WhiteRook, "f5")   // Cannot move to f5, because its blocked by Rook
 	bishopBB := bitboardFromCoordinate("g6")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"h7", "h5", "f7"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := bishopMoves(&bishopBB, pos, White)
+	got := bishopMoves(&bishopBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -76,11 +79,12 @@ func TestBishopMoveWhenCanBlockCheck(t *testing.T) {
 	pos.AddPiece(BlackRook, "d8") // And also Bxd8 by capturing the Rook which is checking the king
 	pos.AddPiece(WhiteBishop, "g5")
 	bishopBB := bitboardFromCoordinate("g5")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"d2", "d8"}
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := bishopMoves(&bishopBB, pos, White)
+	got := bishopMoves(&bishopBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -94,11 +98,12 @@ func TestBishopMovesWhenPinnedAndInCheck(t *testing.T) {
 	pos.AddPiece(BlackRook, "d8") // Gives check to the white king on d1 (by xrays) -> pins the bishop
 	pos.AddPiece(WhiteBishop, "d4")
 	bishopBB := bitboardFromCoordinate("d4")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{} // The bishop cannot move at all, because of the double check
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := bishopMoves(&bishopBB, pos, White)
+	got := bishopMoves(&bishopBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -112,11 +117,12 @@ func TestBishpMovesWhenTheBishopIsPinned(t *testing.T) {
 	pos.AddPiece(WhiteBishop, "d5")
 
 	bishopBB := bitboardFromCoordinate("d5")
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"e6", "f7", "g8"} // Can only move along the g8 c4 diagonal because of the pin
 
 	expected := bitboardFromCoordinates(expectedSquares)
-	got := bishopMoves(&bishopBB, pos, White)
+	got := bishopMoves(&bishopBB, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -130,15 +136,15 @@ func TestBishopMoves(t *testing.T) {
 	pos.AddPiece(WhiteRook, "f5")   // Cannot move to f5, because its blocked by Rook
 	bishopBB := bitboardFromCoordinate("g6")
 	ml := newMoveList()
+	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"h7", "h5", "f7"}
 
 	expected := len(expectedSquares)
-	genBishopMoves(&bishopBB, pos, White, ml)
+	genBishopMoves(&bishopBB, ml, &pd)
 	got := ml.length
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
-
 }

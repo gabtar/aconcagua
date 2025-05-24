@@ -5,11 +5,11 @@ package aconcagua
 // -------------
 
 // rookMoves returns a bitboard with the legal moves of the rook from the bitboard passed
-func rookMoves(r *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	return rookMagicAttacks(Bsf(*r), pos.Pieces(White)|pos.Pieces(Black)) &
-		^pos.Pieces(side) &
-		pinRestrictedDirection(r, side, pos) &
-		checkRestrictedMoves(side, pos)
+func rookMoves(r *Bitboard, pd *PositionData) (moves Bitboard) {
+	return rookMagicAttacks(Bsf(*r), pd.allies|pd.enemies) &
+		^pd.allies &
+		pd.checkRestrictedSquares &
+		pinRestrictedSquares(*r, pd.kingPosition, pd.pinnedPieces)
 }
 
 // rookMagicAttacks returns a bitboard with the attack mask of a rook from the square passed taking into account the blockers
@@ -20,15 +20,14 @@ func rookMagicAttacks(square int, blocks Bitboard) Bitboard {
 }
 
 // genRookMoves generates the rook moves in the move list
-func genRookMoves(from *Bitboard, pos *Position, side Color, ml *moveList) {
-	toSquares := rookMoves(from, pos, side)
-	opponentPieces := pos.Pieces(side.Opponent())
+func genRookMoves(from *Bitboard, ml *moveList, pd *PositionData) {
+	toSquares := rookMoves(from, pd)
 
 	for toSquares > 0 {
 		toSquare := toSquares.NextBit()
 		flag := quiet
 
-		if toSquare&opponentPieces > 0 {
+		if toSquare&pd.enemies > 0 {
 			flag = capture
 		}
 

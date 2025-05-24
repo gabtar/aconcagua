@@ -13,7 +13,8 @@ func TestCheckingPieces(t *testing.T) {
 	pos.AddPiece(WhiteKing, "e1")
 
 	expected := 1
-	got := pos.CheckingPieces(White, false).count()
+	checkingPieces, _ := pos.CheckingPieces(White)
+	got := checkingPieces.count()
 
 	if expected != got {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -42,11 +43,10 @@ func TestPinnedPiece(t *testing.T) {
 	pos.AddPiece(BlackKing, "c7")
 	pos.AddPiece(BlackRook, "c6")
 	pos.AddPiece(WhiteRook, "c1")
-	blackRook := pos.PieceAt("c6")
 	from := bitboardFromCoordinate("c6")
 
 	expected := true
-	got := isPinned(&from, pieceColor[blackRook], pos)
+	got := from&pos.pinnedPieces(Black) > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -55,11 +55,10 @@ func TestPinnedPiece(t *testing.T) {
 
 func TestPinnedPieceKnightFail(t *testing.T) {
 	pos := From("rnQq1k1r/pp2bppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R b KQ - 1 8")
-	blackKnight := pos.PieceAt("b8")
 	from := bitboardFromCoordinate("b8")
 
 	expected := false
-	got := isPinned(&from, pieceColor[blackKnight], pos)
+	got := from&pos.pinnedPieces(Black) > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
