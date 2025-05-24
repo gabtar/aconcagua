@@ -5,11 +5,9 @@ import (
 	"strings"
 )
 
-// Piece is an int that references piece role/color for bitboards in position struct
-type Piece int
-
+// Constants for pieces
 const (
-	WhiteKing Piece = iota
+	WhiteKing = iota
 	WhiteQueen
 	WhiteRook
 	WhiteBishop
@@ -32,7 +30,7 @@ const (
 )
 
 // pieceColor references a Piece type to a Color type
-var pieceColor = map[Piece]Color{
+var pieceColor = map[int]Color{
 	WhiteKing:   White,
 	WhiteQueen:  White,
 	WhiteRook:   White,
@@ -48,7 +46,7 @@ var pieceColor = map[Piece]Color{
 }
 
 // pieceOfColor returns a Piece of the color passed
-var pieceOfColor = map[Piece]map[Color]Piece{
+var pieceOfColor = map[int]map[Color]int{
 	King:   {White: WhiteKing, Black: BlackKing},
 	Queen:  {White: WhiteQueen, Black: BlackQueen},
 	Rook:   {White: WhiteRook, Black: BlackRook},
@@ -71,7 +69,7 @@ var squareReference = []string{
 }
 
 // pieceReference is used for fen string conversion to internal Position struct
-var pieceReference = map[string]Piece{
+var pieceReference = map[string]int{
 	"k": BlackKing,
 	"q": BlackQueen,
 	"r": BlackRook,
@@ -100,12 +98,12 @@ type Position struct {
 }
 
 // PieceAt returns a Piece at the given square coordinate in the Position or error
-func (pos *Position) PieceAt(square string) (piece Piece) {
+func (pos *Position) PieceAt(square string) (piece int) {
 	bitboardSquare := bitboardFromCoordinates(square)
 
 	for index, bitboard := range pos.Bitboards {
 		if bitboard&bitboardSquare > 0 {
-			piece = Piece(index)
+			piece = index
 			return
 		}
 	}
@@ -115,7 +113,7 @@ func (pos *Position) PieceAt(square string) (piece Piece) {
 }
 
 // AddPiece adds to the position the Piece passed in the square passed
-func (pos *Position) AddPiece(piece Piece, square string) {
+func (pos *Position) AddPiece(piece int, square string) {
 	if piece == NoPiece {
 		return
 	}
@@ -140,7 +138,7 @@ func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
 	bitboards := pos.getBitboards(side)
 
 	for i, bb := range bitboards[0:5] {
-		piece := Piece(startingPiece + i)
+		piece := startingPiece + i
 		sq := bb.NextBit()
 
 		for sq > 0 {
@@ -162,7 +160,7 @@ func startingPieceNumber(side Color) int {
 	return startingBitboard
 }
 
-func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
+func Attacks(piece int, from Bitboard, pos *Position) (attacks Bitboard) {
 	switch piece {
 	case WhiteKing, BlackKing:
 		attacks |= kingAttacks(&from)
@@ -192,7 +190,7 @@ func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checki
 	startingPieceNumber := startingPieceNumber(side.Opponent())
 
 	for i, bitboard := range pos.getBitboards(side.Opponent()) {
-		piece := Piece(startingPieceNumber + i)
+		piece := startingPieceNumber + i
 
 		for bitboard > 0 {
 			sq := bitboard.NextBit()
@@ -355,7 +353,7 @@ func (pos *Position) updateMoveState() {
 }
 
 // handleSpecialMoveTypes processes different types of chess moves
-func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *Piece) {
+func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *int) {
 	switch flag := move.flag(); flag {
 	case quiet:
 		pos.handleQuietMove(*pieceToMove)
@@ -374,14 +372,14 @@ func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *Piece) {
 }
 
 // handleQuietMove resets halfmove clock for pawn moves
-func (pos *Position) handleQuietMove(pieceToMove Piece) {
+func (pos *Position) handleQuietMove(pieceToMove int) {
 	if pieceToMove == WhitePawn || pieceToMove == BlackPawn {
 		pos.halfmoveClock = 0
 	}
 }
 
 // handleDoublePawnPush sets en passant target square
-func (pos *Position) handleDoublePawnPush(move Move, pieceToMove Piece) {
+func (pos *Position) handleDoublePawnPush(move Move, pieceToMove int) {
 	if pieceToMove == WhitePawn {
 		pos.enPassantTarget = bitboardFromIndex(move.to()) >> 8
 	} else {
@@ -396,7 +394,7 @@ func (pos *Position) handleCapture(move Move) {
 }
 
 // handlePromotion processes pawn promotion
-func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *Piece) {
+func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int) {
 	pos.RemovePiece(bitboardFromIndex(move.to()))
 	*pieceToMove = getPromotedToPiece(flag, pos.Turn)
 
@@ -404,7 +402,7 @@ func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *Piece) {
 }
 
 // handleEnPassantCapture removes the captured pawn in en passant
-func (pos *Position) handleEnPassantCapture(move Move, pieceToMove Piece) {
+func (pos *Position) handleEnPassantCapture(move Move, pieceToMove int) {
 	if pieceToMove == WhitePawn {
 		pos.Bitboards[BlackPawn] ^= bitboardFromIndex(move.to()) >> 8
 	} else {
@@ -414,7 +412,7 @@ func (pos *Position) handleEnPassantCapture(move Move, pieceToMove Piece) {
 }
 
 // getPromotedToPiece returns the piece promoted to based on the flag passed
-func getPromotedToPiece(flag int, side Color) (piece Piece) {
+func getPromotedToPiece(flag int, side Color) (piece int) {
 	switch flag {
 	case knightPromotion, knightCapturePromotion:
 		return pieceOfColor[Knight][side]
@@ -429,7 +427,7 @@ func getPromotedToPiece(flag int, side Color) (piece Piece) {
 }
 
 // getCapturedPiece determines the piece captured in the move
-func (pos *Position) getCapturedPiece(move *Move) Piece {
+func (pos *Position) getCapturedPiece(move *Move) int {
 	if move.flag() == epCapture {
 		return pieceOfColor[Pawn][pos.Turn.Opponent()]
 	}
@@ -452,11 +450,11 @@ func (pos *Position) UnmakeMove(move *Move) {
 	pos.halfmoveClock = prevState.rule50()
 	pos.castlingRights = castle
 
-	pieceToAdd := Piece(prevState.pieceMoved())
+	pieceToAdd := prevState.pieceMoved()
 
 	switch flag := move.flag(); flag {
 	case capture, knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion:
-		pos.AddPiece(Piece(prevState.pieceCaptured()), squareReference[move.to()])
+		pos.AddPiece(prevState.pieceCaptured(), squareReference[move.to()])
 	case queensideCastle, kingsideCastle:
 		restoreRookOnCastle(pos, castleType[move.String()])
 	case epCapture:

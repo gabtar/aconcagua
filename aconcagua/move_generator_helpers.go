@@ -4,15 +4,15 @@ import "math"
 
 // Constants for orthogonal directions in the board
 const (
-	NORTH     uint64 = 0
-	NORTHEAST uint64 = 1
-	EAST      uint64 = 2
-	SOUTHEAST uint64 = 3
-	SOUTH     uint64 = 4
-	SOUTHWEST uint64 = 5
-	WEST      uint64 = 6
-	NORTHWEST uint64 = 7
-	INVALID   uint64 = 8
+	North = iota
+	NorthEast
+	East
+	SouthEast
+	South
+	SouthWest
+	West
+	NorthWest
+	Invalid
 )
 
 // directions is a table that contains the compass directions between 2 squares in the board
@@ -75,23 +75,23 @@ func generateDirections() (directions [64][64]uint64) {
 
 			switch {
 			case fileDiff == 0 && rankDiff > 0:
-				directions[from][to] = NORTH
+				directions[from][to] = North
 			case fileDiff == 0 && rankDiff < 0:
-				directions[from][to] = SOUTH
+				directions[from][to] = South
 			case fileDiff > 0 && rankDiff == 0:
-				directions[from][to] = EAST
+				directions[from][to] = East
 			case fileDiff < 0 && rankDiff == 0:
-				directions[from][to] = WEST
+				directions[from][to] = West
 			case absFileDiff == absRankDiff && fileDiff < 0 && rankDiff < 0:
-				directions[from][to] = SOUTHWEST
+				directions[from][to] = SouthWest
 			case absFileDiff == absRankDiff && fileDiff > 0 && rankDiff > 0:
-				directions[from][to] = NORTHEAST
+				directions[from][to] = NorthEast
 			case absFileDiff == absRankDiff && fileDiff > 0 && rankDiff < 0:
-				directions[from][to] = SOUTHEAST
+				directions[from][to] = SouthEast
 			case absFileDiff == absRankDiff && fileDiff < 0 && rankDiff > 0:
-				directions[from][to] = NORTHWEST
+				directions[from][to] = NorthWest
 			default:
-				directions[from][to] = INVALID
+				directions[from][to] = Invalid
 			}
 		}
 	}
@@ -100,41 +100,41 @@ func generateDirections() (directions [64][64]uint64) {
 
 // generateRayAttacks returns a precalculated array for all posible rays on each direction from each square in the board
 func generateRayAttacks() (rayAttacks [8][64]Bitboard) {
-	directions := [8]uint64{NORTH, NORTHEAST, EAST, SOUTHEAST, SOUTH, SOUTHWEST, WEST, NORTHWEST}
+	directions := [8]uint64{North, NorthEast, East, SouthEast, South, SouthWest, West, NorthWest}
 
 	for sq := 0; sq < 64; sq++ {
 		rank, file := sq/8, sq%8
 		for _, dir := range directions {
 			switch dir {
-			case NORTH:
+			case North:
 				for r := rank + 1; r <= 7; r++ {
 					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + file))
 				}
-			case NORTHEAST:
+			case NorthEast:
 				for r, f := rank+1, file+1; r <= 7 && f <= 7; r, f = r+1, f+1 {
 					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + f))
 				}
-			case EAST:
+			case East:
 				for f := file + 1; f <= 7; f++ {
 					rayAttacks[dir][sq] |= Bitboard(1 << (f + rank*8))
 				}
-			case SOUTHEAST:
+			case SouthEast:
 				for r, f := rank-1, file+1; r >= 0 && f <= 7; r, f = r-1, f+1 {
 					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + f))
 				}
-			case SOUTH:
+			case South:
 				for r := rank - 1; r >= 0; r-- {
 					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + file))
 				}
-			case SOUTHWEST:
+			case SouthWest:
 				for r, f := rank-1, file-1; r >= 0 && f >= 0; r, f = r-1, f-1 {
 					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + f))
 				}
-			case WEST:
+			case West:
 				for f := file - 1; f >= 0; f-- {
 					rayAttacks[dir][sq] |= Bitboard(1 << (f + rank*8))
 				}
-			case NORTHWEST:
+			case NorthWest:
 				for r, f := rank+1, file-1; r <= 7 && f >= 0; r, f = r+1, f-1 {
 					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + f))
 				}
@@ -165,7 +165,7 @@ func generateKnightAttacks() (knightAttacksTable [64]Bitboard) {
 // raysDirection returns the rays along the direction passed that intersects the
 // piece in the square passed
 func raysDirection(square Bitboard, direction uint64) Bitboard {
-	oppositeDirections := [8]uint64{SOUTH, SOUTHWEST, WEST, NORTHWEST, NORTH, NORTHEAST, EAST, SOUTHEAST}
+	oppositeDirections := [8]uint64{South, SouthWest, West, NorthWest, North, NorthEast, East, SouthEast}
 
 	return rayAttacks[direction][Bsf(square)] | square |
 		rayAttacks[oppositeDirections[direction]][Bsf(square)]
@@ -180,7 +180,7 @@ func getRayPath(from *Bitboard, to *Bitboard) (rayPath Bitboard) {
 	fromDirection := directions[fromSq][toSq]
 	toDirection := directions[toSq][fromSq]
 
-	if fromDirection == INVALID || toDirection == INVALID {
+	if fromDirection == Invalid || toDirection == Invalid {
 		return
 	}
 
@@ -189,7 +189,7 @@ func getRayPath(from *Bitboard, to *Bitboard) (rayPath Bitboard) {
 }
 
 // isSliding returns a the passed Piece is an sliding piece(Queen, Rook or Bishop)
-func isSliding(piece Piece) bool {
+func isSliding(piece int) bool {
 	return (piece >= WhiteQueen && piece <= WhiteBishop) ||
 		(piece >= BlackQueen && piece <= BlackBishop)
 }
