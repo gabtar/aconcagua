@@ -101,7 +101,7 @@ type Position struct {
 
 // PieceAt returns a Piece at the given square coordinate in the Position or error
 func (pos *Position) PieceAt(square string) (piece Piece) {
-	bitboardSquare := bitboardFromCoordinate(square)
+	bitboardSquare := bitboardFromCoordinates(square)
 
 	for index, bitboard := range pos.Bitboards {
 		if bitboard&bitboardSquare > 0 {
@@ -120,7 +120,7 @@ func (pos *Position) AddPiece(piece Piece, square string) {
 		return
 	}
 
-	bitboardSquare := bitboardFromCoordinate(square)
+	bitboardSquare := bitboardFromCoordinates(square)
 	pos.Bitboards[piece] |= bitboardSquare
 }
 
@@ -498,7 +498,7 @@ func UpdateCastleRights(pos *Position, move *Move) {
 	case WhiteKing:
 		pos.castlingRights.remove(K | Q)
 	case WhiteRook:
-		if move.from() == Bsf(bitboardFromCoordinate("h1")) {
+		if move.from() == Bsf(bitboardFromCoordinates("h1")) {
 			pos.castlingRights.remove(K)
 		} else {
 			pos.castlingRights.remove(Q)
@@ -506,7 +506,7 @@ func UpdateCastleRights(pos *Position, move *Move) {
 	case BlackKing:
 		pos.castlingRights.remove(k | q)
 	case BlackRook:
-		if move.from() == Bsf(bitboardFromCoordinate("h8")) {
+		if move.from() == Bsf(bitboardFromCoordinates("h8")) {
 			pos.castlingRights.remove(k)
 		} else {
 			pos.castlingRights.remove(q)
@@ -732,7 +732,7 @@ func From(fen string) (pos *Position) {
 
 	pos.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
 	if elements[3] != "-" {
-		pos.enPassantTarget = bitboardFromCoordinate(elements[3])
+		pos.enPassantTarget = bitboardFromCoordinates(elements[3])
 	}
 	pos.halfmoveClock, _ = strconv.Atoi(elements[4]) // TODO: handle errors
 	pos.fullmoveNumber, _ = strconv.Atoi(elements[5])

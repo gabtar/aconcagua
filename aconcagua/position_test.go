@@ -4,8 +4,6 @@ import (
 	"testing"
 )
 
-// Position tests
-
 func TestCheckingPieces(t *testing.T) {
 	pos := EmptyPosition()
 
@@ -25,12 +23,10 @@ func TestGetRayPath(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(BlackRook, "c4")
 	pos.AddPiece(WhiteRook, "f4")
-	from := bitboardFromCoordinate("c4")
-	to := bitboardFromCoordinate("f4")
+	from := bitboardFromCoordinates("c4")
+	to := bitboardFromCoordinates("f4")
 
-	expectedSquares := []string{"d4", "e4"}
-
-	expected := bitboardFromCoordinates(expectedSquares)
+	expected := bitboardFromCoordinates("d4", "e4")
 	got := getRayPath(&from, &to)
 
 	if got != expected {
@@ -43,7 +39,7 @@ func TestPinnedPiece(t *testing.T) {
 	pos.AddPiece(BlackKing, "c7")
 	pos.AddPiece(BlackRook, "c6")
 	pos.AddPiece(WhiteRook, "c1")
-	from := bitboardFromCoordinate("c6")
+	from := bitboardFromCoordinates("c6")
 
 	expected := true
 	got := from&pos.pinnedPieces(Black) > 0
@@ -55,7 +51,7 @@ func TestPinnedPiece(t *testing.T) {
 
 func TestPinnedPieceKnightFail(t *testing.T) {
 	pos := From("rnQq1k1r/pp2bppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R b KQ - 1 8")
-	from := bitboardFromCoordinate("b8")
+	from := bitboardFromCoordinates("b8")
 
 	expected := false
 	got := from&pos.pinnedPieces(Black) > 0
@@ -237,10 +233,9 @@ func TestNotInsuficientMaterial(t *testing.T) {
 
 func TestCaptureUpdatesPosition(t *testing.T) {
 	pos := From("7k/8/8/8/3p4/4P3/8/7K w - - 0 1")
-	// move := &Move{from: "e3", to: "d4", piece: WHITE_PAWN, moveType: CAPTURE}
 
-	from := Bsf(bitboardFromCoordinate("e3"))
-	to := Bsf(bitboardFromCoordinate("d4"))
+	from := Bsf(bitboardFromCoordinates("e3"))
+	to := Bsf(bitboardFromCoordinates("d4"))
 	move := encodeMove(uint16(from), uint16(to), capture)
 
 	pos.MakeMove(move)
@@ -256,20 +251,20 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 func TestZobristUpdate(t *testing.T) {
 	pos := InitialPosition()
 
-	from := Bsf(bitboardFromCoordinate("g1"))
-	to := Bsf(bitboardFromCoordinate("f3"))
+	from := Bsf(bitboardFromCoordinates("g1"))
+	to := Bsf(bitboardFromCoordinates("f3"))
 	move1 := encodeMove(uint16(from), uint16(to), quiet)
 
-	from = Bsf(bitboardFromCoordinate("b7"))
-	to = Bsf(bitboardFromCoordinate("c5"))
+	from = Bsf(bitboardFromCoordinates("b7"))
+	to = Bsf(bitboardFromCoordinates("c5"))
 	move2 := encodeMove(uint16(from), uint16(to), quiet)
 
-	from = Bsf(bitboardFromCoordinate("b1"))
-	to = Bsf(bitboardFromCoordinate("c3"))
+	from = Bsf(bitboardFromCoordinates("b1"))
+	to = Bsf(bitboardFromCoordinates("c3"))
 	move3 := encodeMove(uint16(from), uint16(to), quiet)
 
-	from = Bsf(bitboardFromCoordinate("g8"))
-	to = Bsf(bitboardFromCoordinate("f6"))
+	from = Bsf(bitboardFromCoordinates("g8"))
+	to = Bsf(bitboardFromCoordinates("f6"))
 	move4 := encodeMove(uint16(from), uint16(to), quiet)
 
 	pos2 := *pos
@@ -303,8 +298,8 @@ func TestZobristUpdate(t *testing.T) {
 func TestUnmakeInNormalMove(t *testing.T) {
 	pos := InitialPosition()
 
-	from := Bsf(bitboardFromCoordinate("g1"))
-	to := Bsf(bitboardFromCoordinate("f3"))
+	from := Bsf(bitboardFromCoordinates("g1"))
+	to := Bsf(bitboardFromCoordinates("f3"))
 
 	move := encodeMove(uint16(from), uint16(to), quiet)
 
@@ -324,8 +319,8 @@ func TestUnmakeInNormalMove(t *testing.T) {
 func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
 	pos := InitialPosition()
 
-	from := Bsf(bitboardFromCoordinate("e2"))
-	to := Bsf(bitboardFromCoordinate("e4"))
+	from := Bsf(bitboardFromCoordinates("e2"))
+	to := Bsf(bitboardFromCoordinates("e4"))
 
 	move := encodeMove(uint16(from), uint16(to), doublePawnPush)
 
@@ -344,8 +339,8 @@ func TestUnmakeMoveInDoublePawnPush(t *testing.T) {
 func TestUnmakeMoveQuietMove(t *testing.T) {
 	pos := From("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1") // Position. 1. e4 (black to move)
 
-	from := Bsf(bitboardFromCoordinate("e7"))
-	to := Bsf(bitboardFromCoordinate("e5"))
+	from := Bsf(bitboardFromCoordinates("e7"))
+	to := Bsf(bitboardFromCoordinates("e5"))
 
 	move := encodeMove(uint16(from), uint16(to), quiet)
 
@@ -364,8 +359,8 @@ func TestUnmakeMoveQuietMove(t *testing.T) {
 func TestUnmakeCapture(t *testing.T) {
 	pos := From("6k1/6pp/1r3p2/8/4n3/4B1P1/5P1P/6K1 w - - 0 1")
 
-	from := Bsf(bitboardFromCoordinate("e3"))
-	to := Bsf(bitboardFromCoordinate("b6"))
+	from := Bsf(bitboardFromCoordinates("e3"))
+	to := Bsf(bitboardFromCoordinates("b6"))
 
 	move := encodeMove(uint16(from), uint16(to), capture)
 
@@ -384,8 +379,8 @@ func TestUnmakeCapture(t *testing.T) {
 func TestUnmakeCaptureThatChangesCastleRights(t *testing.T) {
 	pos := From("6k1/1b4pp/5p2/8/8/4B1P1/5P1P/4K2R b K - 1 1")
 
-	from := Bsf(bitboardFromCoordinate("b7"))
-	to := Bsf(bitboardFromCoordinate("h1"))
+	from := Bsf(bitboardFromCoordinates("b7"))
+	to := Bsf(bitboardFromCoordinates("h1"))
 
 	move := encodeMove(uint16(from), uint16(to), capture)
 
@@ -404,8 +399,8 @@ func TestUnmakeCaptureThatChangesCastleRights(t *testing.T) {
 func TestUnmakePromotionRestoresThePawnTo7thRank(t *testing.T) {
 	pos := From("1kq5/ppr1P3/2p5/8/8/8/5PPP/4R1K1 w - - 1 1")
 
-	from := Bsf(bitboardFromCoordinate("e7"))
-	to := Bsf(bitboardFromCoordinate("e8"))
+	from := Bsf(bitboardFromCoordinates("e7"))
+	to := Bsf(bitboardFromCoordinates("e8"))
 
 	move := encodeMove(uint16(from), uint16(to), queenPromotion)
 
@@ -424,8 +419,8 @@ func TestUnmakePromotionRestoresThePawnTo7thRank(t *testing.T) {
 func TestUnmakeCastleForWhite(t *testing.T) {
 	pos := From("5rk1/pbpq1ppp/1pnp1n2/4p2P/4P1P1/2NP1PN1/PPPQ4/R3K2R w KQ - 0 1")
 
-	from := Bsf(bitboardFromCoordinate("e1"))
-	to := Bsf(bitboardFromCoordinate("c1"))
+	from := Bsf(bitboardFromCoordinates("e1"))
+	to := Bsf(bitboardFromCoordinates("c1"))
 
 	move := encodeMove(uint16(from), uint16(to), queensideCastle)
 	expected := pos.ToFen()
@@ -443,8 +438,8 @@ func TestUnmakeCastleForWhite(t *testing.T) {
 func TestUnmakeCastleForBlack(t *testing.T) {
 	pos := From("r3k3/pbpq1ppp/1pnp1n2/4p2P/4P1P1/2NP1PN1/PPPQ4/2KR3R b q - 0 1")
 
-	from := Bsf(bitboardFromCoordinate("e8"))
-	to := Bsf(bitboardFromCoordinate("c8"))
+	from := Bsf(bitboardFromCoordinates("e8"))
+	to := Bsf(bitboardFromCoordinates("c8"))
 
 	move := encodeMove(uint16(from), uint16(to), queensideCastle)
 	expected := pos.ToFen()
@@ -462,8 +457,8 @@ func TestUnmakeCastleForBlack(t *testing.T) {
 func TestUnmakeEnPassantCaptureForBlack(t *testing.T) {
 	pos := From("5rk1/1q3ppp/4p3/3pN3/1Pp5/5Q2/5PPP/5RK1 b - b3 0 1")
 
-	from := Bsf(bitboardFromCoordinate("c4"))
-	to := Bsf(bitboardFromCoordinate("b3"))
+	from := Bsf(bitboardFromCoordinates("c4"))
+	to := Bsf(bitboardFromCoordinates("b3"))
 
 	move := encodeMove(uint16(from), uint16(to), epCapture)
 	expected := pos.ToFen()
@@ -481,8 +476,8 @@ func TestUnmakeEnPassantCaptureForBlack(t *testing.T) {
 func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
 	pos := From("5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1")
 
-	from := Bsf(bitboardFromCoordinate("d5"))
-	to := Bsf(bitboardFromCoordinate("c6"))
+	from := Bsf(bitboardFromCoordinates("d5"))
+	to := Bsf(bitboardFromCoordinates("c6"))
 
 	move := encodeMove(uint16(from), uint16(to), epCapture)
 	expected := pos.ToFen()
@@ -500,8 +495,8 @@ func TestUnmakeEnPassantCaptureForWhite(t *testing.T) {
 func TestMakeMoveWithPromotionCapture(t *testing.T) {
 	pos := From("8/8/2kq1N2/2pp4/1p6/4R3/p4PPP/1N4K1 b - - 0 1")
 
-	from := Bsf(bitboardFromCoordinate("a2"))
-	to := Bsf(bitboardFromCoordinate("b1"))
+	from := Bsf(bitboardFromCoordinates("a2"))
+	to := Bsf(bitboardFromCoordinates("b1"))
 
 	move := encodeMove(uint16(from), uint16(to), queenCapturePromotion)
 
@@ -519,8 +514,8 @@ func TestMakeMoveWithPromotionCapture(t *testing.T) {
 func TestUnmakeMoveWithEpCapture(t *testing.T) {
 	pos := From("5rk1/pp3ppp/4pn2/2pP4/8/2P3P1/PP3PBP/4R1K1 w - c6 0 1")
 
-	from := Bsf(bitboardFromCoordinate("d5"))
-	to := Bsf(bitboardFromCoordinate("c6"))
+	from := Bsf(bitboardFromCoordinates("d5"))
+	to := Bsf(bitboardFromCoordinates("c6"))
 
 	move := encodeMove(uint16(from), uint16(to), epCapture)
 	pos.MakeMove(move)
@@ -539,8 +534,8 @@ func TestUnmakeMoveWithEpCapture(t *testing.T) {
 func TestUnmakeMoveWithKinigtMatePromotion(t *testing.T) {
 	pos := From("8/p7/1pkb4/2p5/8/6PP/5pNK/6BQ b - - 50 1")
 
-	from := Bsf(bitboardFromCoordinate("f2"))
-	to := Bsf(bitboardFromCoordinate("f1"))
+	from := Bsf(bitboardFromCoordinates("f2"))
+	to := Bsf(bitboardFromCoordinates("f1"))
 
 	move := encodeMove(uint16(from), uint16(to), knightPromotion)
 

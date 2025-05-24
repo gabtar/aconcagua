@@ -34,13 +34,13 @@ func TestRayAttack(t *testing.T) {
 		ray       Bitboard
 	}{
 		{"North Ray", NORTH, 0, files[0] &^ Bitboard(1)},
-		{"Northeast Ray", NORTHEAST, 46, bitboardFromCoordinate("h7")},
-		{"East Ray", EAST, 51, bitboardFromCoordinates([]string{"e7", "f7", "g7", "h7"})},
-		{"SouthEast Ray", SOUTHEAST, 19, bitboardFromCoordinates([]string{"e2", "f1"})},
-		{"South Ray", SOUTH, 39, bitboardFromCoordinates([]string{"h4", "h3", "h2", "h1"})},
-		{"SouthWest Ray", SOUTHWEST, 18, bitboardFromCoordinates([]string{"b2", "a1"})},
-		{"West Ray", WEST, 34, bitboardFromCoordinates([]string{"b5", "a5"})},
-		{"NorthWest Ray", NORTHWEST, 11, bitboardFromCoordinates([]string{"c3", "b4", "a5"})},
+		{"Northeast Ray", NORTHEAST, 46, bitboardFromCoordinates("h7")},
+		{"East Ray", EAST, 51, bitboardFromCoordinates("e7", "f7", "g7", "h7")},
+		{"SouthEast Ray", SOUTHEAST, 19, bitboardFromCoordinates("e2", "f1")},
+		{"South Ray", SOUTH, 39, bitboardFromCoordinates("h4", "h3", "h2", "h1")},
+		{"SouthWest Ray", SOUTHWEST, 18, bitboardFromCoordinates("b2", "a1")},
+		{"West Ray", WEST, 34, bitboardFromCoordinates("b5", "a5")},
+		{"NorthWest Ray", NORTHWEST, 11, bitboardFromCoordinates("c3", "b4", "a5")},
 	}
 
 	for _, tc := range rayTestCases {
