@@ -165,8 +165,6 @@ func bishopAttacksWithBlockers(sq int, blockers Bitboard) (attacks Bitboard) {
 // -------------------------------------------------------------------
 // Magic Numbers
 // -------------------------------------------------------------------
-// TODO: I still need to check out these numbers found w/ my findMagic implementation
-// in simple tests are working ok. When i redesign the move generation i will check it out with perft tests
 var rookMagics = [64]Bitboard{
 	0x80082080104000,
 	0x240004010022000,

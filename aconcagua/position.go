@@ -5,11 +5,9 @@ import (
 	"strings"
 )
 
-// Piece is an int that references piece role/color for bitboards in position struct
-type Piece int
-
+// Constants for pieces
 const (
-	WhiteKing Piece = iota
+	WhiteKing = iota
 	WhiteQueen
 	WhiteRook
 	WhiteBishop
@@ -32,7 +30,7 @@ const (
 )
 
 // pieceColor references a Piece type to a Color type
-var pieceColor = map[Piece]Color{
+var pieceColor = map[int]Color{
 	WhiteKing:   White,
 	WhiteQueen:  White,
 	WhiteRook:   White,
@@ -48,7 +46,7 @@ var pieceColor = map[Piece]Color{
 }
 
 // pieceOfColor returns a Piece of the color passed
-var pieceOfColor = map[Piece]map[Color]Piece{
+var pieceOfColor = map[int]map[Color]int{
 	King:   {White: WhiteKing, Black: BlackKing},
 	Queen:  {White: WhiteQueen, Black: BlackQueen},
 	Rook:   {White: WhiteRook, Black: BlackRook},
@@ -71,7 +69,7 @@ var squareReference = []string{
 }
 
 // pieceReference is used for fen string conversion to internal Position struct
-var pieceReference = map[string]Piece{
+var pieceReference = map[string]int{
 	"k": BlackKing,
 	"q": BlackQueen,
 	"r": BlackRook,
@@ -99,13 +97,13 @@ type Position struct {
 	positionHistory PositionHistory
 }
 
-// pieceAt returns a Piece at the given square coordinate in the Position or error
-func (pos *Position) PieceAt(square string) (piece Piece) {
-	bitboardSquare := bitboardFromCoordinate(square)
+// PieceAt returns a Piece at the given square coordinate in the Position or error
+func (pos *Position) PieceAt(square string) (piece int) {
+	bitboardSquare := bitboardFromCoordinates(square)
 
 	for index, bitboard := range pos.Bitboards {
 		if bitboard&bitboardSquare > 0 {
-			piece = Piece(index)
+			piece = index
 			return
 		}
 	}
@@ -114,17 +112,17 @@ func (pos *Position) PieceAt(square string) (piece Piece) {
 	return
 }
 
-// addPiece adds to the position the Piece passed in the square passed
-func (pos *Position) AddPiece(piece Piece, square string) {
+// AddPiece adds to the position the Piece passed in the square passed
+func (pos *Position) AddPiece(piece int, square string) {
 	if piece == NoPiece {
 		return
 	}
 
-	bitboardSquare := bitboardFromCoordinate(square)
+	bitboardSquare := bitboardFromCoordinates(square)
 	pos.Bitboards[piece] |= bitboardSquare
 }
 
-// emptySquares returns a Bitboard with the empty sqaures of the position
+// EmptySquares returns a Bitboard with the empty sqaures of the position
 func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 	emptySquares = AllSquares
 
@@ -134,19 +132,21 @@ func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 	return
 }
 
-// attackedSquares returns a bitboard with all squares attacked by the passed side
+// AttackedSquares returns a bitboard with all squares attacked by the passed side
 func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
 	startingPiece := startingPieceNumber(side)
+	bitboards := pos.getBitboards(side)
 
-	for i, bitboard := range pos.getBitboards(side) {
-		piece := Piece(startingPiece + i)
-		sq := bitboard.NextBit()
+	for i, bb := range bitboards[0:5] {
+		piece := startingPiece + i
+		sq := bb.NextBit()
 
 		for sq > 0 {
 			attackedSquares |= Attacks(piece, sq, pos)
-			sq = bitboard.NextBit()
+			sq = bb.NextBit()
 		}
 	}
+	attackedSquares |= pawnAttacks(&bitboards[5], side)
 
 	return
 }
@@ -160,18 +160,18 @@ func startingPieceNumber(side Color) int {
 	return startingBitboard
 }
 
-func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
+func Attacks(piece int, from Bitboard, pos *Position) (attacks Bitboard) {
 	switch piece {
 	case WhiteKing, BlackKing:
 		attacks |= kingAttacks(&from)
 	case WhiteQueen, BlackQueen:
-		attacks |= queenAttacks(&from, pos)
+		attacks |= queenAttacks(&from, pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteRook, BlackRook:
-		attacks |= rookMagicAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
+		attacks |= rookAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteBishop, BlackBishop:
-		attacks |= bishopMagicAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
+		attacks |= bishopAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
 	case WhiteKnight, BlackKnight:
-		attacks |= knightAttackSquares[Bsf(from)]
+		attacks |= knightAttacksTable[Bsf(from)]
 	case WhitePawn:
 		attacks |= pawnAttacks(&from, White)
 	case BlackPawn:
@@ -180,24 +180,26 @@ func Attacks(piece Piece, from Bitboard, pos *Position) (attacks Bitboard) {
 	return
 }
 
-// checkingPieces returns an Bitboard of squares that contain pieces attacking the king of the side passed
-func (pos *Position) CheckingPieces(side Color) (kingAttackers Bitboard) {
+// CheckingPieces returns two Bitboards, one with all the checking pieces and one with only the checking sliders pieces
+func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checkingSliders Bitboard) {
 	if !pos.Check(side) {
 		return
 	}
 
 	kingSq := pos.KingPosition(side)
-
 	startingPieceNumber := startingPieceNumber(side.Opponent())
 
 	for i, bitboard := range pos.getBitboards(side.Opponent()) {
-		piece := Piece(startingPieceNumber + i)
+		piece := startingPieceNumber + i
 
 		for bitboard > 0 {
 			sq := bitboard.NextBit()
 
 			if kingSq&Attacks(piece, sq, pos) > 0 {
-				kingAttackers |= sq
+				if isSliding(piece) {
+					checkingSliders |= sq
+				}
+				checkingPieces |= sq
 			}
 		}
 
@@ -223,13 +225,54 @@ func (pos *Position) Check(side Color) (inCheck bool) {
 	return
 }
 
+// pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
+func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
+	king := pos.KingPosition(side)
+	opponentDiagonalAttackers := pos.Bitboards[int(side.Opponent())*6+int(WhiteQueen)] | pos.Bitboards[int(side.Opponent())*6+int(WhiteBishop)]
+	opponentOrthogonalAttackers := pos.Bitboards[int(side.Opponent())*6+int(WhiteQueen)] | pos.Bitboards[int(side.Opponent())*6+int(WhiteRook)]
+	ownPieces := pos.Pieces(side) &^ king
+	opponentPieces := pos.Pieces(side.Opponent())
+
+	if king == 0 {
+		return
+	}
+
+	for opponentDiagonalAttackers > 0 {
+		opponent := opponentDiagonalAttackers.NextBit()
+		opponentDiagonalRays := bishopAttacks(Bsf(opponent), Bitboard(0))
+		kingToOpponentPath := getRayPath(&opponent, &king)
+		intersectionRay := opponentDiagonalRays & kingToOpponentPath
+		piecesBetween := intersectionRay & ownPieces
+		oponentPiecesBetween := intersectionRay & opponentPieces
+
+		if opponentDiagonalRays&king > 0 && piecesBetween.count() == 1 && oponentPiecesBetween == 0 {
+			pinned |= piecesBetween
+		}
+	}
+
+	for opponentOrthogonalAttackers > 0 {
+		opponent := opponentOrthogonalAttackers.NextBit()
+		opponentOrthogonalRays := rookAttacks(Bsf(opponent), Bitboard(0))
+		kingToOpponentPath := getRayPath(&opponent, &king)
+		intersectionRay := opponentOrthogonalRays & kingToOpponentPath
+		piecesBetween := intersectionRay & ownPieces
+		oponentPiecesBetween := intersectionRay & opponentPieces
+
+		if opponentOrthogonalRays&king > 0 && piecesBetween.count() == 1 && oponentPiecesBetween == 0 {
+			pinned |= piecesBetween
+		}
+	}
+
+	return
+}
+
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
 	king = pos.Bitboards[pieceOfColor[King][side]]
 	return
 }
 
-// Remove Piece returns a new position without the piece passed
+// RemovePiece returns a new position without the piece passed
 func (pos *Position) RemovePiece(piece Bitboard) {
 	for role, bitboard := range pos.Bitboards {
 		if bitboard&piece > 0 {
@@ -251,6 +294,7 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 func (pos *Position) LegalMoves() *moveList {
 	bitboards := pos.getBitboards(pos.Turn)
 	ml := newMoveList()
+	positionData := pos.generatePositionData()
 
 	for piece, bb := range bitboards {
 		for bb > 0 {
@@ -259,15 +303,15 @@ func (pos *Position) LegalMoves() *moveList {
 			case 0:
 				genKingMoves(&pieceBB, pos, pos.Turn, ml)
 			case 1:
-				genQueenMoves(&pieceBB, pos, pos.Turn, ml)
+				genQueenMoves(&pieceBB, ml, &positionData)
 			case 2:
-				genRookMoves(&pieceBB, pos, pos.Turn, ml)
+				genRookMoves(&pieceBB, ml, &positionData)
 			case 3:
-				genBishopMoves(&pieceBB, pos, pos.Turn, ml)
+				genBishopMoves(&pieceBB, ml, &positionData)
 			case 4:
-				genKnightMoves(&pieceBB, pos, pos.Turn, ml)
+				genKnightMoves(&pieceBB, pos, pos.Turn, ml, &positionData)
 			case 5:
-				genPawnMoves(&pieceBB, pos, pos.Turn, ml)
+				genPawnMoves(&pieceBB, pos.Turn, ml, &positionData)
 			}
 		}
 	}
@@ -309,7 +353,7 @@ func (pos *Position) updateMoveState() {
 }
 
 // handleSpecialMoveTypes processes different types of chess moves
-func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *Piece) {
+func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *int) {
 	switch flag := move.flag(); flag {
 	case quiet:
 		pos.handleQuietMove(*pieceToMove)
@@ -328,14 +372,14 @@ func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *Piece) {
 }
 
 // handleQuietMove resets halfmove clock for pawn moves
-func (pos *Position) handleQuietMove(pieceToMove Piece) {
+func (pos *Position) handleQuietMove(pieceToMove int) {
 	if pieceToMove == WhitePawn || pieceToMove == BlackPawn {
 		pos.halfmoveClock = 0
 	}
 }
 
 // handleDoublePawnPush sets en passant target square
-func (pos *Position) handleDoublePawnPush(move Move, pieceToMove Piece) {
+func (pos *Position) handleDoublePawnPush(move Move, pieceToMove int) {
 	if pieceToMove == WhitePawn {
 		pos.enPassantTarget = bitboardFromIndex(move.to()) >> 8
 	} else {
@@ -350,7 +394,7 @@ func (pos *Position) handleCapture(move Move) {
 }
 
 // handlePromotion processes pawn promotion
-func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *Piece) {
+func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int) {
 	pos.RemovePiece(bitboardFromIndex(move.to()))
 	*pieceToMove = getPromotedToPiece(flag, pos.Turn)
 
@@ -358,7 +402,7 @@ func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *Piece) {
 }
 
 // handleEnPassantCapture removes the captured pawn in en passant
-func (pos *Position) handleEnPassantCapture(move Move, pieceToMove Piece) {
+func (pos *Position) handleEnPassantCapture(move Move, pieceToMove int) {
 	if pieceToMove == WhitePawn {
 		pos.Bitboards[BlackPawn] ^= bitboardFromIndex(move.to()) >> 8
 	} else {
@@ -368,7 +412,7 @@ func (pos *Position) handleEnPassantCapture(move Move, pieceToMove Piece) {
 }
 
 // getPromotedToPiece returns the piece promoted to based on the flag passed
-func getPromotedToPiece(flag int, side Color) (piece Piece) {
+func getPromotedToPiece(flag int, side Color) (piece int) {
 	switch flag {
 	case knightPromotion, knightCapturePromotion:
 		return pieceOfColor[Knight][side]
@@ -383,7 +427,7 @@ func getPromotedToPiece(flag int, side Color) (piece Piece) {
 }
 
 // getCapturedPiece determines the piece captured in the move
-func (pos *Position) getCapturedPiece(move *Move) Piece {
+func (pos *Position) getCapturedPiece(move *Move) int {
 	if move.flag() == epCapture {
 		return pieceOfColor[Pawn][pos.Turn.Opponent()]
 	}
@@ -406,11 +450,11 @@ func (pos *Position) UnmakeMove(move *Move) {
 	pos.halfmoveClock = prevState.rule50()
 	pos.castlingRights = castle
 
-	pieceToAdd := Piece(prevState.pieceMoved())
+	pieceToAdd := prevState.pieceMoved()
 
 	switch flag := move.flag(); flag {
 	case capture, knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion:
-		pos.AddPiece(Piece(prevState.pieceCaptured()), squareReference[move.to()])
+		pos.AddPiece(prevState.pieceCaptured(), squareReference[move.to()])
 	case queensideCastle, kingsideCastle:
 		restoreRookOnCastle(pos, castleType[move.String()])
 	case epCapture:
@@ -426,7 +470,6 @@ func (pos *Position) UnmakeMove(move *Move) {
 	pos.Turn = pos.Turn.Opponent()
 	pos.AddPiece(pieceToAdd, squareReference[move.from()])
 	pos.Hash = zobristHash(pos)
-	return
 }
 
 // moveRook updates the rook position for the castle passed
@@ -453,7 +496,7 @@ func UpdateCastleRights(pos *Position, move *Move) {
 	case WhiteKing:
 		pos.castlingRights.remove(K | Q)
 	case WhiteRook:
-		if move.from() == Bsf(bitboardFromCoordinate("h1")) {
+		if move.from() == Bsf(bitboardFromCoordinates("h1")) {
 			pos.castlingRights.remove(K)
 		} else {
 			pos.castlingRights.remove(Q)
@@ -461,7 +504,7 @@ func UpdateCastleRights(pos *Position, move *Move) {
 	case BlackKing:
 		pos.castlingRights.remove(k | q)
 	case BlackRook:
-		if move.from() == Bsf(bitboardFromCoordinate("h8")) {
+		if move.from() == Bsf(bitboardFromCoordinates("h8")) {
 			pos.castlingRights.remove(k)
 		} else {
 			pos.castlingRights.remove(q)
@@ -617,7 +660,7 @@ func (pos *Position) bishops(side Color) Bitboard {
 	}
 }
 
-// Print prints the Position to the terminal from white's view perspective
+// String prints the Position to the terminal from white's view perspective
 func (pos *Position) String() string {
 	position := ""
 	board := toRuneArray(pos)
@@ -687,7 +730,7 @@ func From(fen string) (pos *Position) {
 
 	pos.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
 	if elements[3] != "-" {
-		pos.enPassantTarget = bitboardFromCoordinate(elements[3])
+		pos.enPassantTarget = bitboardFromCoordinates(elements[3])
 	}
 	pos.halfmoveClock, _ = strconv.Atoi(elements[4]) // TODO: handle errors
 	pos.fullmoveNumber, _ = strconv.Atoi(elements[5])
