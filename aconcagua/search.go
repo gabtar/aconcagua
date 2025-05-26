@@ -253,37 +253,3 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 	s.transpositionTable.store(pos.Hash, depth, flag, alpha)
 	return alpha
 }
-
-// quiescent is an evaluation function that takes into account some dynamic possibilities
-func quiescent(pos *Position, s *Search, alpha int, beta int) int {
-	if s.timeControl.stop {
-		return 0
-	}
-
-	score := Eval(pos)
-
-	if score >= beta {
-		return beta
-	}
-
-	if score > alpha {
-		alpha = score
-	}
-
-	ml := pos.LegalMoves()
-	ml.capturesOnly()
-
-	for i := 0; i < ml.length; i++ {
-		pos.MakeMove(&ml.moves[i])
-		score = -quiescent(pos, s, -beta, -alpha)
-		pos.UnmakeMove(&ml.moves[i])
-		if score >= beta {
-			return beta
-		}
-		if score > alpha {
-			alpha = score
-		}
-	}
-
-	return alpha
-}

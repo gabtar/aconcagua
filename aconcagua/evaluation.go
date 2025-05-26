@@ -17,7 +17,6 @@ func Eval(pos *Position) int {
 			mgScore[color] += middlegamePiecesScore[p][sq]
 			egScore[color] += endgamePiecesScore[p][sq]
 			phase += phaseInc[p]
-
 		}
 	}
 
@@ -28,10 +27,7 @@ func Eval(pos *Position) int {
 	egPhase := 62 - mgPhase
 
 	turn := pos.Turn
-	opponent := White
-	if opponent == turn {
-		opponent = Black
-	}
+	opponent := pos.Turn.Opponent()
 
 	mg := mgScore[turn] - mgScore[opponent]
 	eg := egScore[turn] - egScore[opponent]

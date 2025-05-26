@@ -20,6 +20,7 @@ const (
 	BlackKnight
 	BlackPawn
 	NoPiece
+	// TODO: replace with bitboards constants directly. They are not much references with these following constants
 	// Constants for reference to piece type
 	King
 	Queen
@@ -142,7 +143,7 @@ func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
 		sq := bb.NextBit()
 
 		for sq > 0 {
-			attackedSquares |= Attacks(piece, sq, pos)
+			attackedSquares |= Attacks(piece, sq, ^pos.EmptySquares())
 			sq = bb.NextBit()
 		}
 	}
@@ -160,16 +161,17 @@ func startingPieceNumber(side Color) int {
 	return startingBitboard
 }
 
-func Attacks(piece int, from Bitboard, pos *Position) (attacks Bitboard) {
+// Attacks returns a bitboard with all the squares the piece passed attacks
+func Attacks(piece int, from Bitboard, blocks Bitboard) (attacks Bitboard) {
 	switch piece {
 	case WhiteKing, BlackKing:
 		attacks |= kingAttacks(&from)
 	case WhiteQueen, BlackQueen:
-		attacks |= queenAttacks(&from, pos.Pieces(White)|pos.Pieces(Black))
+		attacks |= queenAttacks(&from, blocks)
 	case WhiteRook, BlackRook:
-		attacks |= rookAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
+		attacks |= rookAttacks(Bsf(from), blocks)
 	case WhiteBishop, BlackBishop:
-		attacks |= bishopAttacks(Bsf(from), pos.Pieces(White)|pos.Pieces(Black))
+		attacks |= bishopAttacks(Bsf(from), blocks)
 	case WhiteKnight, BlackKnight:
 		attacks |= knightAttacksTable[Bsf(from)]
 	case WhitePawn:
@@ -195,7 +197,7 @@ func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checki
 		for bitboard > 0 {
 			sq := bitboard.NextBit()
 
-			if kingSq&Attacks(piece, sq, pos) > 0 {
+			if kingSq&Attacks(piece, sq, ^pos.EmptySquares()) > 0 {
 				if isSliding(piece) {
 					checkingSliders |= sq
 				}
