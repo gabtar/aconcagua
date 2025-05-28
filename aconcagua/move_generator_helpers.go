@@ -236,22 +236,22 @@ func canCastleLong(from *Bitboard, pos *Position, side Color) bool {
 }
 
 // pawnMoveFlag returns the move flag for the pawn move
-func pawnMoveFlag(from *Bitboard, to *Bitboard, pd *PositionData, side Color) uint16 {
+func pawnMoveFlag(from *Bitboard, to *Bitboard, pd *PositionData, side Color) []uint16 {
 	fromSq := Bsf(*from)
 	toSq := Bsf(*to)
 	promotion := lastRank(side) & *to
 
 	switch {
 	case promotion > 0 && pd.enemies&*to > 0:
-		return knightCapturePromotion
+		return []uint16{knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion}
 	case promotion > 0:
-		return knightPromotion
+		return []uint16{knightPromotion, bishopPromotion, rookPromotion, queenPromotion}
 	case toSq-fromSq == 16 || fromSq-toSq == 16:
-		return doublePawnPush
+		return []uint16{doublePawnPush}
 	case pd.enemies&*to > 0:
-		return capture
+		return []uint16{capture}
 	default:
-		return quiet
+		return []uint16{quiet}
 	}
 }
 

@@ -40,7 +40,7 @@ var mvvLvaScore = [6][6]int{
 func scoreMoves(pos *Position, ml *moveList, s *Search, ply int) []int {
 	scores := make([]int, ml.length)
 
-	for i := 0; i < ml.length; i++ {
+	for i := range ml.length {
 		if pvMove, exists := s.pv.moveAt(ply); exists && pvMove.String() == ml.moves[i].String() {
 			scores[i] = 200
 			continue
@@ -200,7 +200,7 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
-	for moveNumber := 0; moveNumber < moves.length; moveNumber++ {
+	for moveNumber := range moves.length {
 		pos.MakeMove(&moves.moves[moveNumber])
 		newScore := MinInt
 		isQuietMove := moves.moves[moveNumber].flag() == quiet && !check

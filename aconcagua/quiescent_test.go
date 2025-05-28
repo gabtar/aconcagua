@@ -69,7 +69,7 @@ func TestSeeFour(t *testing.T) {
 	pos := From("1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - - 0 1")
 
 	expected := -200
-	got := pos.see(26, 36)
+	got := pos.see(19, 36)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

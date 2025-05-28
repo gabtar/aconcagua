@@ -292,32 +292,61 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 	return
 }
 
-// LegalMoves returns an slice of Move of all legal moves for the side passed
+// LegalMoves returns move list with all legal moves for the current position
 func (pos *Position) LegalMoves() *moveList {
 	bitboards := pos.getBitboards(pos.Turn)
 	ml := newMoveList()
-	positionData := pos.generatePositionData()
+	pd := pos.generatePositionData()
 
 	for piece, bb := range bitboards {
 		for bb > 0 {
 			pieceBB := bb.NextBit()
 			switch piece {
-			case 0:
-				genKingMoves(&pieceBB, pos, pos.Turn, ml)
-			case 1:
-				genQueenMoves(&pieceBB, ml, &positionData)
-			case 2:
-				genRookMoves(&pieceBB, ml, &positionData)
-			case 3:
-				genBishopMoves(&pieceBB, ml, &positionData)
-			case 4:
-				genKnightMoves(&pieceBB, pos, pos.Turn, ml, &positionData)
-			case 5:
-				genPawnMoves(&pieceBB, pos.Turn, ml, &positionData)
+			case 0: // King
+				genTargetMoves(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn), ml, &pd)
+				genCastleMoves(&pieceBB, pos, ml)
+			case 1: // Queen
+				genTargetMoves(&pieceBB, rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd), ml, &pd)
+			case 2: // Rook
+				genTargetMoves(&pieceBB, rookMoves(&pieceBB, &pd), ml, &pd)
+			case 3: // Bishop
+				genTargetMoves(&pieceBB, bishopMoves(&pieceBB, &pd), ml, &pd)
+			case 4: // Knight
+				genTargetMoves(&pieceBB, knightMoves(&pieceBB, &pd), ml, &pd)
+			case 5: // Pawn
+				genPawnMoves(&pieceBB, pos.Turn, ml, &pd)
 			}
 		}
 	}
 	genEpPawnCaptures(pos, pos.Turn, ml)
+	return ml
+}
+
+// Captures returns a move list
+func (pos *Position) Captures() *moveList {
+	bitboards := pos.getBitboards(pos.Turn)
+	ml := newMoveList()
+	pd := pos.generatePositionData()
+
+	for piece, bb := range bitboards {
+		for bb > 0 {
+			pieceBB := bb.NextBit()
+			switch piece {
+			case 0: // King
+				genTargetMoves(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&pd.enemies, ml, &pd)
+			case 1: // Queen
+				genTargetMoves(&pieceBB, (rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd))&pd.enemies, ml, &pd)
+			case 2: // Rook
+				genTargetMoves(&pieceBB, rookMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
+			case 3: // Bishop
+				genTargetMoves(&pieceBB, bishopMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
+			case 4: // Knight
+				genTargetMoves(&pieceBB, knightMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
+			case 5: // Pawn
+				genPawnCaptures(&pieceBB, pos.Turn, ml, &pd)
+			}
+		}
+	}
 	return ml
 }
 
@@ -553,7 +582,7 @@ func (pos *Position) ToFen() (fen string) {
 		blankSquares := 0
 		currentFenSqNumber := 8*(rank+1) - 8 // Fen string is read from a8 -> h8, a7 -> h7, ..., so i have to reverse the order
 
-		for file := 0; file < 8; file++ {
+		for file := range 8 {
 			piece := squares[currentFenSqNumber+file]
 			if piece == rune(0) {
 				blankSquares++
@@ -611,57 +640,6 @@ func (pos *Position) Stealmate(side Color) (stealmate bool) {
 	return
 }
 
-func (pos *Position) InsuficientMaterial() bool {
-	// Insuficient material on each side (according to FIDE rules):
-	// - lone king
-	// - king and bishop
-	// - king and knight
-	insuficientMaterialWhite := pos.Pieces(White) == pos.KingPosition(White) ||
-		onlyKingAndBishop(pos, White) ||
-		onlyKingAndKnight(pos, White)
-	insuficientMaterialBlack := pos.Pieces(Black) == pos.KingPosition(Black) ||
-		onlyKingAndBishop(pos, Black) ||
-		onlyKingAndKnight(pos, Black)
-
-	return insuficientMaterialWhite && insuficientMaterialBlack
-}
-
-// onlyKingAndKnight returns if in the passed position there is only a king piece
-// and a knight piece for the side passed
-func onlyKingAndKnight(pos *Position, side Color) bool {
-	if pos.knights(side).count() > 1 {
-		return false
-	}
-	return pos.Pieces(side) == (pos.knights(side) | pos.KingPosition(side))
-}
-
-// knights returns the bitboards with the knights of the side passed
-func (pos *Position) knights(side Color) Bitboard {
-	if side == White {
-		return pos.Bitboards[WhiteKnight]
-	} else {
-		return pos.Bitboards[BlackKnight]
-	}
-}
-
-// onlyKingAndBishop returns if in the passed position there is only a king piece
-// and a bishop piece for the side passed
-func onlyKingAndBishop(pos *Position, side Color) bool {
-	if pos.bishops(side).count() > 1 {
-		return false
-	}
-	return pos.Pieces(side) == (pos.bishops(side) | pos.KingPosition(side))
-}
-
-// bishops returns the bitboards with the bishops of the side passed
-func (pos *Position) bishops(side Color) Bitboard {
-	if side == White {
-		return pos.Bitboards[WhiteBishop]
-	} else {
-		return pos.Bitboards[BlackBishop]
-	}
-}
-
 // String prints the Position to the terminal from white's view perspective
 func (pos *Position) String() string {
 	position := ""
@@ -693,7 +671,7 @@ func toRuneArray(pos *Position) [64]rune {
 	squares := [64]rune{}
 	pieceSymbol := [12]rune{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'}
 	for pieceType, bitboard := range pos.Bitboards {
-		for i := 0; i < len(squares); i++ {
+		for i := range len(squares) {
 			if bitboard&(0b1<<i) > 0 {
 				squares[i] = pieceSymbol[pieceType]
 			}
@@ -712,8 +690,8 @@ func From(fen string) (pos *Position) {
 
 	// NOTE: Order is reversed to match the square mapping in bitboards
 	currentSquare := 56
-	for _, rank := range strings.Split(elements[0], "/") {
-		for _, piece := range strings.Split(rank, "") {
+	for rank := range strings.SplitSeq(elements[0], "/") {
+		for piece := range strings.SplitSeq(rank, "") {
 			switch piece {
 			case "k", "q", "r", "b", "n", "p", "K", "Q", "R", "B", "N", "P":
 				pos.Bitboards[pieceReference[piece]] |= (0b1 << currentSquare)

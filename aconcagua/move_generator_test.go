@@ -262,7 +262,26 @@ func TestKingCannotCastleLongIfItsInCheck(t *testing.T) {
 	}
 }
 
-func TestKingMoves(t *testing.T) {
+func TestGenKingMoves(t *testing.T) {
+	pos := EmptyPosition()
+	pos.AddPiece(WhiteKing, "e1")
+	pos.AddPiece(WhiteRook, "h1")
+	pos.AddPiece(WhiteRook, "a1")
+	pos.castlingRights = KQ
+	kingBB := bitboardFromCoordinates("e1")
+	ml := newMoveList()
+	pd := pos.generatePositionData()
+
+	expected := 5 // Castles moves are treated separately
+	genTargetMoves(&kingBB, kingMoves(&kingBB, pos, White), ml, &pd)
+	got := ml.length
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestGenCastles(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
@@ -271,8 +290,9 @@ func TestKingMoves(t *testing.T) {
 	kingBB := bitboardFromCoordinates("e1")
 	ml := newMoveList()
 
-	expected := 7
-	genKingMoves(&kingBB, pos, White, ml)
+	expected := 2 // Castles moves are treated separately
+
+	genCastleMoves(&kingBB, pos, ml)
 	got := ml.length
 
 	if got != expected {
@@ -417,7 +437,7 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 
 }
 
-func TestRookMoves(t *testing.T) {
+func TestGenTargetMovesForRook(t *testing.T) {
 	pos := EmptyPosition()
 	pos.Turn = Black
 	pos.AddPiece(BlackRook, "a8")
@@ -427,7 +447,7 @@ func TestRookMoves(t *testing.T) {
 	ml := newMoveList()
 	pd := pos.generatePositionData()
 
-	genRookMoves(&rookBB, ml, &pd)
+	genTargetMoves(&rookBB, rookMoves(&rookBB, &pd), ml, &pd)
 	expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
 
 	expected := len(expectedSquares)
@@ -551,7 +571,7 @@ func TestBishpMovesWhenTheBishopIsPinned(t *testing.T) {
 	}
 }
 
-func TestBishopMoves(t *testing.T) {
+func TestGenTargetMovesForBishop(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteBishop, "g6")
 	pos.AddPiece(WhiteKnight, "e8") // Cannot move, blocked by same color knight
@@ -563,7 +583,7 @@ func TestBishopMoves(t *testing.T) {
 	expectedSquares := []string{"h7", "h5", "f7"}
 
 	expected := len(expectedSquares)
-	genBishopMoves(&bishopBB, ml, &pd)
+	genTargetMoves(&bishopBB, bishopMoves(&bishopBB, &pd), ml, &pd)
 	got := ml.length
 
 	if got != expected {
@@ -638,7 +658,7 @@ func TestKnightMovesWhenPinned(t *testing.T) {
 
 }
 
-func TestKnightMoves(t *testing.T) {
+func TestGenTargetMovesForKnight(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteKnight, "b1")
 	pos.AddPiece(BlackBishop, "c3")
@@ -649,7 +669,7 @@ func TestKnightMoves(t *testing.T) {
 	ml := newMoveList()
 
 	expected := []Move{*encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
-	genKnightMoves(&knightBB, pos, White, ml, &pd)
+	genTargetMoves(&knightBB, knightMoves(&knightBB, &pd), ml, &pd)
 	got := ml.moves
 
 	if got[0] != expected[0] {

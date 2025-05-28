@@ -16,10 +16,15 @@ func quiescent(pos *Position, s *Search, alpha int, beta int) int {
 		alpha = score
 	}
 
-	ml := pos.LegalMoves()
-	ml.capturesOnly()
+	ml := pos.Captures()
+	seeScores := ml.sort(scoreSeeCaptures(pos, ml))
 
-	for i := 0; i < ml.length; i++ {
+	for i := range ml.length {
+		// Skip if we are losing material
+		if seeScores[i] < 0 {
+			continue
+		}
+
 		pos.MakeMove(&ml.moves[i])
 		score = -quiescent(pos, s, -beta, -alpha)
 		pos.UnmakeMove(&ml.moves[i])
@@ -39,15 +44,13 @@ func (pos *Position) see(from int, to int) int {
 	materialGain := [32]int{}
 	pieceValue := [6]int{10000, 900, 500, 300, 300, 100}
 	depth := 0
-	side := pos.Turn.Opponent()
-	fromSq := Bitboard(1 << from)
+	side := pos.Turn
+	fromSq := bitboardFromIndex(from)
 
-	targetPiece := pos.PieceAt(squareReference[to])
-	if targetPiece > 5 {
-		targetPiece = targetPiece - 6
-	}
+	// NOTE: use % 6 to convert black pieces to white pieces. The piece value array is the same for both sides. Must refactor this later
+	targetPiece := pos.PieceAt(squareReference[to]) % 6
+	attackerPiece := pos.PieceAt(squareReference[from]) % 6
 
-	attackerPiece := NoPiece
 	blockers := ^pos.EmptySquares()
 	attackers := pos.attackers(to, side, blockers) | pos.attackers(to, side.Opponent(), blockers)
 	alreadyAttacked := Bitboard(0)
@@ -55,19 +58,19 @@ func (pos *Position) see(from int, to int) int {
 
 	for attackers > 0 {
 		depth++
-		side = side.Opponent()
-		fromSq, attackerPiece = pos.getLeastValuableAttacker(attackers, side)
-		if attackerPiece == NoPiece {
-			break
-		}
 		materialGain[depth] = pieceValue[attackerPiece] - materialGain[depth-1]
-
 		attackers &= ^fromSq
 		blockers &= ^fromSq
 		alreadyAttacked |= fromSq
 
 		// Find new attackers(by xrays) when removing the already considered pieces into the exchange
 		attackers = (pos.attackers(to, side, blockers) | pos.attackers(to, side.Opponent(), blockers)) & ^alreadyAttacked
+
+		side = side.Opponent()
+		fromSq, attackerPiece = pos.getLeastValuableAttacker(attackers, side)
+		if attackerPiece == NoPiece {
+			break
+		}
 	}
 
 	// Negamax the material gain to get the final static exchange evaluation
@@ -114,4 +117,13 @@ func (pos *Position) getLeastValuableAttacker(attackers Bitboard, side Color) (B
 		}
 	}
 	return Bitboard(0), NoPiece
+}
+
+// scoreSeeCaptures scores each capture by static exchange evaluation and filter see < 0
+func scoreSeeCaptures(pos *Position, ml *moveList) []int {
+	scores := make([]int, ml.length)
+	for i := range ml.length {
+		scores[i] = pos.see(ml.moves[i].from(), ml.moves[i].to())
+	}
+	return scores
 }
