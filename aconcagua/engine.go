@@ -63,7 +63,7 @@ func (en *Engine) StartUci() {
 
 // execute executes a command
 func (en *Engine) execute(command string, stdout chan string, params ...string) {
-	var uciCommands map[string]UciCommand = map[string]UciCommand{
+	var uciCommands = map[string]UciCommand{
 		"uci":        uciCommand,
 		"ucinewgame": uciNewGameCommand,
 		"isready":    isReadyCommand,

@@ -70,7 +70,7 @@ var castleType = map[string]castling{
 }
 
 // castleRook matchs a castling to the rook that participates in the castle move
-var castleRook = map[castling]Piece{
+var castleRook = map[castling]int{
 	K: WhiteRook,
 	Q: WhiteRook,
 	k: BlackRook,

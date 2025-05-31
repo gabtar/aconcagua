@@ -40,7 +40,7 @@ var mvvLvaScore = [6][6]int{
 func scoreMoves(pos *Position, ml *moveList, s *Search, ply int) []int {
 	scores := make([]int, ml.length)
 
-	for i := 0; i < ml.length; i++ {
+	for i := range ml.length {
 		if pvMove, exists := s.pv.moveAt(ply); exists && pvMove.String() == ml.moves[i].String() {
 			scores[i] = 200
 			continue
@@ -200,7 +200,7 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
-	for moveNumber := 0; moveNumber < moves.length; moveNumber++ {
+	for moveNumber := range moves.length {
 		pos.MakeMove(&moves.moves[moveNumber])
 		newScore := MinInt
 		isQuietMove := moves.moves[moveNumber].flag() == quiet && !check
@@ -251,39 +251,5 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 	}
 
 	s.transpositionTable.store(pos.Hash, depth, flag, alpha)
-	return alpha
-}
-
-// quiescent is an evaluation function that takes into account some dynamic possibilities
-func quiescent(pos *Position, s *Search, alpha int, beta int) int {
-	if s.timeControl.stop {
-		return 0
-	}
-
-	score := Eval(pos)
-
-	if score >= beta {
-		return beta
-	}
-
-	if score > alpha {
-		alpha = score
-	}
-
-	ml := pos.LegalMoves()
-	ml.capturesOnly()
-
-	for i := 0; i < ml.length; i++ {
-		pos.MakeMove(&ml.moves[i])
-		score = -quiescent(pos, s, -beta, -alpha)
-		pos.UnmakeMove(&ml.moves[i])
-		if score >= beta {
-			return beta
-		}
-		if score > alpha {
-			alpha = score
-		}
-	}
-
 	return alpha
 }

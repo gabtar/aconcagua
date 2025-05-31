@@ -23,7 +23,7 @@ func (pos *Position) Perft(depth int) (nodes uint64) {
 	return nodes
 }
 
-// Divide, a variation of Perft, returns the perft of all moves in the current position
+// Divide a variation of Perft, returns the perft of all moves in the current position
 func (pos *Position) Divide(depth int) (divide string) {
 	var totalNodes uint64 = 0
 

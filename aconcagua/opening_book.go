@@ -183,7 +183,7 @@ type PolyglotBook struct {
 	size    uint64
 }
 
-// load loads a polyglot opening book
+// Load loads a polyglot opening book
 func (pb *PolyglotBook) Load(filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
