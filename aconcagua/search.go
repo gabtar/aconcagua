@@ -14,15 +14,13 @@ const (
 )
 
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
-func isCheckmateOrStealmate(pos *Position, ml *moveList, ply int) (int, bool) {
-	found := ml.length == 0
-	if found {
-		if !pos.Check(pos.Turn) {
-			return 0, found
+func isCheckmateOrStealmate(isCheck bool, ml *moveList, ply int) (int, bool) {
+	if ml.length == 0 {
+		if !isCheck {
+			return 0, true
 		}
-		return -MateScore + ply, found
+		return -MateScore + ply, true
 	}
-
 	return 0, false
 }
 
@@ -39,23 +37,18 @@ var mvvLvaScore = [6][6]int{
 // scoreMoves assigns a score to each move
 func scoreMoves(pos *Position, ml *moveList, s *Search, ply int) []int {
 	scores := make([]int, ml.length)
+	pvMove, exists := s.pv.moveAt(ply)
 
 	for i := range ml.length {
-		if pvMove, exists := s.pv.moveAt(ply); exists && pvMove.String() == ml.moves[i].String() {
+		if exists && pvMove.String() == ml.moves[i].String() {
 			scores[i] = 200
 			continue
 		}
 
 		if ml.moves[i].flag() == capture {
-			victim := pos.PieceAt(squareReference[ml.moves[i].from()])
-			aggresor := pos.PieceAt(squareReference[ml.moves[i].to()])
+			victim := pos.PieceAt(squareReference[ml.moves[i].from()]) % 6
+			aggresor := pos.PieceAt(squareReference[ml.moves[i].to()]) % 6
 
-			if victim > 5 {
-				victim -= 6
-			}
-			if aggresor > 5 {
-				aggresor -= 6
-			}
 			scores[i] = mvvLvaScore[victim][aggresor]
 		} else {
 			if s.killers[ply][0] == ml.moves[i] {
@@ -164,7 +157,7 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 
 	flag := FlagAlpha
 	foundPv := false
-	check := pos.Check(pos.Turn)
+	isCheck := pos.Check(pos.Turn)
 	ply := s.currentDepth - depth
 	s.nodes++
 	branchPv := newPV()
@@ -173,8 +166,8 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 	moves := pos.LegalMoves()
 	moves.sort(scoreMoves(pos, moves, s, ply))
 
-	score, checkOrStealmateFound := isCheckmateOrStealmate(pos, moves, ply)
-	if checkOrStealmateFound {
+	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, moves, ply)
+	if checkmateOrStealmateFound {
 		return score
 	}
 
@@ -183,7 +176,7 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 	}
 
 	// Null Move Pruning
-	if depth >= 4 && !check && nullMoveAllowed {
+	if depth >= 4 && !isCheck && nullMoveAllowed {
 		ep := pos.makeNullMove()
 		sc := -s.negamax(pos, depth-4, -beta, -beta+1, branchPv, false)
 		pos.unmakeNullMove(ep)
@@ -203,36 +196,28 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 	for moveNumber := range moves.length {
 		pos.MakeMove(&moves.moves[moveNumber])
 		newScore := MinInt
-		isQuietMove := moves.moves[moveNumber].flag() == quiet && !check
+		moveFlag := moves.moves[moveNumber].flag()
 
 		// Futility Pruning
-		if futilityPruningAllowed && isQuietMove && !foundPv && moveNumber > 0 {
+		if futilityPruningAllowed && moveFlag == quiet && !isCheck && !foundPv && moveNumber > 0 {
 			pos.UnmakeMove(&moves.moves[moveNumber])
 			continue
 		}
 
-		// Late Moves Reduction
-		applyLMR := depth >= 3 && !foundPv && isQuietMove && moveNumber >= 4
-		if applyLMR {
-			reduction := 1
-			newScore = -s.negamax(pos, depth-1-reduction, -alpha-1, -alpha, branchPv, false)
-
-			if newScore <= alpha {
-				pos.UnmakeMove(&moves.moves[moveNumber])
-				continue
-			}
-		}
-
 		// Principal Variation Search
-		if foundPv {
-			newScore = -s.negamax(pos, depth-1, -alpha-1, -alpha, branchPv, true)
-			if newScore > alpha && newScore < beta {
+		// Full search at first attempt of this subtree
+		if moveNumber == 0 {
+			newScore = -s.negamax(pos, depth-1, -beta, -alpha, branchPv, true)
+		} else {
+			// Try first a quick, reduced search, with lmr and a null window(-alpha-1, -alpha)
+			lmrFactor := lmrReductionFactor(depth, moveNumber, moveFlag, isCheck, foundPv)
+			newScore = -s.negamax(pos, depth-1-lmrFactor, -alpha-1, -alpha, branchPv, true)
+
+			// If an improvement was found, we need to search again with a full window and depth
+			if newScore > alpha {
 				newScore = -s.negamax(pos, depth-1, -beta, -alpha, branchPv, true)
 			}
-		} else {
-			newScore = -s.negamax(pos, depth-1, -beta, -alpha, branchPv, true)
 		}
-
 		pos.UnmakeMove(&moves.moves[moveNumber])
 
 		if newScore >= beta {
@@ -252,4 +237,18 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 
 	s.transpositionTable.store(pos.Hash, depth, flag, alpha)
 	return alpha
+}
+
+// lrmReductionFactor returns a number to reduce the depth on search based on the conditions passed
+func lmrReductionFactor(depth, moveNumber, moveFlag int, isCheck, foundPv bool) int {
+	if isCheck || foundPv || depth < 3 || moveNumber < 4 {
+		return 0
+	}
+	reduction := int(0.5 + math.Log(float64(depth))*math.Log(float64(moveNumber))/2.0)
+
+	if moveFlag == capture || moveFlag >= knightPromotion {
+		reduction -= 1
+	}
+
+	return reduction
 }
