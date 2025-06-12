@@ -362,7 +362,7 @@ func (pos *Position) MakeMove(move *Move) {
 		uint16(pos.halfmoveClock),
 	)
 	pos.positionHistory.add(positionBefore, pos.castlingRights)
-	UpdateCastleRights(pos, move)
+	pos.castlingRights.updateCastle(move.from(), move.to())
 
 	pos.RemovePiece(bitboardFromIndex(move.from()))
 	pos.updateMoveState()
@@ -519,43 +519,6 @@ func restoreRookOnCastle(pos *Position, castle castling) {
 
 	pos.RemovePiece(bitboardFromIndex(rookFrom))
 	pos.AddPiece(castleRook[castle], squareReference[rookTo])
-}
-
-func UpdateCastleRights(pos *Position, move *Move) {
-	piece := pos.PieceAt(squareReference[move.from()])
-	switch piece {
-	case WhiteKing:
-		pos.castlingRights.remove(K | Q)
-	case WhiteRook:
-		if move.from() == Bsf(bitboardFromCoordinates("h1")) {
-			pos.castlingRights.remove(K)
-		} else {
-			pos.castlingRights.remove(Q)
-		}
-	case BlackKing:
-		pos.castlingRights.remove(k | q)
-	case BlackRook:
-		if move.from() == Bsf(bitboardFromCoordinates("h8")) {
-			pos.castlingRights.remove(k)
-		} else {
-			pos.castlingRights.remove(q)
-		}
-	}
-
-	capturedPiece := pos.PieceAt(squareReference[move.to()])
-	if move.flag() == capture || move.flag() > 5 {
-		switch {
-		case move.to() == 0 && capturedPiece == WhiteRook:
-			pos.castlingRights.remove(Q)
-		case move.to() == 7 && capturedPiece == WhiteRook:
-			pos.castlingRights.remove(K)
-		case move.to() == 56 && capturedPiece == BlackRook:
-			pos.castlingRights.remove(q)
-		case move.to() == 63 && capturedPiece == BlackRook:
-			pos.castlingRights.remove(k)
-		}
-	}
-
 }
 
 // makeNullMove performs a null move
