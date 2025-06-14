@@ -20,40 +20,23 @@ const (
 	BlackKnight
 	BlackPawn
 	NoPiece
-	// TODO: replace with bitboards constants directly. They are not much references with these following constants
-	// Constants for reference to piece type
-	King
-	Queen
-	Rook
-	Bishop
-	Knight
-	Pawn
+	// Constants for reference to piece role/type
+	King   = 0
+	Queen  = 1
+	Rook   = 2
+	Bishop = 3
+	Knight = 4
+	Pawn   = 5
 )
 
-// pieceColor references a Piece type to a Color type
-var pieceColor = map[int]Color{
-	WhiteKing:   White,
-	WhiteQueen:  White,
-	WhiteRook:   White,
-	WhiteBishop: White,
-	WhiteKnight: White,
-	WhitePawn:   White,
-	BlackKing:   Black,
-	BlackQueen:  Black,
-	BlackRook:   Black,
-	BlackBishop: Black,
-	BlackKnight: Black,
-	BlackPawn:   Black,
+// pieceRole returns the role/type of the piece passed
+func pieceRole(piece int) int {
+	return piece % 6
 }
 
-// pieceOfColor returns a Piece of the color passed
-var pieceOfColor = map[int]map[Color]int{
-	King:   {White: WhiteKing, Black: BlackKing},
-	Queen:  {White: WhiteQueen, Black: BlackQueen},
-	Rook:   {White: WhiteRook, Black: BlackRook},
-	Bishop: {White: WhiteBishop, Black: BlackBishop},
-	Knight: {White: WhiteKnight, Black: BlackKnight},
-	Pawn:   {White: WhitePawn, Black: BlackPawn},
+// piece returns the piece of the role and color passed
+func pieceColor(role int, color Color) int {
+	return role + int(color)*6
 }
 
 // squareReference maps an integer(the index of the array) with the
@@ -270,7 +253,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
-	king = pos.Bitboards[pieceOfColor[King][side]]
+	king = pos.Bitboards[int(side)*6]
 	return
 }
 
@@ -446,13 +429,13 @@ func (pos *Position) handleEnPassantCapture(move Move, pieceToMove int) {
 func getPromotedToPiece(flag int, side Color) (piece int) {
 	switch flag {
 	case knightPromotion, knightCapturePromotion:
-		return pieceOfColor[Knight][side]
+		return pieceColor(Knight, side)
 	case bishopPromotion, bishopCapturePromotion:
-		return pieceOfColor[Bishop][side]
+		return pieceColor(Bishop, side)
 	case rookPromotion, rookCapturePromotion:
-		return pieceOfColor[Rook][side]
+		return pieceColor(Rook, side)
 	case queenCapturePromotion, queenPromotion:
-		return pieceOfColor[Queen][side]
+		return pieceColor(Queen, side)
 	}
 	return NoPiece
 }
@@ -460,7 +443,7 @@ func getPromotedToPiece(flag int, side Color) (piece int) {
 // getCapturedPiece determines the piece captured in the move
 func (pos *Position) getCapturedPiece(move *Move) int {
 	if move.flag() == epCapture {
-		return pieceOfColor[Pawn][pos.Turn.Opponent()]
+		return pieceColor(Pawn, pos.Turn.Opponent())
 	}
 	pieceCaptured := pos.PieceAt(squareReference[move.to()])
 	return pieceCaptured
@@ -489,11 +472,9 @@ func (pos *Position) UnmakeMove(move *Move) {
 	case queensideCastle, kingsideCastle:
 		restoreRookOnCastle(pos, castleType[move.String()])
 	case epCapture:
-		restoreSq := move.to() + 8           // 1 rank up
-		if pieceColor[pieceToAdd] == White { // White ep capture
-			restoreSq = move.to() - 8 // 1 rank down
-		}
-		pos.AddPiece(pieceOfColor[Pawn][pos.Turn], squareReference[restoreSq])
+		colorModifier := 1 - int(pos.Turn)*2
+		restoreSq := move.to() + 8*colorModifier
+		pos.AddPiece(pieceColor(Pawn, pos.Turn), squareReference[restoreSq])
 	case doublePawnPush:
 		pos.enPassantTarget = 0
 	}

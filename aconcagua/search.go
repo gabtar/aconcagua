@@ -44,12 +44,15 @@ func scoreMoves(pos *Position, ml *moveList, s *Search, ply int) []int {
 			scores[i] = 200
 			continue
 		}
+		flag := ml.moves[i].flag()
 
-		if ml.moves[i].flag() == capture {
-			victim := pos.PieceAt(squareReference[ml.moves[i].from()]) % 6
-			aggresor := pos.PieceAt(squareReference[ml.moves[i].to()]) % 6
-
+		if flag == capture || flag >= knightCapturePromotion {
+			victim := pieceRole(pos.PieceAt(squareReference[ml.moves[i].from()]))
+			aggresor := pieceRole(pos.PieceAt(squareReference[ml.moves[i].to()]))
 			scores[i] = mvvLvaScore[victim][aggresor]
+		} else if flag == epCapture {
+			scores[i] = 60
+			continue
 		} else {
 			if s.killers[ply][0] == ml.moves[i] {
 				scores[i] = 50

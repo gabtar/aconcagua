@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// MaxSearchDepth is the maximum depth of the search
+const MaxSearchDepth = 50
+
 // UciCommand handles a uci command instruction from the gui
 type UciCommand func(en *Engine, stdout chan string, params ...string)
 
@@ -67,7 +70,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 			return
 		}
 	}
-	depth := 10 // max default depth search
+	depth := MaxSearchDepth
 
 	depthIndex := findParam(params, "depth")
 	wtime := findParam(params, "wtime")
@@ -207,7 +210,7 @@ func divideCommand(en *Engine, stdout chan string, params ...string) {
 		stdout <- "invalid command"
 		return
 	}
-	for _, perft := range strings.Split(en.pos.Divide(depth), ",") {
+	for perft := range strings.SplitSeq(en.pos.Divide(depth), ",") {
 		stdout <- perft
 	}
 }
