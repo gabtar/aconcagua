@@ -87,7 +87,6 @@ func (s *Search) init(depth int) {
 	s.pv = newPV()
 	s.killers = [100]Killer{}
 	s.transpositionTable = NewTranspositionTable(DefaultTableSizeInMb)
-	s.pv = newPV()
 }
 
 // reset sets the new iteration parameters in the NewSearch

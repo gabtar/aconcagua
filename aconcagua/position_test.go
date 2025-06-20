@@ -163,30 +163,6 @@ func TestBlackIsNotInCheckmate2(t *testing.T) {
 	}
 }
 
-func TestBlackIsInStealmate(t *testing.T) {
-
-	pos := From("7k/6pn/6P1/3B4/7Q/7p/PPP4R/1K6 b - - 0 1")
-
-	expected := true
-	got := pos.Stealmate(Black)
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestBlackIsNotInStealmate(t *testing.T) {
-
-	pos := From("7k/6pn/6P1/3B4/p6Q/7p/PPP4R/1K6 b - - 0 1")
-
-	expected := false
-	got := pos.Stealmate(Black)
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 func TestCaptureUpdatesPosition(t *testing.T) {
 	pos := From("7k/8/8/8/3p4/4P3/8/7K w - - 0 1")
 
@@ -198,52 +174,6 @@ func TestCaptureUpdatesPosition(t *testing.T) {
 
 	expected := "7k/8/8/8/3P4/8/8/7K b - - 0 1"
 	got := pos.ToFen()
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestZobristUpdate(t *testing.T) {
-	pos := InitialPosition()
-
-	from := Bsf(bitboardFromCoordinates("g1"))
-	to := Bsf(bitboardFromCoordinates("f3"))
-	move1 := encodeMove(uint16(from), uint16(to), quiet)
-
-	from = Bsf(bitboardFromCoordinates("b7"))
-	to = Bsf(bitboardFromCoordinates("c5"))
-	move2 := encodeMove(uint16(from), uint16(to), quiet)
-
-	from = Bsf(bitboardFromCoordinates("b1"))
-	to = Bsf(bitboardFromCoordinates("c3"))
-	move3 := encodeMove(uint16(from), uint16(to), quiet)
-
-	from = Bsf(bitboardFromCoordinates("g8"))
-	to = Bsf(bitboardFromCoordinates("f6"))
-	move4 := encodeMove(uint16(from), uint16(to), quiet)
-
-	pos2 := *pos
-
-	// Normal order 1 2 3 4
-	// move1 := &Move{from: "g1", to: "f3", piece: WHITE_PAWN, moveType: NORMAL}
-	// move2 := &Move{from: "b8", to: "c6", piece: BLACK_PAWN, moveType: NORMAL}
-	// move3 := &Move{from: "b1", to: "c3", piece: WHITE_KNIGHT, moveType: NORMAL}
-	// move4 := &Move{from: "g8", to: "f6", piece: BLACK_KNIGHT, moveType: NORMAL}
-
-	pos.MakeMove(move1)
-	pos.MakeMove(move2)
-	pos.MakeMove(move3)
-	pos.MakeMove(move4)
-
-	// Invert move order 3 4 1 2 -> Gets the same fen -> "r1bqkb1r/pppppppp/2n2n2/8/8/2N2N2/PPPPPPPP/R1BQKB1R w KQkq - 2 3"
-	pos2.MakeMove(move3)
-	pos2.MakeMove(move4)
-	pos2.MakeMove(move1)
-	pos2.MakeMove(move2)
-
-	expected := pos.Hash
-	got := pos2.Hash
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

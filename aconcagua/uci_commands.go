@@ -171,8 +171,7 @@ func readStdin(input chan string) {
 // writeStdout writes strings to standard output (form engine to GUI)
 func writeStdout(output <-chan string) {
 	for cmd := range output {
-		strings.TrimSpace(cmd)
-		fmt.Println(cmd)
+		fmt.Println(strings.TrimSpace(cmd))
 	}
 }
 
