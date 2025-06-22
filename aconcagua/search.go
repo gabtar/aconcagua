@@ -9,8 +9,8 @@ import (
 // Constants to use in the search
 const (
 	MateScore = 100000
-	MinInt    = math.MinInt + 2 // NOTE: use +2 to avoid overflow when inverting due to negamax
-	MaxInt    = math.MaxInt - 2
+	MinInt    = math.MinInt32 + 2 // NOTE: use +2 to avoid overflow when inverting due to negamax
+	MaxInt    = math.MaxInt32 - 2
 )
 
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
@@ -35,23 +35,28 @@ var mvvLvaScore = [6][6]int{
 }
 
 // scoreMoves assigns a score to each move
-func scoreMoves(pos *Position, ml *moveList, s *Search, ply int) []int {
+func scoreMoves(pos *Position, ml *moveList, s *Search, ply int, ttMove Move) []int {
 	scores := make([]int, ml.length)
 	pvMove, exists := s.pv.moveAt(ply)
 
 	for i := range ml.length {
-		if exists && pvMove.String() == ml.moves[i].String() {
+		if ttMove != NoMove && ml.moves[i] == ttMove {
+			scores[i] = 250
+			continue
+		}
+
+		if exists && pvMove == ml.moves[i] {
 			scores[i] = 200
 			continue
 		}
-		flag := ml.moves[i].flag()
 
+		flag := ml.moves[i].flag()
 		if flag == capture || flag >= knightCapturePromotion {
 			victim := pieceRole(pos.PieceAt(squareReference[ml.moves[i].from()]))
 			aggresor := pieceRole(pos.PieceAt(squareReference[ml.moves[i].to()]))
 			scores[i] = mvvLvaScore[victim][aggresor]
 		} else if flag == epCapture {
-			scores[i] = 60
+			scores[i] = mvvLvaScore[Pawn][Pawn]
 			continue
 		} else {
 			if s.killers[ply][0] == ml.moves[i] {
@@ -141,6 +146,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 		s.timeControl.iterationStartTime = time.Now()
 		stdout <- fmt.Sprintf("info depth %d nodes %d time %v pv %v", d, s.nodes, depthTime.Milliseconds(), s.pv)
 	}
+	stdout <- fmt.Sprintf("info tt stored %d tried %d found %d pruned %d", s.transpositionTable.stored, s.transpositionTable.tried, s.transpositionTable.found, s.transpositionTable.pruned)
 
 	return
 }
@@ -152,7 +158,7 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 		return 0
 	}
 
-	ttScore, exists := s.transpositionTable.probe(pos.Hash, depth, alpha, beta)
+	ttScore, ttMove, exists := s.transpositionTable.probe(pos.Hash, depth, alpha, beta)
 	if exists {
 		return ttScore
 	}
@@ -166,7 +172,7 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 	futilityPruningAllowed := false
 
 	moves := pos.LegalMoves()
-	moves.sort(scoreMoves(pos, moves, s, ply))
+	moves.sort(scoreMoves(pos, moves, s, ply, ttMove))
 
 	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, moves, ply)
 	if checkmateOrStealmateFound {
@@ -223,7 +229,7 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 		pos.UnmakeMove(&moves.moves[moveNumber])
 
 		if newScore >= beta {
-			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta)
+			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta, moves.moves[moveNumber])
 			s.killers[ply].add(moves.moves[moveNumber])
 			return beta
 		}
@@ -237,7 +243,7 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, pv *PV, 
 		}
 	}
 
-	s.transpositionTable.store(pos.Hash, depth, flag, alpha)
+	s.transpositionTable.store(pos.Hash, depth, flag, alpha, NoMove)
 	return alpha
 }
 

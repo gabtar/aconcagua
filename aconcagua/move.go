@@ -19,6 +19,8 @@ const (
 	queenCapturePromotion
 )
 
+const NoMove = Move(0)
+
 // Move represents an encoded chess move on the board
 // the move is represented by 16 bits of information
 // first 6 bits for the from square (1-64)
