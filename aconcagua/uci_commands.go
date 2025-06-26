@@ -86,8 +86,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 	}
 
 	go func() {
-		score := en.search.root(&en.pos, depth, stdout)
-		pv := en.search.pv
+		score, bestMove := en.search.root(&en.pos, depth, stdout)
 
 		absScore := abs(score)
 		isMate := absScore >= MateScore-depth
@@ -98,7 +97,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 			stdout <- "info score cp " + strconv.Itoa(score)
 		}
 
-		stdout <- "bestmove " + (*pv)[0].String()
+		stdout <- "bestmove " + bestMove
 	}()
 }
 
@@ -171,7 +170,7 @@ func readStdin(input chan string) {
 // writeStdout writes strings to standard output (form engine to GUI)
 func writeStdout(output <-chan string) {
 	for cmd := range output {
-		fmt.Println(strings.TrimSpace(cmd))
+		fmt.Println(cmd)
 	}
 }
 

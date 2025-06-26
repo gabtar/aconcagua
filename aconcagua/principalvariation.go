@@ -1,32 +1,47 @@
 package aconcagua
 
-// PV stores the Principal Variation line during a search
-type PV []Move
-
-// newPV returns a pointer to a new PV
-func newPV() *PV {
-	return &PV{}
+// PVLine is a principal variation line of a position
+type PVLine struct {
+	moves  []Move
+	length int
 }
 
-// insert adds a move at the start of the principal variation
-func (pv *PV) insert(move Move, branchPv *PV) {
-	*pv = append([]Move{move}, *branchPv...)
+// reset resets the PVLine length
+func (pv *PVLine) reset() {
+	pv.length = 0
 }
 
-// moveAt returns a chessMove and a boolean if its a move at the ply passed in the principal variation
-func (pv *PV) moveAt(ply int) (Move, bool) {
-	if len(*pv) > ply {
-		return (*pv)[ply], true
+// prepend prepends a move to the PVLine
+func (pv *PVLine) prepend(move Move, branchPV *PVLine) {
+	pv.moves[0] = move
+	if branchPV.length > 0 {
+		copy(pv.moves[1:], branchPV.moves[:branchPV.length])
 	}
-	return Move(0), false
+	pv.length = branchPV.length + 1
 }
 
-// String returns the string representation of the principal variation
-func (pv *PV) String() string {
+// String returns a string representation of the PVLine
+func (pv *PVLine) String() string {
+	if pv.length == 0 {
+		return ""
+	}
+
 	moves := ""
-	for _, m := range *pv {
-		moves += m.String() + " "
+	for i := range pv.length {
+		moves += pv.moves[i].String() + " "
 	}
 	moves = moves[:len(moves)-1]
 	return moves
+}
+
+// PVTable is a principal variation table
+type PVTable []PVLine
+
+// NewPVTable returns a new PVTable
+func NewPVTable(depth int) PVTable {
+	table := make(PVTable, depth)
+	for i := range table {
+		table[i] = PVLine{moves: make([]Move, depth), length: 0}
+	}
+	return table
 }

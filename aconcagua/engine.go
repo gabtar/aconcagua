@@ -29,7 +29,7 @@ func NewEngine() *Engine {
 			nodes:        0,
 			currentDepth: 0,
 			maxDepth:     0,
-			pv:           newPV(),
+			PVTable:      NewPVTable(MaxSearchDepth),
 			killers:      [100]Killer{},
 			timeControl:  &tc,
 		},

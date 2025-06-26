@@ -19,6 +19,7 @@ const (
 	queenCapturePromotion
 )
 
+// NoMove is an empty move
 const NoMove = Move(0)
 
 // Move represents an encoded chess move on the board

@@ -80,14 +80,6 @@ func (pos *Position) see(from int, to int) int {
 	return materialGain[0]
 }
 
-// max returns the maximum of a and b
-func max(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // attackers returns a bitboard with all the attackers of the square passed
 func (pos *Position) attackers(to int, side Color, blocks Bitboard) (attackers Bitboard) {
 	pieceStart := startingPieceNumber(side)
