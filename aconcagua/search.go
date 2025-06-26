@@ -151,6 +151,10 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, nullMove
 		return 0
 	}
 
+	if pos.positionHistory.repetitionCount(pos.Hash) >= 2 {
+		return 0
+	}
+
 	if depth == 0 {
 		return quiescent(pos, s, alpha, beta)
 	}
@@ -190,7 +194,7 @@ func (s *Search) negamax(pos *Position, depth int, alpha int, beta int, nullMove
 	newScore := MinInt
 	for moveNumber := range moves.length {
 		pos.MakeMove(&moves.moves[moveNumber])
-		s.PVTable[ply+1].reset()
+		s.PVTable.reset(ply + 1)
 		moveFlag := moves.moves[moveNumber].flag()
 
 		// Futility Pruning

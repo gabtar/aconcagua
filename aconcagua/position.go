@@ -346,7 +346,7 @@ func (pos *Position) MakeMove(move *Move) {
 		uint16(Bsf(pos.enPassantTarget)),
 		uint16(pos.halfmoveClock),
 	)
-	pos.positionHistory.add(positionBefore, pos.castlingRights)
+	pos.positionHistory.add(positionBefore, pos.castlingRights, pos.Hash)
 
 	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castlingRights)
 	pos.castlingRights.updateCastle(move.from(), move.to())
@@ -686,5 +686,7 @@ func InitialPosition() (pos *Position) {
 
 // EmptyPosition returns an empty Position struct
 func EmptyPosition() (pos *Position) {
-	return &Position{}
+	return &Position{
+		positionHistory: *NewPositionHistory(),
+	}
 }

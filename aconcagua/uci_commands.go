@@ -47,10 +47,10 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 			for _, legalMove := range en.pos.LegalMoves().moves {
 				if legalMove.String() == move {
 					en.pos.MakeMove(&legalMove)
-					en.pos.positionHistory = *NewPositionHistory()
 				}
 			}
 		}
+		en.pos.positionHistory.clear()
 	}
 }
 

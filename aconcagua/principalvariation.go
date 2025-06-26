@@ -34,8 +34,13 @@ func (pv *PVLine) String() string {
 	return moves
 }
 
-// PVTable is a principal variation table
+// PVTable is a principal variation table for holding PVLines during the search
 type PVTable []PVLine
+
+// reset resets the pv line at the given plies
+func (pvTable PVTable) reset(plies int) {
+	pvTable[plies].reset()
+}
 
 // NewPVTable returns a new PVTable
 func NewPVTable(depth int) PVTable {
