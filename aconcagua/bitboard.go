@@ -44,7 +44,7 @@ func (b Bitboard) Print() {
 		fill = strings.Repeat("0", 64-len(binary))
 	}
 	binary = fill + binary
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		fmt.Println(reverseArray(strings.Split(binary[i*8:i*8+8], "")))
 	}
 	fmt.Println()
@@ -60,13 +60,7 @@ func reverseArray(arr []string) []string {
 
 // count returns the number of non zero bits in a bitboard
 func (b Bitboard) count() int {
-	count := 0
-	for b > 0 {
-		b &= ^(0b1 << Bsf(b))
-		count++
-	}
-
-	return count
+	return bits.OnesCount64(uint64(b))
 }
 
 // NextBit removes the next bit of the bitboard and returns it
@@ -82,12 +76,7 @@ func Bsf(bitboard Bitboard) int {
 	return bits.TrailingZeros64(uint64(bitboard))
 }
 
-// Bsr (bit scan reverse) returns the bit-index of the most significant 1
-// bit (MS1B) in an integer Bitboard(uint64)
-func Bsr(bitboard Bitboard) int {
-	return bits.LeadingZeros64(uint64(bitboard))
-}
-
+// squareNumberFromCoordinate returns the square number from a string coordinate
 func squareNumberFromCoordinate(coordinate string) int {
 	fileNumber := int(coordinate[0]) - 96
 	rankNumber := int(coordinate[1]) - 48

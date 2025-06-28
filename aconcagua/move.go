@@ -19,6 +19,9 @@ const (
 	queenCapturePromotion
 )
 
+// NoMove is an empty move
+const NoMove = Move(0)
+
 // Move represents an encoded chess move on the board
 // the move is represented by 16 bits of information
 // first 6 bits for the from square (1-64)
@@ -53,7 +56,7 @@ func (m *Move) String() (move string) {
 	move += squareReference[m.to()]
 	flag := m.flag()
 
-	if flag > 5 { // NOTE: >5 all are promotions
+	if flag >= knightPromotion {
 		switch flag {
 		case knightPromotion, knightCapturePromotion:
 			move += "n"
@@ -68,13 +71,7 @@ func (m *Move) String() (move string) {
 	return
 }
 
-// store board state to undo move
-// type of piece moved -> 4 bit
-// type of piece captured if any -> 4 bit
-// epTarget -> 6 bit (0-64)
-// rule50 -> 6 bit
-// castles... -> separate castle struct
-
+// positionBefore is an encoded board state before the making a move
 type positionBefore uint32
 
 // encodePositionBefore returns a reference to an encoded board state before the move

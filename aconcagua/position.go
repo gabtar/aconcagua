@@ -20,40 +20,23 @@ const (
 	BlackKnight
 	BlackPawn
 	NoPiece
-	// TODO: replace with bitboards constants directly. They are not much references with these following constants
-	// Constants for reference to piece type
-	King
-	Queen
-	Rook
-	Bishop
-	Knight
-	Pawn
+	// Constants for reference to piece role/type
+	King   = 0
+	Queen  = 1
+	Rook   = 2
+	Bishop = 3
+	Knight = 4
+	Pawn   = 5
 )
 
-// pieceColor references a Piece type to a Color type
-var pieceColor = map[int]Color{
-	WhiteKing:   White,
-	WhiteQueen:  White,
-	WhiteRook:   White,
-	WhiteBishop: White,
-	WhiteKnight: White,
-	WhitePawn:   White,
-	BlackKing:   Black,
-	BlackQueen:  Black,
-	BlackRook:   Black,
-	BlackBishop: Black,
-	BlackKnight: Black,
-	BlackPawn:   Black,
+// pieceRole returns the role/type of the piece passed
+func pieceRole(piece int) int {
+	return piece % 6
 }
 
-// pieceOfColor returns a Piece of the color passed
-var pieceOfColor = map[int]map[Color]int{
-	King:   {White: WhiteKing, Black: BlackKing},
-	Queen:  {White: WhiteQueen, Black: BlackQueen},
-	Rook:   {White: WhiteRook, Black: BlackRook},
-	Bishop: {White: WhiteBishop, Black: BlackBishop},
-	Knight: {White: WhiteKnight, Black: BlackKnight},
-	Pawn:   {White: WhitePawn, Black: BlackPawn},
+// piece returns the piece of the role and color passed
+func pieceColor(role int, color Color) int {
+	return role + int(color)*6
 }
 
 // squareReference maps an integer(the index of the array) with the
@@ -120,6 +103,7 @@ func (pos *Position) AddPiece(piece int, square string) {
 	}
 
 	bitboardSquare := bitboardFromCoordinates(square)
+	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(bitboardSquare))
 	pos.Bitboards[piece] |= bitboardSquare
 }
 
@@ -270,7 +254,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
-	king = pos.Bitboards[pieceOfColor[King][side]]
+	king = pos.Bitboards[int(side)*6]
 	return
 }
 
@@ -278,6 +262,7 @@ func (pos *Position) KingPosition(side Color) (king Bitboard) {
 func (pos *Position) RemovePiece(piece Bitboard) {
 	for role, bitboard := range pos.Bitboards {
 		if bitboard&piece > 0 {
+			pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(role, Bsf(bitboard&piece))
 			pos.Bitboards[role] &= ^piece
 		}
 	}
@@ -361,20 +346,29 @@ func (pos *Position) MakeMove(move *Move) {
 		uint16(Bsf(pos.enPassantTarget)),
 		uint16(pos.halfmoveClock),
 	)
-	pos.positionHistory.add(positionBefore, pos.castlingRights)
-	UpdateCastleRights(pos, move)
+	pos.positionHistory.add(positionBefore, pos.castlingRights, pos.Hash)
+
+	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castlingRights)
+	pos.castlingRights.updateCastle(move.from(), move.to())
+	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castlingRights)
 
 	pos.RemovePiece(bitboardFromIndex(move.from()))
+
 	pos.updateMoveState()
 	pos.handleSpecialMoveTypes(move, &pieceToMove)
 
 	pos.Turn = pos.Turn.Opponent()
+	pos.Hash = pos.Hash ^ zobristHashKeys.getSideKey()
+
 	pos.AddPiece(pieceToMove, squareReference[move.to()])
-	pos.Hash = zobristHash(pos)
+	// pos.Hash = zobristHash(pos)
 }
 
 // updateMoveState resets and updates move-related state
 func (pos *Position) updateMoveState() {
+	if pos.enPassantTarget > 0 { // Undo en passant key if set
+		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
+	}
 	pos.enPassantTarget = 0
 	pos.halfmoveClock++
 
@@ -416,6 +410,7 @@ func (pos *Position) handleDoublePawnPush(move Move, pieceToMove int) {
 	} else {
 		pos.enPassantTarget = bitboardFromIndex(move.to()) << 8
 	}
+	pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
 }
 
 // handleCapture removes captured piece and resets halfmove clock
@@ -435,9 +430,9 @@ func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int) {
 // handleEnPassantCapture removes the captured pawn in en passant
 func (pos *Position) handleEnPassantCapture(move Move, pieceToMove int) {
 	if pieceToMove == WhitePawn {
-		pos.Bitboards[BlackPawn] ^= bitboardFromIndex(move.to()) >> 8
+		pos.RemovePiece(bitboardFromIndex(move.to()) >> 8)
 	} else {
-		pos.Bitboards[WhitePawn] ^= bitboardFromIndex(move.to()) << 8
+		pos.RemovePiece(bitboardFromIndex(move.to()) << 8)
 	}
 	pos.halfmoveClock = 0
 }
@@ -446,13 +441,13 @@ func (pos *Position) handleEnPassantCapture(move Move, pieceToMove int) {
 func getPromotedToPiece(flag int, side Color) (piece int) {
 	switch flag {
 	case knightPromotion, knightCapturePromotion:
-		return pieceOfColor[Knight][side]
+		return pieceColor(Knight, side)
 	case bishopPromotion, bishopCapturePromotion:
-		return pieceOfColor[Bishop][side]
+		return pieceColor(Bishop, side)
 	case rookPromotion, rookCapturePromotion:
-		return pieceOfColor[Rook][side]
+		return pieceColor(Rook, side)
 	case queenCapturePromotion, queenPromotion:
-		return pieceOfColor[Queen][side]
+		return pieceColor(Queen, side)
 	}
 	return NoPiece
 }
@@ -460,7 +455,7 @@ func getPromotedToPiece(flag int, side Color) (piece int) {
 // getCapturedPiece determines the piece captured in the move
 func (pos *Position) getCapturedPiece(move *Move) int {
 	if move.flag() == epCapture {
-		return pieceOfColor[Pawn][pos.Turn.Opponent()]
+		return pieceColor(Pawn, pos.Turn.Opponent())
 	}
 	pieceCaptured := pos.PieceAt(squareReference[move.to()])
 	return pieceCaptured
@@ -475,11 +470,18 @@ func (pos *Position) UnmakeMove(move *Move) {
 		pos.fullmoveNumber--
 	}
 
+	if pos.enPassantTarget > 0 {
+		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
+	}
 	if prevState.epTarget() > 0 {
 		pos.enPassantTarget = bitboardFromIndex(prevState.epTarget())
+		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(prevState.epTarget())
 	}
 	pos.halfmoveClock = prevState.rule50()
+
+	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castlingRights)
 	pos.castlingRights = castle
+	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castlingRights)
 
 	pieceToAdd := prevState.pieceMoved()
 
@@ -489,18 +491,17 @@ func (pos *Position) UnmakeMove(move *Move) {
 	case queensideCastle, kingsideCastle:
 		restoreRookOnCastle(pos, castleType[move.String()])
 	case epCapture:
-		restoreSq := move.to() + 8           // 1 rank up
-		if pieceColor[pieceToAdd] == White { // White ep capture
-			restoreSq = move.to() - 8 // 1 rank down
-		}
-		pos.AddPiece(pieceOfColor[Pawn][pos.Turn], squareReference[restoreSq])
+		colorModifier := 1 - int(pos.Turn)*2
+		restoreSq := move.to() + 8*colorModifier
+		pos.AddPiece(pieceColor(Pawn, pos.Turn), squareReference[restoreSq])
 	case doublePawnPush:
+		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(prevState.epTarget())
 		pos.enPassantTarget = 0
 	}
 
 	pos.Turn = pos.Turn.Opponent()
+	pos.Hash = pos.Hash ^ zobristHashKeys.getSideKey()
 	pos.AddPiece(pieceToAdd, squareReference[move.from()])
-	pos.Hash = zobristHash(pos)
 }
 
 // moveRook updates the rook position for the castle passed
@@ -521,57 +522,26 @@ func restoreRookOnCastle(pos *Position, castle castling) {
 	pos.AddPiece(castleRook[castle], squareReference[rookTo])
 }
 
-func UpdateCastleRights(pos *Position, move *Move) {
-	piece := pos.PieceAt(squareReference[move.from()])
-	switch piece {
-	case WhiteKing:
-		pos.castlingRights.remove(K | Q)
-	case WhiteRook:
-		if move.from() == Bsf(bitboardFromCoordinates("h1")) {
-			pos.castlingRights.remove(K)
-		} else {
-			pos.castlingRights.remove(Q)
-		}
-	case BlackKing:
-		pos.castlingRights.remove(k | q)
-	case BlackRook:
-		if move.from() == Bsf(bitboardFromCoordinates("h8")) {
-			pos.castlingRights.remove(k)
-		} else {
-			pos.castlingRights.remove(q)
-		}
-	}
-
-	capturedPiece := pos.PieceAt(squareReference[move.to()])
-	if move.flag() == capture || move.flag() > 5 {
-		switch {
-		case move.to() == 0 && capturedPiece == WhiteRook:
-			pos.castlingRights.remove(Q)
-		case move.to() == 7 && capturedPiece == WhiteRook:
-			pos.castlingRights.remove(K)
-		case move.to() == 56 && capturedPiece == BlackRook:
-			pos.castlingRights.remove(q)
-		case move.to() == 63 && capturedPiece == BlackRook:
-			pos.castlingRights.remove(k)
-		}
-	}
-
-}
-
 // makeNullMove performs a null move
 func (pos *Position) makeNullMove() Bitboard {
 	pos.Turn = pos.Turn.Opponent()
+	pos.Hash = pos.Hash ^ zobristHashKeys.getSideKey()
+	if pos.enPassantTarget > 0 {
+		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
+	}
 	ep := pos.enPassantTarget
 	pos.enPassantTarget = 0 // NOTE: IMPORTANT!!!! - If not done search goes inestable and outputs random moves eg. promotions....
-	pos.Hash = zobristHash(pos)
 	return ep
 }
 
 // unmakeNullMove restores the position after a null move
 func (pos *Position) unmakeNullMove(ep Bitboard) {
 	pos.Turn = pos.Turn.Opponent()
+	pos.Hash = pos.Hash ^ zobristHashKeys.getSideKey()
+	if ep > 0 {
+		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(ep))
+	}
 	pos.enPassantTarget = ep
-	pos.Hash = zobristHash(pos)
 }
 
 // ToFen serializes the position as a fen string
@@ -625,17 +595,6 @@ func (pos *Position) Checkmate(side Color) (checkmate bool) {
 		checkmate = true
 	} else {
 		checkmate = false
-	}
-	return
-}
-
-// Stealmate returns if the passed side is in stealmate on the current position
-func (pos *Position) Stealmate(side Color) (stealmate bool) {
-	// Cannot be in check, and cannot have any legal moves
-	if pos.LegalMoves().length == 0 && !pos.Check(side) {
-		stealmate = true
-	} else {
-		stealmate = false
 	}
 	return
 }
@@ -715,8 +674,7 @@ func From(fen string) (pos *Position) {
 	pos.halfmoveClock, _ = strconv.Atoi(elements[4]) // TODO: handle errors
 	pos.fullmoveNumber, _ = strconv.Atoi(elements[5])
 
-	// Set zobrist
-	pos.Hash = zobristHash(pos)
+	pos.Hash = zobristHashKeys.fullZobristHash(pos)
 	return
 }
 
@@ -728,5 +686,7 @@ func InitialPosition() (pos *Position) {
 
 // EmptyPosition returns an empty Position struct
 func EmptyPosition() (pos *Position) {
-	return &Position{}
+	return &Position{
+		positionHistory: *NewPositionHistory(),
+	}
 }

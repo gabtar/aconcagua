@@ -20,21 +20,22 @@ package aconcagua
 type castling int8
 
 const (
-	q    = castling(0b0001)
-	k    = castling(0b0010)
-	kq   = castling(0b0011)
-	Q    = castling(0b0100)
-	Qq   = castling(0b0101)
-	Qk   = castling(0b0110)
-	Qkq  = castling(0b0111)
-	K    = castling(0b1000)
-	Kq   = castling(0b1001)
-	Kk   = castling(0b1010)
-	Kkq  = castling(0b1011)
-	KQ   = castling(0b1100)
-	KQq  = castling(0b1101)
-	KQk  = castling(0b1110)
-	KQkq = castling(0b1111)
+	noCastling = castling(0b0000)
+	q          = castling(0b0001)
+	k          = castling(0b0010)
+	kq         = castling(0b0011)
+	Q          = castling(0b0100)
+	Qq         = castling(0b0101)
+	Qk         = castling(0b0110)
+	Qkq        = castling(0b0111)
+	K          = castling(0b1000)
+	Kq         = castling(0b1001)
+	Kk         = castling(0b1010)
+	Kkq        = castling(0b1011)
+	KQ         = castling(0b1100)
+	KQq        = castling(0b1101)
+	KQk        = castling(0b1110)
+	KQkq       = castling(0b1111)
 )
 
 // castleMap matchs a castle string to a castle type representation
@@ -118,4 +119,33 @@ func (c *castling) remove(castle castling) {
 // canCastle returns if the passed castle is allowed
 func (c *castling) canCastle(to castling) bool {
 	return *c&to > 0
+}
+
+// updateCastle updates the castling rights when making a move
+func (c *castling) updateCastle(from int, to int) {
+	// got the idea from Tom Kerrigan's TSCP engine
+	// based on the from/to squares of the move we can update the castle rights after making a move as following
+	// with the from square, we are either moving a rook (disables the castling right asociated to that rook)
+	// or the king, in that case disables both castling rights for that color(black/white)
+	// with the to square, means we are attaking a rook/capturing move, so we wil have to disable the castling
+	// right asociated with that rook after that move
+	if *c == 0 {
+		return
+	}
+
+	casltesToDisable := castling(0)
+	sqOrder := []int{0, 7, 4, 56, 60, 63}
+	fromModifier := []castling{Q, K, KQ, q, kq, k}
+	toModifier := []castling{Q, K, 0, q, 0, k}
+
+	for i, sq := range sqOrder {
+		if from == sq {
+			casltesToDisable |= fromModifier[i]
+		}
+		if to == sq {
+			casltesToDisable |= toModifier[i]
+		}
+	}
+
+	c.remove(casltesToDisable)
 }

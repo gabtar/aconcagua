@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// MaxSearchDepth is the maximum depth of the search
+const MaxSearchDepth = 50
+
 // UciCommand handles a uci command instruction from the gui
 type UciCommand func(en *Engine, stdout chan string, params ...string)
 
@@ -44,10 +47,10 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 			for _, legalMove := range en.pos.LegalMoves().moves {
 				if legalMove.String() == move {
 					en.pos.MakeMove(&legalMove)
-					en.pos.positionHistory = *NewPositionHistory()
 				}
 			}
 		}
+		en.pos.positionHistory.clear()
 	}
 }
 
@@ -67,7 +70,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 			return
 		}
 	}
-	depth := 10 // max default depth search
+	depth := MaxSearchDepth
 
 	depthIndex := findParam(params, "depth")
 	wtime := findParam(params, "wtime")
@@ -83,8 +86,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 	}
 
 	go func() {
-		score := en.search.root(&en.pos, depth, stdout)
-		pv := en.search.pv
+		score, bestMove := en.search.root(&en.pos, depth, stdout)
 
 		absScore := abs(score)
 		isMate := absScore >= MateScore-depth
@@ -95,7 +97,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 			stdout <- "info score cp " + strconv.Itoa(score)
 		}
 
-		stdout <- "bestmove " + (*pv)[0].String()
+		stdout <- "bestmove " + bestMove
 	}()
 }
 
@@ -168,7 +170,6 @@ func readStdin(input chan string) {
 // writeStdout writes strings to standard output (form engine to GUI)
 func writeStdout(output <-chan string) {
 	for cmd := range output {
-		strings.TrimSpace(cmd)
 		fmt.Println(cmd)
 	}
 }
@@ -207,7 +208,7 @@ func divideCommand(en *Engine, stdout chan string, params ...string) {
 		stdout <- "invalid command"
 		return
 	}
-	for _, perft := range strings.Split(en.pos.Divide(depth), ",") {
+	for perft := range strings.SplitSeq(en.pos.Divide(depth), ",") {
 		stdout <- perft
 	}
 }

@@ -47,9 +47,8 @@ func (pos *Position) see(from int, to int) int {
 	side := pos.Turn
 	fromSq := bitboardFromIndex(from)
 
-	// NOTE: use % 6 to convert black pieces to white pieces. The piece value array is the same for both sides. Must refactor this later
-	targetPiece := pos.PieceAt(squareReference[to]) % 6
-	attackerPiece := pos.PieceAt(squareReference[from]) % 6
+	targetPiece := pieceRole(pos.PieceAt(squareReference[to]))
+	attackerPiece := pieceRole(pos.PieceAt(squareReference[from]))
 
 	blockers := ^pos.EmptySquares()
 	attackers := pos.attackers(to, side, blockers) | pos.attackers(to, side.Opponent(), blockers)
@@ -79,14 +78,6 @@ func (pos *Position) see(from int, to int) int {
 	}
 
 	return materialGain[0]
-}
-
-// max returns the maximum of a and b
-func max(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 // attackers returns a bitboard with all the attackers of the square passed

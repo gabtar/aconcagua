@@ -1,53 +1,77 @@
 package aconcagua
 
-import "math/rand"
+import "math/rand/v2"
 
-// zobritsKeys contains the random keys to create the zobrist hash of a position
-var zobristKeys = initZobristKeys()
+// zobristHashKeys contains the random keys to create the zobrist hash of a position
+var zobristHashKeys = HashKeys{}
 
-// zorbistKeyIndex returns the index of the zorbistKey array for a given piece
-// on a given square
-func zobristKeyIndex(piece int, sq int) int {
-	return (64 * piece) + sq
+// HashKeys contains the random keys to create the zobrist hash of a position
+// piecesKey - 1 number for each piece at each square 12 pieces x 64 squares = 768
+// sideKey - 1 number for the side to move
+// castleKey - 1 number for each castle right (16 posibles combinations)
+// epKey - 1 number for each en passant square (8 files)
+type HashKeys struct {
+	piecesSquaresKey [769]uint64
+	casltesKey       [16]uint64
+	epKey            [8]uint64
+	sideKey          uint64
 }
 
-// zorbistHash calculates the hash of a given position
-func zobristHash(pos *Position) (hash uint64) {
+func init() {
+	r := rand.NewPCG(43, 28)
+	for i := range zobristHashKeys.piecesSquaresKey {
+		zobristHashKeys.piecesSquaresKey[i] = uint64(r.Uint64())
+	}
+	for i := range zobristHashKeys.casltesKey {
+		zobristHashKeys.casltesKey[i] = uint64(r.Uint64())
+	}
+	zobristHashKeys.sideKey = uint64(r.Uint64())
+	for i := range zobristHashKeys.epKey {
+		zobristHashKeys.epKey[i] = uint64(r.Uint64())
+	}
+}
+
+// fullZorbistHash calculates the hash of a given position
+func (hk *HashKeys) fullZobristHash(pos *Position) (hash uint64) {
 	for pieceType, bb := range pos.Bitboards {
 		for bb > 0 {
 			sqNumber := Bsf(bb)
-			hash = hash ^ zobristKeys[zobristKeyIndex(pieceType, sqNumber)]
+			hash = hash ^ zobristHashKeys.piecesSquaresKey[64*pieceType+sqNumber]
 			bb &= ^Bitboard(0b1 << sqNumber)
 		}
 	}
 
 	if pos.Turn == Black {
-		hash = hash ^ zobristKeys[768]
+		hash = hash ^ zobristHashKeys.sideKey
 	}
 
-	castleKey := 769
-	for idx, castl := range []castling{K, Q, k, q} {
-		if pos.castlingRights.canCastle(castl) {
-			hash = hash ^ zobristKeys[castleKey+idx]
-		}
-	}
+	hash = hash ^ zobristHashKeys.casltesKey[int(pos.castlingRights)]
 
 	if pos.enPassantTarget != 0 {
-		hash = hash ^ zobristKeys[772+Bsf(pos.enPassantTarget)%8]
+		hash = hash ^ zobristHashKeys.epKey[Bsf(pos.enPassantTarget)%8]
 	}
 	return
 }
 
-// initZorbistKey returns an array of random numbers
-//
-//	One number for each piece at each square (12 x 64) pieceType (int) x square Number
-//	One number to indicate the side to move is black (1)  zorbistKey[768]
-//	Four numbers to indicate the castling rights, though usually 16 (2^4) are used for speed (4) zorbistKey[769 - 772]
-//	Eight numbers to indicate the file of a valid En passant square, if any (8) zorbistKey[773 - 780] only account the file
-func initZobristKeys() (zorbistKeys [781]uint64) {
-	for i := range zorbistKeys {
-		zorbistKeys[i] = uint64(rand.Int63())
-	}
+// getPieceSquareKey returns the zobrist key for a given piece and square
+func (hk *HashKeys) getPieceSquareKey(pieceType, sqNumber int) uint64 {
+	return hk.piecesSquaresKey[64*pieceType+sqNumber]
+}
 
-	return
+// getCastleKey returns the zobrist key for a given castle
+func (hk *HashKeys) getCastleKey(castl castling) uint64 {
+	return hk.casltesKey[int(castl)]
+}
+
+// getSideKey returns the zobrist key for the side to move
+func (hk *HashKeys) getSideKey() uint64 {
+	return hk.sideKey
+}
+
+// getEpKey returns the zobrist key for a given en passant square
+func (hk *HashKeys) getEpKey(sqNumber int) uint64 {
+	if sqNumber == 0 {
+		return 0
+	}
+	return hk.epKey[sqNumber%8]
 }

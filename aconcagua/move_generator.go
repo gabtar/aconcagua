@@ -177,7 +177,6 @@ func genEpPawnCaptures(pos *Position, side Color, ml *moveList) {
 			ml.add(move)
 		}
 		pos.UnmakeMove(&move)
-
 	}
 }
 

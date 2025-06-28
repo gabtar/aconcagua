@@ -25,7 +25,7 @@ func findMagicNumber(square int, isRook bool) (magic Bitboard) {
 
 	attacksPatterns := make([]Bitboard, blockersConfigurations)
 	blockersPatterns := make([]Bitboard, blockersConfigurations)
-	for i := 0; i < blockersConfigurations; i++ {
+	for i := range blockersConfigurations {
 		blockersPatterns[i] = generateBlockConfiguration(i, attackMask)
 
 		if isRook {
@@ -35,7 +35,7 @@ func findMagicNumber(square int, isRook bool) (magic Bitboard) {
 		}
 	}
 
-	for i := 0; i < 1000000; i++ {
+	for range 1000000 {
 		magic = Bitboard(rand.Uint64() & rand.Uint64() & rand.Uint64())
 
 		if Bitboard((attackMask*magic)&0xffffffffffffffff) < 6 {
@@ -44,7 +44,7 @@ func findMagicNumber(square int, isRook bool) (magic Bitboard) {
 
 		used := make([]Bitboard, blockersConfigurations)
 		fail := false
-		for j := 0; j < blockersConfigurations; j++ {
+		for j := range blockersConfigurations {
 			magicIndex := (magic * blockersPatterns[j]) >> (64 - maskTotalBits)
 			if used[magicIndex] == 0 {
 				used[magicIndex] = attacksPatterns[j]
@@ -64,14 +64,14 @@ func findMagicNumber(square int, isRook bool) (magic Bitboard) {
 func GenerateMagicNumbersForRooksAndBishops() {
 	fmt.Println("Rooks magic numbers: ")
 	fmt.Println("---------------------")
-	for i := 0; i < 64; i++ {
+	for i := range 64 {
 		rookMagics[i] = findMagicNumber(i, true)
 		fmt.Printf("sq %d: 0x%x,\n", i, rookMagics[i])
 	}
 
 	fmt.Println("Bishops magic numbers: ")
 	fmt.Println("-----------------------")
-	for i := 0; i < 64; i++ {
+	for i := range 64 {
 		bishopMagics[i] = findMagicNumber(i, false)
 		fmt.Printf("sq %d: 0x%x,\n", i, bishopMagics[i])
 	}
