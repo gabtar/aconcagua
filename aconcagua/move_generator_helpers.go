@@ -56,8 +56,8 @@ func (pos *Position) generatePositionData() PositionData {
 
 // generateDirections generates all posible directions between all squares in the board
 func generateDirections() (directions [64][64]uint64) {
-	for from := 0; from < 64; from++ {
-		for to := 0; to < 64; to++ {
+	for from := range 64 {
+		for to := range 64 {
 			//  Direction of 2 squares
 			//  Based on ±File±Column difference
 			//   ---------------------
@@ -102,7 +102,7 @@ func generateDirections() (directions [64][64]uint64) {
 func generateRayAttacks() (rayAttacks [8][64]Bitboard) {
 	directions := [8]uint64{North, NorthEast, East, SouthEast, South, SouthWest, West, NorthWest}
 
-	for sq := 0; sq < 64; sq++ {
+	for sq := range 64 {
 		rank, file := sq/8, sq%8
 		for _, dir := range directions {
 			switch dir {
@@ -146,7 +146,7 @@ func generateRayAttacks() (rayAttacks [8][64]Bitboard) {
 
 // generateKnightAttacks returns a precalculated array for all posible knight moves from each square in the board
 func generateKnightAttacks() (knightAttacksTable [64]Bitboard) {
-	for sq := 0; sq < 64; sq++ {
+	for sq := range 64 {
 		from := Bitboard(1 << sq)
 
 		notInHFile := from & ^(from & files[7])

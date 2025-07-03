@@ -889,3 +889,47 @@ func TestMultilePawnAttacks(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestMoveGeneratorHasNextMove(t *testing.T) {
+	pos := EmptyPosition()
+	hashMove := encodeMove(0, 0, quiet)
+	killers := Killer{NoMove, NoMove}
+	mg := NewMoveGenerator(pos, hashMove, &killers)
+
+	got := mg.nextMove()
+
+	if got != NoMove {
+		t.Errorf("Expected: %v, got: %v", NoMove, got)
+	}
+}
+
+func TestMoveGeneratorNotHasNextMove(t *testing.T) {
+	pos := EmptyPosition()
+	hashMove := NoMove
+	killers := Killer{NoMove, NoMove}
+	mg := NewMoveGenerator(pos, &hashMove, &killers)
+	mg.stage = EndStage
+
+	expected := NoMove
+	got := mg.nextMove()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestMoveGeneratorCreatesCaptures(t *testing.T) {
+	pos := From("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
+	mg := NewMoveGenerator(pos, nil, nil)
+	move := NoMove
+	mg.hashMove = &move
+
+	expected := *encodeMove(36, 43, capture) // Best capture. Pawn takes rook
+	got := mg.nextMove()
+
+	// fmt.Println(got.String())
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
