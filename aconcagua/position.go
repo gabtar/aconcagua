@@ -34,6 +34,11 @@ func pieceRole(piece int) int {
 	return piece % 6
 }
 
+// side returns the color of the piece passed
+func side(piece int) Color {
+	return Color(piece / 6)
+}
+
 // piece returns the piece of the role and color passed
 func pieceColor(role int, color Color) int {
 	return role + int(color)*6
@@ -275,64 +280,6 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 		bitboards = pos.Bitboards[6:12]
 	}
 	return
-}
-
-// LegalMoves returns move list with all legal moves for the current position
-func (pos *Position) LegalMoves() *moveList {
-	bitboards := pos.getBitboards(pos.Turn)
-	ml := newMoveList()
-	pd := pos.generatePositionData()
-
-	for piece, bb := range bitboards {
-		for bb > 0 {
-			pieceBB := bb.NextBit()
-			switch piece {
-			case 0: // King
-				genTargetMoves(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn), ml, &pd)
-				genCastleMoves(&pieceBB, pos, ml)
-			case 1: // Queen
-				genTargetMoves(&pieceBB, rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd), ml, &pd)
-			case 2: // Rook
-				genTargetMoves(&pieceBB, rookMoves(&pieceBB, &pd), ml, &pd)
-			case 3: // Bishop
-				genTargetMoves(&pieceBB, bishopMoves(&pieceBB, &pd), ml, &pd)
-			case 4: // Knight
-				genTargetMoves(&pieceBB, knightMoves(&pieceBB, &pd), ml, &pd)
-			case 5: // Pawn
-				genPawnMoves(&pieceBB, pos.Turn, ml, &pd)
-			}
-		}
-	}
-	genEpPawnCaptures(pos, pos.Turn, ml)
-	return ml
-}
-
-// Captures returns a move list
-func (pos *Position) Captures() *moveList {
-	bitboards := pos.getBitboards(pos.Turn)
-	ml := newMoveList()
-	pd := pos.generatePositionData()
-
-	for piece, bb := range bitboards {
-		for bb > 0 {
-			pieceBB := bb.NextBit()
-			switch piece {
-			case 0: // King
-				genTargetMoves(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&pd.enemies, ml, &pd)
-			case 1: // Queen
-				genTargetMoves(&pieceBB, (rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd))&pd.enemies, ml, &pd)
-			case 2: // Rook
-				genTargetMoves(&pieceBB, rookMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
-			case 3: // Bishop
-				genTargetMoves(&pieceBB, bishopMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
-			case 4: // Knight
-				genTargetMoves(&pieceBB, knightMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
-			case 5: // Pawn
-				genPawnCaptures(&pieceBB, pos.Turn, ml, &pd)
-			}
-		}
-	}
-	return ml
 }
 
 // MakeMove executes a chess move, updating the board state
@@ -591,7 +538,11 @@ func (pos *Position) ToFen() (fen string) {
 
 // Checkmate returns if the passed side is in checkmate on the current position
 func (pos *Position) Checkmate(side Color) (checkmate bool) {
-	if pos.LegalMoves().length == 0 && pos.Check(side) {
+	ml := NewMoveList(255)
+	pos.generateCaptures(&ml)
+	pos.generateNonCaptures(&ml)
+
+	if len(ml) == 0 && pos.Check(side) {
 		checkmate = true
 	} else {
 		checkmate = false

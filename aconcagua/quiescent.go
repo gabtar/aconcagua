@@ -16,18 +16,18 @@ func quiescent(pos *Position, s *Search, alpha int, beta int) int {
 		alpha = score
 	}
 
-	ml := pos.Captures()
-	seeScores := ml.sort(scoreSeeCaptures(pos, ml))
+	ml := NewMoveList(40)
+	pos.generateCaptures(&ml)
 
-	for i := range ml.length {
-		// Skip if we are losing material
-		if seeScores[i] < 0 {
+	for i := range len(ml) {
+		see := pos.see(ml[i].from(), ml[i].to())
+		if see < 0 {
 			continue
 		}
 
-		pos.MakeMove(&ml.moves[i])
+		pos.MakeMove(&ml[i])
 		score = -quiescent(pos, s, -beta, -alpha)
-		pos.UnmakeMove(&ml.moves[i])
+		pos.UnmakeMove(&ml[i])
 		if score >= beta {
 			return beta
 		}
@@ -108,13 +108,4 @@ func (pos *Position) getLeastValuableAttacker(attackers Bitboard, side Color) (B
 		}
 	}
 	return Bitboard(0), NoPiece
-}
-
-// scoreSeeCaptures scores each capture by static exchange evaluation and filter see < 0
-func scoreSeeCaptures(pos *Position, ml *moveList) []int {
-	scores := make([]int, ml.length)
-	for i := range ml.length {
-		scores[i] = pos.see(ml.moves[i].from(), ml.moves[i].to())
-	}
-	return scores
 }
