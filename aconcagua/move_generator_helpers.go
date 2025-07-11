@@ -264,7 +264,7 @@ func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 	notInHFile := epShift & ^(epShift & files[7])
 	notInAFile := epShift & ^(epShift & files[0])
 
-	epCaptures |= pos.getBitboards(side)[5] & (notInAFile>>1 | notInHFile<<1)
+	epCaptures |= pos.getBitboards(side)[Pawn] & (notInAFile>>1 | notInHFile<<1)
 	return
 }
 

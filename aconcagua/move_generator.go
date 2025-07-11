@@ -73,7 +73,6 @@ func bishopMoves(b *Bitboard, pd *PositionData) (moves Bitboard) {
 	return bishopAttacks(Bsf(*b), pd.allies|pd.enemies) &
 		^pd.allies &
 		pd.checkRestrictedSquares &
-		// checkRestrictedSquares(pd.kingPosition, pd.checkingSliders, pd.checkingNonSliders) &
 		pinRestrictedSquares(*b, pd.kingPosition, pd.pinnedPieces)
 }
 
@@ -290,6 +289,7 @@ type MoveGenerator struct {
 
 // NewMoveGenerator returns a new move generator
 func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, historyMoves *HistoryMoves) *MoveGenerator {
+	// TODO: maybe validate killers first(here) or set null move if the are not valid for this branch of the search tree...
 	return &MoveGenerator{
 		stage:        HashMoveStage,
 		pos:          pos,
@@ -297,7 +297,7 @@ func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Mov
 		killer1:      killer1,
 		killer2:      killer2,
 		moveNumber:   -1,              // NOTE: initialize with -1 to make first move picked moveNumber = 0
-		captures:     NewMoveList(30), // TODO: check if 50 and 100 default allocated capacity is enought for most cases
+		captures:     NewMoveList(30), // TODO: check if 30 and 100 default allocated capacity is enought for most cases
 		nonCaptures:  NewMoveList(100),
 		historyMoves: historyMoves,
 	}
@@ -337,14 +337,14 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 		move = *mg.killer1
 		// NOTE: seems it also needed to check legality of the killer in this position, because we may have stored a killer for the same ply but in another branch of the search tree
 		// need to find a way to validate without having to generate all legal moves...
-		if move != NoMove && move != *mg.hashMove && isLegal(move, mg.pos) {
+		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, mg.pos) {
 			return move
 		}
 		fallthrough
 	case SecondKillerStage:
 		mg.stage = GenerateNonCapturesStage
 		move = *mg.killer2
-		if move != NoMove && move != *mg.hashMove && isLegal(move, mg.pos) {
+		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, mg.pos) {
 			return move
 		}
 		fallthrough
@@ -375,17 +375,9 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 	return
 }
 
-// isLegal returns if the move is legal in the current position
-func isLegal(move Move, pos *Position) bool {
-	// TODO:
-	// Try to validate the move via easy refutations so as to avoid creating the whole move list to validate is a legal move
-	// 1. The from square has a valid piece???
-	// 2. The to sqaure is empty/enemy piece???
-	// 3. The piece can reach the destination square??? (can attack or move there)
-	// 4. If it can attack the square(cheaper than leagal move verification), is it legal?? eg. not pinned, not in check
-	// 5. Check special move conditions for Castle/enPassant
-
-	// Killer must be a != capture, so white these is enought
+// isLegalKiller returns if the move is legal in the current position
+func isLegalKiller(move Move, pos *Position) bool {
+	// Killer moves are always quiet, so we can just check the non captures
 	ml := NewMoveList(50)
 	pos.generateNonCaptures(&ml)
 	for i := range len(ml) {

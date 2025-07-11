@@ -34,11 +34,6 @@ func pieceRole(piece int) int {
 	return piece % 6
 }
 
-// side returns the color of the piece passed
-func side(piece int) Color {
-	return Color(piece / 6)
-}
-
 // piece returns the piece of the role and color passed
 func pieceColor(role int, color Color) int {
 	return role + int(color)*6

@@ -29,8 +29,8 @@ type Search struct {
 	nodes              int
 	currentDepth       int
 	maxDepth           int
-	PVTable            PVTable
-	killers            [100]Killer
+	pvLine             pvLine
+	killers            [MaxSearchDepth]Killer
 	historyMoves       HistoryMoves
 	transpositionTable *TranspositionTable
 	timeControl        *TimeControl
@@ -41,7 +41,7 @@ func (s *Search) init(depth int) {
 	s.nodes = 0
 	s.currentDepth = 0
 	s.maxDepth = depth
-	s.killers = [100]Killer{}
+	s.killers = [MaxSearchDepth]Killer{}
 	s.historyMoves = HistoryMoves{}
 	s.transpositionTable = NewTranspositionTable(DefaultTableSizeInMb)
 }
@@ -50,7 +50,7 @@ func (s *Search) init(depth int) {
 func (s *Search) reset(currentDepth int) {
 	s.currentDepth = currentDepth
 	s.nodes = 0
-	s.PVTable = NewPVTable(MaxSearchDepth)
+	s.pvLine = NewPvLine(MaxSearchDepth)
 }
 
 // HistoryMoves is a table for holding the history of moves
@@ -66,7 +66,7 @@ type Killer [2]Move
 
 // add adds a non capture move to the killer list
 func (k *Killer) add(move Move) {
-	if move.flag() != capture {
+	if move.flag() == quiet {
 		k[1] = k[0]
 		k[0] = move
 	}
@@ -82,7 +82,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 		s.reset(d)
 
 		lastScore := bestMoveScore
-		bestMoveScore = s.negamax(pos, d, 0, alpha, beta, true)
+		bestMoveScore = s.negamax(pos, d, 0, alpha, beta, &s.pvLine, true)
 
 		// If stop by time, set last iteration score and best move/pv
 		if s.timeControl.stop {
@@ -102,8 +102,8 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 
 		depthTime := time.Since(s.timeControl.iterationStartTime)
 		s.timeControl.iterationStartTime = time.Now()
-		stdout <- fmt.Sprintf("info depth %d nodes %d time %v pv %v", d, s.nodes, depthTime.Milliseconds(), s.PVTable[0].String())
-		bestMove = s.PVTable[0].moves[0].String()
+		stdout <- fmt.Sprintf("info depth %d nodes %d time %v pv %v", d, s.nodes, depthTime.Milliseconds(), s.pvLine.String())
+		bestMove = s.pvLine[0].String()
 	}
 
 	return
@@ -111,7 +111,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 
 // negamax returns the score of the best posible move by the evaluation function
 // for a fixed depth
-func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, nullMoveAllowed bool) int {
+func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, pvLine *pvLine, nullMoveAllowed bool) int {
 	s.nodes++
 	if s.timeControl.stop {
 		return 0
@@ -133,11 +133,13 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	flag := FlagAlpha
 	isCheck := pos.Check(pos.Turn)
+	branchPv := NewPvLine(depth)
+	pvLine.reset()
 
 	// Null Move Pruning
 	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode {
 		ep := pos.makeNullMove()
-		sc := -s.negamax(pos, depth-4, ply+1, -beta, -beta+1, false)
+		sc := -s.negamax(pos, depth-4, ply+1, -beta, -beta+1, &branchPv, false)
 		pos.unmakeNullMove(ep)
 
 		if sc >= beta {
@@ -158,7 +160,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
 		pos.MakeMove(&move)
-		s.PVTable.reset(ply + 1)
+		branchPv.reset()
 		moveFlag := move.flag()
 
 		// Futility Pruning
@@ -167,23 +169,23 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			continue
 		}
 
-		// Principal Variation Search
-		// Full search at first attempt of this subtree
 		extension := 0
 		if isCheck {
 			extension = 1
 		}
 
+		// Principal Variation Search
+		// Full search at first attempt of this subtree
 		if mg.moveNumber == 0 {
-			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, true)
+			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
 		} else {
 			// Try first a quick, reduced search, with lmr and a null window(-alpha-1, -alpha)
-			lmrFactor := lmrReductionFactor(depth, mg.moveNumber, moveFlag, isCheck, pvNode)
-			newScore = -s.negamax(pos, depth-1-lmrFactor+extension, ply+1, -alpha-1, -alpha, true)
+			reduction := lmrReductionFactor(depth, mg.moveNumber, moveFlag, isCheck, pvNode)
+			newScore = -s.negamax(pos, depth-1-reduction+extension, ply+1, -alpha-1, -alpha, &branchPv, true)
 
 			// If an improvement was found, we need to search again with a full window and depth
 			if newScore > alpha {
-				newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, true)
+				newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
 			}
 		}
 		pos.UnmakeMove(&move)
@@ -192,7 +194,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta, move)
 			s.killers[ply].add(move)
 
-			if flag != capture {
+			if flag == quiet {
 				s.historyMoves.update(depth, move.from(), move.to(), pos.Turn)
 			}
 			return beta
@@ -202,7 +204,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			flag = FlagExact
 
 			alpha = newScore
-			s.PVTable[ply].prepend(move, &s.PVTable[ply+1])
+			pvLine.insert(move, &branchPv)
 		}
 	}
 
@@ -216,9 +218,10 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 }
 
 // lrmReductionFactor returns a number to reduce the depth on search based on the conditions passed
-func lmrReductionFactor(depth int, moveNumber int, moveFlag int, isCheck, foundPv bool) int {
-	if isCheck || foundPv || depth < 3 || moveNumber < 4 || moveFlag == capture || moveFlag >= knightPromotion {
+func lmrReductionFactor(depth int, moveNumber int, moveFlag int, isCheck, pvNode bool) int {
+	if isCheck || pvNode || depth < 3 || moveNumber < 4 || moveFlag >= capture {
 		return 0
 	}
+
 	return int(0.5 + math.Log(float64(depth))*math.Log(float64(moveNumber))/2.0)
 }
