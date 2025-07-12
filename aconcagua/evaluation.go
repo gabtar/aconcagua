@@ -20,10 +20,7 @@ func Eval(pos *Position) int {
 		}
 	}
 
-	mgPhase := phase
-	if mgPhase > 62 {
-		mgPhase = 62 // case of an early promotion
-	}
+	mgPhase := min(phase, 62)
 	egPhase := 62 - mgPhase
 
 	turn := pos.Turn

@@ -44,7 +44,11 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 
 	if movesIndex != -1 {
 		for _, move := range params[movesIndex:] {
-			for _, legalMove := range en.pos.LegalMoves().moves {
+			ml := NewMoveList(255)
+			en.pos.generateCaptures(&ml)
+			en.pos.generateNonCaptures(&ml)
+
+			for _, legalMove := range ml {
 				if legalMove.String() == move {
 					en.pos.MakeMove(&legalMove)
 				}

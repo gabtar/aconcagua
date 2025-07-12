@@ -149,3 +149,44 @@ func (c *castling) updateCastle(from int, to int) {
 
 	c.remove(casltesToDisable)
 }
+
+// canCastleShort checks if the king can castle short on the pased position
+func canCastleShort(from *Bitboard, pos *Position, side Color) bool {
+	if !pos.castlingRights.canCastle(K) && side == White {
+		return false
+	}
+	if !pos.castlingRights.canCastle(k) && side == Black {
+		return false
+	}
+
+	shortCastlePath := (files[5] | files[6]) & (*from<<2 | *from<<1)
+	kingSquaresAttacked := pos.AttackedSquares(side.Opponent())&(shortCastlePath|*from) > 0
+	kingSquaresClear := pos.EmptySquares()&shortCastlePath == shortCastlePath
+
+	if !kingSquaresAttacked && kingSquaresClear {
+		return true
+	}
+
+	return false
+}
+
+// canCastleLong checks if the king can castle long
+func canCastleLong(from *Bitboard, pos *Position, side Color) bool {
+	if !pos.castlingRights.canCastle(Q) && side == White {
+		return false
+	}
+	if !pos.castlingRights.canCastle(q) && side == Black {
+		return false
+	}
+
+	longCastlePath := (files[1] | files[2] | files[3]) & (*from>>3 | *from>>2 | *from>>1)
+	kingPassSquares := *from>>2 | *from>>1 | *from
+	kingSquaresAttacked := pos.AttackedSquares(side.Opponent())&(kingPassSquares) > 0
+	kingSquaresClear := pos.EmptySquares()&longCastlePath == longCastlePath
+
+	if !kingSquaresAttacked && kingSquaresClear {
+		return true
+	}
+
+	return false
+}

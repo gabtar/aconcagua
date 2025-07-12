@@ -29,16 +29,6 @@ const (
 	Pawn   = 5
 )
 
-// pieceRole returns the role/type of the piece passed
-func pieceRole(piece int) int {
-	return piece % 6
-}
-
-// piece returns the piece of the role and color passed
-func pieceColor(role int, color Color) int {
-	return role + int(color)*6
-}
-
 // squareReference maps an integer(the index of the array) with the
 // corresponding square by using the notation of Little-Endian Rank-File Mapping
 var squareReference = []string{
@@ -68,6 +58,38 @@ var pieceReference = map[string]int{
 	"P": WhitePawn,
 }
 
+// pieceRole returns the role/type of the piece passed
+func pieceRole(piece int) int {
+	return piece % 6
+}
+
+// piece returns the piece of the role and color passed
+func pieceColor(role int, color Color) int {
+	return role + int(color)*6
+}
+
+// isSliding returns a the passed Piece is an sliding piece(Queen, Rook or Bishop)
+func isSliding(piece int) bool {
+	return (piece >= WhiteQueen && piece <= WhiteBishop) ||
+		(piece >= BlackQueen && piece <= BlackBishop)
+}
+
+// Color is an int referencing the white or black player in chess
+type Color int
+
+const (
+	White Color = iota
+	Black
+)
+
+// Opponent returns the Opponent color to the actual color
+func (c Color) Opponent() Color {
+	if c == White {
+		return Black
+	}
+	return White
+}
+
 // Position contains all information about a chess position
 type Position struct {
 	// Bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
@@ -79,6 +101,29 @@ type Position struct {
 	halfmoveClock   int
 	fullmoveNumber  int
 	positionHistory PositionHistory
+}
+
+// PositionData contains relevant data for legal move validations of a position
+type PositionData struct {
+	kingPosition           Bitboard
+	checkRestrictedSquares Bitboard
+	pinnedPieces           Bitboard
+	allies                 Bitboard
+	enemies                Bitboard
+}
+
+// generatePositionData returns the position data for the current position
+func (pos *Position) generatePositionData() PositionData {
+	checkingPieces, checkingSliders := pos.CheckingPieces(pos.Turn)
+	checkRestrictedSquares := checkRestrictedSquares(pos.KingPosition(pos.Turn), checkingSliders, checkingPieces&^checkingSliders)
+
+	return PositionData{
+		kingPosition:           pos.KingPosition(pos.Turn),
+		checkRestrictedSquares: checkRestrictedSquares,
+		pinnedPieces:           pos.pinnedPieces(pos.Turn),
+		allies:                 pos.Pieces(pos.Turn),
+		enemies:                pos.Pieces(pos.Turn.Opponent()),
+	}
 }
 
 // PieceAt returns a Piece at the given square coordinate in the Position or error
@@ -143,27 +188,6 @@ func startingPieceNumber(side Color) int {
 		startingBitboard = 6
 	}
 	return startingBitboard
-}
-
-// Attacks returns a bitboard with all the squares the piece passed attacks
-func Attacks(piece int, from Bitboard, blocks Bitboard) (attacks Bitboard) {
-	switch piece {
-	case WhiteKing, BlackKing:
-		attacks |= kingAttacks(&from)
-	case WhiteQueen, BlackQueen:
-		attacks |= queenAttacks(&from, blocks)
-	case WhiteRook, BlackRook:
-		attacks |= rookAttacks(Bsf(from), blocks)
-	case WhiteBishop, BlackBishop:
-		attacks |= bishopAttacks(Bsf(from), blocks)
-	case WhiteKnight, BlackKnight:
-		attacks |= knightAttacksTable[Bsf(from)]
-	case WhitePawn:
-		attacks |= pawnAttacks(&from, White)
-	case BlackPawn:
-		attacks |= pawnAttacks(&from, Black)
-	}
-	return
 }
 
 // CheckingPieces returns two Bitboards, one with all the checking pieces and one with only the checking sliders pieces
@@ -275,64 +299,6 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 		bitboards = pos.Bitboards[6:12]
 	}
 	return
-}
-
-// LegalMoves returns move list with all legal moves for the current position
-func (pos *Position) LegalMoves() *moveList {
-	bitboards := pos.getBitboards(pos.Turn)
-	ml := newMoveList()
-	pd := pos.generatePositionData()
-
-	for piece, bb := range bitboards {
-		for bb > 0 {
-			pieceBB := bb.NextBit()
-			switch piece {
-			case 0: // King
-				genTargetMoves(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn), ml, &pd)
-				genCastleMoves(&pieceBB, pos, ml)
-			case 1: // Queen
-				genTargetMoves(&pieceBB, rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd), ml, &pd)
-			case 2: // Rook
-				genTargetMoves(&pieceBB, rookMoves(&pieceBB, &pd), ml, &pd)
-			case 3: // Bishop
-				genTargetMoves(&pieceBB, bishopMoves(&pieceBB, &pd), ml, &pd)
-			case 4: // Knight
-				genTargetMoves(&pieceBB, knightMoves(&pieceBB, &pd), ml, &pd)
-			case 5: // Pawn
-				genPawnMoves(&pieceBB, pos.Turn, ml, &pd)
-			}
-		}
-	}
-	genEpPawnCaptures(pos, pos.Turn, ml)
-	return ml
-}
-
-// Captures returns a move list
-func (pos *Position) Captures() *moveList {
-	bitboards := pos.getBitboards(pos.Turn)
-	ml := newMoveList()
-	pd := pos.generatePositionData()
-
-	for piece, bb := range bitboards {
-		for bb > 0 {
-			pieceBB := bb.NextBit()
-			switch piece {
-			case 0: // King
-				genTargetMoves(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&pd.enemies, ml, &pd)
-			case 1: // Queen
-				genTargetMoves(&pieceBB, (rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd))&pd.enemies, ml, &pd)
-			case 2: // Rook
-				genTargetMoves(&pieceBB, rookMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
-			case 3: // Bishop
-				genTargetMoves(&pieceBB, bishopMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
-			case 4: // Knight
-				genTargetMoves(&pieceBB, knightMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
-			case 5: // Pawn
-				genPawnCaptures(&pieceBB, pos.Turn, ml, &pd)
-			}
-		}
-	}
-	return ml
 }
 
 // MakeMove executes a chess move, updating the board state
@@ -530,7 +496,7 @@ func (pos *Position) makeNullMove() Bitboard {
 		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
 	}
 	ep := pos.enPassantTarget
-	pos.enPassantTarget = 0 // NOTE: IMPORTANT!!!! - If not done search goes inestable and outputs random moves eg. promotions....
+	pos.enPassantTarget = 0 // NOTE: IMPORTANT! - If not done search goes inestable and outputs random moves eg. promotions....
 	return ep
 }
 
@@ -591,7 +557,11 @@ func (pos *Position) ToFen() (fen string) {
 
 // Checkmate returns if the passed side is in checkmate on the current position
 func (pos *Position) Checkmate(side Color) (checkmate bool) {
-	if pos.LegalMoves().length == 0 && pos.Check(side) {
+	ml := NewMoveList(100)
+	pos.generateCaptures(&ml)
+	pos.generateNonCaptures(&ml)
+
+	if len(ml) == 0 && pos.Check(side) {
 		checkmate = true
 	} else {
 		checkmate = false

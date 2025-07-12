@@ -269,12 +269,12 @@ func TestGenKingMoves(t *testing.T) {
 	pos.AddPiece(WhiteRook, "a1")
 	pos.castlingRights = KQ
 	kingBB := bitboardFromCoordinates("e1")
-	ml := newMoveList()
+	ml := NewMoveList(100)
 	pd := pos.generatePositionData()
 
 	expected := 5 // Castles moves are treated separately
-	genTargetMoves(&kingBB, kingMoves(&kingBB, pos, White), ml, &pd)
-	got := ml.length
+	genMovesFromTargets(&kingBB, kingMoves(&kingBB, pos, White), &ml, &pd)
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -288,12 +288,12 @@ func TestGenCastles(t *testing.T) {
 	pos.AddPiece(WhiteRook, "a1")
 	pos.castlingRights = KQ
 	kingBB := bitboardFromCoordinates("e1")
-	ml := newMoveList()
+	ml := NewMoveList(100)
 
 	expected := 2 // Castles moves are treated separately
 
-	genCastleMoves(&kingBB, pos, ml)
-	got := ml.length
+	genCastleMoves(&kingBB, pos, &ml)
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -444,14 +444,14 @@ func TestGenTargetMovesForRook(t *testing.T) {
 	pos.AddPiece(WhiteKnight, "a4") // Can move(capture) white knight on a4
 	pos.AddPiece(WhiteKnight, "c8") // Can move(capture) knight on c8
 	rookBB := bitboardFromCoordinates("a8")
-	ml := newMoveList()
+	ml := NewMoveList(100)
 	pd := pos.generatePositionData()
 
-	genTargetMoves(&rookBB, rookMoves(&rookBB, &pd), ml, &pd)
+	genMovesFromTargets(&rookBB, rookMoves(&rookBB, &pd), &ml, &pd)
 	expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
 
 	expected := len(expectedSquares)
-	got := ml.length
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expectedSquares, got)
@@ -577,14 +577,14 @@ func TestGenTargetMovesForBishop(t *testing.T) {
 	pos.AddPiece(WhiteKnight, "e8") // Cannot move, blocked by same color knight
 	pos.AddPiece(WhiteRook, "f5")   // Cannot move to f5, because its blocked by Rook
 	bishopBB := bitboardFromCoordinates("g6")
-	ml := newMoveList()
+	ml := NewMoveList(100)
 	pd := pos.generatePositionData()
 
 	expectedSquares := []string{"h7", "h5", "f7"}
 
 	expected := len(expectedSquares)
-	genTargetMoves(&bishopBB, bishopMoves(&bishopBB, &pd), ml, &pd)
-	got := ml.length
+	genMovesFromTargets(&bishopBB, bishopMoves(&bishopBB, &pd), &ml, &pd)
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -666,11 +666,11 @@ func TestGenTargetMovesForKnight(t *testing.T) {
 	pos.AddPiece(WhiteRook, "d2") // Blocks Knight move
 	knightBB := bitboardFromCoordinates("b1")
 	pd := pos.generatePositionData()
-	ml := newMoveList()
+	ml := NewMoveList(100)
 
 	expected := []Move{*encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
-	genTargetMoves(&knightBB, knightMoves(&knightBB, &pd), ml, &pd)
-	got := ml.moves
+	genMovesFromTargets(&knightBB, knightMoves(&knightBB, &pd), &ml, &pd)
+	got := ml
 
 	if got[0] != expected[0] {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -833,11 +833,11 @@ func TestPawnsMoves(t *testing.T) {
 	pos := InitialPosition()
 	pawnBB := bitboardFromCoordinates("e2")
 	pd := pos.generatePositionData()
-	ml := newMoveList()
+	ml := NewMoveList(100)
 
 	expected := 2
-	genPawnMoves(&pawnBB, White, ml, &pd)
-	got := ml.length
+	genPawnMovesFromTarget(&pawnBB, pawnMoves(&pawnBB, &pd, White), White, &ml, &pd)
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -848,11 +848,11 @@ func TestPawnsMovesPromo(t *testing.T) {
 	pos := From("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("h7")
 	pd := pos.generatePositionData()
-	ml := newMoveList()
+	ml := NewMoveList(100)
 
 	expected := 4
-	genPawnMoves(&pawnBB, White, ml, &pd)
-	got := ml.length
+	genPawnMovesFromTarget(&pawnBB, pawnMoves(&pawnBB, &pd, White), White, &ml, &pd)
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -860,21 +860,21 @@ func TestPawnsMovesPromo(t *testing.T) {
 }
 
 func TestGenEpPawnCaptures(t *testing.T) {
-	ml := newMoveList()
+	ml := NewMoveList(100)
 
 	pos := From("4r3/8/8/R7/3Pp2k/8/8/4K3 b - d3 0 1")
 
-	genEpPawnCaptures(pos, Black, ml)
+	genEnPassantCaptures(pos, Black, &ml)
 
 	expected := 1
-	got := ml.length
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
 
-func TestMultilePawnAttacks(t *testing.T) {
+func TestMultiplePawnAttacks(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhitePawn, "e2")
 	pos.AddPiece(WhitePawn, "f2")

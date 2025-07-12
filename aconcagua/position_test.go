@@ -64,8 +64,12 @@ func TestPinnedPieceKnightFail(t *testing.T) {
 func TestLegalMovesOnAPositionWithPromotion(t *testing.T) {
 	pos := From("3r2k1/5ppp/8/8/8/8/pp4PP/5R1K b - - 0 1")
 
+	ml := NewMoveList(100)
+	pos.generateCaptures(&ml)
+	pos.generateNonCaptures(&ml)
+
 	expected := 28
-	got := pos.LegalMoves().length
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -75,8 +79,12 @@ func TestLegalMovesOnAPositionWithPromotion(t *testing.T) {
 func TestLegalMovesOnAPositionIllegalLongCastle(t *testing.T) {
 	pos := From("6k1/5ppp/8/7q/7b/8/5PPP/RN2K2R w KQ - 1 1")
 
+	ml := NewMoveList(100)
+	pos.generateCaptures(&ml)
+	pos.generateNonCaptures(&ml)
+
 	expected := 18
-	got := pos.LegalMoves().length
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -86,8 +94,12 @@ func TestLegalMovesOnAPositionIllegalLongCastle(t *testing.T) {
 func TestLegalMovesOnAPositionWithDoubleEnPassantCaptures(t *testing.T) {
 	pos := From("6k1/5bpp/8/1PpPN3/8/8/6PP/6K1 w - c6 0 1")
 
+	ml := NewMoveList(100)
+	pos.generateCaptures(&ml)
+	pos.generateNonCaptures(&ml)
+
 	expected := 19
-	got := pos.LegalMoves().length
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -97,8 +109,12 @@ func TestLegalMovesOnAPositionWithDoubleEnPassantCaptures(t *testing.T) {
 func TestLegalMovesOnMultiplePinsWithCheck(t *testing.T) {
 	pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/1R4K1 b - - 0 1")
 
+	ml := NewMoveList(100)
+	pos.generateCaptures(&ml)
+	pos.generateNonCaptures(&ml)
+
 	expected := 5
-	got := pos.LegalMoves().length
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -108,8 +124,12 @@ func TestLegalMovesOnMultiplePinsWithCheck(t *testing.T) {
 func TestLegalMovesOnMultiplePinsWithCheckTwo(t *testing.T) {
 	pos := From("8/1k3Rpp/1n6/3b4/8/5B2/6PP/2R3K1 b - - 0 1")
 
+	ml := NewMoveList(100)
+	pos.generateCaptures(&ml)
+	pos.generateNonCaptures(&ml)
+
 	expected := 4 // 3 of king 1 block of the knight
-	got := pos.LegalMoves().length
+	got := len(ml)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
