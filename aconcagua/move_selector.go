@@ -1,0 +1,131 @@
+package aconcagua
+
+const (
+	// Move Generation Stages flags
+	HashMoveStage = iota
+	GenerateCapturesStage
+	CapturesStage // TODO: Split into Bad captures by see < 0??
+	FirstKillerStage
+	SecondKillerStage
+	// TODO: Counter move heruistic???
+	GenerateNonCapturesStage
+	NonCapturesStage
+	EndStage
+)
+
+type MoveSelector struct {
+	stage                 int
+	moveNumber            int // the move count selected so far
+	pos                   *Position
+	hashMove              *Move
+	killer1, killer2      *Move
+	historyMoves          *HistoryMoves
+	captures, nonCaptures MoveList
+}
+
+// NewMoveGenerator returns a new move generator
+func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, historyMoves *HistoryMoves) *MoveSelector {
+	return &MoveSelector{
+		stage:        HashMoveStage,
+		pos:          pos,
+		hashMove:     hashMove,
+		killer1:      killer1,
+		killer2:      killer2,
+		moveNumber:   -1, // NOTE: initialize with -1 to make the first move selected to have moveNumber = 0
+		captures:     NewMoveList(30),
+		nonCaptures:  NewMoveList(100),
+		historyMoves: historyMoves,
+	}
+}
+
+// nextMove return the nextMove move of the position
+func (ms *MoveSelector) nextMove() (move Move) {
+	ms.moveNumber++
+	switch ms.stage {
+	case HashMoveStage:
+		ms.stage = GenerateCapturesStage
+		if *ms.hashMove != NoMove {
+			return *ms.hashMove
+		}
+		fallthrough
+	case GenerateCapturesStage:
+		ms.stage = CapturesStage
+		ms.pos.generateCaptures(&ms.captures)
+		scores := make([]int, len(ms.captures))
+		for i := range len(ms.captures) {
+			scores[i] = ms.pos.see(ms.captures[i].from(), ms.captures[i].to())
+		}
+		ms.captures.sort(scores)
+		fallthrough
+	case CapturesStage:
+		move = *ms.captures.pickFirst()
+		if move != NoMove && move == *ms.hashMove {
+			move = *ms.captures.pickFirst()
+		}
+		if move != NoMove {
+			return move
+		}
+		ms.stage = FirstKillerStage
+		fallthrough
+	case FirstKillerStage:
+		ms.stage = SecondKillerStage
+		move = *ms.killer1
+		// NOTE: we need to validate legality of killers for this position, because the may be for the same ply, but of another branch of the tree!!
+		ms.pos.generateNonCaptures(&ms.nonCaptures)
+		if move != NoMove && move != *ms.hashMove && isLegalKiller(move, &ms.nonCaptures) {
+			return move
+		}
+		fallthrough
+	case SecondKillerStage:
+		ms.stage = GenerateNonCapturesStage
+		move = *ms.killer2
+		if move != NoMove && move != *ms.hashMove && isLegalKiller(move, &ms.nonCaptures) {
+			return move
+		}
+		fallthrough
+	case GenerateNonCapturesStage:
+		ms.stage = NonCapturesStage
+		scores := make([]int, len(ms.nonCaptures))
+		for i := range len(ms.nonCaptures) {
+			scores[i] = ms.historyMoves[ms.pos.Turn][ms.nonCaptures[i].from()][ms.nonCaptures[i].to()]
+		}
+		ms.nonCaptures.sort(scores)
+		fallthrough
+	case NonCapturesStage:
+		move = *ms.nonCaptures.pickFirst()
+
+		if move != NoMove && move == *ms.hashMove {
+			move = *ms.nonCaptures.pickFirst()
+		}
+
+		if move != NoMove && move == *ms.killer1 {
+			move = *ms.nonCaptures.pickFirst()
+		}
+
+		if move != NoMove && move == *ms.killer2 {
+			move = *ms.nonCaptures.pickFirst()
+		}
+
+		if move != NoMove {
+			return move
+		}
+		ms.stage = EndStage
+		fallthrough
+	case EndStage:
+		return NoMove
+	}
+	return
+}
+
+// TODO: use another way to check legality for killers to avoid generating non captures during killers stage
+
+// isLegalKiller returns if the move is legal in the current position
+func isLegalKiller(move Move, ml *MoveList) bool {
+	// Killer moves are always quiet moves, so we can just pass the non captures list to check if killer exits
+	for i := range len(*ml) {
+		if move == (*ml)[i] {
+			return true
+		}
+	}
+	return false
+}

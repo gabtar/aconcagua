@@ -1,16 +1,48 @@
 package aconcagua
 
-/* piece/sq tables */
-/* values from Rofchade: http://www.talkchess.com/forum3/viewtopic.php?f=2&t=68311&start=19 */
+import "math"
 
-// initializes psqt for evaluation
+// Constants for orthogonal directions in the board
+const (
+	North = iota
+	NorthEast
+	East
+	SouthEast
+	South
+	SouthWest
+	West
+	NorthWest
+	Invalid
+)
+
+// directions is a table that contains the compass directions between 2 squares in the board
+var directions [64][64]uint64
+
+// rayAttacks is a precalculated table that contains the rays on each direction for each square
+var rayAttacks [8][64]Bitboard
+
+// knightAttacksTable is a precalculated table that contains the squares that a knight can attack
+var knightAttacksTable [64]Bitboard
+
+// pieces square tables with the value of each piece + square value for middlegame
+var middlegamePiecesScore [12][64]int
+
+// pieces square tables with the value of each piece + square value for endgame
+var endgamePiecesScore [12][64]int
+
+// middlegamePieceValue is the value of each piece for middlegame
+var middlegamePieceValue = [12]int{12000, 1025, 477, 365, 337, 82}
+
+// middlegamePieceValue is the value of each piece for middlegame
+var endgamePieceValue = [12]int{12000, 936, 512, 297, 281, 94}
+
+// initializes various tables for usage within the engine
 func init() {
-
-	for piece := 0; piece < 6; piece++ {
+	for piece := range 6 {
 		whitePiece := piece
 		blackPiece := piece + 6
 
-		for sq := 0; sq < 64; sq++ {
+		for sq := range 64 {
 
 			middlegamePiecesScore[whitePiece][sq] = middlegamePieceValue[piece] + middlegamePSQT[piece][sq^56]
 			endgamePiecesScore[whitePiece][sq] = endgamePieceValue[piece] + endgamePSQT[piece][sq^56]
@@ -18,15 +50,149 @@ func init() {
 			middlegamePiecesScore[blackPiece][sq] = middlegamePieceValue[piece] + middlegamePSQT[piece][sq]
 			endgamePiecesScore[blackPiece][sq] = endgamePieceValue[piece] + endgamePSQT[piece][sq]
 		}
-	}
 
+		directions = generateDirections()
+		rayAttacks = generateRayAttacks()
+		knightAttacksTable = generateKnightAttacks()
+	}
 }
 
-var middlegamePiecesScore [12][64]int
-var endgamePiecesScore [12][64]int
+// generateDirections generates all posible directions between all squares in the board
+func generateDirections() (directions [64][64]uint64) {
+	for from := range 64 {
+		for to := range 64 {
+			//  Direction of 2 squares
+			//  Based on ±File±Column difference
+			//   ---------------------
+			//   | +1-1 | -1+0 | +1+1 |
+			//   ----------------------
+			//   | -1+0 |  P2  | +0+1 |
+			//   ----------------------
+			//   | -1-1 | +1+0 | -1+1 |
+			//   ----------------------
+			// calcuate the direction
+			fileDiff := (to % 8) - (from % 8)
+			rankDiff := (to / 8) - (from / 8)
+			absFileDiff := math.Abs(float64(fileDiff))
+			absRankDiff := math.Abs(float64(rankDiff))
 
-var middlegamePieceValue = [12]int{12000, 1025, 477, 365, 337, 82}
-var endgamePieceValue = [12]int{12000, 936, 512, 297, 281, 94}
+			switch {
+			case fileDiff == 0 && rankDiff > 0:
+				directions[from][to] = North
+			case fileDiff == 0 && rankDiff < 0:
+				directions[from][to] = South
+			case fileDiff > 0 && rankDiff == 0:
+				directions[from][to] = East
+			case fileDiff < 0 && rankDiff == 0:
+				directions[from][to] = West
+			case absFileDiff == absRankDiff && fileDiff < 0 && rankDiff < 0:
+				directions[from][to] = SouthWest
+			case absFileDiff == absRankDiff && fileDiff > 0 && rankDiff > 0:
+				directions[from][to] = NorthEast
+			case absFileDiff == absRankDiff && fileDiff > 0 && rankDiff < 0:
+				directions[from][to] = SouthEast
+			case absFileDiff == absRankDiff && fileDiff < 0 && rankDiff > 0:
+				directions[from][to] = NorthWest
+			default:
+				directions[from][to] = Invalid
+			}
+		}
+	}
+	return
+}
+
+// generateRayAttacks returns a precalculated array for all posible rays on each direction from each square in the board
+func generateRayAttacks() (rayAttacks [8][64]Bitboard) {
+	directions := [8]uint64{North, NorthEast, East, SouthEast, South, SouthWest, West, NorthWest}
+
+	for sq := range 64 {
+		rank, file := sq/8, sq%8
+		for _, dir := range directions {
+			switch dir {
+			case North:
+				for r := rank + 1; r <= 7; r++ {
+					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + file))
+				}
+			case NorthEast:
+				for r, f := rank+1, file+1; r <= 7 && f <= 7; r, f = r+1, f+1 {
+					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + f))
+				}
+			case East:
+				for f := file + 1; f <= 7; f++ {
+					rayAttacks[dir][sq] |= Bitboard(1 << (f + rank*8))
+				}
+			case SouthEast:
+				for r, f := rank-1, file+1; r >= 0 && f <= 7; r, f = r-1, f+1 {
+					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + f))
+				}
+			case South:
+				for r := rank - 1; r >= 0; r-- {
+					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + file))
+				}
+			case SouthWest:
+				for r, f := rank-1, file-1; r >= 0 && f >= 0; r, f = r-1, f-1 {
+					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + f))
+				}
+			case West:
+				for f := file - 1; f >= 0; f-- {
+					rayAttacks[dir][sq] |= Bitboard(1 << (f + rank*8))
+				}
+			case NorthWest:
+				for r, f := rank+1, file-1; r <= 7 && f >= 0; r, f = r+1, f-1 {
+					rayAttacks[dir][sq] |= Bitboard(1 << (r*8 + f))
+				}
+			}
+		}
+	}
+	return
+}
+
+// generateKnightAttacks returns a precalculated array for all posible knight moves from each square in the board
+func generateKnightAttacks() (knightAttacksTable [64]Bitboard) {
+	for sq := range 64 {
+		from := Bitboard(1 << sq)
+
+		notInHFile := from & ^(from & files[7])
+		notInAFile := from & ^(from & files[0])
+		notInABFiles := from & ^(from & (files[0] | files[1]))
+		notInGHFiles := from & ^(from & (files[7] | files[6]))
+
+		knightAttacksTable[sq] = notInAFile<<15 | notInHFile<<17 | notInGHFiles<<10 |
+			notInABFiles<<6 | notInHFile>>15 | notInAFile>>17 |
+			notInABFiles>>10 | notInGHFiles>>6
+
+	}
+	return
+}
+
+// raysDirection returns the rays along the direction passed that intersects the
+// piece in the square passed
+func raysDirection(square Bitboard, direction uint64) Bitboard {
+	oppositeDirections := [8]uint64{South, SouthWest, West, NorthWest, North, NorthEast, East, SouthEast}
+
+	return rayAttacks[direction][Bsf(square)] | square |
+		rayAttacks[oppositeDirections[direction]][Bsf(square)]
+}
+
+// getRayPath returns a Bitboard with the path between 2 bitboards pieces
+// (not including the 2 pieces)
+func getRayPath(from *Bitboard, to *Bitboard) (rayPath Bitboard) {
+	fromSq := Bsf(*from)
+	toSq := Bsf(*to)
+
+	fromDirection := directions[fromSq][toSq]
+	toDirection := directions[toSq][fromSq]
+
+	if fromDirection == Invalid || toDirection == Invalid {
+		return
+	}
+
+	return rayAttacks[fromDirection][fromSq] &
+		rayAttacks[toDirection][toSq]
+}
+
+/* piece/sq tables */
+/* values from Rofchade: http://www.talkchess.com/forum3/viewtopic.php?f=2&t=68311&start=19 */
 
 // middlegamePSQT are the pieces square tables for middlegame
 var middlegamePSQT = [6][64]int{
