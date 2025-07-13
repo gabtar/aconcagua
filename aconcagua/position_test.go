@@ -420,3 +420,30 @@ func TestUnmakeMoveWithKinigtMatePromotion(t *testing.T) {
 	}
 
 }
+
+func TestInsuficientMaterial(t *testing.T) {
+	testCases := []struct {
+		name                string
+		fen                 string
+		insuficientMaterial bool
+	}{
+		{"pawn and king vs king", "8/1k6/8/8/3P4/3K4/8/8 w - - 0 1", false},
+		{"bishop and king vs bishop and king", "8/1k6/1b6/8/8/2BK4/8/8 w - - 0 1", false},
+		{"queen and king vs bishop and king", "8/1kb5/8/8/3Q4/3K4/8/8 w - - 0 1", false},
+		{"lone king vs lone king", "8/1k6/8/8/8/3K4/8/8 w - - 0 1", true},
+		{"2 knights and king vs 1 knight and king", "8/1kn5/8/8/3NN3/3K4/8/8 w - - 0 1", false},
+		{"knight and king vs king", "8/1k6/8/4N3/4K3/8/8/8 w - - 0 1", true},
+		{"bishop and king vs king", "8/1kb5/8/8/4K3/8/8/8 w - - 0 1", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pos := From(tc.fen)
+			got := pos.insuficientMaterial()
+			if got != tc.insuficientMaterial {
+				t.Errorf("Case: %v, expected: %v, got: %v", tc.name, tc.insuficientMaterial, got)
+			}
+		})
+	}
+
+}

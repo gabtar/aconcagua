@@ -117,8 +117,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		return 0
 	}
 
-	// TODO: check repetition by 3fold, 50move rule and insufficient material
-	if pos.positionHistory.repetitionCount(pos.Hash) >= 2 {
+	if pos.isDraw() {
 		return 0
 	}
 

@@ -284,6 +284,37 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 	return
 }
 
+// isDraw returns if the current position is a draw by repetition, 50 move rule or insuficient material
+func (pos *Position) isDraw() bool {
+	return pos.positionHistory.repetitionCount(pos.Hash) >= 2 ||
+		pos.halfmoveClock >= 100 ||
+		pos.insuficientMaterial()
+}
+
+// insuficientMaterial returns if the current position is a draw by insuficient material
+func (pos *Position) insuficientMaterial() bool {
+	if pos.Bitboards[WhitePawn] > 0 || pos.Bitboards[BlackPawn] > 0 {
+		return false
+	}
+	if pos.Bitboards[WhiteQueen] > 0 || pos.Bitboards[BlackQueen] > 0 {
+		return false
+	}
+	if pos.Bitboards[WhiteRook] > 0 || pos.Bitboards[BlackRook] > 0 {
+		return false
+	}
+	if pos.Bitboards[WhiteBishop].count() > 1 || pos.Bitboards[BlackBishop].count() > 1 {
+		return false
+	}
+	if pos.Bitboards[WhiteKnight].count() > 1 || pos.Bitboards[BlackKnight].count() > 1 {
+		return false
+	}
+	if pos.Bitboards[WhiteBishop].count() == pos.Bitboards[BlackBishop].count() && pos.Bitboards[WhiteBishop] > 0 {
+		return false
+	}
+
+	return true
+}
+
 // MakeMove executes a chess move, updating the board state
 func (pos *Position) MakeMove(move *Move) {
 	pieceToMove := pos.PieceAt(squareReference[move.from()])
