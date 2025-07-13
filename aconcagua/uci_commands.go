@@ -21,6 +21,7 @@ func uciCommand(en *Engine, stdout chan string, params ...string) {
 	stdout <- ""
 	stdout <- "option name BookPath type string default <empty>"
 	stdout <- "option name UseBook type button"
+	stdout <- "option name UCI_Chess960 type check default false"
 	stdout <- "uciok"
 }
 
@@ -32,7 +33,7 @@ func uciNewGameCommand(en *Engine, stdout chan string, params ...string) {
 // positionCommand sets up the current position
 func positionCommand(en *Engine, stdout chan string, params ...string) {
 	if params[0] == "startpos" {
-		en.pos = *From("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+		en.pos = *InitialPosition()
 	} else if params[0] == "fen" {
 		fen := strings.Join(params[1:], " ")
 		en.pos = *From(fen)
@@ -144,6 +145,11 @@ func setOptionCommand(en *Engine, stdout chan string, params ...string) {
 		stdout <- "option name UseBook value " + strconv.FormatBool(en.options.useOpeningBook)
 	}
 
+	// sample usage: setoption name uci_chess960
+	if strings.ToLower(params[1]) == "uci_chess960" {
+		en.options.chess960 = !en.options.chess960
+		stdout <- "option name UCI_Chess960 value " + strconv.FormatBool(en.options.chess960)
+	}
 }
 
 // abs returns the absolute value of the number passed

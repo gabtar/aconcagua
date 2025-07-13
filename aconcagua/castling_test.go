@@ -5,11 +5,11 @@ import "testing"
 // Castling tests
 
 func TestCastleFromFen(t *testing.T) {
-	var c castling
+	var c castlingRights
 	castlings := "KQqk"
 	c.fromFen(castlings)
 
-	expected := castling(0b1111)
+	expected := castlingRights(0b1111)
 	got := c
 
 	if got != expected {
@@ -18,11 +18,11 @@ func TestCastleFromFen(t *testing.T) {
 }
 
 func TestCastleFromFen2(t *testing.T) {
-	var c castling
+	var c castlingRights
 	castlings := "Qk"
 	c.fromFen(castlings)
 
-	expected := castling(0b0110)
+	expected := castlingRights(0b0110)
 	got := c
 
 	if got != expected {
@@ -31,11 +31,11 @@ func TestCastleFromFen2(t *testing.T) {
 }
 
 func TestEmptyCastle(t *testing.T) {
-	var c castling
+	var c castlingRights
 	castlings := "-"
 	c.fromFen(castlings)
 
-	expected := castling(0)
+	expected := castlingRights(0)
 	got := c
 
 	if got != expected {
@@ -44,13 +44,13 @@ func TestEmptyCastle(t *testing.T) {
 }
 
 func TestAddLongWhiteCastle(t *testing.T) {
-	var c castling
+	var c castlingRights
 	castlings := "-"
 
 	c.fromFen(castlings)
 	c.add(Q)
 
-	expected := castling(0b0100)
+	expected := castlingRights(0b0100)
 	got := c
 
 	if got != expected {
@@ -59,7 +59,7 @@ func TestAddLongWhiteCastle(t *testing.T) {
 }
 
 func TestWhiteCanCastleLong(t *testing.T) {
-	var c castling
+	var c castlingRights
 
 	castlings := "Qkq"
 	c.fromFen(castlings)

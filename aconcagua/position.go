@@ -79,7 +79,7 @@ type Position struct {
 	Bitboards       [12]Bitboard
 	Turn            Color
 	Hash            uint64
-	castlingRights  castling
+	castling        castling
 	enPassantTarget Bitboard
 	halfmoveClock   int
 	fullmoveNumber  int
@@ -326,11 +326,11 @@ func (pos *Position) MakeMove(move *Move) {
 		uint16(Bsf(pos.enPassantTarget)),
 		uint16(pos.halfmoveClock),
 	)
-	pos.positionHistory.add(positionBefore, pos.castlingRights, pos.Hash)
+	pos.positionHistory.add(positionBefore, pos.castling.castlingRights, pos.Hash)
 
-	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castlingRights)
-	pos.castlingRights.updateCastle(move.from(), move.to())
-	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castlingRights)
+	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castling.castlingRights)
+	pos.castling.castlingRights.updateCastle(move.from(), move.to())
+	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castling.castlingRights)
 
 	pos.RemovePiece(bitboardFromIndex(move.from()))
 
@@ -458,9 +458,9 @@ func (pos *Position) UnmakeMove(move *Move) {
 	}
 	pos.halfmoveClock = prevState.rule50()
 
-	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castlingRights)
-	pos.castlingRights = castle
-	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castlingRights)
+	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castling.castlingRights)
+	pos.castling.castlingRights = castle
+	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castling.castlingRights)
 
 	pieceToAdd := prevState.pieceMoved()
 
@@ -484,9 +484,9 @@ func (pos *Position) UnmakeMove(move *Move) {
 }
 
 // moveRook updates the rook position for the castle passed
-func moveRookOnCastleMove(pos *Position, castle castling) {
-	rookOrigin := map[castling]int{K: 7, Q: 0, k: 63, q: 56}
-	rookDestination := map[castling]int{K: 5, Q: 3, k: 61, q: 59}
+func moveRookOnCastleMove(pos *Position, castle castlingRights) {
+	rookOrigin := map[castlingRights]int{K: 7, Q: 0, k: 63, q: 56}
+	rookDestination := map[castlingRights]int{K: 5, Q: 3, k: 61, q: 59}
 
 	rookFrom := rookOrigin[castle]
 	rookTo := rookDestination[castle]
@@ -496,9 +496,9 @@ func moveRookOnCastleMove(pos *Position, castle castling) {
 }
 
 // restoreRookOnCastle restores the rook when undoing a castle
-func restoreRookOnCastle(pos *Position, castle castling) {
-	rookOrigin := map[castling]int{K: 7, Q: 0, k: 63, q: 56}
-	rookDestination := map[castling]int{K: 5, Q: 3, k: 61, q: 59}
+func restoreRookOnCastle(pos *Position, castle castlingRights) {
+	rookOrigin := map[castlingRights]int{K: 7, Q: 0, k: 63, q: 56}
+	rookDestination := map[castlingRights]int{K: 5, Q: 3, k: 61, q: 59}
 
 	rookTo := rookOrigin[castle]
 	rookFrom := rookDestination[castle]
@@ -563,7 +563,7 @@ func (pos *Position) ToFen() (fen string) {
 		fen += " b"
 	}
 
-	fen += " " + pos.castlingRights.toFen()
+	fen += " " + pos.castling.castlingRights.toFen()
 	if pos.enPassantTarget > 0 {
 		fen += " " + squareReference[Bsf(pos.enPassantTarget)]
 	} else {
@@ -647,7 +647,7 @@ func From(fen string) (pos *Position) {
 		pos.Turn = Black
 	}
 
-	pos.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
+	pos.castling.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
 	if elements[3] != "-" {
 		pos.enPassantTarget = bitboardFromCoordinates(elements[3])
 	}
@@ -668,5 +668,6 @@ func InitialPosition() (pos *Position) {
 func EmptyPosition() (pos *Position) {
 	return &Position{
 		positionHistory: *NewPositionHistory(),
+		castling:        *NewCastling(),
 	}
 }

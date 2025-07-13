@@ -1,7 +1,7 @@
 package aconcagua
 
-// castling represents the castling rights available in the position
-// Represented in a binary of 4 bits where 0 is no castling available and 1 is available
+// castlingRights represents the castling rights available in the position
+// Represented in a binary of 4 bits where 0 is no castlingRights available and 1 is available
 // NNNq = 0001  or directly q
 // NNkN = 0010
 // NNkq = 0011
@@ -17,67 +17,80 @@ package aconcagua
 // KQNq = 1101
 // KQkN = 1110
 // KQkq = 1111
-type castling int8
+type castlingRights int8
 
 const (
-	noCastling = castling(0b0000)
-	q          = castling(0b0001)
-	k          = castling(0b0010)
-	kq         = castling(0b0011)
-	Q          = castling(0b0100)
-	Qq         = castling(0b0101)
-	Qk         = castling(0b0110)
-	Qkq        = castling(0b0111)
-	K          = castling(0b1000)
-	Kq         = castling(0b1001)
-	Kk         = castling(0b1010)
-	Kkq        = castling(0b1011)
-	KQ         = castling(0b1100)
-	KQq        = castling(0b1101)
-	KQk        = castling(0b1110)
-	KQkq       = castling(0b1111)
+	noCastling = castlingRights(0b0000)
+	q          = castlingRights(0b0001)
+	k          = castlingRights(0b0010)
+	kq         = castlingRights(0b0011)
+	Q          = castlingRights(0b0100)
+	Qq         = castlingRights(0b0101)
+	Qk         = castlingRights(0b0110)
+	Qkq        = castlingRights(0b0111)
+	K          = castlingRights(0b1000)
+	Kq         = castlingRights(0b1001)
+	Kk         = castlingRights(0b1010)
+	Kkq        = castlingRights(0b1011)
+	KQ         = castlingRights(0b1100)
+	KQq        = castlingRights(0b1101)
+	KQk        = castlingRights(0b1110)
+	KQkq       = castlingRights(0b1111)
 )
 
 // castleType matchs a move string to the castle type
-var castleType = map[string]castling{
+var castleType = map[string]castlingRights{
 	"e1g1": K,
 	"e1c1": Q,
 	"e8g8": k,
 	"e8c8": q,
 }
 
+// TODO: add 960 support for castling
+type castling struct {
+	castlingRights  castlingRights
+	kingStartSquare [2]int    // King starting square for castling(0-63)
+	rookStartSquare [2][2]int // Rook starting square for castling rookStartSquare[0] = white rooks, rookStartSquare[1] = black rooks
+	chess960        bool
+}
+
 // castleRook matchs a castling to the rook that participates in the castle move
-var castleRook = map[castling]int{
+var castleRook = map[castlingRights]int{
 	K: WhiteRook,
 	Q: WhiteRook,
 	k: BlackRook,
 	q: BlackRook,
 }
 
+// NewCaslting returns a new castling struct
+func NewCastling() *castling {
+	return &castling{castlingRights: noCastling}
+}
+
 // toFen returs the fen string of castlingRights
-func (c *castling) toFen() (castlingRights string) {
+func (c *castlingRights) toFen() (castles string) {
 	if *c == 0 {
-		castlingRights += "-"
+		castles += "-"
 		return
 	}
 
 	castleChar := []string{"K", "Q", "k", "q"}
-	for idx, castl := range []castling{K, Q, k, q} {
+	for idx, castl := range []castlingRights{K, Q, k, q} {
 		if *c&castl > 0 {
-			castlingRights += castleChar[idx]
+			castles += castleChar[idx]
 		}
 	}
 	return
 }
 
 // fromFen sets the castling to match the string passed
-func (c *castling) fromFen(castleFen string) {
+func (c *castlingRights) fromFen(castleFen string) {
 	if castleFen == "-" {
-		*c = castling(0)
+		*c = castlingRights(0)
 		return
 	}
 
-	castleReference := map[rune]castling{
+	castleReference := map[rune]castlingRights{
 		'K': K, 'Q': Q, 'k': k, 'q': q,
 	}
 
@@ -87,22 +100,22 @@ func (c *castling) fromFen(castleFen string) {
 }
 
 // add adds a castling right to the castling
-func (c *castling) add(castle castling) {
+func (c *castlingRights) add(castle castlingRights) {
 	*c |= castle
 }
 
 // remove removes a castling right to the castling
-func (c *castling) remove(castle castling) {
+func (c *castlingRights) remove(castle castlingRights) {
 	*c &^= castle
 }
 
 // canCastle returns if the passed castle is allowed
-func (c *castling) canCastle(to castling) bool {
+func (c *castlingRights) canCastle(to castlingRights) bool {
 	return *c&to > 0
 }
 
 // updateCastle updates the castling rights when making a move
-func (c *castling) updateCastle(from int, to int) {
+func (c *castlingRights) updateCastle(from int, to int) {
 	// got the idea from Tom Kerrigan's TSCP engine
 	// based on the from/to squares of the move we can update the castle rights after making a move as following
 	// with the from square, we are either moving a rook (disables the castling right asociated to that rook)
@@ -113,10 +126,10 @@ func (c *castling) updateCastle(from int, to int) {
 		return
 	}
 
-	casltesToDisable := castling(0)
+	casltesToDisable := castlingRights(0)
 	sqOrder := []int{0, 7, 4, 56, 60, 63}
-	fromModifier := []castling{Q, K, KQ, q, kq, k}
-	toModifier := []castling{Q, K, 0, q, 0, k}
+	fromModifier := []castlingRights{Q, K, KQ, q, kq, k}
+	toModifier := []castlingRights{Q, K, 0, q, 0, k}
 
 	for i, sq := range sqOrder {
 		if from == sq {
@@ -131,11 +144,11 @@ func (c *castling) updateCastle(from int, to int) {
 }
 
 // canCastleShort checks if the king can castle short on the pased position
-func canCastleShort(from *Bitboard, pos *Position, side Color) bool {
-	if !pos.castlingRights.canCastle(K) && side == White {
+func (c *castling) canCastleShort(from *Bitboard, pos *Position, side Color) bool {
+	if !c.castlingRights.canCastle(K) && side == White {
 		return false
 	}
-	if !pos.castlingRights.canCastle(k) && side == Black {
+	if !c.castlingRights.canCastle(k) && side == Black {
 		return false
 	}
 
@@ -151,11 +164,11 @@ func canCastleShort(from *Bitboard, pos *Position, side Color) bool {
 }
 
 // canCastleLong checks if the king can castle long
-func canCastleLong(from *Bitboard, pos *Position, side Color) bool {
-	if !pos.castlingRights.canCastle(Q) && side == White {
+func (c *castling) canCastleLong(from *Bitboard, pos *Position, side Color) bool {
+	if !c.castlingRights.canCastle(Q) && side == White {
 		return false
 	}
-	if !pos.castlingRights.canCastle(q) && side == Black {
+	if !c.castlingRights.canCastle(q) && side == Black {
 		return false
 	}
 

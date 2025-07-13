@@ -121,10 +121,10 @@ func genMovesFromTargets(from *Bitboard, targets Bitboard, ml *MoveList, pd *Pos
 
 // genCastleMoves generates the castles moves availabes in the move list
 func genCastleMoves(from *Bitboard, pos *Position, ml *MoveList) {
-	if canCastleShort(from, pos, pos.Turn) {
+	if pos.castling.canCastleShort(from, pos, pos.Turn) {
 		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from<<2)), kingsideCastle))
 	}
-	if canCastleLong(from, pos, pos.Turn) {
+	if pos.castling.canCastleLong(from, pos, pos.Turn) {
 		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from>>2)), queensideCastle))
 	}
 }
