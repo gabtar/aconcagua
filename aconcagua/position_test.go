@@ -147,42 +147,6 @@ func TestFenSerializationFromPosition(t *testing.T) {
 	}
 }
 
-func TestBlackIsInCheckmate(t *testing.T) {
-
-	pos := From("4R2k/r5pp/8/8/8/8/PPP5/1K6 b - - 0 1")
-
-	expected := true
-	got := pos.Checkmate(Black)
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestBlackIsNotInCheckmate(t *testing.T) {
-
-	pos := From("4R2k/r5pp/8/8/8/1b6/PPP5/1K6 b - - 0 1")
-
-	expected := false
-	got := pos.Checkmate(Black)
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestBlackIsNotInCheckmate2(t *testing.T) {
-
-	pos := From("4R2k/6pp/8/1b6/8/8/PPP5/1K6 b - - 0 1")
-
-	expected := false
-	got := pos.Checkmate(Black)
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 func TestCaptureUpdatesPosition(t *testing.T) {
 	pos := From("7k/8/8/8/3p4/4P3/8/7K w - - 0 1")
 

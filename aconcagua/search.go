@@ -157,7 +157,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	}
 
 	newScore := MinInt
-	mg := NewMoveGenerator(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
+	mg := NewMoveSelector(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
 
 	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
 		pos.MakeMove(&move)

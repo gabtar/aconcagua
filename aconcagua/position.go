@@ -7,6 +7,7 @@ import (
 
 // Constants for pieces
 const (
+	// Pieces
 	WhiteKing = iota
 	WhiteQueen
 	WhiteRook
@@ -20,13 +21,16 @@ const (
 	BlackKnight
 	BlackPawn
 	NoPiece
-	// Constants for reference to piece role/type
+	// Piece role/type
 	King   = 0
 	Queen  = 1
 	Rook   = 2
 	Bishop = 3
 	Knight = 4
 	Pawn   = 5
+	// Colors
+	White = 0
+	Black = 1
 )
 
 // squareReference maps an integer(the index of the array) with the
@@ -40,22 +44,6 @@ var squareReference = []string{
 	"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
 	"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
 	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
-}
-
-// pieceReference is used for fen string conversion to internal Position struct
-var pieceReference = map[string]int{
-	"k": BlackKing,
-	"q": BlackQueen,
-	"r": BlackRook,
-	"b": BlackBishop,
-	"n": BlackKnight,
-	"p": BlackPawn,
-	"K": WhiteKing,
-	"Q": WhiteQueen,
-	"R": WhiteRook,
-	"B": WhiteBishop,
-	"N": WhiteKnight,
-	"P": WhitePawn,
 }
 
 // pieceRole returns the role/type of the piece passed
@@ -76,11 +64,6 @@ func isSliding(piece int) bool {
 
 // Color is an int referencing the white or black player in chess
 type Color int
-
-const (
-	White Color = iota
-	Black
-)
 
 // Opponent returns the Opponent color to the actual color
 func (c Color) Opponent() Color {
@@ -278,7 +261,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
-	king = pos.Bitboards[int(side)*6]
+	king = pos.Bitboards[int(side)*BlackKing]
 	return
 }
 
@@ -294,9 +277,9 @@ func (pos *Position) RemovePiece(piece Bitboard) {
 
 func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 	if side == White {
-		bitboards = pos.Bitboards[0:6]
+		bitboards = pos.Bitboards[WhiteKing:BlackKing]
 	} else {
-		bitboards = pos.Bitboards[6:12]
+		bitboards = pos.Bitboards[BlackKing:NoPiece]
 	}
 	return
 }
@@ -327,7 +310,6 @@ func (pos *Position) MakeMove(move *Move) {
 	pos.Hash = pos.Hash ^ zobristHashKeys.getSideKey()
 
 	pos.AddPiece(pieceToMove, squareReference[move.to()])
-	// pos.Hash = zobristHash(pos)
 }
 
 // updateMoveState resets and updates move-related state
@@ -472,6 +454,9 @@ func (pos *Position) UnmakeMove(move *Move) {
 
 // moveRook updates the rook position for the castle passed
 func moveRookOnCastleMove(pos *Position, castle castling) {
+	rookOrigin := map[castling]int{K: 7, Q: 0, k: 63, q: 56}
+	rookDestination := map[castling]int{K: 5, Q: 3, k: 61, q: 59}
+
 	rookFrom := rookOrigin[castle]
 	rookTo := rookDestination[castle]
 
@@ -481,6 +466,9 @@ func moveRookOnCastleMove(pos *Position, castle castling) {
 
 // restoreRookOnCastle restores the rook when undoing a castle
 func restoreRookOnCastle(pos *Position, castle castling) {
+	rookOrigin := map[castling]int{K: 7, Q: 0, k: 63, q: 56}
+	rookDestination := map[castling]int{K: 5, Q: 3, k: 61, q: 59}
+
 	rookTo := rookOrigin[castle]
 	rookFrom := rookDestination[castle]
 
@@ -555,20 +543,6 @@ func (pos *Position) ToFen() (fen string) {
 	return
 }
 
-// Checkmate returns if the passed side is in checkmate on the current position
-func (pos *Position) Checkmate(side Color) (checkmate bool) {
-	ml := NewMoveList(100)
-	pos.generateCaptures(&ml)
-	pos.generateNonCaptures(&ml)
-
-	if len(ml) == 0 && pos.Check(side) {
-		checkmate = true
-	} else {
-		checkmate = false
-	}
-	return
-}
-
 // String prints the Position to the terminal from white's view perspective
 func (pos *Position) String() string {
 	position := ""
@@ -613,7 +587,12 @@ func toRuneArray(pos *Position) [64]rune {
 
 // From creates a new Position struct from a fen string
 func From(fen string) (pos *Position) {
-	// FIX: this does not validate the fen string at all!!!!!!
+	// TODO: validate string
+	pieceReference := map[string]int{
+		"k": BlackKing, "q": BlackQueen, "r": BlackRook, "b": BlackBishop, "n": BlackKnight, "p": BlackPawn,
+		"K": WhiteKing, "Q": WhiteQueen, "R": WhiteRook, "B": WhiteBishop, "N": WhiteKnight, "P": WhitePawn,
+	}
+
 	pos = EmptyPosition()
 	elements := strings.Split(fen, " ")
 

@@ -19,7 +19,7 @@ func (pos *Position) Perft(depth int) (nodes uint64) {
 	pos.generateCaptures(&ml)
 	pos.generateNonCaptures(&ml)
 
-	for i := 0; i < len(ml); i++ {
+	for i := range ml {
 		pos.MakeMove(&ml[i])
 		nodes += pos.Perft(depth - 1)
 		pos.UnmakeMove(&ml[i])
@@ -36,7 +36,7 @@ func (pos *Position) Divide(depth int) (divide string) {
 	pos.generateCaptures(&ml)
 	pos.generateNonCaptures(&ml)
 
-	for i := 0; i < len(ml); i++ {
+	for i := range ml {
 		pos.MakeMove(&ml[i])
 		nodes := pos.Perft(depth - 1)
 		divide += ml[i].String() + " " + strconv.FormatUint(nodes, 10) + ","

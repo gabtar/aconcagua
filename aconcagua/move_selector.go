@@ -23,8 +23,8 @@ type MoveSelector struct {
 	captures, nonCaptures MoveList
 }
 
-// NewMoveGenerator returns a new move generator
-func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, historyMoves *HistoryMoves) *MoveSelector {
+// NewMoveSelector returns a new move generator
+func NewMoveSelector(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, historyMoves *HistoryMoves) *MoveSelector {
 	return &MoveSelector{
 		stage:        HashMoveStage,
 		pos:          pos,

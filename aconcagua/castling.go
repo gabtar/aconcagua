@@ -38,30 +38,6 @@ const (
 	KQkq       = castling(0b1111)
 )
 
-// castleMap matchs a castle string to a castle type representation
-var castleReference = map[rune]castling{
-	'K': K,
-	'Q': Q,
-	'k': k,
-	'q': q,
-}
-
-// rookOrigin matchs a castling to the corresponding rook origin square to move in the castle
-var rookOrigin = map[castling]int{
-	K: 7,
-	Q: 0,
-	k: 63,
-	q: 56,
-}
-
-// rookDestination matchs a castling to the corresponding rook destination square to move in the castle
-var rookDestination = map[castling]int{
-	K: 5,
-	Q: 3,
-	k: 61,
-	q: 59,
-}
-
 // castleType matchs a move string to the castle type
 var castleType = map[string]castling{
 	"e1g1": K,
@@ -99,6 +75,10 @@ func (c *castling) fromFen(castleFen string) {
 	if castleFen == "-" {
 		*c = castling(0)
 		return
+	}
+
+	castleReference := map[rune]castling{
+		'K': K, 'Q': Q, 'k': k, 'q': q,
 	}
 
 	for _, castleType := range castleFen {

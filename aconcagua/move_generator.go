@@ -6,9 +6,11 @@ package aconcagua
 
 // kingMoves returns a bitboard with the legal moves of the king from the bitboard passed
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	withoutKing := *pos
-	withoutKing.RemovePiece(*k)
-	moves = kingAttacks(k) & ^withoutKing.AttackedSquares(side.Opponent()) & ^pos.Pieces(side)
+	pos.RemovePiece(*k)
+	attackedSquares := pos.AttackedSquares(side.Opponent()) // to check attacks rays (behind) the king he is actually blocking
+	pos.AddPiece(pieceColor(King, side), squareReference[Bsf(*k)])
+
+	moves = kingAttacks(k) & ^attackedSquares & ^pos.Pieces(side)
 	return
 }
 
