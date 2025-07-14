@@ -160,10 +160,9 @@ func TestKingCanCastleShort(t *testing.T) {
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.castling.castlingRights = Kk
-	kingBB := bitboardFromCoordinates("e1")
 
 	expected := true
-	got := pos.castling.canCastleShort(&kingBB, pos, White)
+	got := pos.canCastleShort(White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -173,10 +172,9 @@ func TestKingCanCastleShort(t *testing.T) {
 func TestKingCanCastleShortTwo(t *testing.T) {
 	pos := From("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9")
 	pos.castling.castlingRights = Kk
-	kingBB := bitboardFromCoordinates("e1")
 
 	expected := true
-	got := pos.castling.canCastleShort(&kingBB, pos, White)
+	got := pos.canCastleShort(White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -189,10 +187,9 @@ func TestKingCannotCastleShortIfPathBlocked(t *testing.T) {
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(WhiteKnight, "f1")
 	pos.castling.castlingRights = Kk
-	kingBB := bitboardFromCoordinates("e1")
 
 	expected := false
-	got := pos.castling.canCastleShort(&kingBB, pos, White)
+	got := pos.canCastleShort(White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -205,10 +202,9 @@ func TestKingCannotCastleShortIfItsInCheck(t *testing.T) {
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(BlackRook, "f4")
 	pos.castling.castlingRights = Kk
-	kingBB := bitboardFromCoordinates("e1")
 
 	expected := false
-	got := pos.castling.canCastleShort(&kingBB, pos, White)
+	got := pos.canCastleShort(White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -220,10 +216,9 @@ func TestKingCanCastleLong(t *testing.T) {
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "a1")
 	pos.castling.castlingRights = Qq
-	kingBB := bitboardFromCoordinates("e1")
 
 	expected := true
-	got := pos.castling.canCastleLong(&kingBB, pos, White)
+	got := pos.canCastleLong(White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -236,10 +231,9 @@ func TestBlackKingCannotCastleLongIfPathBlocked(t *testing.T) {
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(BlackKnight, "b8")
 	pos.castling.castlingRights = Qq
-	kingBB := bitboardFromCoordinates("e8")
 
 	expected := false
-	got := pos.castling.canCastleLong(&kingBB, pos, Black)
+	got := pos.canCastleLong(Black)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -252,10 +246,9 @@ func TestKingCannotCastleLongIfItsInCheck(t *testing.T) {
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(WhiteRook, "c6")
 	pos.castling.castlingRights = Qq
-	kingBB := bitboardFromCoordinates("e8")
 
 	expected := false
-	got := pos.castling.canCastleLong(&kingBB, pos, Black)
+	got := pos.canCastleLong(Black)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

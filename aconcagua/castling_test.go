@@ -71,3 +71,18 @@ func TestWhiteCanCastleLong(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestWhiteCannotCastleLongIfBlocked(t *testing.T) {
+	pos := From("r3k2r/8/8/8/8/8/3PP3/R1B1K2R w KQkq - 0 1")
+
+	expected := false
+	got := pos.canCastleLong(White)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestWhiteCanCastleLong960(t *testing.T) {
+
+}
