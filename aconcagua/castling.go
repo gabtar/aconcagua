@@ -38,6 +38,7 @@ const (
 	KQkq       = castlingRights(0b1111)
 )
 
+// TODO: does not work with chess960!!!!
 // castleType matchs a move string to the castle type
 var castleType = map[string]castlingRights{
 	"e1g1": K,
@@ -66,14 +67,20 @@ var castleRook = map[castlingRights]int{
 }
 
 // NewCaslting returns a new castling struct
-func NewCastling() *castling {
-	// TODO: add flag if 960 to set up starting squares
+func NewCastling(whiteKingStart int, whiteKingsideRook int, whiteQueensideRook int) *castling {
+	blackKingStart := whiteKingStart ^ 56 // flips the board to get the black king
+	blackKingsideRook := whiteKingsideRook ^ 56
+	blackQueensideRook := whiteQueensideRook ^ 56
+
 	return &castling{
 		castlingRights:   noCastling,
-		kingsStartSquare: [2]int{4, 60},
-		rooksStartSquare: [2][2]int{{7, 0}, {63, 56}}, // WhiteRook(shortcaslte, longcastle), BlackRook(shortcaslte, longcastle)
-		kingsEndSquare:   [2][2]int{{6, 2}, {62, 58}},
-		rooksEndSquare:   [2][2]int{{5, 3}, {61, 59}},
+		kingsStartSquare: [2]int{whiteKingStart, blackKingStart},
+		rooksStartSquare: [2][2]int{ // WhiteRook(shortcaslte, longcastle), BlackRook(shortcaslte, longcastle)
+			{whiteKingsideRook, whiteQueensideRook},
+			{blackKingsideRook, blackQueensideRook},
+		},
+		kingsEndSquare: [2][2]int{{6, 2}, {62, 58}}, // Fixed
+		rooksEndSquare: [2][2]int{{5, 3}, {61, 59}},
 
 		chess960: false,
 	}
@@ -155,7 +162,7 @@ func (c *castlingRights) updateCastle(from int, to int) {
 	c.remove(casltesToDisable)
 }
 
-// TODO: refactor to use a type/flag of caslte to remove duplication. Eg 0 shortCaslte and 1 for longCastle...
+// TODO: refactor to use a type/flag of caslte to remove duplication. Eg 0 for shortCaslte and 1 for longCastle...
 
 // canCastleShort checks if the king can castle short on the pased position
 func (pos *Position) canCastleShort(side Color) bool {

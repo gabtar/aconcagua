@@ -1,6 +1,7 @@
 package aconcagua
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -446,4 +447,48 @@ func TestInsuficientMaterial(t *testing.T) {
 		})
 	}
 
+}
+
+// 960 castles make and unmake moves tests
+func TestMakeMoveWithCastling960(t *testing.T) {
+	// chess 960 initial pos 599
+	// rqbnkrnb/pppppppp/8/8/8/8/PPPPPPPP/RQBNKRNB w KQkq - 0 1
+
+	pos := From("rq2krn1/pp1b1pbp/2n3p1/4p3/8/3PN1P1/PPP1NP1P/RQB1KR1B w KQkq - 0 9")
+	pos.castling = *NewCastling(4, 5, 0)
+	pos.castling.castlingRights = KQkq
+
+	move := encodeMove(uint16(4), uint16(5), kingsideCastle)
+	pos.MakeMove(move)
+
+	// fen "after" white short castle
+	// rq2krn1/pp1b1pbp/2n3p1/4p3/8/3PN1P1/PPP1NP1P/RQB2RKB b kq - 1 9
+	expected := "rq2krn1/pp1b1pbp/2n3p1/4p3/8/3PN1P1/PPP1NP1P/RQB2RKB b kq - 1 9"
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestUnMakeMoveWithCastling960(t *testing.T) {
+	// chess 960 initial pos 599
+	// rqbnkrnb/pppppppp/8/8/8/8/PPPPPPPP/RQBNKRNB w KQkq - 0 1
+
+	pos := From("rq2krn1/pp1b1pbp/2n3p1/4p3/8/3PN1P1/PPP1NP1P/RQB1KR1B w KQkq - 0 9")
+	pos.castling = *NewCastling(4, 5, 0)
+	pos.castling.castlingRights = KQkq
+	fmt.Println(pos.String())
+
+	move := encodeMove(uint16(4), uint16(5), kingsideCastle)
+	pos.MakeMove(move)
+	pos.UnmakeMove(move)
+	fmt.Println(pos.String())
+
+	expected := "rq2krn1/pp1b1pbp/2n3p1/4p3/8/3PN1P1/PPP1NP1P/RQB1KR1B w KQkq - 0 9"
+	got := pos.ToFen()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
 }

@@ -1,9 +1,6 @@
 package aconcagua
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 	zobristTestCases := []struct {
@@ -42,7 +39,6 @@ func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 
 			if got != expected {
 				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
-				fmt.Println(pos.String())
 			}
 		})
 	}
@@ -86,10 +82,7 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 
 			if got != expected {
 				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
-				fmt.Println(pos.String())
 			}
 		})
 	}
 }
-
-// TODO: test zobrist key in transposition when making moves with alternate order from a given position
