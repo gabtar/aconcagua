@@ -39,8 +39,6 @@ func TestMoveSelectorCreatesCaptures(t *testing.T) {
 	expected := *encodeMove(36, 43, capture) // Best capture. Pawn takes rook
 	got := ms.nextMove()
 
-	// fmt.Println(got.String())
-
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}

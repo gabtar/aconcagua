@@ -124,6 +124,29 @@ func NewCastlingFromShredderFenCastlingCode(whiteKingStart int, castlEncode stri
 	return castling
 }
 
+// NewCastlingFromBackrank returns a new castling struct for chess 960 by parsing the backrank of the position
+// NOTE: only works for setting up the chess 960 initial position. It may be wrong for other positions,
+// different from move number 0
+func NewCastlingFromBackrank(backrank string) *castling {
+	kingSq, queenSideRookSq, kingSideRookSq := -1, -1, -1
+	for file, char := range backrank {
+		if char == 'k' {
+			kingSq = file
+		}
+		if char == 'r' {
+			if queenSideRookSq == -1 {
+				queenSideRookSq = file
+			}
+			kingSideRookSq = file
+		}
+	}
+
+	castling := NewCastling(kingSq, kingSideRookSq, queenSideRookSq)
+	castling.castlingRights = KQkq
+	castling.chess960 = true
+	return castling
+}
+
 // toFen returs the fen string of castlingRights
 func (c *castlingRights) toFen() (castles string) {
 	if *c == 0 {

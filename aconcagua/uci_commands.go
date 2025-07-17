@@ -37,6 +37,21 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 	} else if params[0] == "fen" {
 		fen := strings.Join(params[1:], " ")
 		en.pos = *From(fen)
+
+		// check if we are on 960 to set up castling
+		// TODO: make a caslteFactory function ????
+		if en.options.chess960 {
+			fenElements := strings.Split(fen, " ")
+			if fenElements[2] != "KQkq" {
+				kingSq := Bsf(en.pos.KingPosition(White))
+				en.pos.castling = *NewCastlingFromShredderFenCastlingCode(kingSq, fenElements[2])
+			} else {
+				// parse backrank as fen fallback
+				backrank := strings.Split(fenElements[0], "/")[0] // should be same as the first rank
+				en.pos.castling = *NewCastlingFromBackrank(backrank)
+			}
+		}
+
 	} else {
 		stdout <- "invalid command"
 		return
@@ -145,9 +160,14 @@ func setOptionCommand(en *Engine, stdout chan string, params ...string) {
 		stdout <- "option name UseBook value " + strconv.FormatBool(en.options.useOpeningBook)
 	}
 
-	// sample usage: setoption name uci_chess960
+	// sample usage: setoption name uci_chess960 value true
 	if strings.ToLower(params[1]) == "uci_chess960" {
-		en.options.chess960 = !en.options.chess960
+		if len(params) < 3 {
+			stdout <- "invalid command"
+			return
+		}
+
+		en.options.chess960 = params[3] == "true"
 		stdout <- "option name UCI_Chess960 value " + strconv.FormatBool(en.options.chess960)
 	}
 }

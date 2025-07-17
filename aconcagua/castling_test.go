@@ -238,3 +238,38 @@ func TestNewCastlingFromFenCastlingCode2(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expectedQueensideWhiteRookSquare, gotQueensideWhiteRookSquare)
 	}
 }
+
+func TestNewCastlingFromBackrank(t *testing.T) {
+	// Fen - position 596 chess 960
+	// rbbqnkrn/pppppppp/8/8/8/8/PPPPPPPP/RBBQNKRN w KQkq - 0 1
+	backrank := "rbbqnkrn"
+	castling := NewCastlingFromBackrank(backrank)
+
+	expected := KQkq
+	got := castling.castlingRights
+
+	expectedKingsideWhiteRookSquare := 6
+	gotKingsideWhiteRookSquare := castling.rooksStartSquare[White][0]
+
+	expectedQueensideWhiteRookSquare := 0
+	gotQueensideWhiteRookSquare := castling.rooksStartSquare[White][1]
+
+	expectedKingSq := 5
+	gotKingSq := castling.kingsStartSquare[White]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+	if gotKingsideWhiteRookSquare != expectedKingsideWhiteRookSquare {
+		t.Errorf("Expected: %v, got: %v", expectedKingsideWhiteRookSquare, gotKingsideWhiteRookSquare)
+	}
+
+	if gotQueensideWhiteRookSquare != expectedQueensideWhiteRookSquare {
+		t.Errorf("Expected: %v, got: %v", expectedQueensideWhiteRookSquare, gotQueensideWhiteRookSquare)
+	}
+
+	if gotKingSq != expectedKingSq {
+		t.Errorf("Expected: %v, got: %v", expectedKingSq, gotKingSq)
+	}
+}

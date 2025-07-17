@@ -28,6 +28,10 @@ You can also download the precompiled binaries from [here](https://github.com/ga
 - Killer moves
 - Transposition table
 
+## Variants
+- Standard
+- Chess 960
+
 ## Lichess Bot
 
 Thanks to the people who made the [Lichess bot](https://github.com/lichess-bot-devs/lichess-bot) project, Aconcagua is also available to play on Lichess.

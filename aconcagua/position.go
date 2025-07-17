@@ -341,7 +341,7 @@ func (pos *Position) MakeMove(move *Move) {
 	pos.Hash = pos.Hash ^ zobristHashKeys.getSideKey()
 
 	// TODO: refactor if with a destination sq variable???
-	// in chess 960 the to square may be diferent to the real destination square
+	// in chess 960 the 'to' square may be diferent to the real destination square
 	// so the piece needs to be moved to the real square.
 	if move.flag() == queensideCastle || move.flag() == kingsideCastle {
 		toSq := pos.castling.kingsEndSquare[pos.Turn.Opponent()][move.flag()-kingsideCastle]
@@ -669,7 +669,6 @@ func From(fen string) (pos *Position) {
 		pos.Turn = Black
 	}
 
-	// TODO: parse with 960
 	pos.castling.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
 	if elements[3] != "-" {
 		pos.enPassantTarget = bitboardFromCoordinates(elements[3])
@@ -689,7 +688,6 @@ func InitialPosition() (pos *Position) {
 
 // EmptyPosition returns an empty Position struct
 func EmptyPosition() (pos *Position) {
-	// TODO: check if 960??
 	return &Position{
 		positionHistory: *NewPositionHistory(),
 		castling:        *NewCastling(4, 7, 0),
