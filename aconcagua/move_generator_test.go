@@ -280,12 +280,11 @@ func TestGenCastles(t *testing.T) {
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(WhiteRook, "a1")
 	pos.castling.castlingRights = KQ
-	kingBB := bitboardFromCoordinates("e1")
 	ml := NewMoveList(100)
 
 	expected := 2 // Castles moves are treated separately
 
-	genCastleMoves(&kingBB, pos, &ml)
+	genCastleMoves(pos, &ml)
 	got := len(ml)
 
 	if got != expected {

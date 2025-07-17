@@ -1,9 +1,6 @@
 package aconcagua
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestCheckingPieces(t *testing.T) {
 	pos := EmptyPosition()
@@ -456,6 +453,7 @@ func TestMakeMoveWithCastling960(t *testing.T) {
 
 	pos := From("rq2krn1/pp1b1pbp/2n3p1/4p3/8/3PN1P1/PPP1NP1P/RQB1KR1B w KQkq - 0 9")
 	pos.castling = *NewCastling(4, 5, 0)
+	pos.castling.chess960 = true
 	pos.castling.castlingRights = KQkq
 
 	move := encodeMove(uint16(4), uint16(5), kingsideCastle)
@@ -477,13 +475,12 @@ func TestUnMakeMoveWithCastling960(t *testing.T) {
 
 	pos := From("rq2krn1/pp1b1pbp/2n3p1/4p3/8/3PN1P1/PPP1NP1P/RQB1KR1B w KQkq - 0 9")
 	pos.castling = *NewCastling(4, 5, 0)
+	pos.castling.chess960 = true
 	pos.castling.castlingRights = KQkq
-	fmt.Println(pos.String())
 
 	move := encodeMove(uint16(4), uint16(5), kingsideCastle)
 	pos.MakeMove(move)
 	pos.UnmakeMove(move)
-	fmt.Println(pos.String())
 
 	expected := "rq2krn1/pp1b1pbp/2n3p1/4p3/8/3PN1P1/PPP1NP1P/RQB1KR1B w KQkq - 0 9"
 	got := pos.ToFen()

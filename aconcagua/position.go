@@ -329,7 +329,7 @@ func (pos *Position) MakeMove(move *Move) {
 	pos.positionHistory.add(positionBefore, pos.castling.castlingRights, pos.Hash)
 
 	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castling.castlingRights)
-	pos.castling.castlingRights.updateCastle(move.from(), move.to())
+	pos.castling.updateCastleRights(move.from(), move.to())
 	pos.Hash = pos.Hash ^ zobristHashKeys.getCastleKey(pos.castling.castlingRights)
 
 	pos.RemovePiece(bitboardFromIndex(move.from()))
@@ -669,6 +669,7 @@ func From(fen string) (pos *Position) {
 		pos.Turn = Black
 	}
 
+	// TODO: parse with 960
 	pos.castling.castlingRights.fromFen(elements[2]) // Fen string not implies its a legal move. Only says its available
 	if elements[3] != "-" {
 		pos.enPassantTarget = bitboardFromCoordinates(elements[3])

@@ -120,12 +120,21 @@ func genMovesFromTargets(from *Bitboard, targets Bitboard, ml *MoveList, pd *Pos
 }
 
 // genCastleMoves generates the castles moves availabes in the move list
-func genCastleMoves(from *Bitboard, pos *Position, ml *MoveList) {
+func genCastleMoves(pos *Position, ml *MoveList) {
+	fromSq := pos.castling.kingsStartSquare[pos.Turn]
+	flipModifier := 2 - (int(pos.Turn) + 1)
+	kingsideCastleTo := 62 ^ (flipModifier * 56) // Flip to g1 or g8 depending on current side
+	queensideCastleTo := 58 ^ (flipModifier * 56)
+	if pos.castling.chess960 {
+		kingsideCastleTo = pos.castling.rooksStartSquare[pos.Turn][0]
+		queensideCastleTo = pos.castling.rooksStartSquare[pos.Turn][1]
+	}
+
 	if pos.canCastleShort(pos.Turn) {
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from<<2)), kingsideCastle))
+		ml.add(*encodeMove(uint16(fromSq), uint16(kingsideCastleTo), kingsideCastle))
 	}
 	if pos.canCastleLong(pos.Turn) {
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from>>2)), queensideCastle))
+		ml.add(*encodeMove(uint16(fromSq), uint16(queensideCastleTo), queensideCastle))
 	}
 }
 
@@ -243,7 +252,7 @@ func (pos *Position) generateNonCaptures(ml *MoveList) {
 			switch piece {
 			case King:
 				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, &pd)
-				genCastleMoves(&pieceBB, pos, ml)
+				genCastleMoves(pos, ml)
 			case Queen:
 				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd))&^pd.enemies, ml, &pd)
 			case Rook:

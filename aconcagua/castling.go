@@ -79,11 +79,49 @@ func NewCastling(whiteKingStart int, whiteKingsideRook int, whiteQueensideRook i
 			{whiteKingsideRook, whiteQueensideRook},
 			{blackKingsideRook, blackQueensideRook},
 		},
-		kingsEndSquare: [2][2]int{{6, 2}, {62, 58}}, // Fixed
+		kingsEndSquare: [2][2]int{{6, 2}, {62, 58}}, // Fixed for both stardard and 960
 		rooksEndSquare: [2][2]int{{5, 3}, {61, 59}},
 
-		chess960: false,
+		chess960: false, // set the flag manually if we are on 960
 	}
+}
+
+// NewCastlingFromShredderFenCastlingCode returns a new castling struct from the fen castling encode
+// NOTE: this only works to set up intial squares for castling in 960 when the castling codes
+// are given with the with upper case and lower case file characters of the affected rooks for
+// white and black castling rights (Shredder-FEN style). Must be position from move 0 for a given
+// valid chess960 position, otherwise it will not work
+func NewCastlingFromShredderFenCastlingCode(whiteKingStart int, castlEncode string) *castling {
+	kingFile := whiteKingStart % 8
+	whiteKingsideRook, whiteQueensideRook := -1, -1
+	castlingRights := castlingRights(0)
+	for _, char := range castlEncode {
+		switch {
+		case char >= 'A' && char <= 'H':
+			file := int(char - 'A')
+			if file > kingFile {
+				castlingRights.add(K)
+				whiteKingsideRook = file
+			} else {
+				castlingRights.add(Q)
+				whiteQueensideRook = file
+			}
+		case char >= 'a' && char <= 'h':
+			file := int(char - 'a')
+			if file > kingFile {
+				castlingRights.add(k)
+				whiteKingsideRook = file
+			} else {
+				castlingRights.add(q)
+				whiteQueensideRook = file
+			}
+		}
+	}
+
+	castling := NewCastling(whiteKingStart, whiteKingsideRook, whiteQueensideRook)
+	castling.castlingRights = castlingRights
+	castling.chess960 = true
+	return castling
 }
 
 // toFen returs the fen string of castlingRights
@@ -133,24 +171,31 @@ func (c *castlingRights) canCastle(to castlingRights) bool {
 	return *c&to > 0
 }
 
-// updateCastle updates the castling rights when making a move
-func (c *castlingRights) updateCastle(from int, to int) {
+// updateCastleRights updates the castling rights when making a move
+func (c *castling) updateCastleRights(from int, to int) {
 	// got the idea from Tom Kerrigan's TSCP engine
 	// based on the from/to squares of the move we can update the castle rights after making a move as following
 	// with the from square, we are either moving a rook (disables the castling right asociated to that rook)
 	// or the king, in that case disables both castling rights for that color(black/white)
 	// with the to square, means we are attaking a rook/capturing move, so we wil have to disable the castling
 	// right asociated with that rook after that move
-	if *c == 0 {
+	if c.castlingRights == 0 {
 		return
 	}
 
 	casltesToDisable := castlingRights(0)
-	sqOrder := []int{0, 7, 4, 56, 60, 63} // TODO: Should be adapted for 960 positions
+	sqModifierOrder := []int{
+		c.rooksStartSquare[White][1],
+		c.rooksStartSquare[White][0],
+		c.kingsStartSquare[White],
+		c.rooksStartSquare[Black][1],
+		c.kingsStartSquare[Black],
+		c.rooksStartSquare[Black][0],
+	}
 	fromModifier := []castlingRights{Q, K, KQ, q, kq, k}
 	toModifier := []castlingRights{Q, K, 0, q, 0, k}
 
-	for i, sq := range sqOrder {
+	for i, sq := range sqModifierOrder {
 		if from == sq {
 			casltesToDisable |= fromModifier[i]
 		}
@@ -159,7 +204,7 @@ func (c *castlingRights) updateCastle(from int, to int) {
 		}
 	}
 
-	c.remove(casltesToDisable)
+	c.castlingRights.remove(casltesToDisable)
 }
 
 // TODO: refactor to use a type/flag of caslte to remove duplication. Eg 0 for shortCaslte and 1 for longCastle...
@@ -175,17 +220,21 @@ func (pos *Position) canCastleShort(side Color) bool {
 
 	rookBB := bitboardFromIndex(pos.castling.rooksStartSquare[side][0])
 	kingBB := bitboardFromIndex(pos.castling.kingsStartSquare[side])
-	shortCastlePath := getRayPath(&kingBB, &rookBB)
-	toSq := bitboardFromIndex(pos.castling.kingsEndSquare[side][0])
-	kingPassSquares := getRayPath(&kingBB, &toSq) | toSq | kingBB // to square is g1 or g8 in standard
 
-	kingSquaresAttacked := pos.AttackedSquares(side.Opponent())&(kingPassSquares) > 0
-	kingSquaresClear := pos.EmptySquares()&shortCastlePath == shortCastlePath
+	kingToSq := bitboardFromIndex(pos.castling.kingsEndSquare[side][0])
+	kingFromToPath := getRayPath(&kingBB, &kingToSq) | kingToSq
 
-	if !kingSquaresAttacked && kingSquaresClear {
+	rookEndBB := bitboardFromIndex(pos.castling.rooksEndSquare[side][0])
+	rookFromToPath := getRayPath(&rookBB, &rookEndBB) | rookEndBB
+
+	emptySquares := pos.EmptySquares() | kingBB | rookBB // NOTE: Avoid king and rook, so are not taken into account when calculating whenever the path is clear for castle
+	kingPathClear := (emptySquares & kingFromToPath) == kingFromToPath
+	rookPathClear := (emptySquares & rookFromToPath) == rookFromToPath
+	kingSquaresNotAttacked := pos.AttackedSquares(side.Opponent())&(kingFromToPath|kingToSq|kingBB) == 0
+
+	if kingPathClear && rookPathClear && kingSquaresNotAttacked {
 		return true
 	}
-
 	return false
 }
 
@@ -200,17 +249,20 @@ func (pos *Position) canCastleLong(side Color) bool {
 
 	rookBB := bitboardFromIndex(pos.castling.rooksStartSquare[side][1])
 	kingBB := bitboardFromIndex(pos.castling.kingsStartSquare[side])
-	longCastlePath := getRayPath(&kingBB, &rookBB) // Not including the 2 pieces
 
-	toSq := bitboardFromIndex(pos.castling.kingsEndSquare[side][1])
-	kingPassSquares := getRayPath(&kingBB, &toSq) | toSq | kingBB // to square is c1 or c8
+	kingToSq := bitboardFromIndex(pos.castling.kingsEndSquare[side][1])
+	kingFromToPath := getRayPath(&kingBB, &kingToSq) | kingToSq
 
-	kingSquaresAttacked := pos.AttackedSquares(side.Opponent())&(kingPassSquares) > 0
-	kingSquaresClear := pos.EmptySquares()&longCastlePath == longCastlePath
+	rookEndBB := bitboardFromIndex(pos.castling.rooksEndSquare[side][1])
+	rookFromToPath := getRayPath(&rookBB, &rookEndBB) | rookEndBB
 
-	if !kingSquaresAttacked && kingSquaresClear {
+	emptySquares := pos.EmptySquares() | kingBB | rookBB // NOTE: Avoid king and rook, so are not taken into account when calculating whenever the path is clear for castle
+	kingPathClear := (emptySquares & kingFromToPath) == kingFromToPath
+	rookPathClear := (emptySquares & rookFromToPath) == rookFromToPath
+	kingSquaresNotAttacked := pos.AttackedSquares(side.Opponent())&(kingFromToPath|kingToSq|kingBB) == 0
+
+	if kingPathClear && rookPathClear && kingSquaresNotAttacked {
 		return true
 	}
-
 	return false
 }

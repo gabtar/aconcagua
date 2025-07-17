@@ -169,3 +169,72 @@ func TestWhiteCannotCastleShort960IfKingInCheck(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestCanCaslteLong960IfPathIsBlocked(t *testing.T) {
+	// starts from ches960 - 1 position
+	pos := From("bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P1B2/NPP1P1PP/B1Q2RKR w KQkq - 2 9")
+	pos.castling = *NewCastling(6, 7, 5)
+	pos.castling.castlingRights = KQkq
+	pos.castling.chess960 = true
+
+	expected := false
+	got := pos.canCastleLong(White)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestNewCastlingFromFenCastlingCode(t *testing.T) {
+	// Fen - position 1 chess 960
+	// bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P4/NPP1P1PP/BQ1BNRKR w HFhf - 2 9
+	castling := NewCastlingFromShredderFenCastlingCode(6, "HFhf")
+
+	expected := KQkq
+	got := castling.castlingRights
+
+	expectedKingsideWhiteRookSquare := 7
+	gotKingsideWhiteRookSquare := castling.rooksStartSquare[White][0]
+
+	expectedQueensideWhiteRookSquare := 5
+	gotQueensideWhiteRookSquare := castling.rooksStartSquare[White][1]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+	if gotKingsideWhiteRookSquare != expectedKingsideWhiteRookSquare {
+		t.Errorf("Expected: %v, got: %v", expectedKingsideWhiteRookSquare, gotKingsideWhiteRookSquare)
+	}
+
+	if gotQueensideWhiteRookSquare != expectedQueensideWhiteRookSquare {
+		t.Errorf("Expected: %v, got: %v", expectedQueensideWhiteRookSquare, gotQueensideWhiteRookSquare)
+	}
+}
+
+func TestNewCastlingFromFenCastlingCode2(t *testing.T) {
+	// Fen - position 34 chess 960
+	// bnnqrbkr/pp1p2p1/2p1p2p/5p2/1P5P/1R6/P1PPPPP1/BNNQRBK1 w Ehe - 0 9
+	castling := NewCastlingFromShredderFenCastlingCode(6, "Ehe")
+
+	expected := Qkq
+	got := castling.castlingRights
+
+	expectedKingsideWhiteRookSquare := 7
+	gotKingsideWhiteRookSquare := castling.rooksStartSquare[White][0]
+
+	expectedQueensideWhiteRookSquare := 4
+	gotQueensideWhiteRookSquare := castling.rooksStartSquare[White][1]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+
+	if gotKingsideWhiteRookSquare != expectedKingsideWhiteRookSquare {
+		t.Errorf("Expected: %v, got: %v", expectedKingsideWhiteRookSquare, gotKingsideWhiteRookSquare)
+	}
+
+	if gotQueensideWhiteRookSquare != expectedQueensideWhiteRookSquare {
+		t.Errorf("Expected: %v, got: %v", expectedQueensideWhiteRookSquare, gotQueensideWhiteRookSquare)
+	}
+}
