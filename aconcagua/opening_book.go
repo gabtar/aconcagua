@@ -127,8 +127,8 @@ func PolyglotHashFromPosition(pos *Position) (key uint64) {
 		}
 	}
 
-	for idx, castl := range []castling{K, Q, k, q} {
-		if pos.castlingRights.canCastle(castl) {
+	for idx, castl := range []castlingRights{K, Q, k, q} {
+		if pos.castling.castlingRights.canCastle(castl) {
 			key = key ^ PolyglotKeys[768+idx]
 		}
 	}

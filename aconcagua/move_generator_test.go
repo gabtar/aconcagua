@@ -48,7 +48,7 @@ func TestDiagonalNoPinnedPieces(t *testing.T) {
 }
 
 func TestPinnedPiecesOnBlack(t *testing.T) {
-	pos := From("7k/6pn/6P1/3B4/7Q/7p/PPP4R/1K6 b - - 0 1")
+	pos := NewPositionFromFen("7k/6pn/6P1/3B4/7Q/7p/PPP4R/1K6 b - - 0 1")
 
 	expected := Bitboard(1 << 55) // knight on h7
 	got := pos.pinnedPieces(Black)
@@ -59,7 +59,7 @@ func TestPinnedPiecesOnBlack(t *testing.T) {
 }
 
 func TestCheckRestrictedSquares(t *testing.T) {
-	pos := From("8/8/8/8/1k4PP/1bp1r2K/8/5N2 w - - 0 1")
+	pos := NewPositionFromFen("8/8/8/8/1k4PP/1bp1r2K/8/5N2 w - - 0 1")
 	checkingSliders := pos.Bitboards[BlackRook] // Black Rook on e3
 	checkingNonSliders := Bitboard(0)
 
@@ -72,7 +72,7 @@ func TestCheckRestrictedSquares(t *testing.T) {
 }
 
 func TestPinRestrictedSquares(t *testing.T) {
-	pos := From("2br2k1/5pp1/5p2/R4BP1/5PKP/8/8/8 w - - 0 1") // bishop on f5 is pinned can only move along the h3-c8 diagonal
+	pos := NewPositionFromFen("2br2k1/5pp1/5p2/R4BP1/5PKP/8/8/8 w - - 0 1") // bishop on f5 is pinned can only move along the h3-c8 diagonal
 
 	piece := pos.Bitboards[WhiteBishop]
 	king := pos.KingPosition(White)
@@ -159,11 +159,10 @@ func TestKingCanCastleShort(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
-	pos.castlingRights = Kk
-	kingBB := bitboardFromCoordinates("e1")
+	pos.castling.castlingRights = Kk
 
 	expected := true
-	got := canCastleShort(&kingBB, pos, White)
+	got := pos.canCastle(White, kingsideCastle)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -171,12 +170,11 @@ func TestKingCanCastleShort(t *testing.T) {
 }
 
 func TestKingCanCastleShortTwo(t *testing.T) {
-	pos := From("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9")
-	pos.castlingRights = Kk
-	kingBB := bitboardFromCoordinates("e1")
+	pos := NewPositionFromFen("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9")
+	pos.castling.castlingRights = Kk
 
 	expected := true
-	got := canCastleShort(&kingBB, pos, White)
+	got := pos.canCastle(White, kingsideCastle)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -188,11 +186,10 @@ func TestKingCannotCastleShortIfPathBlocked(t *testing.T) {
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(WhiteKnight, "f1")
-	pos.castlingRights = Kk
-	kingBB := bitboardFromCoordinates("e1")
+	pos.castling.castlingRights = Kk
 
 	expected := false
-	got := canCastleShort(&kingBB, pos, White)
+	got := pos.canCastle(White, kingsideCastle)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -204,11 +201,10 @@ func TestKingCannotCastleShortIfItsInCheck(t *testing.T) {
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(BlackRook, "f4")
-	pos.castlingRights = Kk
-	kingBB := bitboardFromCoordinates("e1")
+	pos.castling.castlingRights = Kk
 
 	expected := false
-	got := canCastleShort(&kingBB, pos, White)
+	got := pos.canCastle(White, kingsideCastle)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -219,11 +215,10 @@ func TestKingCanCastleLong(t *testing.T) {
 	pos := EmptyPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "a1")
-	pos.castlingRights = Qq
-	kingBB := bitboardFromCoordinates("e1")
+	pos.castling.castlingRights = Qq
 
 	expected := true
-	got := canCastleLong(&kingBB, pos, White)
+	got := pos.canCastle(White, queensideCastle)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -235,11 +230,10 @@ func TestBlackKingCannotCastleLongIfPathBlocked(t *testing.T) {
 	pos.AddPiece(BlackKing, "e8")
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(BlackKnight, "b8")
-	pos.castlingRights = Qq
-	kingBB := bitboardFromCoordinates("e8")
+	pos.castling.castlingRights = Qq
 
 	expected := false
-	got := canCastleLong(&kingBB, pos, Black)
+	got := pos.canCastle(Black, queensideCastle)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -251,11 +245,10 @@ func TestKingCannotCastleLongIfItsInCheck(t *testing.T) {
 	pos.AddPiece(BlackKing, "e8")
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(WhiteRook, "c6")
-	pos.castlingRights = Qq
-	kingBB := bitboardFromCoordinates("e8")
+	pos.castling.castlingRights = Qq
 
 	expected := false
-	got := canCastleLong(&kingBB, pos, Black)
+	got := pos.canCastle(Black, queensideCastle)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -267,7 +260,7 @@ func TestGenKingMoves(t *testing.T) {
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(WhiteRook, "a1")
-	pos.castlingRights = KQ
+	pos.castling.castlingRights = KQ
 	kingBB := bitboardFromCoordinates("e1")
 	ml := NewMoveList(100)
 	pd := pos.generatePositionData()
@@ -286,13 +279,12 @@ func TestGenCastles(t *testing.T) {
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(WhiteRook, "a1")
-	pos.castlingRights = KQ
-	kingBB := bitboardFromCoordinates("e1")
+	pos.castling.castlingRights = KQ
 	ml := NewMoveList(100)
 
 	expected := 2 // Castles moves are treated separately
 
-	genCastleMoves(&kingBB, pos, &ml)
+	genCastleMoves(pos, &ml)
 	got := len(ml)
 
 	if got != expected {
@@ -804,7 +796,7 @@ func TestPawnPinnedAndInCheck(t *testing.T) {
 }
 
 func TestBlackPawnInA4Moves(t *testing.T) {
-	pos := From("rnbqkbnr/1ppppppp/8/8/p7/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1")
+	pos := NewPositionFromFen("rnbqkbnr/1ppppppp/8/8/p7/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1")
 	pawnBB := bitboardFromCoordinates("a4")
 	pd := pos.generatePositionData()
 
@@ -817,7 +809,7 @@ func TestBlackPawnInA4Moves(t *testing.T) {
 }
 
 func TestPawnIsNotPinnedIfCapturesThePinnedPiece(t *testing.T) {
-	pos := From("r1bqkbnr/7p/2p1p1p1/p1pp1p1Q/P4P2/3PP3/1PPBN1PP/RN3RK1 b kq - 1 9")
+	pos := NewPositionFromFen("r1bqkbnr/7p/2p1p1p1/p1pp1p1Q/P4P2/3PP3/1PPBN1PP/RN3RK1 b kq - 1 9")
 	pawnBB := bitboardFromCoordinates("g6")
 	pd := pos.generatePositionData()
 
@@ -845,7 +837,7 @@ func TestPawnsMoves(t *testing.T) {
 }
 
 func TestPawnsMovesPromo(t *testing.T) {
-	pos := From("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
+	pos := NewPositionFromFen("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("h7")
 	pd := pos.generatePositionData()
 	ml := NewMoveList(100)
@@ -862,7 +854,7 @@ func TestPawnsMovesPromo(t *testing.T) {
 func TestGenEpPawnCaptures(t *testing.T) {
 	ml := NewMoveList(100)
 
-	pos := From("4r3/8/8/R7/3Pp2k/8/8/4K3 b - d3 0 1")
+	pos := NewPositionFromFen("4r3/8/8/R7/3Pp2k/8/8/4K3 b - d3 0 1")
 
 	genEnPassantCaptures(pos, Black, &ml)
 

@@ -45,7 +45,7 @@ func (hk *HashKeys) fullZobristHash(pos *Position) (hash uint64) {
 		hash = hash ^ zobristHashKeys.sideKey
 	}
 
-	hash = hash ^ zobristHashKeys.casltesKey[int(pos.castlingRights)]
+	hash = hash ^ zobristHashKeys.casltesKey[int(pos.castling.castlingRights)]
 
 	if pos.enPassantTarget != 0 {
 		hash = hash ^ zobristHashKeys.epKey[Bsf(pos.enPassantTarget)%8]
@@ -59,7 +59,7 @@ func (hk *HashKeys) getPieceSquareKey(pieceType, sqNumber int) uint64 {
 }
 
 // getCastleKey returns the zobrist key for a given castle
-func (hk *HashKeys) getCastleKey(castl castling) uint64 {
+func (hk *HashKeys) getCastleKey(castl castlingRights) uint64 {
 	return hk.casltesKey[int(castl)]
 }
 
