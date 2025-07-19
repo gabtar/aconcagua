@@ -21,7 +21,7 @@ func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 
 	for _, tc := range zobristTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pos := From(tc.fromFen)
+			pos := NewPositionFromFen(tc.fromFen)
 
 			ml := NewMoveList(255)
 			pos.generateCaptures(&ml)
@@ -63,7 +63,7 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 
 	for _, tc := range zobristTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pos := From(tc.fromFen)
+			pos := NewPositionFromFen(tc.fromFen)
 			expected := zobristHashKeys.fullZobristHash(pos)
 
 			ml := NewMoveList(255)

@@ -36,20 +36,9 @@ func positionCommand(en *Engine, stdout chan string, params ...string) {
 		en.pos = *InitialPosition()
 	} else if params[0] == "fen" {
 		fen := strings.Join(params[1:], " ")
-		en.pos = *From(fen)
-
-		// check if we are on 960 to set up castling
-		// TODO: make a caslteFactory function ????
+		en.pos = *NewPositionFromFen(fen)
 		if en.options.chess960 {
-			fenElements := strings.Split(fen, " ")
-			if fenElements[2] != "KQkq" {
-				kingSq := Bsf(en.pos.KingPosition(White))
-				en.pos.castling = *NewCastlingFromShredderFenCastlingCode(kingSq, fenElements[2])
-			} else {
-				// parse backrank as fen fallback
-				backrank := strings.Split(fenElements[0], "/")[0] // should be same as the first rank
-				en.pos.castling = *NewCastlingFromBackrank(backrank)
-			}
+			en.pos.castling = *NewCastlingFromFen(fen, true)
 		}
 
 	} else {

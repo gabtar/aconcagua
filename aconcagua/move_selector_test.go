@@ -31,7 +31,7 @@ func TestMoveSelectorNotHasNextMove(t *testing.T) {
 }
 
 func TestMoveSelectorCreatesCaptures(t *testing.T) {
-	pos := From("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
+	pos := NewPositionFromFen("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	ms := NewMoveSelector(pos, nil, nil, nil, nil)
 	move := NoMove
 	ms.hashMove = &move
@@ -45,7 +45,7 @@ func TestMoveSelectorCreatesCaptures(t *testing.T) {
 }
 
 func TestMoveSelectorCreatesNonCaptures(t *testing.T) {
-	pos := From("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
+	pos := NewPositionFromFen("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	noMove := NoMove
 	ms := NewMoveSelector(pos, &noMove, &noMove, &noMove, &HistoryMoves{})
 	ms.stage = FirstKillerStage // NOTE: Non captures are generated in killers stage to validate legaliy of killers
@@ -63,7 +63,7 @@ func TestMoveSelectorCreatesNonCaptures(t *testing.T) {
 }
 
 func TestMoveSelectorGetsAllMoves(t *testing.T) {
-	pos := From("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // 3 captures + 17 non capt
+	pos := NewPositionFromFen("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // 3 captures + 17 non capt
 	hashMove := NoMove
 
 	ml := NewMoveList(20)

@@ -130,10 +130,10 @@ func genCastleMoves(pos *Position, ml *MoveList) {
 		queensideCastleTo = pos.castling.rooksStartSquare[pos.Turn][1]
 	}
 
-	if pos.canCastleShort(pos.Turn) {
+	if pos.canCastle(pos.Turn, kingsideCastle) {
 		ml.add(*encodeMove(uint16(fromSq), uint16(kingsideCastleTo), kingsideCastle))
 	}
-	if pos.canCastleLong(pos.Turn) {
+	if pos.canCastle(pos.Turn, queensideCastle) {
 		ml.add(*encodeMove(uint16(fromSq), uint16(queensideCastleTo), queensideCastle))
 	}
 }

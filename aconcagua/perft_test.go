@@ -42,7 +42,7 @@ func TestStandardPerft(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pos := From(tc.fen)
+			pos := NewPositionFromFen(tc.fen)
 			got := pos.Perft(tc.depth)
 			if got != uint64(tc.moves) {
 				t.Errorf("Expected: %v, got: %v", tc.moves, got)
@@ -51,9 +51,7 @@ func TestStandardPerft(t *testing.T) {
 	}
 }
 
-// TODO: test perft for chess960 to test make and unmake move. May need also to update the move encoding for castling in chess960
 // Data from https://www.chessprogramming.org/Chess960_Perft_Results
-
 func Test960Perft(t *testing.T) {
 	testCases := []struct {
 		name  string
@@ -88,7 +86,7 @@ func Test960Perft(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pos := From(tc.fen)
+			pos := NewPositionFromFen(tc.fen)
 
 			// setup 960 castle from FEN string
 			fenSegments := strings.Split(tc.fen, " ")

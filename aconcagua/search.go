@@ -193,10 +193,10 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		if newScore >= beta {
 			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta, move)
 			s.killers[ply].add(move)
-
 			if flag == quiet {
 				s.historyMoves.update(depth, move.from(), move.to(), pos.Turn)
 			}
+
 			return beta
 		}
 
