@@ -44,7 +44,7 @@ func TestBlackPawnNearQueening(t *testing.T) {
 }
 
 func TestWhiteFirstMoveE4(t *testing.T) {
-	pos := From("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
+	pos := NewPositionFromFen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
 
 	expected := +17 - (-15) // Pawn on e2(-15 penalty) and on e4 (+17) (middlegame table)
 	got := Eval(pos)
@@ -55,7 +55,7 @@ func TestWhiteFirstMoveE4(t *testing.T) {
 }
 
 func TestEvaluationEqualWithE4D5(t *testing.T) {
-	pos := From("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
+	pos := NewPositionFromFen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
 
 	expected := -3
 	got := Eval(pos)

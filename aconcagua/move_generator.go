@@ -1,62 +1,16 @@
 package aconcagua
 
 // ------------------------------------------------------------------
-// PIECE ATTACKS GENERATION
-// ------------------------------------------------------------------
-
-// kingAttacks returns a bitboard with the squares the king attacks from the passed bitboard
-func kingAttacks(k *Bitboard) (attacks Bitboard) {
-	notInHFile := *k & ^(*k & files[7])
-	notInAFile := *k & ^(*k & files[0])
-
-	attacks = notInAFile<<7 | *k<<8 | notInHFile<<9 |
-		notInHFile<<1 | notInAFile>>1 | notInHFile>>7 |
-		*k>>8 | notInAFile>>9
-	return
-}
-
-// queenAttacks returns a Bitboard with all the squares a queen is attacking
-func queenAttacks(q *Bitboard, blocks Bitboard) (attacks Bitboard) {
-	attacks = rookAttacks(Bsf(*q), blocks) | bishopAttacks(Bsf(*q), blocks)
-	return
-}
-
-// rookAttacks returns a bitboard with the attack mask of a rook from the square passed taking into account the blockers
-func rookAttacks(square int, blocks Bitboard) Bitboard {
-	blocks &= rooksMaskTable[square]
-	magicIndex := (blocks * rookMagics[square]) >> (64 - rooksMaskTable[square].count())
-	return rookAttacksTable[square][magicIndex]
-}
-
-// bishopAttacks returns a bitboard with the attack mask of a bishop from the square passed taking into account the blockers
-func bishopAttacks(square int, blocks Bitboard) Bitboard {
-	blocks &= bishopMaskTable[square]
-	magicIndex := (blocks * bishopMagics[square]) >> (64 - bishopMaskTable[square].count())
-	return bishopAttacksTable[square][magicIndex]
-}
-
-// pawnAttacks returns a bitboard with the squares the pawn attacks from the position passed
-func pawnAttacks(p *Bitboard, side Color) (attacks Bitboard) {
-	notInHFile := *p & ^(*p & files[7])
-	notInAFile := *p & ^(*p & files[0])
-
-	if side == White {
-		attacks = notInAFile<<7 | notInHFile<<9
-	} else {
-		attacks = notInAFile>>9 | notInHFile>>7
-	}
-	return
-}
-
-// ------------------------------------------------------------------
 // PIECE MOVES GENERATION (BITBOARD)
 // ------------------------------------------------------------------
 
 // kingMoves returns a bitboard with the legal moves of the king from the bitboard passed
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	withoutKing := *pos
-	withoutKing.RemovePiece(*k)
-	moves = kingAttacks(k) & ^withoutKing.AttackedSquares(side.Opponent()) & ^pos.Pieces(side)
+	pos.RemovePiece(*k)
+	attackedSquares := pos.AttackedSquares(side.Opponent()) // to check attacks rays (behind) the king he is actually blocking
+	pos.AddPiece(pieceColor(King, side), squareReference[Bsf(*k)])
+
+	moves = kingAttacks(k) & ^attackedSquares & ^pos.Pieces(side)
 	return
 }
 
@@ -73,7 +27,6 @@ func bishopMoves(b *Bitboard, pd *PositionData) (moves Bitboard) {
 	return bishopAttacks(Bsf(*b), pd.allies|pd.enemies) &
 		^pd.allies &
 		pd.checkRestrictedSquares &
-		// checkRestrictedSquares(pd.kingPosition, pd.checkingSliders, pd.checkingNonSliders) &
 		pinRestrictedSquares(*b, pd.kingPosition, pd.pinnedPieces)
 }
 
@@ -107,12 +60,55 @@ func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 	return
 }
 
+// pawnMoveFlag returns the move flag for the pawn move
+func pawnMoveFlag(from *Bitboard, to *Bitboard, pd *PositionData, side Color) []uint16 {
+	fromSq := Bsf(*from)
+	toSq := Bsf(*to)
+	promotion := lastRank(side) & *to
+
+	switch {
+	case promotion > 0 && pd.enemies&*to > 0:
+		return []uint16{knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion}
+	case promotion > 0:
+		return []uint16{knightPromotion, bishopPromotion, rookPromotion, queenPromotion}
+	case toSq-fromSq == 16 || fromSq-toSq == 16:
+		return []uint16{doublePawnPush}
+	case pd.enemies&*to > 0:
+		return []uint16{capture}
+	default:
+		return []uint16{quiet}
+	}
+}
+
+// potentialEpCapturers returns a bitboard with the potential pawn that can caputure enPassant
+func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
+	epShift := pos.enPassantTarget >> 8
+	if side == Black {
+		epShift = epShift << 16
+	}
+	notInHFile := epShift & ^(epShift & files[7])
+	notInAFile := epShift & ^(epShift & files[0])
+
+	epCaptures |= pos.getBitboards(side)[Pawn] & (notInAFile>>1 | notInHFile<<1)
+	return
+}
+
+// lastRank returns the rank of the last rank for the side passed
+func lastRank(side Color) (rank Bitboard) {
+	if side == White {
+		rank = ranks[7]
+	} else {
+		rank = ranks[0]
+	}
+	return
+}
+
 // ------------------------------------------------------------------
 // PIECE MOVES GENERATION (MOVE LIST)
 // ------------------------------------------------------------------
 
-// genTargetMoves generates the moves from the square passed to the targets passed into the move list
-func genTargetMoves(from *Bitboard, targets Bitboard, ml *moveList, pd *PositionData) {
+// genMovesFromTargets generates the moves from the square passed to the targets passed in a MoveList
+func genMovesFromTargets(from *Bitboard, targets Bitboard, ml *MoveList, pd *PositionData) {
 	for targets > 0 {
 		toSquare := targets.NextBit()
 		flag := quiet
@@ -124,21 +120,28 @@ func genTargetMoves(from *Bitboard, targets Bitboard, ml *moveList, pd *Position
 }
 
 // genCastleMoves generates the castles moves availabes in the move list
-func genCastleMoves(from *Bitboard, pos *Position, ml *moveList) {
-	if canCastleShort(from, pos, pos.Turn) {
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from<<2)), kingsideCastle))
+func genCastleMoves(pos *Position, ml *MoveList) {
+	fromSq := pos.castling.kingsStartSquare[pos.Turn]
+	flipModifier := 2 - (int(pos.Turn) + 1)
+	kingsideCastleTo := 62 ^ (flipModifier * 56) // Flip to g1 or g8 depending on current side
+	queensideCastleTo := 58 ^ (flipModifier * 56)
+	if pos.castling.chess960 {
+		kingsideCastleTo = pos.castling.rooksStartSquare[pos.Turn][0]
+		queensideCastleTo = pos.castling.rooksStartSquare[pos.Turn][1]
 	}
-	if canCastleLong(from, pos, pos.Turn) {
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*from>>2)), queensideCastle))
+
+	if pos.canCastle(pos.Turn, kingsideCastle) {
+		ml.add(*encodeMove(uint16(fromSq), uint16(kingsideCastleTo), kingsideCastle))
+	}
+	if pos.canCastle(pos.Turn, queensideCastle) {
+		ml.add(*encodeMove(uint16(fromSq), uint16(queensideCastleTo), queensideCastle))
 	}
 }
 
-// genPawnMoves generates the pawn moves in the move list
-func genPawnMoves(from *Bitboard, side Color, ml *moveList, pd *PositionData) {
-	toSquares := pawnMoves(from, pd, side)
-
-	for toSquares > 0 {
-		toSquare := toSquares.NextBit()
+// genPawnMovesFromTarget generates the pawn moves in the move list
+func genPawnMovesFromTarget(from *Bitboard, targets Bitboard, side Color, ml *MoveList, pd *PositionData) {
+	for targets > 0 {
+		toSquare := targets.NextBit()
 		flags := pawnMoveFlag(from, &toSquare, pd, side)
 
 		for i := range flags {
@@ -147,8 +150,8 @@ func genPawnMoves(from *Bitboard, side Color, ml *moveList, pd *PositionData) {
 	}
 }
 
-// genPawnCaptures generates the pawn captures in the move list
-func genPawnCaptures(from *Bitboard, side Color, ml *moveList, pd *PositionData) {
+// genPawnCapturesMoves generates the pawn captures in the move list
+func genPawnCapturesMoves(from *Bitboard, side Color, ml *MoveList, pd *PositionData) {
 	toSquares := pawnMoves(from, pd, side) & pd.enemies
 
 	for toSquares > 0 {
@@ -161,8 +164,8 @@ func genPawnCaptures(from *Bitboard, side Color, ml *moveList, pd *PositionData)
 	}
 }
 
-// genEpPawnCaptures generates the enPassant captures on the move list
-func genEpPawnCaptures(pos *Position, side Color, ml *moveList) {
+// genEnPassantCaptures generates the enPassant captures on the move list
+func genEnPassantCaptures(pos *Position, side Color, ml *MoveList) {
 	if pos.enPassantTarget == 0 {
 		return
 	}
@@ -209,4 +212,59 @@ func pinRestrictedSquares(piece Bitboard, king Bitboard, pinnedPieces Bitboard) 
 		return raysDirection(king, direction)
 	}
 	return AllSquares
+}
+
+// generateCaptures generates all captures in the position and stores them in the move list
+func (pos *Position) generateCaptures(ml *MoveList) {
+	pd := pos.generatePositionData()
+	bitboards := pos.getBitboards(pos.Turn)
+
+	for piece, bb := range bitboards {
+		for bb > 0 {
+			pieceBB := bb.NextBit()
+			switch piece {
+			case King:
+				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&pd.enemies, ml, &pd)
+			case Queen:
+				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd))&pd.enemies, ml, &pd)
+			case Rook:
+				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
+			case Bishop:
+				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
+			case Knight:
+				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
+			case Pawn:
+				genPawnCapturesMoves(&pieceBB, pos.Turn, ml, &pd)
+			}
+		}
+	}
+	// TODO: add en passant captures here??. Need to fix see first(because 'to' square is an empty square)
+}
+
+// generateNonCaptures generates all non captures in the position and stores them in the move list
+func (pos *Position) generateNonCaptures(ml *MoveList) {
+	pd := pos.generatePositionData()
+	bitboards := pos.getBitboards(pos.Turn)
+
+	for piece, bb := range bitboards {
+		for bb > 0 {
+			pieceBB := bb.NextBit()
+			switch piece {
+			case King:
+				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, &pd)
+				genCastleMoves(pos, ml)
+			case Queen:
+				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd))&^pd.enemies, ml, &pd)
+			case Rook:
+				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, &pd)&^pd.enemies, ml, &pd)
+			case Bishop:
+				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, &pd)&^pd.enemies, ml, &pd)
+			case Knight:
+				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, &pd)&^pd.enemies, ml, &pd)
+			case Pawn:
+				genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, &pd, pos.Turn)&^pd.enemies, pos.Turn, ml, &pd)
+			}
+		}
+	}
+	genEnPassantCaptures(pos, pos.Turn, ml)
 }

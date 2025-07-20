@@ -16,6 +16,7 @@ type Engine struct {
 // Options are various engine options that can be set
 type Options struct {
 	useOpeningBook bool
+	chess960       bool
 }
 
 // NewEngine returns a new Engine instance
@@ -29,13 +30,14 @@ func NewEngine() *Engine {
 			nodes:        0,
 			currentDepth: 0,
 			maxDepth:     0,
-			PVTable:      NewPVTable(MaxSearchDepth),
-			killers:      [100]Killer{},
+			pvLine:       NewPvLine(MaxSearchDepth),
+			killers:      [MaxSearchDepth]Killer{},
 			timeControl:  &tc,
 		},
 		openingBook: PolyglotBook{},
 		options: Options{
 			useOpeningBook: false,
+			chess960:       false,
 		},
 	}
 }

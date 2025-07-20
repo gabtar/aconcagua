@@ -6,7 +6,7 @@ const MaxHistoryMoves = 255
 type PositionHistory struct {
 	previousPosition     [MaxHistoryMoves * 2]uint64
 	previousState        [MaxHistoryMoves]positionBefore
-	previousCastleRigths [MaxHistoryMoves]castling
+	previousCastleRigths [MaxHistoryMoves]castlingRights
 	currentIndex         int
 }
 
@@ -24,12 +24,12 @@ func (ph *PositionHistory) repetitionCount(hash uint64) int {
 // clear clears the position history
 func (ph *PositionHistory) clear() {
 	ph.previousState = [MaxHistoryMoves]positionBefore{}
-	ph.previousCastleRigths = [MaxHistoryMoves]castling{}
+	ph.previousCastleRigths = [MaxHistoryMoves]castlingRights{}
 	ph.currentIndex = 0
 }
 
 // add adds a previous position and a castle rigths to the position history
-func (ph *PositionHistory) add(pb positionBefore, c castling, hash uint64) {
+func (ph *PositionHistory) add(pb positionBefore, c castlingRights, hash uint64) {
 	ph.previousState[ph.currentIndex] = pb
 	ph.previousCastleRigths[ph.currentIndex] = c
 	ph.previousPosition[ph.currentIndex] = hash
@@ -37,7 +37,7 @@ func (ph *PositionHistory) add(pb positionBefore, c castling, hash uint64) {
 }
 
 // pop returns the last position and castle rigths added to the position history
-func (ph *PositionHistory) pop() (positionBefore, castling) {
+func (ph *PositionHistory) pop() (positionBefore, castlingRights) {
 	ph.currentIndex--
 	ph.previousPosition[ph.currentIndex] = 0
 	return ph.previousState[ph.currentIndex], ph.previousCastleRigths[ph.currentIndex]
@@ -48,7 +48,7 @@ func NewPositionHistory() *PositionHistory {
 	return &PositionHistory{
 		previousPosition:     [MaxHistoryMoves * 2]uint64{},
 		previousState:        [MaxHistoryMoves]positionBefore{},
-		previousCastleRigths: [MaxHistoryMoves]castling{},
+		previousCastleRigths: [MaxHistoryMoves]castlingRights{},
 		currentIndex:         0,
 	}
 }

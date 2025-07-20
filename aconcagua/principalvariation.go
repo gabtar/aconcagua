@@ -1,52 +1,29 @@
 package aconcagua
 
-// PVLine is a principal variation line of a position
-type PVLine struct {
-	moves  []Move
-	length int
+// pvLine is a principal variation line of a position
+type pvLine []Move
+
+// NewPvLine returns a new principal variation line with the capacity passed allocated
+func NewPvLine(capacity int) pvLine {
+	return make(pvLine, 0, capacity)
 }
 
-// reset resets the PVLine length
-func (pv *PVLine) reset() {
-	pv.length = 0
+// insert inserts a move at the beginning of the pvLine
+func (pv *pvLine) insert(move Move, branchPv *pvLine) {
+	*pv = append([]Move{move}, *branchPv...)
 }
 
-// prepend prepends a move to the PVLine
-func (pv *PVLine) prepend(move Move, branchPV *PVLine) {
-	pv.moves[0] = move
-	if branchPV.length > 0 {
-		copy(pv.moves[1:], branchPV.moves[:branchPV.length])
-	}
-	pv.length = branchPV.length + 1
+// reset resets the pvLine
+func (pv *pvLine) reset() {
+	*pv = (*pv)[:0]
 }
 
-// String returns a string representation of the PVLine
-func (pv *PVLine) String() string {
-	if pv.length == 0 {
-		return ""
-	}
-
+// String returns the string representation of the principal variation
+func (pv *pvLine) String() string {
 	moves := ""
-	for i := range pv.length {
-		moves += pv.moves[i].String() + " "
+	for _, m := range *pv {
+		moves += m.String() + " "
 	}
 	moves = moves[:len(moves)-1]
 	return moves
-}
-
-// PVTable is a principal variation table for holding PVLines during the search
-type PVTable []PVLine
-
-// reset resets the pv line at the given plies
-func (pvTable PVTable) reset(plies int) {
-	pvTable[plies].reset()
-}
-
-// NewPVTable returns a new PVTable
-func NewPVTable(depth int) PVTable {
-	table := make(PVTable, depth)
-	for i := range table {
-		table[i] = PVLine{moves: make([]Move, depth), length: 0}
-	}
-	return table
 }

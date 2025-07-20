@@ -71,7 +71,7 @@ func (m *Move) String() (move string) {
 	return
 }
 
-// positionBefore is an encoded board state before the making a move
+// positionBefore is an encoded board state before making a move
 type positionBefore uint32
 
 // encodePositionBefore returns a reference to an encoded board state before the move

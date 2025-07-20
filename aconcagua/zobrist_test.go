@@ -1,9 +1,6 @@
 package aconcagua
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 	zobristTestCases := []struct {
@@ -24,12 +21,15 @@ func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 
 	for _, tc := range zobristTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pos := From(tc.fromFen)
+			pos := NewPositionFromFen(tc.fromFen)
 
-			ml := pos.LegalMoves()
-			for moveNumber := range ml.length {
-				if ml.moves[moveNumber].String() == tc.move {
-					pos.MakeMove(&ml.moves[moveNumber])
+			ml := NewMoveList(255)
+			pos.generateCaptures(&ml)
+			pos.generateNonCaptures(&ml)
+
+			for moveNumber := range ml {
+				if ml[moveNumber].String() == tc.move {
+					pos.MakeMove(&ml[moveNumber])
 					break
 				}
 			}
@@ -39,7 +39,6 @@ func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 
 			if got != expected {
 				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
-				fmt.Println(pos.String())
 			}
 		})
 	}
@@ -64,14 +63,17 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 
 	for _, tc := range zobristTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pos := From(tc.fromFen)
+			pos := NewPositionFromFen(tc.fromFen)
 			expected := zobristHashKeys.fullZobristHash(pos)
 
-			ml := pos.LegalMoves()
-			for moveNumber := range ml.length {
-				if ml.moves[moveNumber].String() == tc.move {
-					pos.MakeMove(&ml.moves[moveNumber])
-					pos.UnmakeMove(&ml.moves[moveNumber])
+			ml := NewMoveList(255)
+			pos.generateCaptures(&ml)
+			pos.generateNonCaptures(&ml)
+
+			for moveNumber := range ml {
+				if ml[moveNumber].String() == tc.move {
+					pos.MakeMove(&ml[moveNumber])
+					pos.UnmakeMove(&ml[moveNumber])
 					break
 				}
 			}
@@ -80,10 +82,7 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 
 			if got != expected {
 				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
-				fmt.Println(pos.String())
 			}
 		})
 	}
 }
-
-// TODO: test zobrist key in transposition when making moves with alternate order from a given position
