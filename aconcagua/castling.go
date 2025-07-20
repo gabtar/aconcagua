@@ -66,7 +66,10 @@ func NewCastlingFromFen(fen string, is960 bool) *castling {
 		return castling
 	} else {
 		ranks := strings.Split(fenElements[0], "/")
-		kingSq := strings.Index(ranks[0], "k")
+		kingSq := strings.Index(ranks[7], "K")
+		if kingSq == -1 {
+			kingSq = strings.Index(ranks[0], "k")
+		}
 		castling := NewCastlingFromShredderFenCastlingCode(kingSq, fenElements[2])
 		castling.chess960 = true
 		return castling
