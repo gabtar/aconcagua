@@ -7,7 +7,7 @@ package aconcagua
 //		2.1 Doubled Pawns
 //		2.2 Isolated Pawn
 //		2.3 Backward Pawns
-//		2.4 Passed Pawns
+//		2.4 Passed Pawns										✔															+ 99.95
 // 3. King safety
 //		3.1 Pawn shield
 //		3.2 Pawn storm
@@ -165,12 +165,128 @@ func (ev *Evaluation) evaluateKnight(pos *Position, knight *Bitboard, side Color
 	return
 }
 
+// evaluatePawn returns the middlegame and endgame score of the pawn in the position
 func (ev *Evaluation) evaluatePawn(pos *Position, pawn *Bitboard, side Color) (mgScore int, egScore int) {
 	piece := pieceColor(Pawn, side)
 	sq := Bsf(*pawn)
+
+	if isDoubled(pawn, pos, side) {
+		ev.mgMaterial[side] -= 5
+		ev.egMaterial[side] -= 5
+	}
+
+	if isIsolated(pawn, pos, side) {
+		ev.mgMaterial[side] -= 10
+		ev.egMaterial[side] -= 10
+	}
+
+	if isBackward(pawn, pos, side) {
+		ev.mgMaterial[side] -= 5
+		ev.egMaterial[side] -= 10
+	}
+
+	if isPassed(pawn, pos, side) {
+		ev.mgMaterial[side] += 20
+		ev.egMaterial[side] += 30
+	}
 
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][sq]
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
 	return
+}
+
+// isDoubled returns true if the pawn is doubled
+func isDoubled(pawn *Bitboard, pos *Position, side Color) bool {
+	file := Bsf(*pawn) % 8
+	filePawns := files[file] & pos.Bitboards[pieceColor(Pawn, side)]
+
+	if filePawns.count() > 1 {
+		return true
+	}
+	return false
+}
+
+// isIsolated returns true if the pawn is isolated
+func isIsolated(pawn *Bitboard, pos *Position, side Color) bool {
+	file := Bsf(*pawn) % 8
+	adjacentFiles := Bitboard(0)
+
+	if file < 7 {
+		adjacentFiles |= files[file+1]
+	}
+	if file > 0 {
+		adjacentFiles |= files[file-1]
+	}
+
+	if adjacentFiles&pos.Bitboards[pieceColor(Pawn, side)] == 0 {
+		return true
+	}
+	return false
+}
+
+// isBackward returns true if the pawn is backward
+func isBackward(pawn *Bitboard, pos *Position, side Color) bool {
+	// From wikipedia
+	// In chess, a backward pawn is a pawn that is behind all pawns of the same color on the adjacent files and cannot be safely advanced
+	file := Bsf(*pawn) % 8
+	rank := Bsf(*pawn) / 8
+	backwardDirection := South
+	backwardLeftSq, backwardRightSq := rank*8+file-1, rank*8+file+1
+	upSq := *pawn << 8
+	if side == Black {
+		backwardLeftSq, backwardRightSq = rank*8+file-1, rank*8+file+1
+		upSq = *pawn >> 8
+		backwardDirection = North
+	}
+
+	alliedPawns := pos.Bitboards[pieceColor(Pawn, side)]
+	adjacentBackward := Bitboard(0)
+	if file < 7 {
+		adjacentBackward |= rayAttacks[backwardDirection][backwardRightSq]
+	}
+	if file > 0 {
+		adjacentBackward |= rayAttacks[backwardDirection][backwardLeftSq]
+	}
+
+	enemyPawns := pos.Bitboards[pieceColor(Pawn, side.Opponent())]
+	enemyPawnsAttacks := Attacks(pieceColor(Pawn, side.Opponent()), enemyPawns, ^pos.EmptySquares())
+
+	if adjacentBackward&alliedPawns == 0 && enemyPawnsAttacks&upSq > 0 {
+		return true
+	}
+
+	return false
+}
+
+// isPassed returns true if the pawn is passed
+func isPassed(pawn *Bitboard, pos *Position, side Color) bool {
+	file := Bsf(*pawn) % 8
+	if file == 0 || file == 7 {
+		return false
+	}
+
+	direction := North
+	upLeftSq, upRightSq := *pawn<<9, *pawn<<7
+	if side == Black {
+		direction = South
+		upLeftSq, upRightSq = *pawn>>7, *pawn>>9
+	}
+
+	adjacentUp := Bitboard(0)
+	adjacentUp |= rayAttacks[direction][Bsf(*pawn)]
+	if file < 7 {
+		adjacentUp |= rayAttacks[direction][Bsf(upRightSq)]
+	}
+	if file > 0 {
+		adjacentUp |= rayAttacks[direction][Bsf(upLeftSq)]
+	}
+
+	enemyPawns := pos.Bitboards[pieceColor(Pawn, side.Opponent())]
+	enemyPawnsAttacks := Attacks(pieceColor(Pawn, side.Opponent()), enemyPawns, ^pos.EmptySquares())
+
+	if adjacentUp&enemyPawns == 0 && enemyPawnsAttacks&adjacentUp == 0 {
+		return true
+	}
+	return false
 }
