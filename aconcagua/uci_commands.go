@@ -9,7 +9,7 @@ import (
 )
 
 // MaxSearchDepth is the maximum depth of the search
-const MaxSearchDepth = 50
+const MaxSearchDepth = 100
 
 // UciCommand handles a uci command instruction from the gui
 type UciCommand func(en *Engine, stdout chan string, params ...string)
