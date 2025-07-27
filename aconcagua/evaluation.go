@@ -1,13 +1,17 @@
 package aconcagua
 
-// TODO: Evaluation improvements...                Elo improvement(from base PSQT eval - not tunned). selfplay 50 games 1+0
-// 0. New PSQT														✔																	0.0
-// 1. Mobility                            ✔															+ 63.23
+// TODO: New Evaluation Tests (Handcraft/'Intuitive' Tunning...) - 50 games 60s+1s TC (Blitz_Testing_4moves.epd)
+// ------------------------------------------------------------------------------------------------------------------
+// Feature                      |      Implemented            |   Elo improvement (from base PSQT eval - not tunned)
+// ------------------------------------------------------------------------------------------------------------------
+// 0. New PSQT														✔																	0.0       ( -219.87 vs Aconcagua-v3.0.0)
+// 1. Mobility v1                         ✔																 -20.87     (  -99.95 vs Aconcagua-v3.0.0)
+// 1. Mobility v2                         ✔																 +200.24    ( -34.68 vs Aconcagua-v3.0.0)
 // 2. Pawn structure analysis
 //		2.1 Doubled Pawns
 //		2.2 Isolated Pawn
 //		2.3 Backward Pawns
-//		2.4 Passed Pawns										✔															+ 99.95
+//		2.4 Passed Pawns
 // 3. King safety
 //		3.1 Pawn shield
 //		3.2 Pawn storm
@@ -76,16 +80,6 @@ func (ev *Evaluation) evaluateKing(pos *Position, king *Bitboard, side Color) (m
 	return
 }
 
-// TODO: extract to EvalTables or somehting else
-var queenMobilityMg = [28]int{
-	-60, -40, -20, -10, 0, 10, 20, 30, 35, 40, 45, 50, 55, 60, 65,
-	70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130,
-}
-var queenMobilityEg = [28]int{
-	-60, -40, -20, -10, 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
-	55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115,
-}
-
 // evaluateQueen returns the middlegame and endgame score of the queen in the position
 func (ev *Evaluation) evaluateQueen(pos *Position, queen *Bitboard, side Color) (mgScore int, egScore int) {
 	piece := pieceColor(Queen, side)
@@ -95,16 +89,13 @@ func (ev *Evaluation) evaluateQueen(pos *Position, queen *Bitboard, side Color) 
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
 	attacksCount := Attacks(piece, *queen, ^pos.EmptySquares()).count()
-	ev.mgMobility[side] += queenMobilityMg[attacksCount]
-	ev.egMobility[side] += queenMobilityEg[attacksCount]
+	ev.mgMobility[side] += (attacksCount - 7) * 5
+	ev.egMobility[side] += (attacksCount - 7) * 3
 
 	ev.phase += 4
 
 	return
 }
-
-var rookMobilityMg = [15]int{-60, -30, -10, 0, 10, 20, 30, 40, 45, 50, 55, 60, 65, 70, 75}
-var rookMobilityEg = [15]int{-60, -30, -10, 5, 15, 25, 35, 45, 50, 55, 60, 65, 70, 75, 80}
 
 // evaluateRook returns the middlegame and endgame score of the rook in the position
 func (ev *Evaluation) evaluateRook(pos *Position, rook *Bitboard, side Color) (mgScore int, egScore int) {
@@ -116,16 +107,13 @@ func (ev *Evaluation) evaluateRook(pos *Position, rook *Bitboard, side Color) (m
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
 	attacksCount := Attacks(piece, *rook, ^pos.EmptySquares()).count()
-	ev.mgMobility[side] += rookMobilityMg[attacksCount]
-	ev.egMobility[side] += rookMobilityEg[attacksCount]
+	ev.mgMobility[side] += (attacksCount - 5) * 3
+	ev.egMobility[side] += (attacksCount - 5) * 3
 
 	ev.phase += 2
 
 	return
 }
-
-var bishopMobilityMg = [14]int{-50, -25, -10, 0, 10, 20, 30, 40, 45, 50, 55, 60, 65, 70}
-var bishopMobilityEg = [14]int{-50, -25, -10, 0, 5, 15, 25, 35, 40, 45, 50, 55, 60, 65}
 
 // evaluateBishop returns the middlegame and endgame score of the bishop in the position
 func (ev *Evaluation) evaluateBishop(pos *Position, bishop *Bitboard, side Color) (mgScore int, egScore int) {
@@ -136,16 +124,13 @@ func (ev *Evaluation) evaluateBishop(pos *Position, bishop *Bitboard, side Color
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
 	attacksCount := Attacks(piece, *bishop, ^pos.EmptySquares()).count()
-	ev.mgMobility[side] += bishopMobilityMg[attacksCount]
-	ev.egMobility[side] += bishopMobilityEg[attacksCount]
+	ev.mgMobility[side] += (attacksCount - 5) * 3
+	ev.egMobility[side] += (attacksCount - 5) * 4
 
 	ev.phase += 1
 
 	return
 }
-
-var knightMobilityMg = [9]int{-50, -20, 0, 10, 20, 30, 40, 45, 50}
-var knightMobilityEg = [9]int{-50, -20, 0, 10, 20, 30, 35, 40, 45}
 
 // evaluateKnight returns the middlegame and endgame score of the knight in the position
 func (ev *Evaluation) evaluateKnight(pos *Position, knight *Bitboard, side Color) (mgScore int, egScore int) {
@@ -157,8 +142,8 @@ func (ev *Evaluation) evaluateKnight(pos *Position, knight *Bitboard, side Color
 
 	// TODO: extract to function?
 	attacksCount := Attacks(piece, *knight, ^pos.EmptySquares()).count()
-	ev.mgMobility[side] += knightMobilityMg[attacksCount]
-	ev.egMobility[side] += knightMobilityEg[attacksCount]
+	ev.mgMobility[side] += (attacksCount - 3) * 3
+	ev.egMobility[side] += (attacksCount - 3) * 4
 
 	ev.phase += 1
 
@@ -170,25 +155,25 @@ func (ev *Evaluation) evaluatePawn(pos *Position, pawn *Bitboard, side Color) (m
 	piece := pieceColor(Pawn, side)
 	sq := Bsf(*pawn)
 
-	if isDoubled(pawn, pos, side) {
-		ev.mgMaterial[side] -= 5
-		ev.egMaterial[side] -= 5
-	}
-
-	if isIsolated(pawn, pos, side) {
-		ev.mgMaterial[side] -= 10
-		ev.egMaterial[side] -= 10
-	}
-
-	if isBackward(pawn, pos, side) {
-		ev.mgMaterial[side] -= 5
-		ev.egMaterial[side] -= 10
-	}
-
-	if isPassed(pawn, pos, side) {
-		ev.mgMaterial[side] += 20
-		ev.egMaterial[side] += 30
-	}
+	// if isDoubled(pawn, pos, side) {
+	// 	ev.mgMaterial[side] -= 5
+	// 	ev.egMaterial[side] -= 10
+	// }
+	//
+	// if isIsolated(pawn, pos, side) {
+	// 	ev.mgMaterial[side] -= 10
+	// 	ev.egMaterial[side] -= 10
+	// }
+	//
+	// if isBackward(pawn, pos, side) {
+	// 	ev.mgMaterial[side] -= 5
+	// 	ev.egMaterial[side] -= 10
+	// }
+	//
+	// if isPassed(pawn, pos, side) {
+	// 	ev.mgMaterial[side] += 20
+	// 	ev.egMaterial[side] += 30
+	// }
 
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][sq]
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
