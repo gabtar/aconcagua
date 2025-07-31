@@ -11,36 +11,35 @@ func TestEval(t *testing.T) {
 	}
 }
 
-func TestPawnIsDoubled(t *testing.T) {
+func TestDoubledPawns(t *testing.T) {
 	pos := NewPositionFromFen("2k5/8/8/8/1PP3P1/6P1/8/4K3 w - - 0 1")
-	pawnBB := bitboardFromCoordinates("g3")
 
-	expected := true
-	got := isDoubled(&pawnBB, pos, White)
+	expected := 1
+	got := doubledPawns(pos, White).count()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
 
-func TestPawnIsNotDoubled(t *testing.T) {
-	pos := NewPositionFromFen("2k5/8/8/8/1PP3P1/6P1/8/4K3 w - - 0 1")
-	pawnBB := bitboardFromCoordinates("c4")
+func TestTripledPawnsOnGFile(t *testing.T) {
+	pos := NewPositionFromFen("2k5/6p1/6p1/6p1/1PP3P1/6P1/8/4K3 w - - 0 1")
 
-	expected := false
-	got := isDoubled(&pawnBB, pos, White)
+	expected := 2
+	got := doubledPawns(pos, Black).count()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
+
 }
 
 func TestPawnIsIsolated(t *testing.T) {
 	pos := NewPositionFromFen("2k5/8/6p1/3p4/2pP4/2P5/3K4/8 b - - 0 1")
 	pawnBB := bitboardFromCoordinates("g6")
 
-	expected := true
-	got := isIsolated(&pawnBB, pos, Black)
+	expected := pawnBB
+	got := isolatedPawns(pos, Black)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -48,11 +47,10 @@ func TestPawnIsIsolated(t *testing.T) {
 }
 
 func TestPawnIsNotIsolated(t *testing.T) {
-	pos := NewPositionFromFen("2k5/8/6p1/3p4/2pP4/2P5/3K4/8 b - - 0 1")
-	pawnBB := bitboardFromCoordinates("c3")
+	pos := NewPositionFromFen("2k5/8/8/3p4/2pP4/2P5/3K4/8 b - - 0 1")
 
-	expected := false
-	got := isIsolated(&pawnBB, pos, White)
+	expected := Bitboard(0)
+	got := isolatedPawns(pos, Black)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
