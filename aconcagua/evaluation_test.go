@@ -61,10 +61,9 @@ func TestPawnIsNotIsolated(t *testing.T) {
 
 func TestPawnIsBackward(t *testing.T) {
 	pos := NewPositionFromFen("1k6/2p5/3p4/3P4/8/8/8/3K4 w - - 0 1")
-	pawnBB := bitboardFromCoordinates("d5")
 
 	expected := true
-	got := isBackward(&pawnBB, pos, White)
+	got := backwardsPawns(pos, Black)&pos.Bitboards[BlackPawn] > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -73,10 +72,32 @@ func TestPawnIsBackward(t *testing.T) {
 
 func TestPawnIsNotBackward(t *testing.T) {
 	pos := NewPositionFromFen("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
+
+	expected := false
+	got := backwardsPawns(pos, White)&pos.Bitboards[WhitePawn] > 0
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestBackwardPawnsForWhite(t *testing.T) {
+	pos := NewPositionFromFen("8/5p2/6p1/p1p3P1/P1P4P/1P6/8/8 w - - 0 1")
+
+	expected := true
+	got := backwardsPawns(pos, White)&pos.Bitboards[WhitePawn] > 0
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnIsNotPassed(t *testing.T) {
+	pos := NewPositionFromFen("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("e5")
 
 	expected := false
-	got := isBackward(&pawnBB, pos, White)
+	got := passedPawns(pos, White)&pawnBB > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -84,23 +105,11 @@ func TestPawnIsNotBackward(t *testing.T) {
 }
 
 func TestPawnIsPassed(t *testing.T) {
-	pos := NewPositionFromFen("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
-	pawnBB := bitboardFromCoordinates("e5")
-
-	expected := true
-	got := isPassed(&pawnBB, pos, White)
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestPawnIsPassed2(t *testing.T) {
 	pos := NewPositionFromFen("1k6/2p5/3pP3/3P4/8/8/8/3K4 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("e6")
 
 	expected := true
-	got := isPassed(&pawnBB, pos, White)
+	got := passedPawns(pos, White)&pawnBB > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -109,10 +118,10 @@ func TestPawnIsPassed2(t *testing.T) {
 
 func TestPassedPawnOn7thRank(t *testing.T) {
 	pos := NewPositionFromFen("1k6/2p4P/3p4/3P4/8/8/8/3K4 w - - 0 1")
-	pawnBB := bitboardFromCoordinates("g7")
+	pawnBB := bitboardFromCoordinates("h7")
 
 	expected := true
-	got := isPassed(&pawnBB, pos, White)
+	got := passedPawns(pos, White)&pawnBB > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -120,12 +129,12 @@ func TestPassedPawnOn7thRank(t *testing.T) {
 
 }
 
-func TestPawnIsNotPassed(t *testing.T) {
+func TestBlackPawnIsNotPassed(t *testing.T) {
 	pos := NewPositionFromFen("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("c7")
 
 	expected := false
-	got := isPassed(&pawnBB, pos, Black)
+	got := passedPawns(pos, Black)&pawnBB > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

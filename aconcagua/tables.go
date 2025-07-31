@@ -53,6 +53,7 @@ func init() {
 
 		directions = generateDirections()
 		rayAttacks = generateRayAttacks()
+		attacksFrontSpans = generateAttacksFrontSpans()
 		knightAttacksTable = generateKnightAttacks()
 	}
 }
