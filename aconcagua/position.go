@@ -261,7 +261,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
-	king = pos.Bitboards[int(side)*BlackKing]
+	king = pos.Bitboards[pieceColor(King, side)]
 	return
 }
 

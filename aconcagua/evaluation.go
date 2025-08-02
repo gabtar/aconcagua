@@ -1,24 +1,23 @@
 package aconcagua
 
 const (
-	BackwardPawnPenaltyMg = -3
-	BackwardPawnPenaltyEg = -8
 	DoubledPawnPenaltyMg  = -8
 	DoubledPawnPenaltyEg  = -12
-	IsolatedPawnPenaltyMg = -10
+	IsolatedPawnPenaltyMg = -5
 	IsolatedPawnPenaltyEg = -15
+	BackwardPawnPenaltyMg = -3
+	BackwardPawnPenaltyEg = -8
 )
 
 // Evaluation is a vector containing the diferent evaluations of the position
 type Evaluation struct {
-	mgMaterial [2]int // PSQT + material weight [white, black]
-	egMaterial [2]int
-	mgMobility [2]int
-	egMobility [2]int
-	// TODO: use a pawn hash table to eval pawn structure/so it can be cached?
-	// mgPawnStrucutre [2]int
-	// egPawnStructure [2]int
-	phase int
+	mgMaterial      [2]int // PSQT + material weight [white, black]
+	egMaterial      [2]int
+	mgMobility      [2]int
+	egMobility      [2]int
+	mgPawnStrucutre [2]int
+	egPawnStructure [2]int
+	phase           int
 }
 
 // Evaluate returns the evaluation of the position
@@ -26,65 +25,31 @@ func Evaluate(pos *Position) int {
 	ev := Evaluation{}
 
 	for p, bb := range pos.Bitboards {
-		color := p / 6
+		color := Color(p / 6)
 
 		for bb > 0 {
 			fromBB := bb.NextBit()
 			switch pieceRole(p) {
 			case King:
-				ev.evaluateKing(pos, &fromBB, Color(color))
+				ev.evaluateKing(pos, &fromBB, color)
 			case Queen:
-				ev.evaluateQueen(pos, &fromBB, Color(color))
+				ev.evaluateQueen(pos, &fromBB, color)
 			case Rook:
-				ev.evaluateRook(pos, &fromBB, Color(color))
+				ev.evaluateRook(pos, &fromBB, color)
 			case Bishop:
-				ev.evaluateBishop(pos, &fromBB, Color(color))
+				ev.evaluateBishop(pos, &fromBB, color)
 			case Knight:
-				ev.evaluateKnight(pos, &fromBB, Color(color))
+				ev.evaluateKnight(pos, &fromBB, color)
 			case Pawn:
-				ev.evaluatePawn(pos, &fromBB, Color(color))
+				ev.evaluatePawn(pos, &fromBB, color)
 			}
 		}
 	}
 
-	// TODO: use a separate pawn structure evaluation
-	// Total Backwards pawns for each side, eg:
-	// ev.pawnStructure = evaluatePawnStructure(pos, White)
-	// ev.pawnStructure = evaluatePawnStructure(pos, Black)
-
-	// Doubled Pawns
-	// ev.mgMaterial[White] += doubledPawns(pos, White).count() * DoubledPawnPenaltyMg
-	// ev.egMaterial[Black] += doubledPawns(pos, Black).count() * DoubledPawnPenaltyEg
-
-	// Isolated Pawns
-	ev.mgMaterial[White] += isolatedPawns(pos, White).count() * IsolatedPawnPenaltyMg
-	ev.egMaterial[Black] += isolatedPawns(pos, Black).count() * IsolatedPawnPenaltyEg
-
-	// Backwards Pawns
-	// whiteBackwardPawns := backwardsPawns(pos, White)
-	// blackBackwardPawns := backwardsPawns(pos, Black)
-	// ev.mgMaterial[White] += whiteBackwardPawns.count() * BackwardPawnPenaltyMg
-	// ev.egMaterial[Black] += blackBackwardPawns.count() * BackwardPawnPenaltyEg
-
-	// Passed Pawns
-	// whitePassedPawns := passedPawns(pos, White)
-	// blackPassedPawns := passedPawns(pos, Black)
-	//
-	// // Passed pawn bonus depending on the ranks to go to promotion
-	// passedPawnBonus := [8]int{0, 0, 10, 20, 30, 60, 100, 0}
-	// for whitePassedPawns > 0 {
-	// 	fromBB := whitePassedPawns.NextBit()
-	// 	sq := Bsf(fromBB)
-	// 	ev.mgMaterial[White] += passedPawnBonus[sq/8]
-	// 	ev.egMaterial[White] += passedPawnBonus[sq/8]
-	// }
-	//
-	// for blackPassedPawns > 0 {
-	// 	fromBB := blackPassedPawns.NextBit()
-	// 	sq := Bsf(fromBB)
-	// 	ev.mgMaterial[Black] += passedPawnBonus[7-sq/8]
-	// 	ev.egMaterial[Black] += passedPawnBonus[7-sq/8]
-	// }
+	// Pawn structure evaluation
+	// TODO: use a pawn hash table
+	ev.evaluatePawnStructure(pos, White)
+	ev.evaluatePawnStructure(pos, Black)
 
 	return ev.score(pos.Turn)
 }
@@ -95,8 +60,8 @@ func (ev *Evaluation) score(side Color) int {
 	mgPhase := min(ev.phase, 24)
 	egPhase := 24 - mgPhase
 
-	mg := ev.mgMaterial[side] - ev.mgMaterial[opponent] + ev.mgMobility[side] - ev.mgMobility[opponent]
-	eg := ev.egMaterial[side] - ev.egMaterial[opponent] + ev.egMobility[side] - ev.egMobility[opponent]
+	mg := ev.mgMaterial[side] - ev.mgMaterial[opponent] + ev.mgMobility[side] - ev.mgMobility[opponent] + ev.mgPawnStrucutre[side] - ev.mgPawnStrucutre[opponent]
+	eg := ev.egMaterial[side] - ev.egMaterial[opponent] + ev.egMobility[side] - ev.egMobility[opponent] + ev.egPawnStructure[side] - ev.egPawnStructure[opponent]
 
 	return (mg*mgPhase + eg*egPhase) / 24
 }
@@ -119,9 +84,9 @@ func (ev *Evaluation) evaluateQueen(pos *Position, queen *Bitboard, side Color) 
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][sq]
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
-	// attacksCount := Attacks(piece, *queen, ^pos.EmptySquares()).count()
-	// ev.mgMobility[side] += (attacksCount - 7) * 5
-	// ev.egMobility[side] += (attacksCount - 7) * 3
+	attacksCount := Attacks(piece, *queen, ^pos.EmptySquares()).count()
+	ev.mgMobility[side] += (attacksCount - 7) * 5
+	ev.egMobility[side] += (attacksCount - 7) * 3
 
 	ev.phase += 4
 
@@ -133,13 +98,13 @@ func (ev *Evaluation) evaluateRook(pos *Position, rook *Bitboard, side Color) {
 	piece := pieceColor(Rook, side)
 	sq := Bsf(*rook)
 
-	// TODO: open files bonus???
+	// TODO: open file bonus???
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][sq]
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
-	// attacksCount := Attacks(piece, *rook, ^pos.EmptySquares()).count()
-	// ev.mgMobility[side] += (attacksCount - 5) * 3
-	// ev.egMobility[side] += (attacksCount - 5) * 3
+	attacksCount := Attacks(piece, *rook, ^pos.EmptySquares()).count()
+	ev.mgMobility[side] += (attacksCount - 5) * 3
+	ev.egMobility[side] += (attacksCount - 5) * 3
 
 	ev.phase += 2
 
@@ -154,9 +119,9 @@ func (ev *Evaluation) evaluateBishop(pos *Position, bishop *Bitboard, side Color
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][sq]
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
-	// attacksCount := Attacks(piece, *bishop, ^pos.EmptySquares()).count()
-	// ev.mgMobility[side] += (attacksCount - 5) * 3
-	// ev.egMobility[side] += (attacksCount - 5) * 4
+	attacksCount := Attacks(piece, *bishop, ^pos.EmptySquares()).count()
+	ev.mgMobility[side] += (attacksCount - 5) * 3
+	ev.egMobility[side] += (attacksCount - 5) * 4
 
 	ev.phase += 1
 
@@ -172,9 +137,9 @@ func (ev *Evaluation) evaluateKnight(pos *Position, knight *Bitboard, side Color
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
 	// TODO: extract to function?
-	// attacksCount := Attacks(piece, *knight, ^pos.EmptySquares()).count()
-	// ev.mgMobility[side] += (attacksCount - 3) * 3
-	// ev.egMobility[side] += (attacksCount - 3) * 4
+	attacksCount := Attacks(piece, *knight, ^pos.EmptySquares()).count()
+	ev.mgMobility[side] += (attacksCount - 3) * 3
+	ev.egMobility[side] += (attacksCount - 3) * 4
 
 	ev.phase += 1
 
@@ -186,15 +151,43 @@ func (ev *Evaluation) evaluatePawn(pos *Position, pawn *Bitboard, side Color) {
 	piece := pieceColor(Pawn, side)
 	sq := Bsf(*pawn)
 
-	// if isIsolated(pawn, pos, side) {
-	// 	ev.mgMaterial[side] -= 5
-	// 	ev.egMaterial[side] -= 15
-	// }
-
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][sq]
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
 	return
+}
+
+// evaluatePawnStructure evaluates the pawn structure for the side in the position passed
+func (ev *Evaluation) evaluatePawnStructure(pos *Position, side Color) {
+	// doubled pawns
+	doubledPawns := doubledPawns(pos, side)
+	ev.mgPawnStrucutre[side] += doubledPawns.count() * DoubledPawnPenaltyMg
+	ev.egPawnStructure[side] += doubledPawns.count() * DoubledPawnPenaltyEg
+
+	// isolated pawns
+	isolatedPawns := isolatedPawns(pos, side)
+	ev.mgPawnStrucutre[side] += isolatedPawns.count() * IsolatedPawnPenaltyMg
+	ev.egPawnStructure[side] += isolatedPawns.count() * IsolatedPawnPenaltyEg
+
+	// backward pawns
+	backwardPawns := backwardPawns(pos, side)
+	ev.mgPawnStrucutre[side] += backwardPawns.count() * BackwardPawnPenaltyMg
+	ev.egPawnStructure[side] += backwardPawns.count() * BackwardPawnPenaltyEg
+
+	// passed pawns
+	passedPawns := passedPawns(pos, side)
+	passedPawnBonus := [8]int{0, 0, 10, 20, 30, 60, 100, 0}
+	for passedPawns > 0 {
+		fromBB := passedPawns.NextBit()
+		sq := Bsf(fromBB)
+		rank := sq / 8
+		if side == Black {
+			rank = 7 - rank
+		}
+
+		ev.mgPawnStrucutre[side] += passedPawnBonus[rank]
+		ev.egPawnStructure[side] += passedPawnBonus[rank]
+	}
 }
 
 // doubledPawns returns a bitboard with the files with more than 1 pawn
@@ -205,14 +198,14 @@ func doubledPawns(pos *Position, side Color) Bitboard {
 	for file := range 8 {
 		pawnsInFile := pawns & files[file]
 		if pawnsInFile.count() > 1 {
-			pawnsInFile.NextBit() // remove one to not double count
+			pawnsInFile.NextBit() // removes one to not double count the penalty
 			doubledPawns |= pawnsInFile
 		}
 	}
 	return doubledPawns
 }
 
-// isolatedPawns with the isolated pawns for the side
+// isolatedPawns a bitboard with the isolated pawns for the side
 func isolatedPawns(pos *Position, side Color) Bitboard {
 	isolatedPawns := Bitboard(0)
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
@@ -264,15 +257,14 @@ func generateAttacksFrontSpans() (attacksFrontSpans [2][64]Bitboard) {
 			attacksFrontSpans[White][sq] |= rayAttacks[North][westFront]
 			attacksFrontSpans[Black][sq] |= rayAttacks[South][westFront]
 		}
-
 	}
 
 	return
 }
 
-// backwardsPawns returns a bitboard with the pawns that are backwards
+// backwardPawns returns a bitboard with the pawns that are backwards
 // A backward pawn is a pawn that is not member of own front-attackspans but controlled by a sentry (definition from CPW)
-func backwardsPawns(pos *Position, side Color) Bitboard {
+func backwardPawns(pos *Position, side Color) Bitboard {
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
 	stops := pawns << 8
 	if side == Black {

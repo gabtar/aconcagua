@@ -1,6 +1,9 @@
 package aconcagua
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestEval(t *testing.T) {
 	pos := NewPositionFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
@@ -61,7 +64,7 @@ func TestPawnIsBackward(t *testing.T) {
 	pos := NewPositionFromFen("1k6/2p5/3p4/3P4/8/8/8/3K4 w - - 0 1")
 
 	expected := true
-	got := backwardsPawns(pos, Black)&pos.Bitboards[BlackPawn] > 0
+	got := backwardPawns(pos, Black)&pos.Bitboards[BlackPawn] > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -72,7 +75,7 @@ func TestPawnIsNotBackward(t *testing.T) {
 	pos := NewPositionFromFen("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
 
 	expected := false
-	got := backwardsPawns(pos, White)&pos.Bitboards[WhitePawn] > 0
+	got := backwardPawns(pos, White)&pos.Bitboards[WhitePawn] > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -83,7 +86,7 @@ func TestBackwardPawnsForWhite(t *testing.T) {
 	pos := NewPositionFromFen("8/5p2/6p1/p1p3P1/P1P4P/1P6/8/8 w - - 0 1")
 
 	expected := true
-	got := backwardsPawns(pos, White)&pos.Bitboards[WhitePawn] > 0
+	got := backwardPawns(pos, White)&pos.Bitboards[WhitePawn] > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -133,6 +136,30 @@ func TestBlackPawnIsNotPassed(t *testing.T) {
 
 	expected := false
 	got := passedPawns(pos, Black)&pawnBB > 0
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnStructureEvaluation(t *testing.T) {
+	pos := NewPositionFromFen("1k6/2p4P/2Pp4/1P3p2/1P3P2/8/8/3K4 w - - 0 1")
+	// 1 doubled pawn b file
+	// 2 isolated pawn g, and h files
+	// 1 passed pawn on 7th rank h file
+	// 1 backward pawns f file
+
+	ev := Evaluation{}
+
+	ev.evaluatePawnStructure(pos, White)
+
+	fmt.Println(backwardPawns(pos, White).count())
+	fmt.Println(isolatedPawns(pos, White).count())
+	fmt.Println(passedPawns(pos, White).count())
+	fmt.Println(doubledPawns(pos, White).count())
+
+	expected := DoubledPawnPenaltyEg + 2*IsolatedPawnPenaltyEg + 1*BackwardPawnPenaltyEg + 100
+	got := ev.egPawnStructure[White]
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

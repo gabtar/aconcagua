@@ -47,12 +47,17 @@ There is a point in building a chess engine where you start to add features and 
 | ---------- | ---------------------- | ------------------------------- | --------------------------------------------------------------------------------- |
 | New PSQT   |        0.0 (0.00%)     |     -213.60±36.24 (0.00 %)      | New PSQT derived from simplified evaluation function and concepts from CPW-engine |
 
+> As expected, PeSTO evaluation function with RofChade PSQT tunned are much better than basic PSQT with some vague improvements.
+> I don't tried adjusting different PSQT, because i plan to use later automated tuning to find the best PSQT.
+
 #### Mobility
 
 | Feature        | Elo vs NewPSQT (LOS %) | Elo vs Aconcagua-v3.0.0 (LOS %) | Observations                                                                                          |
 | -------------- | ---------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Mobility-v1    | -39 elo aprox. aborted |     ----------------------      | Fixed penalty/bonus for each square avaliable. Test aborted at mid games, due to bad results          |
+| Mobility-v1    | -39 elo aprox. aborted |     ----------------------      | Fixed penalty/bonus for each square for each piece. Test aborted at mid games, due to bad results     |
 | Mobility-v2    | 54.29±30.33 (99.98 %)  |    -134.95±34.92 (0.00 %)       | Incremental bonus per square attacked, similar to CPW engine approach. Pseudo legal moves.            |
+
+> Maybe i should have tried different approach for mobility, like safe mobility or something like that, but i think the improvements here are good enough and dont compromise much the overall speed during the search.
 
 #### Pawn structure
 
@@ -71,20 +76,26 @@ There is a point in building a chess engine where you start to add features and 
 | Passed Pawns incr     | 31.35±33.59 (96.75%)   |     ------------------------    | Incremental bonus on ranks to go to promotion (2-7) 10, 20, 30, 40, 50                       |
 | Passed Pawns incr2    | 37.20±33.95 (98.51%)*  |     ------------------------    | Huge bonus near promotion rank (2-7) 10, 20, 30, 60, 100                                     |
 | All Pawn Improvements*| 52.51±28.47 (99.99 %)  |      -149.26±31.46 (0.00 %)     | Nice improvement. Penalties/Bonus are best results in individual tests(400games 30s+1s TC)   |
-| Doubled Pawnsv2 8/12  | 11.59±33.13 (75.42%)   |     ------------------------    | Same penalty(not double counted). Calculate all doubled pawns at once.                       |
+| Doubled Pawnsv2 8/12  | 11.59±33.13 (75.42%)*  |     ------------------------    | Same penalty(not double counted). Calculate all doubled pawns at once.                       |
 | Doubled Pawnsv2 8/4   | -2.32±33.15 (44.54%)   |     ------------------------    | Try different/lower penalty.                                                                 |
 | Doubled Pawnsv2 12/15 |  3.47±33.38 (58.11%)   |     ------------------------    | Try higher penalty.                                                                          |
 | Doubled Pawnsv2 6/10  |  2.32±30.87 (55.86%)   |     ------------------------    | Last attempt w/ doubled pawns.                                                               |
-| Isolated Pawnsv2 10/15|  -1.16±34.91 (47.40%)  |     ------------------------    | Calculate all isolated pawns at once. Updated penalties                                      |
-| Isolated Pawnsv2 5/20 |                        |     ------------------------    |                                                                                              |
-| All Pawn Structure v2 |                        |                                 |                                                                                              |
+| Isolated Pawnsv2 10/15| -1.16±34.91 (47.40%)   |     ------------------------    | Calculate all isolated pawns at once. Updated penalties                                      |
+| Isolated Pawnsv2 5/20 | -12.75±32.4 (21.96%)   |     ------------------------    | Trying different penalties                                                                   |
+| Isolated Pawnsv2 8/15 | -8.69±29.75 (28.30%)   |     ------------------------    | Last attempt for isolated pawns.                                                             |
+| All Pawn Structure v2 |  50.74±31.45 (99.94%)  |      -161.92±33.13 (0.00 %)     | Calculate all pawn penalties at once in a function. Used best penalties/bonus found          |
+
+> I got a better result in intermediate analisys, but i was calculating all penalties separately, and some of them when were evaluating each pawn at one a time. So i will use the last implementation besides is not the best result.
 
 ##### Checkpoint 1: Mobility + Pawn structure evaluation
 
 | Feature               | Elo vs NewPSQT (LOS %) | Elo vs Aconcagua-v3.0.0 (LOS %) | Observations                                                                                 |
 | --------------------- | ---------------------- | ------------------------------- | -------------------------------------------------------------------------------------------- |
-| Mobility + Pawns      |                        |                                 |                                                                                              |
+| Mobility + Pawns      | 81.37±31.63(100.00 %)  |      -80.45±33.30(0.00 %)       |  Great improvement. Still behind PeSTO evaluation, but not bad.                              |
 
+> Looks like that both results combined improves more than the sum of the individua, it gives more positional knowledge to the engine and makes it more accurate. 
+> Anyway a good tunned PSQT works better in this version of Aconcagua. Overal result against Aconcagua v3 - Games: 400, Wins: 123, Losses: 214, Draws: 63.
+> It's still behind, but i think next improvements to the evaluation function will catch the PeSTO evaluation function performance and maybe beyond.
 
 ### TODO:
 
