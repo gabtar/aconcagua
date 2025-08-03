@@ -48,8 +48,8 @@ func Evaluate(pos *Position) int {
 
 	// Pawn structure evaluation
 	// TODO: use a pawn hash table
-	ev.evaluatePawnStructure(pos, White)
-	ev.evaluatePawnStructure(pos, Black)
+	// ev.evaluatePawnStructure(pos, White)
+	// ev.evaluatePawnStructure(pos, Black)
 
 	return ev.score(pos.Turn)
 }
@@ -73,6 +73,118 @@ func (ev *Evaluation) evaluateKing(pos *Position, king *Bitboard, side Color) {
 	ev.mgMaterial[side] += middlegamePiecesScore[pieceColor(King, side)][sq]
 	ev.egMaterial[side] += endgamePiecesScore[pieceColor(King, side)][sq]
 
+	// Pawn Shield only in middlegame ???
+	// In the endgame i would prefer king mobility
+	// ev.mgMaterial[side] += pawnShieldScore(king, pos, side)
+
+	// Pawn Storm
+	// TODO: not sure how make it work yet
+	// pawnStorm := pawnStormScore(king, pos, side)
+	// ev.mgMaterial[side] += pawnStorm
+	// // ev.egMaterial[side] += pawnStorm
+
+	kingZoneAttackers := kingZoneAttackersPenalty(king, pos, side)
+	ev.mgMaterial[side] += kingZoneAttackers
+	ev.egMaterial[side] += kingZoneAttackers
+
+	return
+}
+
+func kingZoneAttackersPenalty(king *Bitboard, pos *Position, side Color) (score int) {
+	attackersWeight := [6]int{0, -10, -5, -3, -3, -1}
+	// for each square the enemy piece attacks the king zone(king ring), multiply the weight of the piece
+	enemies := pos.getBitboards(side.Opponent())
+	blocks := ^pos.EmptySquares()
+	kingZone := Attacks(pieceColor(King, side), *king, blocks) | *king
+
+	for p, bb := range enemies {
+		for bb > 0 {
+			fromBB := bb.NextBit()
+			attacks := Attacks(pieceColor(p, side.Opponent()), fromBB, blocks)
+
+			if attacks&kingZone > 0 {
+				score += attackersWeight[p] * (attacks & kingZone).count()
+			}
+		}
+	}
+	return
+}
+
+// kingCastleZones contains the squares where the king is located when he has castled during a game
+var kingCastleZones [2][2]Bitboard = [2][2]Bitboard{
+	{bitboardFromCoordinates("f1", "g1", "h1"), bitboardFromCoordinates("a1", "b1", "c1")}, // white king { shortcastle, longcastle }
+	{bitboardFromCoordinates("f8", "g8", "h8"), bitboardFromCoordinates("a8", "b8", "c8")}, // black king { shortcastle, longcastle }
+}
+
+// pawnShieldScore returns a bonus/penalty when the king has castled depending on the pawns protection
+func pawnShieldScore(king *Bitboard, pos *Position, side Color) (score int) {
+	if *king&kingCastleZones[side][0] == 0 && *king&kingCastleZones[side][1] == 0 {
+		return
+	}
+	alliedPawns := pos.Bitboards[pieceColor(Pawn, side)]
+
+	sq := Bsf(*king)
+	file, rank := sq%8, sq/8
+
+	for f := file - 1; f <= file+1; f++ {
+		if f < 0 || f > 7 {
+			continue
+		}
+		pawn := alliedPawns & files[f]
+		if pawn > 0 {
+			rankDiff := abs(rank - Bsf(pawn)/8)
+			if rankDiff > 2 {
+				continue
+			}
+			score += 20 / rankDiff
+		} else {
+			score -= 20
+		}
+	}
+	return score
+}
+
+// pawnStormScore returns a bonus/penalty when the king has castled depending on the pawns protection
+func pawnStormScore(king *Bitboard, pos *Position, side Color) (score int) {
+	// If the enemy pawns are near to the king, there might be a threat of opening a file, even if the pawn shield is intact. Penalties for storming enemy pawns must be lower than penalties for (semi)open files, otherwise the pawn storm might backfire, resulting in a blockage.
+	alliedPawns := pos.Bitboards[pieceColor(Pawn, side)]
+	enemyPawns := pos.Bitboards[pieceColor(Pawn, side.Opponent())]
+
+	sq := Bsf(*king)
+	file, rank := sq%8, sq/8
+	direction := North
+	if side == Black {
+		direction = South
+	}
+
+	// if all pawns are locked, it's not a threat, cannot open files to attack the king...
+	adjacentFiles := attacksFrontSpans[side][sq] | rayAttacks[direction][sq]
+	if side == White {
+		stoppers := (adjacentFiles & alliedPawns) << 8
+		if enemyPawns&adjacentFiles == stoppers {
+			return
+		}
+	} else {
+		stoppers := (adjacentFiles & alliedPawns) >> 8
+		if enemyPawns&adjacentFiles == stoppers {
+			return
+		}
+	}
+
+	for f := file - 1; f <= file+1; f++ {
+		if f < 0 || f > 7 {
+			continue
+		}
+		pawn := enemyPawns & files[f]
+		if pawn > 0 {
+			rankDiff := abs(rank - Bsf(pawn)/8)
+			if rankDiff > 3 || rankDiff == 0 {
+				continue
+			}
+			score -= 15 / rankDiff
+		}
+	}
+
 	return
 }
 
@@ -84,9 +196,9 @@ func (ev *Evaluation) evaluateQueen(pos *Position, queen *Bitboard, side Color) 
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][sq]
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
-	attacksCount := Attacks(piece, *queen, ^pos.EmptySquares()).count()
-	ev.mgMobility[side] += (attacksCount - 7) * 5
-	ev.egMobility[side] += (attacksCount - 7) * 3
+	// attacksCount := Attacks(piece, *queen, ^pos.EmptySquares()).count()
+	// ev.mgMobility[side] += (attacksCount - 7) * 5
+	// ev.egMobility[side] += (attacksCount - 7) * 3
 
 	ev.phase += 4
 
@@ -102,9 +214,9 @@ func (ev *Evaluation) evaluateRook(pos *Position, rook *Bitboard, side Color) {
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][sq]
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
-	attacksCount := Attacks(piece, *rook, ^pos.EmptySquares()).count()
-	ev.mgMobility[side] += (attacksCount - 5) * 3
-	ev.egMobility[side] += (attacksCount - 5) * 3
+	// attacksCount := Attacks(piece, *rook, ^pos.EmptySquares()).count()
+	// ev.mgMobility[side] += (attacksCount - 5) * 3
+	// ev.egMobility[side] += (attacksCount - 5) * 3
 
 	ev.phase += 2
 
@@ -119,9 +231,9 @@ func (ev *Evaluation) evaluateBishop(pos *Position, bishop *Bitboard, side Color
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][sq]
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
-	attacksCount := Attacks(piece, *bishop, ^pos.EmptySquares()).count()
-	ev.mgMobility[side] += (attacksCount - 5) * 3
-	ev.egMobility[side] += (attacksCount - 5) * 4
+	// attacksCount := Attacks(piece, *bishop, ^pos.EmptySquares()).count()
+	// ev.mgMobility[side] += (attacksCount - 5) * 3
+	// ev.egMobility[side] += (attacksCount - 5) * 4
 
 	ev.phase += 1
 
@@ -137,9 +249,9 @@ func (ev *Evaluation) evaluateKnight(pos *Position, knight *Bitboard, side Color
 	ev.egMaterial[side] += endgamePiecesScore[piece][sq]
 
 	// TODO: extract to function?
-	attacksCount := Attacks(piece, *knight, ^pos.EmptySquares()).count()
-	ev.mgMobility[side] += (attacksCount - 3) * 3
-	ev.egMobility[side] += (attacksCount - 3) * 4
+	// attacksCount := Attacks(piece, *knight, ^pos.EmptySquares()).count()
+	// ev.mgMobility[side] += (attacksCount - 3) * 3
+	// ev.egMobility[side] += (attacksCount - 3) * 4
 
 	ev.phase += 1
 
@@ -159,22 +271,18 @@ func (ev *Evaluation) evaluatePawn(pos *Position, pawn *Bitboard, side Color) {
 
 // evaluatePawnStructure evaluates the pawn structure for the side in the position passed
 func (ev *Evaluation) evaluatePawnStructure(pos *Position, side Color) {
-	// doubled pawns
 	doubledPawns := doubledPawns(pos, side)
 	ev.mgPawnStrucutre[side] += doubledPawns.count() * DoubledPawnPenaltyMg
 	ev.egPawnStructure[side] += doubledPawns.count() * DoubledPawnPenaltyEg
 
-	// isolated pawns
 	isolatedPawns := isolatedPawns(pos, side)
 	ev.mgPawnStrucutre[side] += isolatedPawns.count() * IsolatedPawnPenaltyMg
 	ev.egPawnStructure[side] += isolatedPawns.count() * IsolatedPawnPenaltyEg
 
-	// backward pawns
 	backwardPawns := backwardPawns(pos, side)
 	ev.mgPawnStrucutre[side] += backwardPawns.count() * BackwardPawnPenaltyMg
 	ev.egPawnStructure[side] += backwardPawns.count() * BackwardPawnPenaltyEg
 
-	// passed pawns
 	passedPawns := passedPawns(pos, side)
 	passedPawnBonus := [8]int{0, 0, 10, 20, 30, 60, 100, 0}
 	for passedPawns > 0 {

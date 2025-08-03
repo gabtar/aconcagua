@@ -48,7 +48,6 @@ func TestRayAttack(t *testing.T) {
 			got := rayAttacks[tc.direction][tc.sq]
 
 			if got != tc.ray {
-				got.Print()
 				t.Errorf("Input: dir: %d, sq: %d, Expected: %d, Got: %d", tc.direction, tc.sq, tc.ray, got)
 			}
 		})

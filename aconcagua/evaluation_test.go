@@ -1,9 +1,6 @@
 package aconcagua
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestEval(t *testing.T) {
 	pos := NewPositionFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
@@ -150,16 +147,58 @@ func TestPawnStructureEvaluation(t *testing.T) {
 	// 1 backward pawns f file
 
 	ev := Evaluation{}
-
 	ev.evaluatePawnStructure(pos, White)
-
-	fmt.Println(backwardPawns(pos, White).count())
-	fmt.Println(isolatedPawns(pos, White).count())
-	fmt.Println(passedPawns(pos, White).count())
-	fmt.Println(doubledPawns(pos, White).count())
 
 	expected := DoubledPawnPenaltyEg + 2*IsolatedPawnPenaltyEg + 1*BackwardPawnPenaltyEg + 100
 	got := ev.egPawnStructure[White]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestInitialPawnShieldScore(t *testing.T) {
+	pos := InitialPosition()
+	king := pos.KingPosition(White)
+
+	expected := 0
+	got := pawnShieldScore(&king, pos, White)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnShieldScoreWithFullScore(t *testing.T) {
+	pos := NewPositionFromFen("5rk1/1b3p1p/1p2p3/pPp5/P1P5/8/2B2PPP/5RK1 w - - 0 1")
+	king := pos.KingPosition(Black)
+
+	expected := 20 + 20 - 20
+	got := pawnShieldScore(&king, pos, Black)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnStormBlockage(t *testing.T) {
+	pos := NewPositionFromFen("8/8/5k2/6p1/5pPp/5P1P/6K1/8 w - - 0 1")
+	king := pos.KingPosition(Black)
+
+	expected := 0
+	got := pawnStormScore(&king, pos, Black)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnStorm(t *testing.T) {
+	pos := NewPositionFromFen("8/8/5k1p/5pp1/6P1/5P1P/6K1/8 w - - 0 1")
+	king := pos.KingPosition(Black)
+
+	expected := -12
+	got := pawnStormScore(&king, pos, Black)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

@@ -97,6 +97,20 @@ There is a point in building a chess engine where you start to add features and 
 > Anyway a good tunned PSQT works better in this version of Aconcagua. Overal result against Aconcagua v3 - Games: 400, Wins: 123, Losses: 214, Draws: 63.
 > It's still behind, but i think next improvements to the evaluation function will catch the PeSTO evaluation function performance and maybe beyond.
 
+#### King Safety
+
+| Feature               | Elo vs NewPSQT (LOS %) | Elo vs Aconcagua-v3.0.0 (LOS %) | Observations                                                                                     |
+| --------------------- | ---------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Pawn Shield           | -12.75±32.09(21.73 %)  |   ---------------------------   | Bonus for pawns in front of the king 5 * (7 - rank distance), -20 for no pawn.                   |
+| Pawn Shield v2        |  6.95±33.92 (65.65%)*  |    ---------------------------  | Bonus for pawns in front of the king 20 1 rank, 10 2 rank, 0 more than 2 ranks, -20 for no pawn. |
+| Pawn Storm            | -58.45±35.80 (0.05 %)  |    ---------------------------  | Penalty -20/rankdiff for each pawn in adjacent files to the king. If rankdiff > 4 no penalties.  |
+| Pawn Storm v2         | -45.42±34.59 (0.45%)   |    ---------------------------  | Same, but if all pawns are blocked, give no penalty. Cannot open files so king should be safe.   |
+| Pawn Storm v3         | -22.03±33.02 (9.42%)   |    ---------------------------  | v2 with penalty -15/rankdiff and only if rankdiff > 3. Only during middlegame.                   |
+| King zone Attacks v1  |  26.69±32.18(94.92%)   |   ----------------------------  | Weighted attackers on king mobility zone(10*Q, 5*R, 3*B, 3*N, 1*P)                               |  
+| King zone Attacks v2  |  9.27±33.30 (70.80%)   |   ----------------------------  | Forget to add the king itself to the king zone. The king + 1 square around it. Rest same as v1   |
+| King zone Attacks v1  |        TODO            |   ----------------------------  | Only modify weights (15*Q, 8*R, 3*B, 3*N, 1*P). King not taking into account                     |
+
+
 ### TODO:
 
 3. King safety
