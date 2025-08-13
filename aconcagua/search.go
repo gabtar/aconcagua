@@ -8,9 +8,10 @@ import (
 
 // Constants to use in the search
 const (
-	MateScore = 100000
-	MinInt    = math.MinInt32
-	MaxInt    = math.MaxInt32
+	MateScore                = 100000
+	MinInt                   = math.MinInt32
+	MaxInt                   = math.MaxInt32
+	EndgameMaterialThreshold = 1600
 )
 
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
@@ -137,7 +138,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	pvLine.reset()
 
 	// Null Move Pruning
-	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode {
+	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode && pos.canNullMove() {
 		ep := pos.makeNullMove()
 		sc := -s.negamax(pos, depth-4, ply+1, -beta, -beta+1, &branchPv, false)
 		pos.unmakeNullMove(ep)
@@ -156,15 +157,15 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	}
 
 	newScore := MinInt
-	mg := NewMoveSelector(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
+	ms := NewMoveSelector(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
 
-	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
+	for move := ms.nextMove(); move != NoMove; move = ms.nextMove() {
 		pos.MakeMove(&move)
 		branchPv.reset()
 		moveFlag := move.flag()
 
 		// Futility Pruning
-		if futilityPruningAllowed && moveFlag == quiet && !isCheck && !pvNode && mg.moveNumber > 0 {
+		if futilityPruningAllowed && moveFlag == quiet && !isCheck && !pvNode && ms.moveNumber > 0 {
 			pos.UnmakeMove(&move)
 			continue
 		}
@@ -176,11 +177,11 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		// Principal Variation Search
 		// Full search at first attempt of this subtree
-		if mg.moveNumber == 0 {
+		if ms.moveNumber == 0 {
 			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
 		} else {
 			// Try first a quick, reduced search, with lmr and a null window(-alpha-1, -alpha)
-			reduction := lmrReductionFactor(depth, mg.moveNumber, moveFlag, isCheck, pvNode)
+			reduction := lmrReductionFactor(depth, ms.moveNumber, moveFlag, isCheck, pvNode)
 			newScore = -s.negamax(pos, depth-1-reduction+extension, ply+1, -alpha-1, -alpha, &branchPv, true)
 
 			// If an improvement was found, we need to search again with a full window and depth
@@ -208,7 +209,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 	}
 
-	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, mg.moveNumber, ply)
+	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, ms.moveNumber, ply)
 	if checkmateOrStealmateFound {
 		return score
 	}

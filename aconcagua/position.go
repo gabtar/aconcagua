@@ -86,6 +86,40 @@ type Position struct {
 	positionHistory PositionHistory
 }
 
+// canNullMove returns if the current position allows a null move pruning
+func (pos *Position) canNullMove() bool {
+	if pos.material(pos.Turn) < EndgameMaterialThreshold {
+		return false
+	}
+
+	if pos.kingAndPawnsOnlyEndgame() {
+		return false
+	}
+
+	return true
+}
+
+// material returns the total material of the position
+func (pos *Position) material(side Color) int {
+	pieceValue := [6]int{0, 900, 500, 300, 300, 100}
+	material := 0
+
+	for piece, bitboard := range pos.getBitboards(side) {
+		material += pieceValue[pieceRole(piece)] * bitboard.count()
+	}
+	return material
+}
+
+// kingAndPawnsOnlyEndgame returns if the position is a king and pawns only endgame
+func (pos *Position) kingAndPawnsOnlyEndgame() bool {
+	whitePieces := pos.Pieces(White)
+	blackPieces := pos.Pieces(Black)
+	whiteKingAndPawns := pos.Bitboards[WhiteKing] | pos.Bitboards[WhitePawn]
+	blackKingAndPawns := pos.Bitboards[BlackKing] | pos.Bitboards[BlackPawn]
+
+	return whitePieces == whiteKingAndPawns && blackPieces == blackKingAndPawns
+}
+
 // PositionData contains relevant data for legal move validations of a position
 type PositionData struct {
 	kingPosition           Bitboard
