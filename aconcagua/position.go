@@ -84,6 +84,7 @@ type Position struct {
 	halfmoveClock   int
 	fullmoveNumber  int
 	positionHistory PositionHistory
+	evaluation      Evaluation
 }
 
 // canNullMove returns if the current position allows a null move pruning
@@ -295,7 +296,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
-	king = pos.Bitboards[int(side)*BlackKing]
+	king = pos.Bitboards[pieceColor(King, side)]
 	return
 }
 
@@ -719,5 +720,6 @@ func EmptyPosition() (pos *Position) {
 	return &Position{
 		positionHistory: *NewPositionHistory(),
 		castling:        *NewCastling(4, 7, 0),
+		evaluation:      *NewEvaluation(),
 	}
 }

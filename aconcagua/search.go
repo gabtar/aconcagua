@@ -152,7 +152,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	futilityPruningAllowed := false
 	if depth <= 3 && alpha > -MateScore && beta < MateScore {
 		futilityMargin := []int{0, 300, 500, 900}
-		sc := Eval(pos)
+		sc := pos.Evaluate()
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
