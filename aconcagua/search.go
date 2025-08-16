@@ -8,10 +8,12 @@ import (
 
 // Constants to use in the search
 const (
-	MateScore                = 100000
-	MinInt                   = math.MinInt32
-	MaxInt                   = math.MaxInt32
-	EndgameMaterialThreshold = 1600
+	MateScore                     = 100000
+	MinInt                        = math.MinInt32
+	MaxInt                        = math.MaxInt32
+	EndgameMaterialThreshold      = 1600
+	ReverseFutitlityPruningMargin = 200
+	AspirationWindowSize          = 45
 )
 
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
@@ -98,8 +100,8 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 			continue
 		}
 
-		alpha = bestMoveScore - 45
-		beta = bestMoveScore + 45
+		alpha = bestMoveScore - AspirationWindowSize
+		beta = bestMoveScore + AspirationWindowSize
 
 		depthTime := time.Since(s.timeControl.iterationStartTime)
 		s.timeControl.iterationStartTime = time.Now()
@@ -137,6 +139,15 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	isCheck := pos.Check(pos.Turn)
 	branchPv := NewPvLine(depth)
 	pvLine.reset()
+
+	// Reverse Futility Pruning / Static Null Move pruning
+	if depth <= 4 && !isCheck && !pvNode {
+		sc := pos.Evaluate()
+		margin := ReverseFutitlityPruningMargin * depth
+		if sc-margin >= beta {
+			return beta
+		}
+	}
 
 	// Null Move Pruning
 	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode && pos.canNullMove() {
