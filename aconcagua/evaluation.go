@@ -22,7 +22,6 @@ type Evaluation struct {
 	mgMobility [2]int
 	egMobility [2]int
 	phase      int
-	// TODO: store PSQT here ????
 }
 
 // NewEvaluation returns a new Evaluation
@@ -138,7 +137,7 @@ func (ev *Evaluation) evaluatePawn(from int, side Color) {
 
 func (pos *Position) Evaluate() int {
 	pos.evaluation.clear()
-	blocks := ^pos.EmptySquares() // TODO: cache into position when make/unmake move w/ incremental updates ???
+	blocks := ^pos.EmptySquares()
 
 	for piece, bb := range pos.Bitboards {
 		color := Color(piece / 6)

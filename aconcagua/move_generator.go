@@ -10,7 +10,7 @@ func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	attackedSquares := pos.AttackedSquares(side.Opponent()) // to check attacks rays (behind) the king he is actually blocking
 	pos.AddPiece(pieceColor(King, side), squareReference[Bsf(*k)])
 
-	moves = kingAttacks(k) & ^attackedSquares & ^pos.Pieces(side)
+	moves = kingAttacks(k) & ^attackedSquares & ^pos.pieces[side]
 	return
 }
 
