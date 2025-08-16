@@ -168,6 +168,15 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
+	// Internal Iterative Deepening
+	if depth > 5 && pvNode && ttMove == NoMove {
+		s.negamax(pos, depth/2, ply+1, alpha, beta, &branchPv, true)
+		if len(branchPv) > 0 {
+			ttMove = branchPv[0]
+		}
+		branchPv.reset()
+	}
+
 	newScore := MinInt
 	ms := NewMoveSelector(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
 
