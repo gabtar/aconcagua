@@ -31,10 +31,10 @@ var middlegamePiecesScore [12][64]int
 var endgamePiecesScore [12][64]int
 
 // middlegamePieceValue is the value of each piece for middlegame
-var middlegamePieceValue = [12]int{12000, 1025, 477, 365, 337, 82}
+var middlegamePieceValue = [6]int{12000, 1025, 477, 365, 337, 82}
 
 // middlegamePieceValue is the value of each piece for middlegame
-var endgamePieceValue = [12]int{12000, 936, 512, 297, 281, 94}
+var endgamePieceValue = [6]int{12000, 936, 512, 297, 281, 94}
 
 // initializes various tables for usage within the engine
 func init() {

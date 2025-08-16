@@ -77,6 +77,7 @@ func (c Color) Opponent() Color {
 type Position struct {
 	// Bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
 	Bitboards       [12]Bitboard
+	pieces          [2]Bitboard // black and white pieces 'map' on the board
 	Turn            Color
 	Hash            uint64
 	castling        castling
@@ -84,6 +85,39 @@ type Position struct {
 	halfmoveClock   int
 	fullmoveNumber  int
 	positionHistory PositionHistory
+	evaluation      Evaluation
+}
+
+// canNullMove returns if the current position allows a null move pruning
+func (pos *Position) canNullMove() bool {
+	if pos.material(pos.Turn) < EndgameMaterialThreshold {
+		return false
+	}
+
+	if pos.kingAndPawnsOnlyEndgame() {
+		return false
+	}
+
+	return true
+}
+
+// material returns the total material of the position
+func (pos *Position) material(side Color) int {
+	pieceValue := [6]int{0, 900, 500, 300, 300, 100}
+	material := 0
+
+	for piece, bitboard := range pos.getBitboards(side) {
+		material += pieceValue[pieceRole(piece)] * bitboard.count()
+	}
+	return material
+}
+
+// kingAndPawnsOnlyEndgame returns if the position is a king and pawns only endgame
+func (pos *Position) kingAndPawnsOnlyEndgame() bool {
+	whiteKingAndPawns := pos.Bitboards[WhiteKing] | pos.Bitboards[WhitePawn]
+	blackKingAndPawns := pos.Bitboards[BlackKing] | pos.Bitboards[BlackPawn]
+
+	return pos.pieces[White] == whiteKingAndPawns && pos.pieces[Black] == blackKingAndPawns
 }
 
 // PositionData contains relevant data for legal move validations of a position
@@ -104,8 +138,8 @@ func (pos *Position) generatePositionData() PositionData {
 		kingPosition:           pos.KingPosition(pos.Turn),
 		checkRestrictedSquares: checkRestrictedSquares,
 		pinnedPieces:           pos.pinnedPieces(pos.Turn),
-		allies:                 pos.Pieces(pos.Turn),
-		enemies:                pos.Pieces(pos.Turn.Opponent()),
+		allies:                 pos.pieces[pos.Turn],
+		enemies:                pos.pieces[pos.Turn.Opponent()],
 	}
 }
 
@@ -133,16 +167,12 @@ func (pos *Position) AddPiece(piece int, square string) {
 	bitboardSquare := bitboardFromCoordinates(square)
 	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(bitboardSquare))
 	pos.Bitboards[piece] |= bitboardSquare
+	pos.pieces[int(piece/6)] |= bitboardSquare
 }
 
 // EmptySquares returns a Bitboard with the empty sqaures of the position
 func (pos *Position) EmptySquares() (emptySquares Bitboard) {
-	emptySquares = AllSquares
-
-	for _, bitboard := range pos.Bitboards {
-		emptySquares &= ^bitboard
-	}
-	return
+	return ^pos.pieces[White] ^ pos.pieces[Black]
 }
 
 // AttackedSquares returns a bitboard with all squares attacked by the passed side
@@ -200,14 +230,6 @@ func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checki
 	return
 }
 
-// Pieces returns a Bitboard with the pieces of the color pased
-func (pos *Position) Pieces(side Color) (pieces Bitboard) {
-	for _, bitboard := range pos.getBitboards(side) {
-		pieces |= bitboard
-	}
-	return
-}
-
 // Check returns if the side passed is in check
 func (pos *Position) Check(side Color) (inCheck bool) {
 	kingPos := pos.KingPosition(side)
@@ -223,8 +245,8 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 	king := pos.KingPosition(side)
 	opponentDiagonalAttackers := pos.Bitboards[int(side.Opponent())*6+int(WhiteQueen)] | pos.Bitboards[int(side.Opponent())*6+int(WhiteBishop)]
 	opponentOrthogonalAttackers := pos.Bitboards[int(side.Opponent())*6+int(WhiteQueen)] | pos.Bitboards[int(side.Opponent())*6+int(WhiteRook)]
-	ownPieces := pos.Pieces(side) &^ king
-	opponentPieces := pos.Pieces(side.Opponent())
+	ownPieces := pos.pieces[side] &^ king
+	opponentPieces := pos.pieces[side.Opponent()]
 
 	if king == 0 {
 		return
@@ -261,7 +283,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
-	king = pos.Bitboards[int(side)*BlackKing]
+	king = pos.Bitboards[pieceColor(King, side)]
 	return
 }
 
@@ -271,6 +293,7 @@ func (pos *Position) RemovePiece(piece Bitboard) {
 		if bitboard&piece > 0 {
 			pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(role, Bsf(bitboard&piece))
 			pos.Bitboards[role] &= ^piece
+			pos.pieces[role/6] &= ^piece
 		}
 	}
 }
@@ -650,6 +673,7 @@ func NewPositionFromFen(fen string) (pos *Position) {
 			switch piece {
 			case "k", "q", "r", "b", "n", "p", "K", "Q", "R", "B", "N", "P":
 				pos.Bitboards[pieceReference[piece]] |= (0b1 << currentSquare)
+				pos.pieces[pieceReference[piece]/6] |= (0b1 << currentSquare)
 				currentSquare++
 			default:
 				currentSquare += int(piece[0]) - 48 // Updates square number
@@ -685,5 +709,6 @@ func EmptyPosition() (pos *Position) {
 	return &Position{
 		positionHistory: *NewPositionHistory(),
 		castling:        *NewCastling(4, 7, 0),
+		evaluation:      *NewEvaluation(),
 	}
 }

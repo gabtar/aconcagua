@@ -42,6 +42,8 @@ Simply add the engine executable to your GUI and set it as an UCI protocol compa
 - Magic bitboards for attacks/move generation
 - Iterative deepening
 - Quiescence search
+- Null move pruning
+- Reverse Futitly Pruning
 - Static Exchage Evaluation
 - Late move reductions
 - Futility pruning

@@ -8,9 +8,12 @@ import (
 
 // Constants to use in the search
 const (
-	MateScore = 100000
-	MinInt    = math.MinInt32
-	MaxInt    = math.MaxInt32
+	MateScore                     = 100000
+	MinInt                        = math.MinInt32
+	MaxInt                        = math.MaxInt32
+	EndgameMaterialThreshold      = 1600
+	ReverseFutitlityPruningMargin = 200
+	AspirationWindowSize          = 45
 )
 
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
@@ -97,12 +100,13 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 			continue
 		}
 
-		alpha = bestMoveScore - 45
-		beta = bestMoveScore + 45
+		alpha = bestMoveScore - AspirationWindowSize
+		beta = bestMoveScore + AspirationWindowSize
 
 		depthTime := time.Since(s.timeControl.iterationStartTime)
 		s.timeControl.iterationStartTime = time.Now()
-		stdout <- fmt.Sprintf("info depth %d nodes %d time %v pv %v", d, s.nodes, depthTime.Milliseconds(), s.pvLine.String())
+		nps := int(float64(s.nodes) / depthTime.Seconds())
+		stdout <- fmt.Sprintf("info depth %d nodes %d nps %d time %v pv %v", d, s.nodes, nps, depthTime.Milliseconds(), s.pvLine.String())
 		bestMove = s.pvLine[0].String()
 	}
 
@@ -136,8 +140,17 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	branchPv := NewPvLine(depth)
 	pvLine.reset()
 
+	// Reverse Futility Pruning / Static Null Move pruning
+	if depth <= 4 && !isCheck && !pvNode {
+		sc := pos.Evaluate()
+		margin := ReverseFutitlityPruningMargin * depth
+		if sc-margin >= beta {
+			return beta
+		}
+	}
+
 	// Null Move Pruning
-	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode {
+	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode && pos.canNullMove() {
 		ep := pos.makeNullMove()
 		sc := -s.negamax(pos, depth-4, ply+1, -beta, -beta+1, &branchPv, false)
 		pos.unmakeNullMove(ep)
@@ -151,20 +164,29 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	futilityPruningAllowed := false
 	if depth <= 3 && alpha > -MateScore && beta < MateScore {
 		futilityMargin := []int{0, 300, 500, 900}
-		sc := Eval(pos)
+		sc := pos.Evaluate()
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
-	newScore := MinInt
-	mg := NewMoveSelector(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
+	// Internal Iterative Deepening
+	if depth > 5 && pvNode && ttMove == NoMove {
+		s.negamax(pos, depth/2, ply+1, alpha, beta, &branchPv, true)
+		if len(branchPv) > 0 {
+			ttMove = branchPv[0]
+		}
+		branchPv.reset()
+	}
 
-	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
+	newScore := MinInt
+	ms := NewMoveSelector(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
+
+	for move := ms.nextMove(); move != NoMove; move = ms.nextMove() {
 		pos.MakeMove(&move)
 		branchPv.reset()
 		moveFlag := move.flag()
 
 		// Futility Pruning
-		if futilityPruningAllowed && moveFlag == quiet && !isCheck && !pvNode && mg.moveNumber > 0 {
+		if futilityPruningAllowed && moveFlag == quiet && !isCheck && !pvNode && ms.moveNumber > 0 {
 			pos.UnmakeMove(&move)
 			continue
 		}
@@ -176,11 +198,11 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		// Principal Variation Search
 		// Full search at first attempt of this subtree
-		if mg.moveNumber == 0 {
+		if ms.moveNumber == 0 {
 			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
 		} else {
 			// Try first a quick, reduced search, with lmr and a null window(-alpha-1, -alpha)
-			reduction := lmrReductionFactor(depth, mg.moveNumber, moveFlag, isCheck, pvNode)
+			reduction := lmrReductionFactor(depth, ms.moveNumber, moveFlag, isCheck, pvNode)
 			newScore = -s.negamax(pos, depth-1-reduction+extension, ply+1, -alpha-1, -alpha, &branchPv, true)
 
 			// If an improvement was found, we need to search again with a full window and depth
@@ -208,7 +230,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 	}
 
-	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, mg.moveNumber, ply)
+	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, ms.moveNumber, ply)
 	if checkmateOrStealmateFound {
 		return score
 	}

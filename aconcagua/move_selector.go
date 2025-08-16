@@ -117,8 +117,6 @@ func (ms *MoveSelector) nextMove() (move Move) {
 	return
 }
 
-// TODO: use another way to check legality for killers to avoid generating non captures during killers stage
-
 // isLegalKiller returns if the move is legal in the current position
 func isLegalKiller(move Move, ml *MoveList) bool {
 	// Killer moves are always quiet moves, so we can just pass the non captures list to check if killer exits
