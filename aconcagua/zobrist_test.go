@@ -40,6 +40,14 @@ func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 			if got != expected {
 				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
 			}
+
+			// Zobrist pawn hash test
+			expected = zobristHashKeys.pawnHash(pos)
+			got = pos.PawnHash
+
+			if got != expected {
+				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
+			}
 		})
 	}
 }
@@ -79,6 +87,14 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 			}
 
 			got := pos.Hash
+
+			if got != expected {
+				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
+			}
+
+			// Zobrist pawn hash test
+			expected = zobristHashKeys.pawnHash(pos)
+			got = pos.PawnHash
 
 			if got != expected {
 				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)

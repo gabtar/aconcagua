@@ -322,8 +322,8 @@ func (pos *Position) Evaluate(pawnTable *PawnHashTable) int {
 		}
 	}
 
-	pawnHash := zobristHashKeys.pawnHash(pos)
-	mgSc, egSc, ok := pawnTable.probe(pawnHash, pos.Turn)
+	// pawnHash := zobristHashKeys.pawnHash(pos)
+	mgSc, egSc, ok := pawnTable.probe(pos.PawnHash, pos.Turn)
 	if ok {
 		pos.evaluation.mgPawnStrucutre[pos.Turn] = mgSc
 		pos.evaluation.egPawnStructure[pos.Turn] = egSc
@@ -334,7 +334,7 @@ func (pos *Position) Evaluate(pawnTable *PawnHashTable) int {
 
 		mgSc = pos.evaluation.mgPawnStrucutre[pos.Turn] - pos.evaluation.mgPawnStrucutre[pos.Turn.Opponent()]
 		egSc = pos.evaluation.egPawnStructure[pos.Turn] - pos.evaluation.egPawnStructure[pos.Turn.Opponent()]
-		pawnTable.store(pawnHash, mgSc, egSc, pos.Turn)
+		pawnTable.store(pos.PawnHash, mgSc, egSc, pos.Turn)
 	}
 
 	return pos.evaluation.score(pos.Turn)

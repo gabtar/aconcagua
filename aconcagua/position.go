@@ -80,6 +80,7 @@ type Position struct {
 	pieces          [2]Bitboard // black and white pieces 'map' on the board
 	Turn            Color
 	Hash            uint64
+	PawnHash        uint64
 	castling        castling
 	enPassantTarget Bitboard
 	halfmoveClock   int
@@ -166,6 +167,9 @@ func (pos *Position) AddPiece(piece int, square string) {
 
 	bitboardSquare := bitboardFromCoordinates(square)
 	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(bitboardSquare))
+	if pieceRole(piece) == Pawn {
+		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(bitboardSquare))
+	}
 	pos.Bitboards[piece] |= bitboardSquare
 	pos.pieces[int(piece/6)] |= bitboardSquare
 }
@@ -289,9 +293,14 @@ func (pos *Position) KingPosition(side Color) (king Bitboard) {
 
 // RemovePiece returns a new position without the piece passed
 func (pos *Position) RemovePiece(piece Bitboard) {
+	// TODO: Maybe pass the piece type and the square to avoid the for loop
+
 	for role, bitboard := range pos.Bitboards {
 		if bitboard&piece > 0 {
 			pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(role, Bsf(bitboard&piece))
+			if pieceRole(role) == Pawn {
+				pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(role, Bsf(bitboard&piece))
+			}
 			pos.Bitboards[role] &= ^piece
 			pos.pieces[role/6] &= ^piece
 		}
@@ -695,6 +704,7 @@ func NewPositionFromFen(fen string) (pos *Position) {
 	pos.fullmoveNumber, _ = strconv.Atoi(elements[5])
 
 	pos.Hash = zobristHashKeys.fullZobristHash(pos)
+	pos.PawnHash = zobristHashKeys.pawnHash(pos)
 	return
 }
 
