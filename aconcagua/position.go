@@ -292,18 +292,16 @@ func (pos *Position) KingPosition(side Color) (king Bitboard) {
 }
 
 // RemovePiece returns a new position without the piece passed
-func (pos *Position) RemovePiece(piece Bitboard) {
-	// TODO: Maybe pass the piece type and the square to avoid the for loop
+func (pos *Position) RemovePiece(piece int, sq Bitboard) {
+	if piece == NoPiece {
+		return
+	}
 
-	for role, bitboard := range pos.Bitboards {
-		if bitboard&piece > 0 {
-			pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(role, Bsf(bitboard&piece))
-			if pieceRole(role) == Pawn {
-				pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(role, Bsf(bitboard&piece))
-			}
-			pos.Bitboards[role] &= ^piece
-			pos.pieces[role/6] &= ^piece
-		}
+	pos.Bitboards[piece] &= ^sq
+	pos.pieces[piece/6] &= ^sq
+	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(sq))
+	if pieceRole(piece) == Pawn {
+		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(sq))
 	}
 }
 
@@ -364,11 +362,10 @@ func (pos *Position) MakeMove(move *Move) {
 	)
 
 	pos.updateCastleRights(pos.castling.updateCastleRights(move.from(), move.to()))
-
-	pos.RemovePiece(bitboardFromIndex(move.from()))
+	pos.RemovePiece(pieceToMove, bitboardFromIndex(move.from()))
 
 	pos.updateMoveState()
-	pos.handleSpecialMoveTypes(move, &pieceToMove)
+	pos.handleSpecialMoveTypes(move, &pieceToMove, &pieceCaptured)
 
 	pos.toggleSide()
 
@@ -402,17 +399,17 @@ func (pos *Position) updateMoveState() {
 }
 
 // handleSpecialMoveTypes processes different types of chess moves
-func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *int) {
+func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *int, pieceCaptured *int) {
 	switch flag := move.flag(); flag {
 	case quiet:
 		pos.handleQuietMove(*pieceToMove)
 	case doublePawnPush:
 		pos.handleDoublePawnPush(*move, *pieceToMove)
 	case capture:
-		pos.handleCapture(*move)
+		pos.handleCapture(*move, pieceCaptured)
 	case knightPromotion, bishopPromotion, rookPromotion, queenPromotion,
 		knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion:
-		pos.handlePromotion(*move, flag, pieceToMove)
+		pos.handlePromotion(*move, flag, pieceToMove, pieceCaptured)
 	case kingsideCastle, queensideCastle:
 		pos.updateRookPositionOnCaslte(flag, true)
 	case epCapture:
@@ -438,14 +435,14 @@ func (pos *Position) handleDoublePawnPush(move Move, pieceToMove int) {
 }
 
 // handleCapture removes captured piece and resets halfmove clock
-func (pos *Position) handleCapture(move Move) {
-	pos.RemovePiece(bitboardFromIndex(move.to()))
+func (pos *Position) handleCapture(move Move, pieceCaptured *int) {
+	pos.RemovePiece(*pieceCaptured, bitboardFromIndex(move.to()))
 	pos.halfmoveClock = 0
 }
 
 // handlePromotion processes pawn promotion
-func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int) {
-	pos.RemovePiece(bitboardFromIndex(move.to()))
+func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int, pieceCaptured *int) {
+	pos.RemovePiece(*pieceCaptured, bitboardFromIndex(move.to()))
 	*pieceToMove = getPromotedToPiece(flag, pos.Turn)
 
 	pos.halfmoveClock = 0
@@ -454,9 +451,9 @@ func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int) {
 // handleEnPassantCapture removes the captured pawn in en passant
 func (pos *Position) handleEnPassantCapture(move Move, pieceToMove int) {
 	if pieceToMove == WhitePawn {
-		pos.RemovePiece(bitboardFromIndex(move.to()) >> 8)
+		pos.RemovePiece(BlackPawn, bitboardFromIndex(move.to())>>8)
 	} else {
-		pos.RemovePiece(bitboardFromIndex(move.to()) << 8)
+		pos.RemovePiece(WhitePawn, bitboardFromIndex(move.to())<<8)
 	}
 	pos.halfmoveClock = 0
 }
@@ -498,7 +495,12 @@ func (pos *Position) UnmakeMove(move *Move) {
 	prevState, castle := pos.positionHistory.pop()
 
 	toSq := getMoveDestinationSquare(move, pos)
-	pos.RemovePiece(bitboardFromIndex(toSq))
+
+	pieceToRemove := prevState.pieceMoved()
+	if move.flag() >= knightPromotion {
+		pieceToRemove = getPromotedToPiece(move.flag(), pos.Turn.Opponent())
+	}
+	pos.RemovePiece(pieceToRemove, bitboardFromIndex(toSq))
 
 	if pos.Turn == White {
 		pos.fullmoveNumber--
@@ -552,7 +554,7 @@ func (pos *Position) updateRookPositionOnCaslte(castle int, makeMove bool) {
 		rookToMove = pieceColor(Rook, pos.Turn.Opponent())
 	}
 
-	pos.RemovePiece(bitboardFromIndex(rookFrom))
+	pos.RemovePiece(rookToMove, bitboardFromIndex(rookFrom))
 	pos.AddPiece(rookToMove, squareReference[rookTo])
 }
 
