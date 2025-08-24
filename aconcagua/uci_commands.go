@@ -87,7 +87,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 	movetime := findParam(params, "movetime")
 
 	searchStrategy, clock := timeStrategy(params, depth, wtime, btime, movetime)
-	en.timeControl.init(searchStrategy, int(en.pos.Turn), en.pos.fullmoveNumber, clock)
+	en.search.timeControl.init(searchStrategy, int(en.pos.Turn), en.pos.fullmoveNumber, clock)
 
 	// Set default depth if not passed
 	if depthIndex != -1 {

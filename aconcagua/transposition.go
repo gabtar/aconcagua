@@ -89,3 +89,62 @@ func (tt *TranspositionTable) probe(key uint64, depth int, alpha int, beta int) 
 	}
 	return 0, move, false
 }
+
+// pawnHashEntry stores the score of the previously evaluated pawn strucure
+type PawnHashEntry struct {
+	key     uint64
+	mgScore int16
+	egScore int16
+	turn    int8
+}
+
+// PawnHashTable contains the score of the previously evaluated pawn strucure
+type PawnHashTable struct {
+	entries []PawnHashEntry
+	size    uint64
+	stores  int
+	found   int
+}
+
+// NewPawnHashTable returns a pointer to a new PawnHashTable with the passed size
+func NewPawnHashTable(sizeInMb int) *PawnHashTable {
+	entrySizeInBytes := 13 // 64bits + 16bits + 16bits + 8bits = 80 bits bits / 8 = 13 bits per entry
+	size := uint64(sizeInMb * 1024 * 1024 / entrySizeInBytes)
+	return &PawnHashTable{
+		entries: make([]PawnHashEntry, size),
+		size:    size,
+	}
+}
+
+// reset resets the PawnHashTable
+func (pht *PawnHashTable) reset() {
+	pht.entries = make([]PawnHashEntry, pht.size)
+}
+
+// store stores a new entry in the PawnHashTable
+func (pht *PawnHashTable) store(key uint64, mgScore int, egScore int, turn Color) {
+	pht.stores++
+	index := key % pht.size
+	pht.entries[index] = PawnHashEntry{
+		key:     key,
+		mgScore: int16(mgScore),
+		egScore: int16(egScore),
+		turn:    int8(turn),
+	}
+}
+
+// probe tries to find an entry in the PawnHashTable
+func (pht *PawnHashTable) probe(key uint64, side Color) (int, int, bool) {
+	index := key % pht.size
+	entry := pht.entries[index]
+	if entry.key == key {
+		// returns the score relative to the side passed
+		opponentModifier := 1
+		if side != Color(entry.turn) {
+			opponentModifier = -1
+		}
+
+		return int(entry.mgScore) * opponentModifier, int(entry.egScore) * opponentModifier, true
+	}
+	return 0, 0, false
+}

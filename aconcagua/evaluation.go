@@ -1,6 +1,7 @@
 package aconcagua
 
 const (
+	// Mobility
 	QueenMobilityBonusMg  = 3
 	QueenMobilityBonusEg  = 1
 	QueenMobilityBase     = 7
@@ -14,20 +15,7 @@ const (
 	KnightMobilityBonusEg = 2
 	KnightMobilityBase    = 2
 
-	// NOTE: 500 Games 12+0.1s TC -> 17.39 +/- 26.04. Passed pawns disabled...
-	// Try w/ diferent values and play matchs against v3.1.0
-	// nps are a bit lower than v3.1.0. Maybe later use a Pawn Hash Table to improve performance
-	// Tuning against original values only
-	// Higher backward Penalties does wrong (-4/-10) -> -10.43 +/- 27.25  ✖
-	// Lower backward Penalties does equal (-2/-6) ->  0.69 +/- 26.98     ✖
-	// Lower isolaed penalties does bad (-4/-9) ->   -11.82 +/- 25.48     ✖
-	// Higher isolaed penalties does .... (-7/-18) ->  -37.67 +/- 25.47 + Pawns ataacks cached
-	// With passed pawns bonus...
-	// passedPawnBonus := [8]int{0, 0, 10, 20, 30, 40, 50, 0} -> 18.78 +/- 26.40  OK
-	// x) same with eg passed pawns * 1.5 ->  24.36 +/- 25.80 OK
-	// last passed pawn changes  17.39 +/- 25.10
-	// same as (x) with eg passed pawns * 2 ->  31.94 +/- 25.30 OK
-
+	// Pawn Structure
 	DoubledPawnPenaltyMg  = -8
 	DoubledPawnPenaltyEg  = -12
 	IsolatedPawnPenaltyMg = -5
@@ -301,7 +289,7 @@ func passedPawns(alliedPawns Bitboard, enemyPawns Bitboard, side Color) (passedP
 	return
 }
 
-func (pos *Position) Evaluate() int {
+func (pos *Position) Evaluate(pawnTable *PawnHashTable) int {
 	pos.evaluation.clear()
 	blocks := ^pos.EmptySquares()
 
@@ -334,8 +322,20 @@ func (pos *Position) Evaluate() int {
 		}
 	}
 
-	pos.evaluation.evaluatePawnStructure(pos, enemyPawnsAttacks[White], White)
-	pos.evaluation.evaluatePawnStructure(pos, enemyPawnsAttacks[Black], Black)
+	pawnHash := zobristHashKeys.pawnHash(pos)
+	mgSc, egSc, ok := pawnTable.probe(pawnHash, pos.Turn)
+	if ok {
+		pos.evaluation.mgPawnStrucutre[pos.Turn] = mgSc
+		pos.evaluation.egPawnStructure[pos.Turn] = egSc
+
+	} else {
+		pos.evaluation.evaluatePawnStructure(pos, enemyPawnsAttacks[White], White)
+		pos.evaluation.evaluatePawnStructure(pos, enemyPawnsAttacks[Black], Black)
+
+		mgSc = pos.evaluation.mgPawnStrucutre[pos.Turn] - pos.evaluation.mgPawnStrucutre[pos.Turn.Opponent()]
+		egSc = pos.evaluation.egPawnStructure[pos.Turn] - pos.evaluation.egPawnStructure[pos.Turn.Opponent()]
+		pawnTable.store(pawnHash, mgSc, egSc, pos.Turn)
+	}
 
 	return pos.evaluation.score(pos.Turn)
 }
