@@ -109,7 +109,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 		depthTime := time.Since(s.timeControl.iterationStartTime)
 		s.timeControl.iterationStartTime = time.Now()
 		nps := int(float64(s.nodes) / depthTime.Seconds())
-		stdout <- fmt.Sprintf("info depth %d nodes %d nps %d time %v pv %v", d, s.nodes, nps, depthTime.Milliseconds(), s.pvLine.String())
+		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, depthTime.Milliseconds(), s.pvLine.String())
 		bestMove = s.pvLine[0].String()
 	}
 

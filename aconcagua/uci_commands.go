@@ -95,17 +95,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 	}
 
 	go func() {
-		score, bestMove := en.search.root(&en.pos, depth, stdout)
-
-		absScore := abs(score)
-		isMate := absScore >= MateScore-depth
-		if isMate {
-			mateIn := (MateScore - absScore + 1) / 2 // NOTE: in full moves, not ply!
-			stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
-		} else {
-			stdout <- "info score cp " + strconv.Itoa(score)
-		}
-
+		_, bestMove := en.search.root(&en.pos, depth, stdout)
 		stdout <- "bestmove " + bestMove
 	}()
 }
@@ -159,14 +149,6 @@ func setOptionCommand(en *Engine, stdout chan string, params ...string) {
 		en.options.chess960 = params[3] == "true"
 		stdout <- "option name UCI_Chess960 value " + strconv.FormatBool(en.options.chess960)
 	}
-}
-
-// abs returns the absolute value of the number passed
-func abs(number int) int {
-	if number < 0 {
-		return -number
-	}
-	return number
 }
 
 // stopCommand
@@ -230,4 +212,25 @@ func divideCommand(en *Engine, stdout chan string, params ...string) {
 	for perft := range strings.SplitSeq(en.pos.Divide(depth), ",") {
 		stdout <- perft
 	}
+}
+
+// convertScore returns the proper score if it's mate or current centipawns score
+func convertScore(score int, depth int) (result string) {
+	absScore := abs(score)
+	isMate := absScore >= MateScore-depth-5 // NOTE: 5 is used as a fail safe that helps when mate is found earlier/before the actual mate depth
+	if isMate {
+		mateIn := (MateScore - absScore + 1) / 2 // NOTE: in full moves, not ply!
+		result = "mate " + strconv.Itoa((score/absScore)*mateIn)
+	} else {
+		result = "cp " + strconv.Itoa(score)
+	}
+	return
+}
+
+// abs returns the absolute value of the number passed
+func abs(number int) int {
+	if number < 0 {
+		return -number
+	}
+	return number
 }
