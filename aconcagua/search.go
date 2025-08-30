@@ -13,6 +13,7 @@ const (
 	MaxInt                        = math.MaxInt32
 	EndgameMaterialThreshold      = 1600
 	ReverseFutitlityPruningMargin = 200
+	LateMovePruningMoveNumber     = 20
 	AspirationWindowSize          = 45
 )
 
@@ -186,6 +187,12 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		pos.MakeMove(&move)
 		branchPv.reset()
 		moveFlag := move.flag()
+
+		// Late Move Pruning
+		if depth <= 3 && ms.stage >= NonCapturesStage && ms.moveNumber > LateMovePruningMoveNumber && !isCheck && !pvNode && !pos.Check(pos.Turn) {
+			pos.UnmakeMove(&move)
+			continue
+		}
 
 		// Futility Pruning
 		if futilityPruningAllowed && moveFlag == quiet && !isCheck && !pvNode && ms.moveNumber > 0 {

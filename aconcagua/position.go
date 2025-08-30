@@ -102,7 +102,7 @@ func (pos *Position) canNullMove() bool {
 	return true
 }
 
-// material returns the total material of the position
+// material returns the total material of the position for the side passed
 func (pos *Position) material(side Color) int {
 	pieceValue := [6]int{0, 900, 500, 300, 300, 100}
 	material := 0
@@ -291,7 +291,7 @@ func (pos *Position) KingPosition(side Color) (king Bitboard) {
 	return
 }
 
-// RemovePiece returns a new position without the piece passed
+// RemovePiece removes a piece from the position
 func (pos *Position) RemovePiece(piece int, sq Bitboard) {
 	if piece == NoPiece {
 		return
