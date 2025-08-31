@@ -21,18 +21,16 @@ type Options struct {
 
 // NewEngine returns a new Engine instance
 func NewEngine() *Engine {
-	tc := TimeControl{}
-
 	return &Engine{
-		pos:         *InitialPosition(),
-		timeControl: &tc,
+		pos: *InitialPosition(),
 		search: Search{
 			nodes:        0,
 			currentDepth: 0,
 			maxDepth:     0,
 			pvLine:       NewPvLine(MaxSearchDepth),
 			killers:      [MaxSearchDepth]Killer{},
-			timeControl:  &tc,
+			timeControl:  TimeControl{},
+			pawnTable:    *NewPawnHashTable(4),
 		},
 		openingBook: PolyglotBook{},
 		options: Options{

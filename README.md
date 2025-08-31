@@ -19,6 +19,9 @@ cd aconcagua
 go build .
 ```
 
+> [!NOTE]  
+> Depending on your operating system (especially on some Ubuntu/Debian based distributions) you might not have the required Go version to build Aconcagua. If that's your case, you might want to look at the steps posted by [tissatussa](https://github.com/tissatussa) in this [issue #9](https://github.com/gabtar/aconcagua/issues/9).
+
 ### 2. Or download precompiled binaries
 
 * Go to the [Releases page](https://github.com/gabtar/aconcagua/releases)

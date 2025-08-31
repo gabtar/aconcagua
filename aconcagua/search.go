@@ -13,6 +13,7 @@ const (
 	MaxInt                        = math.MaxInt32
 	EndgameMaterialThreshold      = 1600
 	ReverseFutitlityPruningMargin = 200
+	LateMovePruningMoveNumber     = 20
 	AspirationWindowSize          = 45
 )
 
@@ -35,8 +36,9 @@ type Search struct {
 	pvLine             pvLine
 	killers            [MaxSearchDepth]Killer
 	historyMoves       HistoryMoves
-	transpositionTable *TranspositionTable
-	timeControl        *TimeControl
+	transpositionTable TranspositionTable
+	pawnTable          PawnHashTable
+	timeControl        TimeControl
 }
 
 // init initializes the Search struct
@@ -46,7 +48,8 @@ func (s *Search) init(depth int) {
 	s.maxDepth = depth
 	s.killers = [MaxSearchDepth]Killer{}
 	s.historyMoves = HistoryMoves{}
-	s.transpositionTable = NewTranspositionTable(DefaultTableSizeInMb)
+	s.transpositionTable = *NewTranspositionTable(DefaultTableSizeInMb)
+	s.pawnTable.reset()
 }
 
 // reset sets the new iteration parameters in the NewSearch
@@ -106,7 +109,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 		depthTime := time.Since(s.timeControl.iterationStartTime)
 		s.timeControl.iterationStartTime = time.Now()
 		nps := int(float64(s.nodes) / depthTime.Seconds())
-		stdout <- fmt.Sprintf("info depth %d nodes %d nps %d time %v pv %v", d, s.nodes, nps, depthTime.Milliseconds(), s.pvLine.String())
+		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, depthTime.Milliseconds(), s.pvLine.String())
 		bestMove = s.pvLine[0].String()
 	}
 
@@ -142,7 +145,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 4 && !isCheck && !pvNode {
-		sc := pos.Evaluate()
+		sc := pos.Evaluate(&s.pawnTable)
 		margin := ReverseFutitlityPruningMargin * depth
 		if sc-margin >= beta {
 			return beta
@@ -164,7 +167,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	futilityPruningAllowed := false
 	if depth <= 3 && alpha > -MateScore && beta < MateScore {
 		futilityMargin := []int{0, 300, 500, 900}
-		sc := pos.Evaluate()
+		sc := pos.Evaluate(&s.pawnTable)
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
@@ -184,6 +187,12 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		pos.MakeMove(&move)
 		branchPv.reset()
 		moveFlag := move.flag()
+
+		// Late Move Pruning
+		if depth <= 3 && ms.stage >= NonCapturesStage && ms.moveNumber > LateMovePruningMoveNumber && !isCheck && !pvNode && !pos.Check(pos.Turn) {
+			pos.UnmakeMove(&move)
+			continue
+		}
 
 		// Futility Pruning
 		if futilityPruningAllowed && moveFlag == quiet && !isCheck && !pvNode && ms.moveNumber > 0 {

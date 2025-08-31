@@ -6,7 +6,7 @@ func quiescent(pos *Position, s *Search, alpha int, beta int) int {
 		return 0
 	}
 
-	score := pos.Evaluate()
+	score := pos.Evaluate(&s.pawnTable)
 
 	if score >= beta {
 		return beta

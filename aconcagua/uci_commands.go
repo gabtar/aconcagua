@@ -20,7 +20,7 @@ func uciCommand(en *Engine, stdout chan string, params ...string) {
 	stdout <- "author gabtar"
 	stdout <- ""
 	stdout <- "option name BookPath type string default <empty>"
-	stdout <- "option name UseBook type button"
+	stdout <- "option name UseBook type check default false"
 	stdout <- "option name UCI_Chess960 type check default false"
 	stdout <- "uciok"
 }
@@ -87,7 +87,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 	movetime := findParam(params, "movetime")
 
 	searchStrategy, clock := timeStrategy(params, depth, wtime, btime, movetime)
-	en.timeControl.init(searchStrategy, int(en.pos.Turn), en.pos.fullmoveNumber, clock)
+	en.search.timeControl.init(searchStrategy, int(en.pos.Turn), en.pos.fullmoveNumber, clock)
 
 	// Set default depth if not passed
 	if depthIndex != -1 {
@@ -95,17 +95,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 	}
 
 	go func() {
-		score, bestMove := en.search.root(&en.pos, depth, stdout)
-
-		absScore := abs(score)
-		isMate := absScore >= MateScore-depth
-		if isMate {
-			mateIn := (MateScore - absScore + 1) / 2 // NOTE: in full moves, not ply!
-			stdout <- "info score mate " + strconv.Itoa((score/absScore)*mateIn)
-		} else {
-			stdout <- "info score cp " + strconv.Itoa(score)
-		}
-
+		_, bestMove := en.search.root(&en.pos, depth, stdout)
 		stdout <- "bestmove " + bestMove
 	}()
 }
@@ -130,6 +120,7 @@ func timeStrategy(params []string, depth int, wtime int, btime int, movetime int
 // setOptionCommand sets an option on the engine
 func setOptionCommand(en *Engine, stdout chan string, params ...string) {
 	// TODO: for now just to setup opening book. Later will handle more options. eg hash table size, etc
+	// also use an error handling when parsing input
 
 	// sample usage: setoption name bookpath value <bookfilename>
 	if strings.ToLower(params[1]) == "bookpath" {
@@ -145,7 +136,8 @@ func setOptionCommand(en *Engine, stdout chan string, params ...string) {
 
 	// sample usage: setoption name usebook
 	if strings.ToLower(params[1]) == "usebook" {
-		en.options.useOpeningBook = !en.options.useOpeningBook
+		useBook := params[3] == "true"
+		en.options.useOpeningBook = useBook
 		stdout <- "option name UseBook value " + strconv.FormatBool(en.options.useOpeningBook)
 	}
 
@@ -159,14 +151,6 @@ func setOptionCommand(en *Engine, stdout chan string, params ...string) {
 		en.options.chess960 = params[3] == "true"
 		stdout <- "option name UCI_Chess960 value " + strconv.FormatBool(en.options.chess960)
 	}
-}
-
-// abs returns the absolute value of the number passed
-func abs(number int) int {
-	if number < 0 {
-		return -number
-	}
-	return number
 }
 
 // stopCommand
@@ -230,4 +214,25 @@ func divideCommand(en *Engine, stdout chan string, params ...string) {
 	for perft := range strings.SplitSeq(en.pos.Divide(depth), ",") {
 		stdout <- perft
 	}
+}
+
+// convertScore returns the proper score if it's mate or current centipawns score
+func convertScore(score int, depth int) (result string) {
+	absScore := abs(score)
+	isMate := absScore >= MateScore-depth-5 // NOTE: 5 is used as a fail safe that helps when mate is found earlier/before the actual mate depth
+	if isMate {
+		mateIn := (MateScore - absScore + 1) / 2 // NOTE: in full moves, not ply!
+		result = "mate " + strconv.Itoa((score/absScore)*mateIn)
+	} else {
+		result = "cp " + strconv.Itoa(score)
+	}
+	return
+}
+
+// abs returns the absolute value of the number passed
+func abs(number int) int {
+	if number < 0 {
+		return -number
+	}
+	return number
 }

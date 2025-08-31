@@ -40,6 +40,14 @@ func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 			if got != expected {
 				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
 			}
+
+			// Zobrist pawn hash test
+			expected = zobristHashKeys.pawnHash(pos)
+			got = pos.PawnHash
+
+			if got != expected {
+				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
+			}
 		})
 	}
 }
@@ -83,6 +91,26 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 			if got != expected {
 				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
 			}
+
+			// Zobrist pawn hash test
+			expected = zobristHashKeys.pawnHash(pos)
+			got = pos.PawnHash
+
+			if got != expected {
+				t.Errorf("%s Expected: %d, Got: %d", tc.name, expected, got)
+			}
 		})
+	}
+}
+
+func TestPawnHash(t *testing.T) {
+	pos := NewPositionFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+	pos2 := NewPositionFromFen("8/pppppppp/8/8/8/8/PPPPPPPP/8 w - - 0 1")
+
+	pawnHash := zobristHashKeys.pawnHash(pos)
+	pawnHash2 := zobristHashKeys.pawnHash(pos2)
+
+	if pawnHash != pawnHash2 {
+		t.Errorf("Expected: %v, Got: %v", pawnHash, pawnHash2)
 	}
 }

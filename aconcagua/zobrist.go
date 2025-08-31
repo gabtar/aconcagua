@@ -75,3 +75,22 @@ func (hk *HashKeys) getEpKey(sqNumber int) uint64 {
 	}
 	return hk.epKey[sqNumber%8]
 }
+
+// pawnHash returns the zobrist key for the pawns structure of the position
+func (hk *HashKeys) pawnHash(pos *Position) (hash uint64) {
+	whitePawns := pos.Bitboards[WhitePawn]
+	blackPawns := pos.Bitboards[BlackPawn]
+
+	for whitePawns > 0 {
+		sqNumber := Bsf(whitePawns)
+		hash = hash ^ hk.piecesSquaresKey[64*WhitePawn+sqNumber]
+		whitePawns &= ^Bitboard(0b1 << sqNumber)
+	}
+	for blackPawns > 0 {
+		sqNumber := Bsf(blackPawns)
+		hash = hash ^ hk.piecesSquaresKey[64*BlackPawn+sqNumber]
+		blackPawns &= ^Bitboard(0b1 << sqNumber)
+	}
+
+	return
+}
