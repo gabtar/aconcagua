@@ -181,11 +181,10 @@ func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 
 // AttackedSquares returns a bitboard with all squares attacked by the passed side
 func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
-	startingPiece := startingPieceNumber(side)
 	bitboards := pos.getBitboards(side)
 
-	for i, bb := range bitboards[0:5] {
-		piece := startingPiece + i
+	for p, bb := range bitboards[0:5] {
+		piece := pieceColor(p, side)
 		sq := bb.NextBit()
 
 		for sq > 0 {
@@ -198,26 +197,15 @@ func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
 	return
 }
 
-// startingPieceNumber return an integer with the number of the starting bitboard piece for the color passed
-func startingPieceNumber(side Color) int {
-	startingBitboard := 0
-	if side != White {
-		startingBitboard = 6
-	}
-	return startingBitboard
-}
-
 // CheckingPieces returns two Bitboards, one with all the checking pieces and one with only the checking sliders pieces
 func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checkingSliders Bitboard) {
 	if !pos.Check(side) {
 		return
 	}
-
 	kingSq := pos.KingPosition(side)
-	startingPieceNumber := startingPieceNumber(side.Opponent())
 
-	for i, bitboard := range pos.getBitboards(side.Opponent()) {
-		piece := startingPieceNumber + i
+	for p, bitboard := range pos.getBitboards(side.Opponent()) {
+		piece := pieceColor(p, side.Opponent())
 
 		for bitboard > 0 {
 			sq := bitboard.NextBit()
@@ -247,19 +235,20 @@ func (pos *Position) Check(side Color) (inCheck bool) {
 // pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
 func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 	king := pos.KingPosition(side)
-	opponentDiagonalAttackers := pos.Bitboards[int(side.Opponent())*6+int(WhiteQueen)] | pos.Bitboards[int(side.Opponent())*6+int(WhiteBishop)]
-	opponentOrthogonalAttackers := pos.Bitboards[int(side.Opponent())*6+int(WhiteQueen)] | pos.Bitboards[int(side.Opponent())*6+int(WhiteRook)]
+	opponent := side.Opponent()
+	opponentDiagonalAttackers := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Bishop, opponent)]
+	opponentOrthogonalAttackers := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Rook, opponent)]
 	ownPieces := pos.pieces[side] &^ king
-	opponentPieces := pos.pieces[side.Opponent()]
+	opponentPieces := pos.pieces[opponent]
 
 	if king == 0 {
 		return
 	}
 
 	for opponentDiagonalAttackers > 0 {
-		opponent := opponentDiagonalAttackers.NextBit()
-		opponentDiagonalRays := bishopAttacks(Bsf(opponent), Bitboard(0))
-		kingToOpponentPath := getRayPath(&opponent, &king)
+		attacker := opponentDiagonalAttackers.NextBit()
+		opponentDiagonalRays := bishopAttacks(Bsf(attacker), Bitboard(0))
+		kingToOpponentPath := getRayPath(&attacker, &king)
 		intersectionRay := opponentDiagonalRays & kingToOpponentPath
 		piecesBetween := intersectionRay & ownPieces
 		oponentPiecesBetween := intersectionRay & opponentPieces
@@ -270,9 +259,9 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 	}
 
 	for opponentOrthogonalAttackers > 0 {
-		opponent := opponentOrthogonalAttackers.NextBit()
-		opponentOrthogonalRays := rookAttacks(Bsf(opponent), Bitboard(0))
-		kingToOpponentPath := getRayPath(&opponent, &king)
+		attacker := opponentOrthogonalAttackers.NextBit()
+		opponentOrthogonalRays := rookAttacks(Bsf(attacker), Bitboard(0))
+		kingToOpponentPath := getRayPath(&attacker, &king)
 		intersectionRay := opponentOrthogonalRays & kingToOpponentPath
 		piecesBetween := intersectionRay & ownPieces
 		oponentPiecesBetween := intersectionRay & opponentPieces
