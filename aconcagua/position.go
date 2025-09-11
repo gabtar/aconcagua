@@ -223,13 +223,26 @@ func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checki
 }
 
 // Check returns if the side passed is in check
-func (pos *Position) Check(side Color) (inCheck bool) {
+func (pos *Position) Check(side Color) bool {
 	kingPos := pos.KingPosition(side)
+	opponent := side.Opponent()
 
-	if (kingPos & pos.AttackedSquares(side.Opponent())) > 0 {
-		inCheck = true
+	for piece, bb := range pos.getBitboards(opponent)[1:5] {
+		blocks := ^pos.EmptySquares()
+
+		for bb > 0 {
+			from := bb.NextBit()
+			if Attacks(pieceColor(piece+1, opponent), from, blocks)&kingPos > 0 {
+				return true
+			}
+		}
 	}
-	return
+
+	if pawnAttacks(&pos.Bitboards[pieceColor(Pawn, opponent)], opponent)&kingPos > 0 {
+		return true
+	}
+
+	return false
 }
 
 // pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
