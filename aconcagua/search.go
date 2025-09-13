@@ -31,7 +31,6 @@ func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
-	currentDepth       int
 	maxDepth           int
 	pvLine             pvLine
 	killers            [MaxSearchDepth]Killer
@@ -44,7 +43,6 @@ type Search struct {
 // init initializes the Search struct
 func (s *Search) init(depth int) {
 	s.nodes = 0
-	s.currentDepth = 0
 	s.maxDepth = depth
 	s.killers = [MaxSearchDepth]Killer{}
 	s.historyMoves = HistoryMoves{}
@@ -53,8 +51,7 @@ func (s *Search) init(depth int) {
 }
 
 // reset sets the new iteration parameters in the NewSearch
-func (s *Search) reset(currentDepth int) {
-	s.currentDepth = currentDepth
+func (s *Search) reset() {
 	s.nodes = 0
 	s.pvLine = NewPvLine(MaxSearchDepth)
 }
@@ -85,7 +82,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 	s.init(maxDepth)
 
 	for d := 1; d <= maxDepth; d++ {
-		s.reset(d)
+		s.reset()
 
 		lastScore := bestMoveScore
 		bestMoveScore = s.negamax(pos, d, 0, alpha, beta, &s.pvLine, true)
