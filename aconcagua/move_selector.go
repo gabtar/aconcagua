@@ -18,6 +18,7 @@ type MoveSelector struct {
 	stage                              int
 	moveNumber                         int // the move count selected so far
 	pos                                *Position
+	pd                                 PositionData
 	hashMove                           *Move
 	killer1, killer2                   *Move
 	historyMoves                       *HistoryMoves
@@ -51,8 +52,9 @@ func (ms *MoveSelector) nextMove() (move Move) {
 		}
 		fallthrough
 	case GenerateCapturesStage:
+		ms.pd = ms.pos.generatePositionData()
 		ms.stage = CapturesStage
-		ms.pos.generateCaptures(&ms.captures)
+		ms.pos.generateCaptures(&ms.captures, &ms.pd)
 		scores := make([]int, len(ms.captures))
 		for i := range len(ms.captures) {
 			scores[i] = ms.pos.see(ms.captures[i].from(), ms.captures[i].to())
@@ -83,7 +85,7 @@ func (ms *MoveSelector) nextMove() (move Move) {
 		ms.stage = SecondKillerStage
 		move = *ms.killer1
 		// NOTE: we need to validate legality of killers for this position, because the may be for the same ply, but of another branch of the tree!!
-		ms.pos.generateNonCaptures(&ms.nonCaptures)
+		ms.pos.generateNonCaptures(&ms.nonCaptures, &ms.pd)
 		if move != NoMove && move != *ms.hashMove && isLegalKiller(move, &ms.nonCaptures) {
 			return move
 		}

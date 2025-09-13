@@ -215,8 +215,7 @@ func pinRestrictedSquares(piece Bitboard, king Bitboard, pinnedPieces Bitboard) 
 }
 
 // generateCaptures generates all captures in the position and stores them in the move list
-func (pos *Position) generateCaptures(ml *MoveList) {
-	pd := pos.generatePositionData()
+func (pos *Position) generateCaptures(ml *MoveList, pd *PositionData) {
 	bitboards := pos.getBitboards(pos.Turn)
 
 	for piece, bb := range bitboards {
@@ -224,17 +223,17 @@ func (pos *Position) generateCaptures(ml *MoveList) {
 			pieceBB := bb.NextBit()
 			switch piece {
 			case King:
-				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&pd.enemies, ml, pd)
 			case Queen:
-				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd))&pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&pd.enemies, ml, pd)
 			case Rook:
-				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&pd.enemies, ml, pd)
 			case Bishop:
-				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&pd.enemies, ml, pd)
 			case Knight:
-				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, &pd)&pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&pd.enemies, ml, pd)
 			case Pawn:
-				genPawnCapturesMoves(&pieceBB, pos.Turn, ml, &pd)
+				genPawnCapturesMoves(&pieceBB, pos.Turn, ml, pd)
 			}
 		}
 	}
@@ -242,8 +241,7 @@ func (pos *Position) generateCaptures(ml *MoveList) {
 }
 
 // generateNonCaptures generates all non captures in the position and stores them in the move list
-func (pos *Position) generateNonCaptures(ml *MoveList) {
-	pd := pos.generatePositionData()
+func (pos *Position) generateNonCaptures(ml *MoveList, pd *PositionData) {
 	bitboards := pos.getBitboards(pos.Turn)
 
 	for piece, bb := range bitboards {
@@ -251,18 +249,18 @@ func (pos *Position) generateNonCaptures(ml *MoveList) {
 			pieceBB := bb.NextBit()
 			switch piece {
 			case King:
-				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, pd)
 				genCastleMoves(pos, ml)
 			case Queen:
-				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, &pd)|bishopMoves(&pieceBB, &pd))&^pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&^pd.enemies, ml, pd)
 			case Rook:
-				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, &pd)&^pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 			case Bishop:
-				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, &pd)&^pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 			case Knight:
-				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, &pd)&^pd.enemies, ml, &pd)
+				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 			case Pawn:
-				genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, &pd, pos.Turn)&^pd.enemies, pos.Turn, ml, &pd)
+				genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, pd, pos.Turn)&^pd.enemies, pos.Turn, ml, pd)
 			}
 		}
 	}
