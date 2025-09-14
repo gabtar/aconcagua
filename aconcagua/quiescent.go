@@ -17,7 +17,8 @@ func quiescent(pos *Position, s *Search, alpha int, beta int) int {
 	}
 
 	ml := NewMoveList(40)
-	pos.generateCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateCaptures(&ml, &pd)
 
 	for i := range len(ml) {
 		see := pos.see(ml[i].from(), ml[i].to())
@@ -82,13 +83,13 @@ func (pos *Position) see(from int, to int) int {
 
 // attackers returns a bitboard with all the attackers of the square passed
 func (pos *Position) attackers(to int, side Color, blocks Bitboard) (attackers Bitboard) {
-	pieceStart := startingPieceNumber(side)
 	toSq := Bitboard(1 << to)
 
-	for piece, bitboard := range pos.getBitboards(side) {
+	for p, bitboard := range pos.getBitboards(side) {
+		piece := pieceColor(p, side)
 		from := bitboard.NextBit()
 		for from > 0 {
-			attackedSquares := Attacks(piece+pieceStart, from, blocks)
+			attackedSquares := Attacks(piece, from, blocks)
 			if attackedSquares&toSq > 0 {
 				attackers |= from
 			}

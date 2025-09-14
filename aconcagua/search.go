@@ -31,7 +31,6 @@ func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
-	currentDepth       int
 	maxDepth           int
 	pvLine             pvLine
 	killers            [MaxSearchDepth]Killer
@@ -44,7 +43,6 @@ type Search struct {
 // init initializes the Search struct
 func (s *Search) init(depth int) {
 	s.nodes = 0
-	s.currentDepth = 0
 	s.maxDepth = depth
 	s.killers = [MaxSearchDepth]Killer{}
 	s.historyMoves = HistoryMoves{}
@@ -53,8 +51,7 @@ func (s *Search) init(depth int) {
 }
 
 // reset sets the new iteration parameters in the NewSearch
-func (s *Search) reset(currentDepth int) {
-	s.currentDepth = currentDepth
+func (s *Search) reset() {
 	s.nodes = 0
 	s.pvLine = NewPvLine(MaxSearchDepth)
 }
@@ -72,7 +69,7 @@ type Killer [2]Move
 
 // add adds a non capture move to the killer list
 func (k *Killer) add(move Move) {
-	if move.flag() == quiet {
+	if move.flag() < capture {
 		k[1] = k[0]
 		k[0] = move
 	}
@@ -85,7 +82,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 	s.init(maxDepth)
 
 	for d := 1; d <= maxDepth; d++ {
-		s.reset(d)
+		s.reset()
 
 		lastScore := bestMoveScore
 		bestMoveScore = s.negamax(pos, d, 0, alpha, beta, &s.pvLine, true)
@@ -128,7 +125,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		return 0
 	}
 
-	if depth == 0 {
+	isCheck := pos.Check(pos.Turn)
+	if depth <= 0 && !isCheck {
 		return quiescent(pos, s, alpha, beta)
 	}
 
@@ -139,7 +137,6 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	}
 
 	flag := FlagAlpha
-	isCheck := pos.Check(pos.Turn)
 	branchPv := NewPvLine(depth)
 	pvLine.reset()
 
@@ -181,6 +178,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	}
 
 	newScore := MinInt
+	bestMove := NoMove
 	ms := NewMoveSelector(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
 
 	for move := ms.nextMove(); move != NoMove; move = ms.nextMove() {
@@ -195,7 +193,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 
 		// Futility Pruning
-		if futilityPruningAllowed && moveFlag == quiet && !isCheck && !pvNode && ms.moveNumber > 0 {
+		if futilityPruningAllowed && moveFlag < capture && !isCheck && !pvNode && ms.moveNumber > 0 {
 			pos.UnmakeMove(&move)
 			continue
 		}
@@ -224,7 +222,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		if newScore >= beta {
 			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta, move)
 			s.killers[ply].add(move)
-			if flag == quiet {
+			if flag < capture {
 				s.historyMoves.update(depth, move.from(), move.to(), pos.Turn)
 			}
 
@@ -233,6 +231,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		if newScore > alpha {
 			flag = FlagExact
+			bestMove = move
 
 			alpha = newScore
 			pvLine.insert(move, &branchPv)
@@ -244,7 +243,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		return score
 	}
 
-	s.transpositionTable.store(pos.Hash, depth, flag, alpha, NoMove)
+	s.transpositionTable.store(pos.Hash, depth, flag, alpha, bestMove)
 	return alpha
 }
 

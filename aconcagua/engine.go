@@ -24,13 +24,12 @@ func NewEngine() *Engine {
 	return &Engine{
 		pos: *InitialPosition(),
 		search: Search{
-			nodes:        0,
-			currentDepth: 0,
-			maxDepth:     0,
-			pvLine:       NewPvLine(MaxSearchDepth),
-			killers:      [MaxSearchDepth]Killer{},
-			timeControl:  TimeControl{},
-			pawnTable:    *NewPawnHashTable(4),
+			nodes:       0,
+			maxDepth:    0,
+			pvLine:      NewPvLine(MaxSearchDepth),
+			killers:     [MaxSearchDepth]Killer{},
+			timeControl: TimeControl{},
+			pawnTable:   *NewPawnHashTable(4),
 		},
 		openingBook: PolyglotBook{},
 		options: Options{
