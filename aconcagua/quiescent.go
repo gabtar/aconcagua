@@ -1,12 +1,12 @@
 package aconcagua
 
-// quiescent is an evaluation function that takes into account some dynamic possibilities
-func quiescent(pos *Position, s *Search, alpha int, beta int) int {
+// Quiescent is an evaluation function that takes into account some dynamic possibilities
+func Quiescent(pos *Position, s *Search, alpha int, beta int) int {
 	if s.timeControl.stop {
 		return 0
 	}
 
-	score := pos.Evaluate(&s.pawnTable)
+	score := pos.Evaluate(&s.PawnTable)
 
 	if score >= beta {
 		return beta
@@ -26,7 +26,7 @@ func quiescent(pos *Position, s *Search, alpha int, beta int) int {
 		}
 
 		pos.MakeMove(&ml[i])
-		score = -quiescent(pos, s, -beta, -alpha)
+		score = -Quiescent(pos, s, -beta, -alpha)
 		pos.UnmakeMove(&ml[i])
 		if score >= beta {
 			return beta

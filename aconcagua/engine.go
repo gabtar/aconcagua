@@ -30,7 +30,7 @@ func NewEngine() *Engine {
 			pvLine:       NewPvLine(MaxSearchDepth),
 			killers:      [MaxSearchDepth]Killer{},
 			timeControl:  TimeControl{},
-			pawnTable:    *NewPawnHashTable(4),
+			PawnTable:    *NewPawnHashTable(4),
 		},
 		openingBook: PolyglotBook{},
 		options: Options{
