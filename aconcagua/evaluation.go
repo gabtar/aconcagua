@@ -148,20 +148,20 @@ func (ev *Evaluation) evaluatePawn(from int, side Color) {
 
 // evaluatePawnStructure evaluates the pawn structure for the side in the position passed
 func (ev *Evaluation) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bitboard, side Color) {
-	doubledPawns := doubledPawns(pos, side)
+	doubledPawns := DoubledPawns(pos, side)
 	ev.mgPawnStrucutre[side] += doubledPawns.count() * DoubledPawnPenaltyMg
 	ev.egPawnStructure[side] += doubledPawns.count() * DoubledPawnPenaltyEg
 
-	isolatedPawns := isolatedPawns(pos, side)
+	isolatedPawns := IsolatedPawns(pos, side)
 	ev.mgPawnStrucutre[side] += isolatedPawns.count() * IsolatedPawnPenaltyMg
 	ev.egPawnStructure[side] += isolatedPawns.count() * IsolatedPawnPenaltyEg
 
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
-	backwardPawns := backwardPawns(pawns, enemyPawnsAttacks, side)
+	backwardPawns := BackwardPawns(pawns, enemyPawnsAttacks, side)
 	ev.mgPawnStrucutre[side] += backwardPawns.count() * BackwardPawnPenaltyMg
 	ev.egPawnStructure[side] += backwardPawns.count() * BackwardPawnPenaltyEg
 
-	passedPawns := passedPawns(pawns, pos.Bitboards[pieceColor(Pawn, side.Opponent())], side)
+	passedPawns := PassedPawns(pawns, pos.Bitboards[pieceColor(Pawn, side.Opponent())], side)
 	passedPawnBonus := [8]int{0, 0, 10, 20, 30, 40, 50, 0}
 	for passedPawns > 0 {
 		fromBB := passedPawns.NextBit()
@@ -176,8 +176,8 @@ func (ev *Evaluation) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bit
 	}
 }
 
-// doubledPawns returns a bitboard with the files with more than 1 pawn
-func doubledPawns(pos *Position, side Color) Bitboard {
+// DoubledPawns returns a bitboard with the files with more than 1 pawn
+func DoubledPawns(pos *Position, side Color) Bitboard {
 	doubledPawns := Bitboard(0)
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
 
@@ -191,8 +191,8 @@ func doubledPawns(pos *Position, side Color) Bitboard {
 	return doubledPawns
 }
 
-// isolatedPawns a bitboard with the isolated pawns for the side
-func isolatedPawns(pos *Position, side Color) Bitboard {
+// IsolatedPawns a bitboard with the isolated pawns for the side
+func IsolatedPawns(pos *Position, side Color) Bitboard {
 	isolatedPawns := Bitboard(0)
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
 
@@ -248,9 +248,9 @@ func generateAttacksFrontSpans() (attacksFrontSpans [2][64]Bitboard) {
 	return
 }
 
-// backwardPawns returns a bitboard with the pawns that are backwards
+// BackwardPawns returns a bitboard with the pawns that are backwards
 // A backward pawn is a pawn that is not member of own front-attackspans but controlled by a sentry (definition from CPW)
-func backwardPawns(pawns Bitboard, enemyPawnsAttacks Bitboard, side Color) Bitboard {
+func BackwardPawns(pawns Bitboard, enemyPawnsAttacks Bitboard, side Color) Bitboard {
 	stops := pawns << 8
 	if side == Black {
 		stops = pawns >> 8
@@ -269,9 +269,9 @@ func backwardPawns(pawns Bitboard, enemyPawnsAttacks Bitboard, side Color) Bitbo
 	}
 }
 
-// passedPawns returns a bitboard with the passed pawns for the side
+// PassedPawns returns a bitboard with the passed pawns for the side
 // A passed pawn is a pawn whose path to promotion is not blocke nor attacked by the enemy pawns
-func passedPawns(alliedPawns Bitboard, enemyPawns Bitboard, side Color) (passedPawns Bitboard) {
+func PassedPawns(alliedPawns Bitboard, enemyPawns Bitboard, side Color) (passedPawns Bitboard) {
 	direction := North
 	if side == Black {
 		direction = South
@@ -322,7 +322,6 @@ func (pos *Position) Evaluate(pawnTable *PawnHashTable) int {
 		}
 	}
 
-	// pawnHash := zobristHashKeys.pawnHash(pos)
 	mgSc, egSc, ok := pawnTable.probe(pos.PawnHash, pos.Turn)
 	if ok {
 		pos.evaluation.mgPawnStrucutre[pos.Turn] = mgSc

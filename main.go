@@ -1,17 +1,18 @@
 package main
 
 import (
-	"github.com/gabtar/aconcagua/aconcagua"
 	// "fmt"
-	// "github.com/gabtar/aconcagua/tunner"
+
+	// "github.com/gabtar/aconcagua/aconcagua"
+	"github.com/gabtar/aconcagua/tuner"
 )
 
 func main() {
-	eng := aconcagua.NewEngine()
-	eng.StartUci()
+	// eng := aconcagua.NewEngine()
+	// eng.StartUci()
 
-	// dataSet := tunner.LoadDataSet("quiet-labeled.epd")
-	// fmt.Println(tunner.MeanSquareError(0.28, dataSet))
+	dataSet := tuner.LoadDataSet("./tuner/training-set/quiet-labeled.epd")
+	// params := tuner.GetEvaluationParams()
 
-	// tunner.Tunner(0.28, dataSet, 41)
+	tuner.Tuner(1.2, dataSet, 51)
 }
