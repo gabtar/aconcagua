@@ -13,17 +13,18 @@ import (
 	"github.com/gabtar/aconcagua/aconcagua"
 )
 
-// DataEntry is an struct conatining a single training example
-type DataEntry struct {
-	Fen         string
-	Result      float64
-	Attributes  []PositionAttribute
-	Phase       int
-	WhiteToMove bool
+const ScalingFactor = 0.0084 // Best Scaling factor found for zurichess training dataset
+
+// DatasetEntry is an struct conatining a single training example
+type DatasetEntry struct {
+	Fen     string
+	Result  float64
+	Weights []PositionWeight
+	Phase   int
 }
 
 // LoadDataSet loads a dataset from a file
-func LoadDataSet(filename string) (dataset []DataEntry) {
+func LoadDataSet(filename string) (dataset []DatasetEntry) {
 	file, err := os.Open(filename)
 	if err != nil {
 		fmt.Println(err)
@@ -41,27 +42,29 @@ func LoadDataSet(filename string) (dataset []DataEntry) {
 		}
 
 		fen := parts[0]
-		whiteToMove := aconcagua.NewPositionFromFen(fen).Turn == aconcagua.White
-		attributes := GeneratePositionAttributes(fen)
-		phase := GetPhase(aconcagua.NewPositionFromFen(fen))
-		result := resultString[parts[1][0:len(parts[1])-3]]
-		dataset = append(dataset, DataEntry{Fen: fen, Result: result, Attributes: attributes, Phase: phase, WhiteToMove: whiteToMove})
+		weigths := generatePositionWeights(fen)
+		phase := GetMiddleGamePhase(aconcagua.NewPositionFromFen(fen))
+		result := resultString[parts[1]]
+		dataset = append(dataset, DatasetEntry{Fen: fen, Result: result, Weights: weigths, Phase: phase})
 	}
 
 	return dataset
 }
 
 // GetEvaluationParams returns the current evaluation params
-func GetEvaluationParams() (params [768]int) {
+func GetEvaluationParams() (params [780]int) {
 	for piece := range 6 {
 		copy(params[piece*64:(piece+1)*64], aconcagua.MiddlegamePSQT[piece][0:64])
 		copy(params[(piece+6)*64:(piece+7)*64], aconcagua.EndgamePSQT[piece][0:64])
 	}
-	return params
+
+	copy(params[768:774], aconcagua.MiddlegamePieceValue[:])
+	copy(params[774:780], aconcagua.EndgamePieceValue[:])
+	return
 }
 
 // Tuner finds a set of parameters that minimize the mean square error
-func Tuner(scalingFactor float64, dataset []DataEntry, iteration int) {
+func Tuner(scalingFactor float64, dataset []DatasetEntry, iteration int) {
 	paramAdjustValue := 1 // increment/decrement params by this value
 	bestParams := GetEvaluationParams()
 	bestErr := MeanSquareError(scalingFactor, &bestParams, &dataset)
@@ -97,7 +100,7 @@ func Tuner(scalingFactor float64, dataset []DataEntry, iteration int) {
 			}
 		}
 
-		savePSQT(bestParams, iteration)
+		saveParams(bestParams, iteration)
 		sessionTime := time.Since(startTime)
 		iterationTime := time.Since(iterationStartTime)
 		fmt.Printf("Iter #%d | MeanSqErr: %.8f | Params tuned: %d | Iteration Time: %.2f mins | Session Time: %.2f hours\n", iteration, bestErr, paramsTuned, iterationTime.Minutes(), sessionTime.Hours())
@@ -105,28 +108,28 @@ func Tuner(scalingFactor float64, dataset []DataEntry, iteration int) {
 	}
 }
 
-// savePSQT sotres the best params found in a file
-func savePSQT(bestParams [768]int, iteration int) {
-	dir := "PSQT"
+// saveParams sotres the best params found in a file
+func saveParams(bestParams [780]int, iteration int) {
+	dir := "tuner/params"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		os.Mkdir(dir, 0755)
+		os.MkdirAll(dir, 0755)
 	}
 
-	filename := fmt.Sprintf("%s/PSQT_%d.txt", dir, iteration)
+	filename := fmt.Sprintf("%s/params_%d.txt", dir, iteration)
 	file, err := os.Create(filename)
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer file.Close()
 
-	_, err = file.WriteString(PSQTtoString(bestParams))
+	_, err = file.WriteString(paramsToPrettyFormat(bestParams))
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
-// PSQTtoString returns the PSQT as a string
-func PSQTtoString(bestParams [768]int) (psqt string) {
+// paramsToPrettyFormat returns the params as a string
+func paramsToPrettyFormat(bestParams [780]int) (psqt string) {
 	piece := []string{"King", "Queen", "Rook", "Bishop", "Knight", "Pawn"}
 	psqt = "MiddlegamePSQT: \n"
 	for i := range 6 {
@@ -153,46 +156,24 @@ func PSQTtoString(bestParams [768]int) (psqt string) {
 		psqt += "},\n"
 	}
 
+	// Pieces Values
+	psqt += "MiddlegamePieceValue: "
+	for i := range 6 {
+		psqt += fmt.Sprintf("%d, ", bestParams[768+i])
+	}
+	psqt += "\n"
+	psqt += "EndgamePieceValue: "
+	for i := range 6 {
+		psqt += fmt.Sprintf("%d, ", bestParams[774+i])
+	}
+	psqt += "\n"
+
 	return psqt
 }
 
-// TODO:: Some developers use a gradient descent to find the local minima. Its faster than this routine, but i need to find out how to implement it
-// Code from CPW of a local optimization routine
-// C++ optimization code
-
-// vector<int> localOptimize(const vector<int>& initialGuess) {
-//    const int nParams = initialGuess.size();
-//    double bestE = E(initialGuess);
-//    vector<int> bestParValues = initialGuess;
-//    bool improved = true;
-//    while ( improved ) {
-//       improved = false;
-//       for (int pi = 0; pi < nParams; pi++) {
-//          vector<int> newParValues = bestParValues;
-//          newParValues[pi] += 1;
-//          double newE = E(newParValues);
-//          if (newE < bestE) {
-//             bestE = newE;
-//             bestParValues = newParValues;
-//             improved = true;
-//          } else {
-//             newParValues[pi] -= 2;
-//             newE = E(newParValues);
-//             if (newE < bestE) {
-//                bestE = newE;
-//                bestParValues = newParValues;
-//                improved = true;
-//             }
-//          }
-//       }
-//    }
-//    return bestParValues;
-// }
-//
-
 // WorkerJob represents a single calculation job
 type WorkerJob struct {
-	entry *DataEntry
+	entry *DatasetEntry
 	index int
 }
 
@@ -203,8 +184,8 @@ type WorkerResult struct {
 }
 
 // MeanSquareError returns the mean square error using parallel processing
-func MeanSquareError(scalingFactor float64, params *[768]int, dataset *[]DataEntry) float64 {
-	const numWorkers = 4 // limit to 3 threads/jobs at a time
+func MeanSquareError(scalingFactor float64, params *[780]int, dataset *[]DatasetEntry) float64 {
+	const numWorkers = 4
 	entries := len(*dataset)
 
 	jobs := make(chan WorkerJob, entries)
@@ -237,11 +218,11 @@ func MeanSquareError(scalingFactor float64, params *[768]int, dataset *[]DataEnt
 }
 
 // worker processes jobs from the jobs channel
-func worker(scalingFactor float64, params *[768]int, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
+func worker(scalingFactor float64, params *[780]int, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range jobs {
-		score := EvaluatePosition(*params, job.entry.Attributes, job.entry.Phase, job.entry.WhiteToMove)
+		score := EvaluatePosition(*params, job.entry.Weights)
 
 		sigmoid := 1 / (1 + math.Exp(-scalingFactor*float64(score)))
 		errorValue := math.Pow(job.entry.Result-sigmoid, 2)
@@ -250,52 +231,45 @@ func worker(scalingFactor float64, params *[768]int, jobs <-chan WorkerJob, resu
 	}
 }
 
-// PositionAttribute is a struct that represents a single attribute of a position
+// PositionWeight is a struct that represents a single score attribute of a position
 // The paramIndex corresponds with the index of the params array we are trying to optimize
-// If the param index is -1, then the bias is a fixed value/attribute of the position
-// The bias contains the a fixed value/attribute of the position
-// For example if we are not tuning mobility, the mobility attributes only have a bias with a fixed value for each position
-type PositionAttribute struct {
+// If the param index is -1, then the weigth is a fixed value/attribute of the position
+// The product of the param value and the weigth value represents the value of the weight
+type PositionWeight struct {
 	paramIndex int
-	bias       int
-	color      int // 0 white - 1 black
+	weight     int
 }
 
-// EvaluatePosition returns the static evaluation of a position based on the attributes and current params
-func EvaluatePosition(params [768]int, attributes []PositionAttribute, phase int, whiteToMove bool) (value int) {
-	psqtScore := 0
-	staticValues := 0
-	for _, attr := range attributes {
+// EvaluatePosition returns the static evaluation of a position based on the weights and current params
+func EvaluatePosition(params [780]int, weights []PositionWeight) (value int) {
+	eval := 0
+	for _, attr := range weights {
 		if attr.paramIndex >= 0 {
-			psqtScore += attr.color * (params[attr.paramIndex]*phase + (params[attr.paramIndex+384])*(62-phase) + attr.bias)
+			eval += params[attr.paramIndex] * attr.weight
 		} else {
-			staticValues += attr.bias * attr.color
+			eval += attr.weight
 		}
 	}
-	value = (psqtScore + staticValues) / 62
-	if !whiteToMove {
-		value = -value
-	}
+	value = eval / 62
 	return
 }
 
-// GeneratePositionAttributes returns all the position attributes of a position
-func GeneratePositionAttributes(fen string) (attributes []PositionAttribute) {
+// generatePositionWeights returns all the position weights of a position
+func generatePositionWeights(fen string) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
-	phase := GetPhase(pos)
-	attributes = generatePieceScoreAttributes(fen, phase)
-	attributes = append(attributes, generateMobilityAttributes(fen, phase)...)
-	attributes = append(attributes, generateDoubledPawnsAttributes(fen, phase)...)
-	attributes = append(attributes, generateIsolatedPawnsAttributes(fen, phase)...)
-	attributes = append(attributes, generateBackwardsPawnsAttributes(fen, phase)...)
-	attributes = append(attributes, generatePassedPawnsAttributes(fen, phase)...)
+	phase := GetMiddleGamePhase(pos)
+	weights = generatePieceScoreWeights(fen, phase)
+	weights = append(weights, generateMobilityWeights(fen, phase)...)
+	weights = append(weights, generateDoubledPawnsWeights(fen, phase)...)
+	weights = append(weights, generateIsolatedPawnsWeights(fen, phase)...)
+	weights = append(weights, generateBackwardsPawnsWeights(fen, phase)...)
+	weights = append(weights, generatePassedPawnsWeights(fen, phase)...)
 
 	return
 }
 
-// generatePieceScoreAttributes returns the attributes of the piece socre (piece value + psqt)
-func generatePieceScoreAttributes(fen string, phase int) (attributes []PositionAttribute) {
-	// TODO: split into psqt and piece value attributes
+// generatePieceScoreWeights returns the weights of the pieces socre in the board
+func generatePieceScoreWeights(fen string, phase int) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
 
 	for piece, bb := range pos.Bitboards {
@@ -306,10 +280,25 @@ func generatePieceScoreAttributes(fen string, phase int) (attributes []PositionA
 				sq = sq ^ 56 // white pieces uses mirror square index in psqt
 			}
 
-			attributes = append(attributes, PositionAttribute{
+			// Piece value Mg
+			weights = append(weights, PositionWeight{
+				paramIndex: 768 + piece%6,
+				weight:     colorModifier * phase,
+			})
+			// Piece value Eg
+			weights = append(weights, PositionWeight{
+				paramIndex: 768 + piece%6 + 6,
+				weight:     colorModifier * (62 - phase),
+			})
+			// PSQT value Mg
+			weights = append(weights, PositionWeight{
 				paramIndex: (piece%6)*64 + sq,
-				bias:       aconcagua.MiddlegamePieceValue[piece%6]*phase + aconcagua.EndgamePieceValue[piece%6]*(62-phase),
-				color:      colorModifier,
+				weight:     colorModifier * phase,
+			})
+			// PSQT value Eg
+			weights = append(weights, PositionWeight{
+				paramIndex: 384 + (piece%6)*64 + sq,
+				weight:     colorModifier * (62 - phase),
 			})
 		}
 	}
@@ -317,8 +306,8 @@ func generatePieceScoreAttributes(fen string, phase int) (attributes []PositionA
 	return
 }
 
-// generateMobilityAttributes returns the attributes of the mobility of the position
-func generateMobilityAttributes(fen string, phase int) (attributes []PositionAttribute) {
+// generateMobilityWeights returns the position weithts of the mobility of the position
+func generateMobilityWeights(fen string, phase int) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
 	var mgMobilityBonus = [4]int{aconcagua.QueenMobilityBonusMg, aconcagua.RookMobilityBonusMg, aconcagua.BishopMobilityBonusMg, aconcagua.KnightMobilityBonusMg}
 	var egMobilityBonus = [4]int{aconcagua.QueenMobilityBonusEg, aconcagua.RookMobilityBonusEg, aconcagua.BishopMobilityBonusEg, aconcagua.KnightMobilityBonusEg}
@@ -341,18 +330,17 @@ func generateMobilityAttributes(fen string, phase int) (attributes []PositionAtt
 			attacks := aconcagua.Attacks(pieces[piece], fromBB, blocks)
 			safeSquares := bits.OnesCount64(uint64(attacks & ^enemyPawnsAttacks[piece/4])) - mobilityBase[piece%4]
 
-			attributes = append(attributes, PositionAttribute{
+			weights = append(weights, PositionWeight{
 				paramIndex: -1,
-				bias:       safeSquares*mgMobilityBonus[piece%4]*phase + safeSquares*egMobilityBonus[piece%4]*(62-phase),
-				color:      colorModifier,
+				weight:     colorModifier * (safeSquares*mgMobilityBonus[piece%4]*phase + safeSquares*egMobilityBonus[piece%4]*(62-phase)),
 			})
 		}
 	}
 	return
 }
 
-// generateDoubledPawnsAttributes returns the attributes of the doubled pawns
-func generateDoubledPawnsAttributes(fen string, phase int) (attributes []PositionAttribute) {
+// generateDoubledPawnsWeights returns the position weights of the doubled pawns
+func generateDoubledPawnsWeights(fen string, phase int) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
 	wDoubled := bits.OnesCount64(uint64(aconcagua.DoubledPawns(pos, aconcagua.White)))
 	bDoubled := bits.OnesCount64(uint64(aconcagua.DoubledPawns(pos, aconcagua.Black)))
@@ -361,18 +349,17 @@ func generateDoubledPawnsAttributes(fen string, phase int) (attributes []Positio
 	doubledPawns := [2]int{wDoubled, bDoubled}
 
 	for i := range 2 {
-		attributes = append(attributes, PositionAttribute{
+		weights = append(weights, PositionWeight{
 			paramIndex: -1,
-			bias:       penalties[0]*doubledPawns[i]*phase + penalties[1]*doubledPawns[i]*(62-phase),
-			color:      sideModifier[i],
+			weight:     sideModifier[i] * (penalties[0]*doubledPawns[i]*phase + penalties[1]*doubledPawns[i]*(62-phase)),
 		})
 	}
 
 	return
 }
 
-// generateIsolatedPawnsAttributes returns the attributes of the isolated pawns
-func generateIsolatedPawnsAttributes(fen string, phase int) (attributes []PositionAttribute) {
+// generateIsolatedPawnsWeights returns the position weights of the isolated pawns
+func generateIsolatedPawnsWeights(fen string, phase int) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
 	wIsolated := bits.OnesCount64(uint64(aconcagua.IsolatedPawns(pos, aconcagua.White)))
 	bIsolated := bits.OnesCount64(uint64(aconcagua.IsolatedPawns(pos, aconcagua.Black)))
@@ -381,18 +368,17 @@ func generateIsolatedPawnsAttributes(fen string, phase int) (attributes []Positi
 	isolatedPawns := [2]int{wIsolated, bIsolated}
 
 	for i := range 2 {
-		attributes = append(attributes, PositionAttribute{
+		weights = append(weights, PositionWeight{
 			paramIndex: -1,
-			bias:       penalties[0]*isolatedPawns[i]*phase + penalties[1]*isolatedPawns[i]*(62-phase),
-			color:      sideModifier[i],
+			weight:     sideModifier[i] * (penalties[0]*isolatedPawns[i]*phase + penalties[1]*isolatedPawns[i]*(62-phase)),
 		})
 	}
 
 	return
 }
 
-// generateBackwardsPawnsAttributes returns the attributes of the backwards pawns
-func generateBackwardsPawnsAttributes(fen string, phase int) (attributes []PositionAttribute) {
+// generateBackwardsPawnsWeights returns the position weights of the backwards pawns
+func generateBackwardsPawnsWeights(fen string, phase int) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
 	whitePawnsAttacks := aconcagua.Attacks(aconcagua.WhitePawn, pos.Bitboards[aconcagua.WhitePawn], pos.EmptySquares())
 	blackPawnsAttacks := aconcagua.Attacks(aconcagua.BlackPawn, pos.Bitboards[aconcagua.BlackPawn], pos.EmptySquares())
@@ -404,18 +390,17 @@ func generateBackwardsPawnsAttributes(fen string, phase int) (attributes []Posit
 	backwardsPawns := [2]int{wBackwards, bBackwards}
 
 	for i := range 2 {
-		attributes = append(attributes, PositionAttribute{
+		weights = append(weights, PositionWeight{
 			paramIndex: -1,
-			bias:       penalties[0]*backwardsPawns[i]*phase + penalties[1]*backwardsPawns[i]*(62-phase),
-			color:      sideModifier[i],
+			weight:     sideModifier[i] * (penalties[0]*backwardsPawns[i]*phase + penalties[1]*backwardsPawns[i]*(62-phase)),
 		})
 	}
 
 	return
 }
 
-// generatePassedPawnsAttributes returns the attributes of the passed pawns
-func generatePassedPawnsAttributes(fen string, phase int) (attributes []PositionAttribute) {
+// generatePassedPawnsWeights returns the position weights of the passed pawns
+func generatePassedPawnsWeights(fen string, phase int) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
 	passedPawnBonus := [8]int{0, 0, 10, 20, 30, 40, 50, 0}
 	wPassedPawns := aconcagua.PassedPawns(pos.Bitboards[aconcagua.WhitePawn], pos.Bitboards[aconcagua.BlackPawn], aconcagua.White)
@@ -428,10 +413,9 @@ func generatePassedPawnsAttributes(fen string, phase int) (attributes []Position
 		rank := sq / 8
 		bonus += passedPawnBonus[rank]
 	}
-	attributes = append(attributes, PositionAttribute{
+	weights = append(weights, PositionWeight{
 		paramIndex: -1,
-		bias:       bonus*phase + bonus*2*(62-phase),
-		color:      1,
+		weight:     bonus*phase + bonus*2*(62-phase),
 	})
 
 	bonus = 0
@@ -441,23 +425,49 @@ func generatePassedPawnsAttributes(fen string, phase int) (attributes []Position
 		rank := 7 - sq/8
 		bonus += passedPawnBonus[rank]
 	}
-	attributes = append(attributes, PositionAttribute{
+	weights = append(weights, PositionWeight{
 		paramIndex: -1,
-		bias:       bonus*phase + bonus*2*(62-phase),
-		color:      -1,
+		weight:     -bonus*phase - bonus*2*(62-phase),
 	})
 
 	return
 }
 
-func GetPhase(pos *aconcagua.Position) (phase int) {
+// GetMiddleGamePhase returns the value of the middle game phase of a position
+func GetMiddleGamePhase(pos *aconcagua.Position) (mgPhase int) {
 	phaseInc := [6]int{0, 9, 5, 3, 3, 0}
 	for p, bb := range pos.Bitboards {
 		for bb > 0 {
 			bb.NextBit()
-			phase += phaseInc[p%6]
+			mgPhase += phaseInc[p%6]
 		}
 	}
-	phase = min(phase, 62)
+	mgPhase = min(mgPhase, 62)
 	return
+}
+
+// FindOptimalScalingFactor returns the scaling factor that minimizes the mean square error
+func FindOptimalScalingFactor(dataset []DatasetEntry, params [780]int) float64 {
+	bestK := 0.0
+	bestError := math.Inf(1)
+
+	for k := 0.0001; k <= 0.1; k += 0.0001 {
+		totalError := 0.0
+
+		for _, entry := range dataset {
+			eval := float64(EvaluatePosition(params, entry.Weights))
+			predicted := 1.0 / (1.0 + math.Exp(-k*eval))
+			actual := entry.Result
+			error := predicted - actual
+			totalError += error * error
+		}
+
+		mse := totalError / float64(len(dataset))
+		if mse < bestError {
+			bestError = mse
+			bestK = k
+		}
+	}
+
+	return bestK
 }

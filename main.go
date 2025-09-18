@@ -1,8 +1,6 @@
 package main
 
 import (
-	// "fmt"
-
 	// "github.com/gabtar/aconcagua/aconcagua"
 	"github.com/gabtar/aconcagua/tuner"
 )
@@ -13,6 +11,10 @@ func main() {
 
 	dataSet := tuner.LoadDataSet("./tuner/training-set/quiet-labeled.epd")
 	// params := tuner.GetEvaluationParams()
+	// fmt.Println(params)
 
-	tuner.Tuner(1.2, dataSet, 51)
+	// k := tuner.FindOptimalScalingFactor(dataSet, tuner.GetEvaluationParams())
+	// fmt.Println("Best K", k)
+
+	tuner.Tuner(tuner.ScalingFactor, dataSet, 10)
 }

@@ -32,6 +32,7 @@ func TestEvaluation(t *testing.T) {
 		{"Eval 19", "4k3/1P6/8/8/8/8/K7/8 w - - 0 1"},
 		{"Eval 20", "8/P1k5/K7/8/8/8/8/8 w - - 0 1"},
 		{"Eval 21", "rnb1kbnr/ppp1ppp1/8/q5B1/8/2NPQN2/PPP2P1P/R3KB1q w Qkq - 0 0"},
+		{"Eval 22", "2k5/8/8/8/8/4K3/8/8 w - - 0 1"},
 	}
 
 	for _, tc := range testCases {
@@ -39,10 +40,14 @@ func TestEvaluation(t *testing.T) {
 			pos := aconcagua.NewPositionFromFen(tc.fen)
 			staticEval := pos.Evaluate(aconcagua.NewPawnHashTable(1))
 			params := GetEvaluationParams()
-			attr := GeneratePositionAttributes(pos.ToFen())
-			phase := GetPhase(pos)
+			attr := generatePositionWeights(pos.ToFen())
 
-			got := EvaluatePosition(params, attr, phase, pos.Turn == aconcagua.White)
+			got := EvaluatePosition(params, attr)
+
+			// Always return evaluation from white's perspective
+			if pos.Turn == aconcagua.Black {
+				got = -got
+			}
 
 			if got != staticEval {
 				t.Errorf("Expected: %v, got: %v", staticEval, got)
