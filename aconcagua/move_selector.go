@@ -4,23 +4,25 @@ const (
 	// Move Generation Stages flags
 	HashMoveStage = iota
 	GenerateCapturesStage
-	CapturesStage // TODO: Split into Bad captures by see < 0??
+	CapturesStage
 	FirstKillerStage
 	SecondKillerStage
 	// TODO: Counter move heruistic???
 	GenerateNonCapturesStage
 	NonCapturesStage
+	BadCapturesStage
 	EndStage
 )
 
 type MoveSelector struct {
-	stage                 int
-	moveNumber            int // the move count selected so far
-	pos                   *Position
-	hashMove              *Move
-	killer1, killer2      *Move
-	historyMoves          *HistoryMoves
-	captures, nonCaptures MoveList
+	stage                              int
+	moveNumber                         int // the move count selected so far
+	pos                                *Position
+	pd                                 PositionData
+	hashMove                           *Move
+	killer1, killer2                   *Move
+	historyMoves                       *HistoryMoves
+	captures, nonCaptures, badCaptures MoveList
 }
 
 // NewMoveSelector returns a new move generator
@@ -33,6 +35,7 @@ func NewMoveSelector(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move
 		killer2:      killer2,
 		moveNumber:   -1, // NOTE: initialize with -1 to make the first move selected to have moveNumber = 0
 		captures:     NewMoveList(30),
+		badCaptures:  NewMoveList(30),
 		nonCaptures:  NewMoveList(100),
 		historyMoves: historyMoves,
 	}
@@ -49,13 +52,24 @@ func (ms *MoveSelector) nextMove() (move Move) {
 		}
 		fallthrough
 	case GenerateCapturesStage:
+		ms.pd = ms.pos.generatePositionData()
 		ms.stage = CapturesStage
-		ms.pos.generateCaptures(&ms.captures)
+		ms.pos.generateCaptures(&ms.captures, &ms.pd)
 		scores := make([]int, len(ms.captures))
 		for i := range len(ms.captures) {
 			scores[i] = ms.pos.see(ms.captures[i].from(), ms.captures[i].to())
 		}
 		ms.captures.sort(scores)
+
+		// BadCaptures
+		for i := range scores {
+			if scores[i] < 0 {
+				ms.badCaptures = ms.captures[i:]
+				ms.captures = ms.captures[:i]
+				break
+			}
+		}
+
 		fallthrough
 	case CapturesStage:
 		move = *ms.captures.pickFirst()
@@ -71,7 +85,7 @@ func (ms *MoveSelector) nextMove() (move Move) {
 		ms.stage = SecondKillerStage
 		move = *ms.killer1
 		// NOTE: we need to validate legality of killers for this position, because the may be for the same ply, but of another branch of the tree!!
-		ms.pos.generateNonCaptures(&ms.nonCaptures)
+		ms.pos.generateNonCaptures(&ms.nonCaptures, &ms.pd)
 		if move != NoMove && move != *ms.hashMove && isLegalKiller(move, &ms.nonCaptures) {
 			return move
 		}
@@ -109,8 +123,17 @@ func (ms *MoveSelector) nextMove() (move Move) {
 		if move != NoMove {
 			return move
 		}
-		ms.stage = EndStage
+		ms.stage = BadCapturesStage
 		fallthrough
+	case BadCapturesStage:
+		move = *ms.badCaptures.pickFirst()
+		if move != NoMove && move == *ms.hashMove {
+			move = *ms.badCaptures.pickFirst()
+		}
+		if move != NoMove {
+			return move
+		}
+		ms.stage = EndStage
 	case EndStage:
 		return NoMove
 	}

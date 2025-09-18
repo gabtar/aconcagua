@@ -52,6 +52,7 @@ func TestMoveSelectorCreatesNonCaptures(t *testing.T) {
 	move := NoMove
 	ms.hashMove = &move
 
+	ms.pd = ms.pos.generatePositionData()
 	ms.nextMove()
 
 	expected := 16 // 17 - 1 (the one picked)
@@ -67,7 +68,8 @@ func TestMoveSelectorGetsAllMoves(t *testing.T) {
 	hashMove := NoMove
 
 	ml := NewMoveList(20)
-	pos.generateNonCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateNonCaptures(&ml, &pd)
 	killers := Killer{ml[0], ml[5]}
 
 	ms := NewMoveSelector(pos, &hashMove, &killers[0], &killers[1], &HistoryMoves{})

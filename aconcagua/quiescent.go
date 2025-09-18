@@ -17,7 +17,8 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int) int {
 	}
 
 	ml := NewMoveList(40)
-	pos.generateCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateCaptures(&ml, &pd)
 
 	for i := range len(ml) {
 		see := pos.see(ml[i].from(), ml[i].to())

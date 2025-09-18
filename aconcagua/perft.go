@@ -6,14 +6,16 @@ import "strconv"
 func (pos *Position) Perft(depth int) (nodes uint64) {
 	if depth == 1 {
 		ml := NewMoveList(255)
-		pos.generateCaptures(&ml)
-		pos.generateNonCaptures(&ml)
+		pd := pos.generatePositionData()
+		pos.generateCaptures(&ml, &pd)
+		pos.generateNonCaptures(&ml, &pd)
 		return uint64(len(ml))
 	}
 
 	ml := NewMoveList(255)
-	pos.generateCaptures(&ml)
-	pos.generateNonCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateCaptures(&ml, &pd)
+	pos.generateNonCaptures(&ml, &pd)
 
 	for i := range ml {
 		pos.MakeMove(&ml[i])
@@ -29,8 +31,9 @@ func (pos *Position) Divide(depth int) (divide string) {
 	var totalNodes uint64 = 0
 
 	ml := NewMoveList(255)
-	pos.generateCaptures(&ml)
-	pos.generateNonCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateCaptures(&ml, &pd)
+	pos.generateNonCaptures(&ml, &pd)
 
 	for i := range ml {
 		pos.MakeMove(&ml[i])

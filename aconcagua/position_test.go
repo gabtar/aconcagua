@@ -63,8 +63,9 @@ func TestLegalMovesOnAPositionWithPromotion(t *testing.T) {
 	pos := NewPositionFromFen("3r2k1/5ppp/8/8/8/8/pp4PP/5R1K b - - 0 1")
 
 	ml := NewMoveList(100)
-	pos.generateCaptures(&ml)
-	pos.generateNonCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateCaptures(&ml, &pd)
+	pos.generateNonCaptures(&ml, &pd)
 
 	expected := 28
 	got := len(ml)
@@ -78,8 +79,9 @@ func TestLegalMovesOnAPositionIllegalLongCastle(t *testing.T) {
 	pos := NewPositionFromFen("6k1/5ppp/8/7q/7b/8/5PPP/RN2K2R w KQ - 1 1")
 
 	ml := NewMoveList(100)
-	pos.generateCaptures(&ml)
-	pos.generateNonCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateCaptures(&ml, &pd)
+	pos.generateNonCaptures(&ml, &pd)
 
 	expected := 18
 	got := len(ml)
@@ -93,8 +95,9 @@ func TestLegalMovesOnAPositionWithDoubleEnPassantCaptures(t *testing.T) {
 	pos := NewPositionFromFen("6k1/5bpp/8/1PpPN3/8/8/6PP/6K1 w - c6 0 1")
 
 	ml := NewMoveList(100)
-	pos.generateCaptures(&ml)
-	pos.generateNonCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateCaptures(&ml, &pd)
+	pos.generateNonCaptures(&ml, &pd)
 
 	expected := 19
 	got := len(ml)
@@ -108,8 +111,9 @@ func TestLegalMovesOnMultiplePinsWithCheck(t *testing.T) {
 	pos := NewPositionFromFen("8/1k3Rpp/1n6/3b4/8/5B2/6PP/1R4K1 b - - 0 1")
 
 	ml := NewMoveList(100)
-	pos.generateCaptures(&ml)
-	pos.generateNonCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateCaptures(&ml, &pd)
+	pos.generateNonCaptures(&ml, &pd)
 
 	expected := 5
 	got := len(ml)
@@ -123,8 +127,9 @@ func TestLegalMovesOnMultiplePinsWithCheckTwo(t *testing.T) {
 	pos := NewPositionFromFen("8/1k3Rpp/1n6/3b4/8/5B2/6PP/2R3K1 b - - 0 1")
 
 	ml := NewMoveList(100)
-	pos.generateCaptures(&ml)
-	pos.generateNonCaptures(&ml)
+	pd := pos.generatePositionData()
+	pos.generateCaptures(&ml, &pd)
+	pos.generateNonCaptures(&ml, &pd)
 
 	expected := 4 // 3 of king 1 block of the knight
 	got := len(ml)
