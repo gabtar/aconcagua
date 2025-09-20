@@ -36,7 +36,7 @@ type Search struct {
 	killers            [MaxSearchDepth]Killer
 	historyMoves       HistoryMoves
 	transpositionTable TranspositionTable
-	pawnTable          PawnHashTable
+	PawnTable          PawnHashTable
 	timeControl        TimeControl
 }
 
@@ -47,7 +47,7 @@ func (s *Search) init(depth int) {
 	s.killers = [MaxSearchDepth]Killer{}
 	s.historyMoves = HistoryMoves{}
 	s.transpositionTable = *NewTranspositionTable(DefaultTableSizeInMb)
-	s.pawnTable.reset()
+	s.PawnTable.reset()
 }
 
 // reset sets the new iteration parameters in the NewSearch
@@ -127,7 +127,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	isCheck := pos.Check(pos.Turn)
 	if depth <= 0 && !isCheck {
-		return quiescent(pos, s, alpha, beta)
+		return Quiescent(pos, s, alpha, beta)
 	}
 
 	pvNode := beta-alpha > 1
@@ -142,7 +142,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 4 && !isCheck && !pvNode {
-		sc := pos.Evaluate(&s.pawnTable)
+		sc := pos.Evaluate(&s.PawnTable)
 		margin := ReverseFutitlityPruningMargin * depth
 		if sc-margin >= beta {
 			return beta
@@ -164,7 +164,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	futilityPruningAllowed := false
 	if depth <= 3 && alpha > -MateScore && beta < MateScore {
 		futilityMargin := []int{0, 300, 500, 900}
-		sc := pos.Evaluate(&s.pawnTable)
+		sc := pos.Evaluate(&s.PawnTable)
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
