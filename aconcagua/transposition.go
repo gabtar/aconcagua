@@ -15,10 +15,10 @@ const DefaultTableSizeInMb = 64
 // score is the evaluation score - 32bits
 type TTEntry struct {
 	key   uint64
-	depth uint8
-	flag  uint8
 	score int32
 	move  Move
+	depth uint8
+	flag  uint8
 }
 
 // TranspositionTable is a database of previously evaluated positions
@@ -33,7 +33,7 @@ type TranspositionTable struct {
 
 // NewTranspositionTable returns a pointer to a new TranspositionTable with the passed size
 func NewTranspositionTable(sizeInMb int) *TranspositionTable {
-	entrySizeInBytes := 18 // 64bits + 8bits + 8bits + 32bits + 32bits = 144 bits bits / 8 = 18 bits per entry
+	entrySizeInBytes := 16 // 64bits + 32bits + 16bits + 8bits + 8bits = 128 bits bits / 8 = 16 bits per entry
 	size := uint64(sizeInMb * 1024 * 1024 / entrySizeInBytes)
 	return &TranspositionTable{
 		entries: make([]TTEntry, size),
@@ -96,6 +96,7 @@ type PawnHashEntry struct {
 	mgScore int16
 	egScore int16
 	turn    int8
+	_       [3]byte // Alignment
 }
 
 // PawnHashTable contains the score of the previously evaluated pawn strucure
@@ -108,7 +109,7 @@ type PawnHashTable struct {
 
 // NewPawnHashTable returns a pointer to a new PawnHashTable with the passed size
 func NewPawnHashTable(sizeInMb int) *PawnHashTable {
-	entrySizeInBytes := 13 // 64bits + 16bits + 16bits + 8bits = 80 bits bits / 8 = 13 bits per entry
+	entrySizeInBytes := 16 // 64bits + 16bits + 16bits + 8bits + 3bits + 3*8bits(padding) = 128 bits / 8 = 16 bits per entry
 	size := uint64(sizeInMb * 1024 * 1024 / entrySizeInBytes)
 	return &PawnHashTable{
 		entries: make([]PawnHashEntry, size),

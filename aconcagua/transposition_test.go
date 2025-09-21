@@ -5,7 +5,7 @@ import "testing"
 func TestNewTranspositionTable(t *testing.T) {
 	tt := NewTranspositionTable(64)
 
-	expected := uint64(64 * 1024 * 1024 / 18)
+	expected := uint64(64 * 1024 * 1024 / 16)
 	got := tt.size
 
 	if got != expected {
