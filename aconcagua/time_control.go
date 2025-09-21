@@ -61,16 +61,19 @@ func (tc *TimeControl) calculateSearchTime(strategy int, side int, moveNumber in
 		if moveNumber <= 40 {
 			return int(0.015 * timeLeft)
 		}
+
 		return int(0.01 * timeLeft)
 	}
-	return 0
+	return -1
 }
 
 // stopAfter stops the search after the given miliseconds
 func (tc *TimeControl) stopAfter(miliseconds int) {
-	if miliseconds == 0 {
+	if miliseconds == -1 {
 		return
 	}
+	miliseconds = max(miliseconds, 50) // Give a safe margin
+
 	go func() {
 		time.Sleep(time.Duration(miliseconds) * time.Millisecond)
 		tc.stop = true

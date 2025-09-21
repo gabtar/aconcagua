@@ -61,7 +61,7 @@ func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 }
 
 // pawnMoveFlag returns the move flag for the pawn move
-// TODO: imprvome memory efficiency of this
+// TODO: imprvome memory efficiency of this, cache into a map?
 func pawnMoveFlag(from *Bitboard, to *Bitboard, pd *PositionData, side Color) []uint16 {
 	fromSq := Bsf(*from)
 	toSq := Bsf(*to)

@@ -16,8 +16,8 @@ type UciCommand func(en *Engine, stdout chan string, params ...string)
 
 // uciCommand takes care of uci command from gui
 func uciCommand(en *Engine, stdout chan string, params ...string) {
-	stdout <- "id aconcagua 3.3.0"
-	stdout <- "author gabtar"
+	stdout <- "id name Aconcagua 3.3.0"
+	stdout <- "id author Gabriel Tarifa"
 	stdout <- ""
 	stdout <- "option name BookPath type string default <empty>"
 	stdout <- "option name UseBook type check default false"
@@ -107,7 +107,7 @@ func timeStrategy(params []string, depth int, wtime int, btime int, movetime int
 		movetime, _ = strconv.Atoi(params[movetime+1])
 		return MoveTimeStrategy, Clock{0, 0, 0, 0, movetime}
 	}
-	if wtime != -1 && btime != -1 {
+	if wtime != -1 || btime != -1 {
 		wtime, _ = strconv.Atoi(params[wtime+1])
 		btime, _ = strconv.Atoi(params[btime+1])
 		return TimeLeftStrategy, Clock{wtime, btime, 0, 0, 0}

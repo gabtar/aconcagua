@@ -33,6 +33,7 @@ type Evaluation struct {
 	mgPawnStrucutre [2]int
 	egPawnStructure [2]int
 	phase           int
+	// TODO: move PawnHashTable here???
 }
 
 // NewEvaluation returns a new Evaluation
