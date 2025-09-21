@@ -21,12 +21,12 @@ type MoveSelector struct {
 	pd                                 PositionData
 	hashMove                           *Move
 	killer1, killer2                   *Move
-	historyMoves                       *HistoryMoves
+	historyMoves                       *HistoryMovesTable
 	captures, nonCaptures, badCaptures MoveList
 }
 
 // NewMoveSelector returns a new move generator
-func NewMoveSelector(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, historyMoves *HistoryMoves) *MoveSelector {
+func NewMoveSelector(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, historyMoves *HistoryMovesTable) *MoveSelector {
 	return &MoveSelector{
 		stage:        HashMoveStage,
 		pos:          pos,

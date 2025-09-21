@@ -1,19 +1,11 @@
 package main
 
 import (
-	// "log"
-	// "net/http"
-	// _ "net/http/pprof"
-
 	"github.com/gabtar/aconcagua/aconcagua"
 	// "github.com/gabtar/aconcagua/tuner"
 )
 
 func main() {
-	// go func() {
-	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
-	// }()
-
 	eng := aconcagua.NewEngine()
 	eng.StartUci()
 

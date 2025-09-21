@@ -23,8 +23,10 @@ func (ph *PositionHistory) repetitionCount(hash uint64) int {
 
 // clear clears the position history
 func (ph *PositionHistory) clear() {
-	ph.previousState = [MaxHistoryMoves * 2]positionBefore{}
-	ph.previousCastleRigths = [MaxHistoryMoves * 2]castlingRights{}
+	for i := range MaxHistoryMoves * 2 {
+		ph.previousState[i] = positionBefore(0)
+		ph.previousCastleRigths[i] = noCastling
+	}
 	ph.currentIndex = 0
 }
 

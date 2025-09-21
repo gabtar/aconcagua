@@ -31,37 +31,59 @@ func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
-	maxDepth           int
 	pvLine             pvLine
-	killers            [MaxSearchDepth]Killer
-	historyMoves       HistoryMoves
+	killers            KillersTable
+	historyMoves       HistoryMovesTable
 	transpositionTable TranspositionTable
-	PawnTable          PawnHashTable
+	pawnTable          PawnHashTable
 	timeControl        TimeControl
 }
 
-// init initializes the Search struct
-func (s *Search) init(depth int) {
+// NewSearch returns a pointer to a new Search struct
+func NewSearch() *Search {
+	return &Search{
+		nodes:              0,
+		pvLine:             NewPvLine(MaxSearchDepth),
+		killers:            KillersTable{},
+		historyMoves:       HistoryMovesTable{},
+		transpositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
+		pawnTable:          *NewPawnHashTable(4),
+		timeControl:        TimeControl{},
+	}
+}
+
+// clear clears the search
+func (s *Search) clear() {
 	s.nodes = 0
-	s.maxDepth = depth
-	s.killers = [MaxSearchDepth]Killer{}
-	s.historyMoves = HistoryMoves{}
-	s.transpositionTable = *NewTranspositionTable(DefaultTableSizeInMb)
-	s.PawnTable.reset()
+	s.killers.clear()
+	s.historyMoves.clear()
+	s.transpositionTable.clear()
+	s.pawnTable.clear()
 }
 
 // reset sets the new iteration parameters in the NewSearch
 func (s *Search) reset() {
 	s.nodes = 0
-	s.pvLine = NewPvLine(MaxSearchDepth)
+	s.pvLine.reset()
 }
 
-// HistoryMoves is a table for holding the history of moves
-type HistoryMoves [2][64][64]int
+// HistoryMovesTable is a table for holding the history of moves
+type HistoryMovesTable [2][64][64]int
 
 // update updates the history of moves
-func (hm *HistoryMoves) update(depth int, from int, to int, side Color) {
+func (hm *HistoryMovesTable) update(depth int, from int, to int, side Color) {
 	hm[side][from][to] += depth * depth
+}
+
+// clear clears the history of moves
+func (hm *HistoryMovesTable) clear() {
+	for i := range hm {
+		for j := range hm[i] {
+			for k := range hm[i][j] {
+				hm[i][j][k] = 0
+			}
+		}
+	}
 }
 
 // Killer is a list of quiet moves that produces a beta cutoff
@@ -75,11 +97,22 @@ func (k *Killer) add(move Move) {
 	}
 }
 
+// KillersTable is a table of killers moves entries
+type KillersTable [MaxSearchDepth]Killer
+
+// clear clears the killers table
+func (kt *KillersTable) clear() {
+	for i := range kt {
+		kt[i][0] = NoMove
+		kt[i][1] = NoMove
+	}
+}
+
 // root is the entry point of the search
 func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
 	alpha := MinInt
 	beta := MaxInt
-	s.init(maxDepth)
+	s.clear()
 
 	for d := 1; d <= maxDepth; d++ {
 		s.reset()
@@ -142,7 +175,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 4 && !isCheck && !pvNode {
-		sc := pos.Evaluate(&s.PawnTable)
+		sc := pos.Evaluate(&s.pawnTable)
 		margin := ReverseFutitlityPruningMargin * depth
 		if sc-margin >= beta {
 			return beta
@@ -164,7 +197,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	futilityPruningAllowed := false
 	if depth <= 3 && alpha > -MateScore && beta < MateScore {
 		futilityMargin := []int{0, 300, 500, 900}
-		sc := pos.Evaluate(&s.PawnTable)
+		sc := pos.Evaluate(&s.pawnTable)
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 

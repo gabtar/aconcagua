@@ -45,6 +45,22 @@ func NewTranspositionTable(sizeInMb int) *TranspositionTable {
 	}
 }
 
+// clear clears the transposition table entries
+func (tt *TranspositionTable) clear() {
+	for i := range tt.size {
+		tt.entries[i].key = 0
+		tt.entries[i].score = 0
+		tt.entries[i].move = NoMove
+		tt.entries[i].depth = 0
+		tt.entries[i].flag = 0
+	}
+
+	tt.stored = 0
+	tt.tried = 0
+	tt.found = 0
+	tt.pruned = 0
+}
+
 // store stores a new entry in the transposition table
 func (tt *TranspositionTable) store(key uint64, depth int, flag uint8, score int, move Move) {
 	index := key % tt.size
@@ -117,9 +133,14 @@ func NewPawnHashTable(sizeInMb int) *PawnHashTable {
 	}
 }
 
-// reset resets the PawnHashTable
-func (pht *PawnHashTable) reset() {
-	pht.entries = make([]PawnHashEntry, pht.size)
+// clear resets the PawnHashTable
+func (pht *PawnHashTable) clear() {
+	for i := range pht.size {
+		pht.entries[i].key = 0
+		pht.entries[i].mgScore = 0
+		pht.entries[i].egScore = 0
+		pht.entries[i].turn = 0
+	}
 }
 
 // store stores a new entry in the PawnHashTable

@@ -6,7 +6,7 @@ func TestMoveSelectorHasNextMove(t *testing.T) {
 	pos := EmptyPosition()
 	hashMove := encodeMove(0, 0, quiet)
 	killers := Killer{NoMove, NoMove}
-	ms := NewMoveSelector(pos, hashMove, &killers[0], &killers[1], &HistoryMoves{})
+	ms := NewMoveSelector(pos, hashMove, &killers[0], &killers[1], &HistoryMovesTable{})
 
 	got := ms.nextMove()
 
@@ -19,7 +19,7 @@ func TestMoveSelectorNotHasNextMove(t *testing.T) {
 	pos := EmptyPosition()
 	hashMove := NoMove
 	killers := Killer{NoMove, NoMove}
-	ms := NewMoveSelector(pos, &hashMove, &killers[0], &killers[1], &HistoryMoves{})
+	ms := NewMoveSelector(pos, &hashMove, &killers[0], &killers[1], &HistoryMovesTable{})
 	ms.stage = EndStage
 
 	expected := NoMove
@@ -47,7 +47,7 @@ func TestMoveSelectorCreatesCaptures(t *testing.T) {
 func TestMoveSelectorCreatesNonCaptures(t *testing.T) {
 	pos := NewPositionFromFen("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	noMove := NoMove
-	ms := NewMoveSelector(pos, &noMove, &noMove, &noMove, &HistoryMoves{})
+	ms := NewMoveSelector(pos, &noMove, &noMove, &noMove, &HistoryMovesTable{})
 	ms.stage = FirstKillerStage // NOTE: Non captures are generated in killers stage to validate legaliy of killers
 	move := NoMove
 	ms.hashMove = &move
@@ -72,7 +72,7 @@ func TestMoveSelectorGetsAllMoves(t *testing.T) {
 	pos.generateNonCaptures(&ml, &pd)
 	killers := Killer{ml[0], ml[5]}
 
-	ms := NewMoveSelector(pos, &hashMove, &killers[0], &killers[1], &HistoryMoves{})
+	ms := NewMoveSelector(pos, &hashMove, &killers[0], &killers[1], &HistoryMovesTable{})
 	for ms.nextMove() != NoMove {
 	}
 
