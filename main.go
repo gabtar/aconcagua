@@ -1,6 +1,7 @@
 package main
 
 import (
+	// "fmt"
 	"github.com/gabtar/aconcagua/aconcagua"
 	// "github.com/gabtar/aconcagua/tuner"
 )
@@ -16,5 +17,5 @@ func main() {
 	// k := tuner.FindOptimalScalingFactor(dataSet, tuner.GetEvaluationParams())
 	// fmt.Println("Best K", k)
 
-	// tuner.Tuner(tuner.ScalingFactor, dataSet, 61)
+	// tuner.AdamTuner(params, dataSet, tuner.ScalingFactor, 2000)
 }

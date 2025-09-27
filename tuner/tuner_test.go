@@ -42,7 +42,7 @@ func TestEvaluation(t *testing.T) {
 			params := GetEvaluationParams()
 			attr := generatePositionWeights(pos.ToFen())
 
-			got := EvaluatePosition(params, attr)
+			got := int(EvaluatePosition(params, attr))
 
 			// Always return evaluation from white's perspective
 			if pos.Turn == aconcagua.Black {

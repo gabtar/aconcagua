@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gabtar/aconcagua/aconcagua"
 )
@@ -52,64 +51,44 @@ func LoadDataSet(filename string) (dataset []DatasetEntry) {
 }
 
 // GetEvaluationParams returns the current evaluation params
-func GetEvaluationParams() (params [780]int) {
+func GetEvaluationParams() (params [788]float64) {
+	intParams := [788]int{}
+
+	// Psqt weights
 	for piece := range 6 {
-		copy(params[piece*64:(piece+1)*64], aconcagua.MiddlegamePSQT[piece][0:64])
-		copy(params[(piece+6)*64:(piece+7)*64], aconcagua.EndgamePSQT[piece][0:64])
+		copy(intParams[piece*64:(piece+1)*64], aconcagua.MiddlegamePSQT[piece][0:64])
+		copy(intParams[(piece+6)*64:(piece+7)*64], aconcagua.EndgamePSQT[piece][0:64])
 	}
 
-	copy(params[768:774], aconcagua.MiddlegamePieceValue[:])
-	copy(params[774:780], aconcagua.EndgamePieceValue[:])
+	// Piece values weights
+	copy(intParams[768:774], aconcagua.MiddlegamePieceValue[:])
+	copy(intParams[774:780], aconcagua.EndgamePieceValue[:])
+
+	// Mobility weigths
+	intParams[780] = aconcagua.QueenMobilityBonusMg
+	intParams[781] = aconcagua.QueenMobilityBonusEg
+
+	intParams[782] = aconcagua.RookMobilityBonusMg
+	intParams[783] = aconcagua.RookMobilityBonusEg
+
+	intParams[784] = aconcagua.BishopMobilityBonusMg
+	intParams[785] = aconcagua.BishopMobilityBonusEg
+
+	intParams[786] = aconcagua.KnightMobilityBonusMg
+	intParams[787] = aconcagua.KnightMobilityBonusEg
+
+	// TODO:
+	// Pawn Structure Weights
+	// 6 + 16 of passed pawns
+
+	for i := range 788 {
+		params[i] = float64(intParams[i])
+	}
 	return
 }
 
-// Tuner finds a set of parameters that minimize the mean square error
-func Tuner(scalingFactor float64, dataset []DatasetEntry, iteration int) {
-	paramAdjustValue := 1 // increment/decrement params by this value
-	bestParams := GetEvaluationParams()
-	bestErr := MeanSquareError(scalingFactor, &bestParams, &dataset)
-	improved := true
-	startTime := time.Now()
-
-	for improved {
-		iterationStartTime := time.Now()
-		improved = false
-
-		paramsTuned := 0
-		for i := range len(bestParams) {
-			newParams := bestParams
-			newParams[i] += paramAdjustValue
-			err := MeanSquareError(scalingFactor, &newParams, &dataset)
-
-			if err < bestErr {
-				paramsTuned++
-				bestParams[i] = newParams[i]
-				improved = true
-				bestErr = err
-				continue
-			} else {
-				newParams[i] -= 2 * paramAdjustValue
-				err = MeanSquareError(scalingFactor, &newParams, &dataset)
-				if err < bestErr {
-					paramsTuned++
-					bestParams[i] = newParams[i]
-					bestErr = err
-					improved = true
-					continue
-				}
-			}
-		}
-
-		saveParams(bestParams, iteration)
-		sessionTime := time.Since(startTime)
-		iterationTime := time.Since(iterationStartTime)
-		fmt.Printf("Iter #%d | MeanSqErr: %.8f | Params tuned: %d | Iteration Time: %.2f mins | Session Time: %.2f hours\n", iteration, bestErr, paramsTuned, iterationTime.Minutes(), sessionTime.Hours())
-		iteration++
-	}
-}
-
 // saveParams sotres the best params found in a file
-func saveParams(bestParams [780]int, iteration int) {
+func saveParams(bestParams [788]float64, iteration int) {
 	dir := "tuner/params"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		os.MkdirAll(dir, 0755)
@@ -129,7 +108,7 @@ func saveParams(bestParams [780]int, iteration int) {
 }
 
 // paramsToPrettyFormat returns the params as a string
-func paramsToPrettyFormat(bestParams [780]int) (psqt string) {
+func paramsToPrettyFormat(bestParams [788]float64) (psqt string) {
 	piece := []string{"King", "Queen", "Rook", "Bishop", "Knight", "Pawn"}
 	psqt = "MiddlegamePSQT: \n"
 	for i := range 6 {
@@ -137,7 +116,7 @@ func paramsToPrettyFormat(bestParams [780]int) (psqt string) {
 		psqt += "{\n"
 		for j := range 8 {
 			for k := range 8 {
-				psqt += fmt.Sprintf("%d, ", bestParams[i*64+j*8+k])
+				psqt += fmt.Sprintf("%d, ", int(bestParams[i*64+j*8+k]))
 			}
 			psqt += "\n"
 		}
@@ -149,7 +128,7 @@ func paramsToPrettyFormat(bestParams [780]int) (psqt string) {
 		psqt += "{\n"
 		for j := range 8 {
 			for k := range 8 {
-				psqt += fmt.Sprintf("%d, ", bestParams[(i+6)*64+j*8+k])
+				psqt += fmt.Sprintf("%d, ", int(bestParams[(i+6)*64+j*8+k]))
 			}
 			psqt += "\n"
 		}
@@ -159,14 +138,20 @@ func paramsToPrettyFormat(bestParams [780]int) (psqt string) {
 	// Pieces Values
 	psqt += "MiddlegamePieceValue: "
 	for i := range 6 {
-		psqt += fmt.Sprintf("%d, ", bestParams[768+i])
+		psqt += fmt.Sprintf("%d, ", int(bestParams[768+i]))
 	}
 	psqt += "\n"
 	psqt += "EndgamePieceValue: "
 	for i := range 6 {
-		psqt += fmt.Sprintf("%d, ", bestParams[774+i])
+		psqt += fmt.Sprintf("%d, ", int(bestParams[774+i]))
 	}
 	psqt += "\n"
+
+	// Mobility Params
+	for i := range 4 {
+		psqt += fmt.Sprintf("MobilityBonusMg%s: %d\n", piece[i+1], int(bestParams[780+i*2]))
+		psqt += fmt.Sprintf("MobilityBonusEg%s: %d\n", piece[i+1], int(bestParams[780+i*2+1]))
+	}
 
 	return psqt
 }
@@ -184,7 +169,7 @@ type WorkerResult struct {
 }
 
 // MeanSquareError returns the mean square error using parallel processing
-func MeanSquareError(scalingFactor float64, params *[780]int, dataset *[]DatasetEntry) float64 {
+func MeanSquareError(scalingFactor float64, params *[788]float64, dataset *[]DatasetEntry) float64 {
 	const numWorkers = 4
 	entries := len(*dataset)
 
@@ -218,13 +203,13 @@ func MeanSquareError(scalingFactor float64, params *[780]int, dataset *[]Dataset
 }
 
 // worker processes jobs from the jobs channel
-func worker(scalingFactor float64, params *[780]int, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
+func worker(scalingFactor float64, params *[788]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range jobs {
 		score := EvaluatePosition(*params, job.entry.Weights)
 
-		sigmoid := 1 / (1 + math.Exp(-scalingFactor*float64(score)))
+		sigmoid := 1 / (1 + math.Exp(-scalingFactor*score))
 		errorValue := math.Pow(job.entry.Result-sigmoid, 2)
 
 		results <- WorkerResult{error: errorValue, index: job.index}
@@ -234,23 +219,23 @@ func worker(scalingFactor float64, params *[780]int, jobs <-chan WorkerJob, resu
 // PositionWeight is a struct that represents a single score attribute of a position
 // The paramIndex corresponds with the index of the params array we are trying to optimize
 // If the param index is -1, then the weigth is a fixed value/attribute of the position
-// The product of the param value and the weigth value represents the value of the weight
+// The product of the param value and the weigth value represents the final score
 type PositionWeight struct {
 	paramIndex int
 	weight     int
 }
 
 // EvaluatePosition returns the static evaluation of a position based on the weights and current params
-func EvaluatePosition(params [780]int, weights []PositionWeight) (value int) {
-	eval := 0
+func EvaluatePosition(params [788]float64, weights []PositionWeight) (evaluation float64) {
+	eval := 0.0
 	for _, attr := range weights {
 		if attr.paramIndex >= 0 {
-			eval += params[attr.paramIndex] * attr.weight
+			eval += params[attr.paramIndex] * float64(attr.weight)
 		} else {
-			eval += attr.weight
+			eval += float64(attr.weight)
 		}
 	}
-	value = eval / 62
+	evaluation = eval / 62.0
 	return
 }
 
@@ -309,8 +294,6 @@ func generatePieceScoreWeights(fen string, phase int) (weights []PositionWeight)
 // generateMobilityWeights returns the position weithts of the mobility of the position
 func generateMobilityWeights(fen string, phase int) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
-	var mgMobilityBonus = [4]int{aconcagua.QueenMobilityBonusMg, aconcagua.RookMobilityBonusMg, aconcagua.BishopMobilityBonusMg, aconcagua.KnightMobilityBonusMg}
-	var egMobilityBonus = [4]int{aconcagua.QueenMobilityBonusEg, aconcagua.RookMobilityBonusEg, aconcagua.BishopMobilityBonusEg, aconcagua.KnightMobilityBonusEg}
 	var mobilityBase = [4]int{aconcagua.QueenMobilityBase, aconcagua.RookMobilityBase, aconcagua.BishopMobilityBase, aconcagua.KnightMobilityBase}
 	var pieces = [8]int{aconcagua.WhiteQueen, aconcagua.WhiteRook, aconcagua.WhiteBishop, aconcagua.WhiteKnight, aconcagua.BlackQueen, aconcagua.BlackRook, aconcagua.BlackBishop, aconcagua.BlackKnight}
 
@@ -330,9 +313,16 @@ func generateMobilityWeights(fen string, phase int) (weights []PositionWeight) {
 			attacks := aconcagua.Attacks(pieces[piece], fromBB, blocks)
 			safeSquares := bits.OnesCount64(uint64(attacks & ^enemyPawnsAttacks[piece/4])) - mobilityBase[piece%4]
 
+			// mg
 			weights = append(weights, PositionWeight{
-				paramIndex: -1,
-				weight:     colorModifier * (safeSquares*mgMobilityBonus[piece%4]*phase + safeSquares*egMobilityBonus[piece%4]*(62-phase)),
+				paramIndex: 780 + piece%4*2,
+				weight:     colorModifier * safeSquares * phase,
+			})
+
+			// eg
+			weights = append(weights, PositionWeight{
+				paramIndex: 780 + piece%4*2 + 1,
+				weight:     colorModifier * safeSquares * (62 - phase),
 			})
 		}
 	}
@@ -447,7 +437,7 @@ func GetMiddleGamePhase(pos *aconcagua.Position) (mgPhase int) {
 }
 
 // FindOptimalScalingFactor returns the scaling factor that minimizes the mean square error
-func FindOptimalScalingFactor(dataset []DatasetEntry, params [780]int) float64 {
+func FindOptimalScalingFactor(dataset []DatasetEntry, params [788]float64) float64 {
 	bestK := 0.0
 	bestError := math.Inf(1)
 
@@ -455,7 +445,7 @@ func FindOptimalScalingFactor(dataset []DatasetEntry, params [780]int) float64 {
 		totalError := 0.0
 
 		for _, entry := range dataset {
-			eval := float64(EvaluatePosition(params, entry.Weights))
+			eval := EvaluatePosition(params, entry.Weights)
 			predicted := 1.0 / (1.0 + math.Exp(-k*eval))
 			actual := entry.Result
 			error := predicted - actual
