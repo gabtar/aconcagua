@@ -28,7 +28,7 @@ func NewAdamOptimizer(numParams int, lr float64) *AdamOptimizer {
 }
 
 // Update updates the parameters
-func (adam *AdamOptimizer) Update(params *[788]float64, gradients []float64) {
+func (adam *AdamOptimizer) Update(params *[810]float64, gradients []float64) {
 	adam.t++
 
 	for i := range params {
@@ -43,10 +43,10 @@ func (adam *AdamOptimizer) Update(params *[788]float64, gradients []float64) {
 }
 
 // ComputeGradients computes the gradients of the loss with respect to the parameters
-func ComputeGradients(entry DatasetEntry, params [788]float64, K float64) []float64 {
+func ComputeGradients(entry DatasetEntry, params [810]float64, K float64) []float64 {
 	gradients := make([]float64, len(params))
 
-	eval := EvaluatePosition(params, entry.Weights)
+	eval := evaluatePosition(params, entry.Weights)
 	predicted := 1.0 / (1.0 + math.Exp(-K*eval))
 	actual := entry.Result
 
@@ -63,7 +63,7 @@ func ComputeGradients(entry DatasetEntry, params [788]float64, K float64) []floa
 	return gradients
 }
 
-func AdamTuner(params [788]float64, dataset []DatasetEntry, K float64, epochs int) {
+func AdamTuner(params [810]float64, dataset []DatasetEntry, K float64, epochs int) {
 	adam := NewAdamOptimizer(len(params), 0.1)
 
 	fmt.Printf("Starting Adam optimization with %d parameters, %d positions, K=%.6f\n",
@@ -80,7 +80,7 @@ func AdamTuner(params [788]float64, dataset []DatasetEntry, K float64, epochs in
 				totalGradients[i] += gradients[i]
 			}
 
-			eval := EvaluatePosition(params, entry.Weights)
+			eval := evaluatePosition(params, entry.Weights)
 			predicted := 1.0 / (1.0 + math.Exp(-K*eval))
 			error := predicted - entry.Result
 			totalLoss += error * error

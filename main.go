@@ -12,7 +12,6 @@ func main() {
 
 	// dataSet := tuner.LoadDataSet("./tuner/training-set/quiet-labeled.epd")
 	// params := tuner.GetEvaluationParams()
-	// fmt.Println(params)
 
 	// k := tuner.FindOptimalScalingFactor(dataSet, tuner.GetEvaluationParams())
 	// fmt.Println("Best K", k)

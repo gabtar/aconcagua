@@ -42,7 +42,7 @@ func LoadDataSet(filename string) (dataset []DatasetEntry) {
 
 		fen := parts[0]
 		weigths := generatePositionWeights(fen)
-		phase := GetMiddleGamePhase(aconcagua.NewPositionFromFen(fen))
+		phase := getMiddleGamePhase(aconcagua.NewPositionFromFen(fen))
 		result := resultString[parts[1]]
 		dataset = append(dataset, DatasetEntry{Fen: fen, Result: result, Weights: weigths, Phase: phase})
 	}
@@ -51,20 +51,20 @@ func LoadDataSet(filename string) (dataset []DatasetEntry) {
 }
 
 // GetEvaluationParams returns the current evaluation params
-func GetEvaluationParams() (params [788]float64) {
-	intParams := [788]int{}
+func GetEvaluationParams() (params [810]float64) {
+	intParams := [810]int{}
 
-	// Psqt weights
+	// Psqt params
 	for piece := range 6 {
 		copy(intParams[piece*64:(piece+1)*64], aconcagua.MiddlegamePSQT[piece][0:64])
 		copy(intParams[(piece+6)*64:(piece+7)*64], aconcagua.EndgamePSQT[piece][0:64])
 	}
 
-	// Piece values weights
+	// Piece values params
 	copy(intParams[768:774], aconcagua.MiddlegamePieceValue[:])
 	copy(intParams[774:780], aconcagua.EndgamePieceValue[:])
 
-	// Mobility weigths
+	// Mobility params
 	intParams[780] = aconcagua.QueenMobilityBonusMg
 	intParams[781] = aconcagua.QueenMobilityBonusEg
 
@@ -77,18 +77,29 @@ func GetEvaluationParams() (params [788]float64) {
 	intParams[786] = aconcagua.KnightMobilityBonusMg
 	intParams[787] = aconcagua.KnightMobilityBonusEg
 
-	// TODO:
-	// Pawn Structure Weights
-	// 6 + 16 of passed pawns
+	// Pawn Structure params
+	intParams[788] = aconcagua.DoubledPawnPenaltyMg
+	intParams[789] = aconcagua.DoubledPawnPenaltyEg
 
-	for i := range 788 {
+	intParams[790] = aconcagua.IsolatedPawnPenaltyMg
+	intParams[791] = aconcagua.IsolatedPawnPenaltyEg
+
+	intParams[792] = aconcagua.BackwardPawnPenaltyMg
+	intParams[793] = aconcagua.BackwardPawnPenaltyEg
+
+	for i := range 8 {
+		intParams[794+i] = aconcagua.PassedPawnsBonusMg[i]
+		intParams[802+i] = aconcagua.PassedPawnsBonusEg[i]
+	}
+
+	for i := range 810 {
 		params[i] = float64(intParams[i])
 	}
 	return
 }
 
 // saveParams sotres the best params found in a file
-func saveParams(bestParams [788]float64, iteration int) {
+func saveParams(bestParams [810]float64, iteration int) {
 	dir := "tuner/params"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		os.MkdirAll(dir, 0755)
@@ -108,7 +119,7 @@ func saveParams(bestParams [788]float64, iteration int) {
 }
 
 // paramsToPrettyFormat returns the params as a string
-func paramsToPrettyFormat(bestParams [788]float64) (psqt string) {
+func paramsToPrettyFormat(bestParams [810]float64) (psqt string) {
 	piece := []string{"King", "Queen", "Rook", "Bishop", "Knight", "Pawn"}
 	psqt = "MiddlegamePSQT: \n"
 	for i := range 6 {
@@ -153,6 +164,26 @@ func paramsToPrettyFormat(bestParams [788]float64) (psqt string) {
 		psqt += fmt.Sprintf("MobilityBonusEg%s: %d\n", piece[i+1], int(bestParams[780+i*2+1]))
 	}
 
+	// Pawn Structure Weights
+	psqt += fmt.Sprintf("DoubledPawnPenaltyMg: %d\n", int(bestParams[788]))
+	psqt += fmt.Sprintf("DoubledPawnPenaltyEg: %d\n", int(bestParams[789]))
+	psqt += fmt.Sprintf("IsolatedPawnPenaltyMg: %d\n", int(bestParams[790]))
+	psqt += fmt.Sprintf("IsolatedPawnPenaltyEg: %d\n", int(bestParams[791]))
+	psqt += fmt.Sprintf("BackwardPawnPenaltyMg: %d\n", int(bestParams[792]))
+	psqt += fmt.Sprintf("BackwardPawnPenaltyEg: %d\n", int(bestParams[793]))
+
+	// Passed Pawns
+	psqt += "PassedPawnsBonusMg: "
+	for i := range 8 {
+		psqt += fmt.Sprintf("%d, ", int(bestParams[794+i]))
+	}
+	psqt += "\n"
+	psqt += "PassedPawnsBonusEg: "
+	for i := range 8 {
+		psqt += fmt.Sprintf("%d, ", int(bestParams[802+i]))
+	}
+	psqt += "\n"
+
 	return psqt
 }
 
@@ -169,7 +200,7 @@ type WorkerResult struct {
 }
 
 // MeanSquareError returns the mean square error using parallel processing
-func MeanSquareError(scalingFactor float64, params *[788]float64, dataset *[]DatasetEntry) float64 {
+func MeanSquareError(scalingFactor float64, params *[810]float64, dataset *[]DatasetEntry) float64 {
 	const numWorkers = 4
 	entries := len(*dataset)
 
@@ -203,11 +234,11 @@ func MeanSquareError(scalingFactor float64, params *[788]float64, dataset *[]Dat
 }
 
 // worker processes jobs from the jobs channel
-func worker(scalingFactor float64, params *[788]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
+func worker(scalingFactor float64, params *[810]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range jobs {
-		score := EvaluatePosition(*params, job.entry.Weights)
+		score := evaluatePosition(*params, job.entry.Weights)
 
 		sigmoid := 1 / (1 + math.Exp(-scalingFactor*score))
 		errorValue := math.Pow(job.entry.Result-sigmoid, 2)
@@ -218,22 +249,17 @@ func worker(scalingFactor float64, params *[788]float64, jobs <-chan WorkerJob, 
 
 // PositionWeight is a struct that represents a single score attribute of a position
 // The paramIndex corresponds with the index of the params array we are trying to optimize
-// If the param index is -1, then the weigth is a fixed value/attribute of the position
 // The product of the param value and the weigth value represents the final score
 type PositionWeight struct {
 	paramIndex int
 	weight     int
 }
 
-// EvaluatePosition returns the static evaluation of a position based on the weights and current params
-func EvaluatePosition(params [788]float64, weights []PositionWeight) (evaluation float64) {
+// evaluatePosition returns the static evaluation of a position based on the weights and current params
+func evaluatePosition(params [810]float64, weights []PositionWeight) (evaluation float64) {
 	eval := 0.0
 	for _, attr := range weights {
-		if attr.paramIndex >= 0 {
-			eval += params[attr.paramIndex] * float64(attr.weight)
-		} else {
-			eval += float64(attr.weight)
-		}
+		eval += params[attr.paramIndex] * float64(attr.weight)
 	}
 	evaluation = eval / 62.0
 	return
@@ -242,7 +268,7 @@ func EvaluatePosition(params [788]float64, weights []PositionWeight) (evaluation
 // generatePositionWeights returns all the position weights of a position
 func generatePositionWeights(fen string) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
-	phase := GetMiddleGamePhase(pos)
+	phase := getMiddleGamePhase(pos)
 	weights = generatePieceScoreWeights(fen, phase)
 	weights = append(weights, generateMobilityWeights(fen, phase)...)
 	weights = append(weights, generateDoubledPawnsWeights(fen, phase)...)
@@ -334,14 +360,18 @@ func generateDoubledPawnsWeights(fen string, phase int) (weights []PositionWeigh
 	pos := aconcagua.NewPositionFromFen(fen)
 	wDoubled := bits.OnesCount64(uint64(aconcagua.DoubledPawns(pos, aconcagua.White)))
 	bDoubled := bits.OnesCount64(uint64(aconcagua.DoubledPawns(pos, aconcagua.Black)))
-	penalties := [2]int{aconcagua.DoubledPawnPenaltyMg, aconcagua.DoubledPawnPenaltyEg}
 	sideModifier := [2]int{1, -1}
 	doubledPawns := [2]int{wDoubled, bDoubled}
 
 	for i := range 2 {
 		weights = append(weights, PositionWeight{
-			paramIndex: -1,
-			weight:     sideModifier[i] * (penalties[0]*doubledPawns[i]*phase + penalties[1]*doubledPawns[i]*(62-phase)),
+			paramIndex: 788,
+			weight:     sideModifier[i] * doubledPawns[i] * phase,
+		})
+
+		weights = append(weights, PositionWeight{
+			paramIndex: 789,
+			weight:     sideModifier[i] * doubledPawns[i] * (62 - phase),
 		})
 	}
 
@@ -353,14 +383,18 @@ func generateIsolatedPawnsWeights(fen string, phase int) (weights []PositionWeig
 	pos := aconcagua.NewPositionFromFen(fen)
 	wIsolated := bits.OnesCount64(uint64(aconcagua.IsolatedPawns(pos, aconcagua.White)))
 	bIsolated := bits.OnesCount64(uint64(aconcagua.IsolatedPawns(pos, aconcagua.Black)))
-	penalties := [2]int{aconcagua.IsolatedPawnPenaltyMg, aconcagua.IsolatedPawnPenaltyEg}
 	sideModifier := [2]int{1, -1}
 	isolatedPawns := [2]int{wIsolated, bIsolated}
 
 	for i := range 2 {
 		weights = append(weights, PositionWeight{
-			paramIndex: -1,
-			weight:     sideModifier[i] * (penalties[0]*isolatedPawns[i]*phase + penalties[1]*isolatedPawns[i]*(62-phase)),
+			paramIndex: 790,
+			weight:     sideModifier[i] * isolatedPawns[i] * phase,
+		})
+
+		weights = append(weights, PositionWeight{
+			paramIndex: 791,
+			weight:     sideModifier[i] * isolatedPawns[i] * (62 - phase),
 		})
 	}
 
@@ -375,14 +409,18 @@ func generateBackwardsPawnsWeights(fen string, phase int) (weights []PositionWei
 
 	wBackwards := bits.OnesCount64(uint64(aconcagua.BackwardPawns(pos.Bitboards[aconcagua.WhitePawn], blackPawnsAttacks, aconcagua.White)))
 	bBackwards := bits.OnesCount64(uint64(aconcagua.BackwardPawns(pos.Bitboards[aconcagua.BlackPawn], whitePawnsAttacks, aconcagua.Black)))
-	penalties := [2]int{aconcagua.BackwardPawnPenaltyMg, aconcagua.BackwardPawnPenaltyEg}
 	sideModifier := [2]int{1, -1}
 	backwardsPawns := [2]int{wBackwards, bBackwards}
 
 	for i := range 2 {
 		weights = append(weights, PositionWeight{
-			paramIndex: -1,
-			weight:     sideModifier[i] * (penalties[0]*backwardsPawns[i]*phase + penalties[1]*backwardsPawns[i]*(62-phase)),
+			paramIndex: 792,
+			weight:     sideModifier[i] * backwardsPawns[i] * phase,
+		})
+
+		weights = append(weights, PositionWeight{
+			paramIndex: 793,
+			weight:     sideModifier[i] * backwardsPawns[i] * (62 - phase),
 		})
 	}
 
@@ -392,39 +430,44 @@ func generateBackwardsPawnsWeights(fen string, phase int) (weights []PositionWei
 // generatePassedPawnsWeights returns the position weights of the passed pawns
 func generatePassedPawnsWeights(fen string, phase int) (weights []PositionWeight) {
 	pos := aconcagua.NewPositionFromFen(fen)
-	passedPawnBonus := [8]int{0, 0, 10, 20, 30, 40, 50, 0}
 	wPassedPawns := aconcagua.PassedPawns(pos.Bitboards[aconcagua.WhitePawn], pos.Bitboards[aconcagua.BlackPawn], aconcagua.White)
 	bPassedPawns := aconcagua.PassedPawns(pos.Bitboards[aconcagua.BlackPawn], pos.Bitboards[aconcagua.WhitePawn], aconcagua.Black)
 
-	bonus := 0
 	for wPassedPawns > 0 {
 		fromBB := wPassedPawns.NextBit()
 		sq := aconcagua.Bsf(fromBB)
 		rank := sq / 8
-		bonus += passedPawnBonus[rank]
-	}
-	weights = append(weights, PositionWeight{
-		paramIndex: -1,
-		weight:     bonus*phase + bonus*2*(62-phase),
-	})
 
-	bonus = 0
+		weights = append(weights, PositionWeight{
+			paramIndex: 794 + rank,
+			weight:     phase,
+		})
+		weights = append(weights, PositionWeight{
+			paramIndex: 802 + rank,
+			weight:     (62 - phase),
+		})
+	}
+
 	for bPassedPawns > 0 {
 		fromBB := bPassedPawns.NextBit()
 		sq := aconcagua.Bsf(fromBB)
 		rank := 7 - sq/8
-		bonus += passedPawnBonus[rank]
+
+		weights = append(weights, PositionWeight{
+			paramIndex: 794 + rank,
+			weight:     -1 * phase,
+		})
+		weights = append(weights, PositionWeight{
+			paramIndex: 802 + rank,
+			weight:     -1 * (62 - phase),
+		})
 	}
-	weights = append(weights, PositionWeight{
-		paramIndex: -1,
-		weight:     -bonus*phase - bonus*2*(62-phase),
-	})
 
 	return
 }
 
-// GetMiddleGamePhase returns the value of the middle game phase of a position
-func GetMiddleGamePhase(pos *aconcagua.Position) (mgPhase int) {
+// getMiddleGamePhase returns the value of the middle game phase of a position
+func getMiddleGamePhase(pos *aconcagua.Position) (mgPhase int) {
 	phaseInc := [6]int{0, 9, 5, 3, 3, 0}
 	for p, bb := range pos.Bitboards {
 		for bb > 0 {
@@ -437,7 +480,7 @@ func GetMiddleGamePhase(pos *aconcagua.Position) (mgPhase int) {
 }
 
 // FindOptimalScalingFactor returns the scaling factor that minimizes the mean square error
-func FindOptimalScalingFactor(dataset []DatasetEntry, params [788]float64) float64 {
+func FindOptimalScalingFactor(dataset []DatasetEntry, params [810]float64) float64 {
 	bestK := 0.0
 	bestError := math.Inf(1)
 
@@ -445,7 +488,7 @@ func FindOptimalScalingFactor(dataset []DatasetEntry, params [788]float64) float
 		totalError := 0.0
 
 		for _, entry := range dataset {
-			eval := EvaluatePosition(params, entry.Weights)
+			eval := evaluatePosition(params, entry.Weights)
 			predicted := 1.0 / (1.0 + math.Exp(-k*eval))
 			actual := entry.Result
 			error := predicted - actual

@@ -24,6 +24,10 @@ const (
 	BackwardPawnPenaltyEg = -8
 )
 
+// Passed Pawns Bonus
+var PassedPawnsBonusMg = [8]int{0, 0, 10, 20, 30, 40, 50, 0}
+var PassedPawnsBonusEg = [8]int{0, 0, 20, 40, 60, 80, 100, 0}
+
 // Evaluation contains the diferent evaluation elements of a position
 type Evaluation struct {
 	mgMaterial      [2]int // White and Black scores
@@ -163,7 +167,6 @@ func (ev *Evaluation) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bit
 	ev.egPawnStructure[side] += backwardPawns.count() * BackwardPawnPenaltyEg
 
 	passedPawns := PassedPawns(pawns, pos.Bitboards[pieceColor(Pawn, side.Opponent())], side)
-	passedPawnBonus := [8]int{0, 0, 10, 20, 30, 40, 50, 0}
 	for passedPawns > 0 {
 		fromBB := passedPawns.NextBit()
 		sq := Bsf(fromBB)
@@ -172,8 +175,8 @@ func (ev *Evaluation) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bit
 			rank = 7 - rank
 		}
 
-		ev.mgPawnStrucutre[side] += passedPawnBonus[rank]
-		ev.egPawnStructure[side] += passedPawnBonus[rank] * 2
+		ev.mgPawnStrucutre[side] += PassedPawnsBonusMg[rank]
+		ev.egPawnStructure[side] += PassedPawnsBonusEg[rank]
 	}
 }
 

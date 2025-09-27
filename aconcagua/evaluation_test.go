@@ -150,7 +150,7 @@ func TestPawnStructureEvaluation(t *testing.T) {
 	ev := Evaluation{}
 	ev.evaluatePawnStructure(pos, pawnAttacks(&pos.Bitboards[BlackPawn], Black), White)
 
-	expected := DoubledPawnPenaltyEg + 2*IsolatedPawnPenaltyEg + 1*BackwardPawnPenaltyEg + 100
+	expected := DoubledPawnPenaltyEg + 2*IsolatedPawnPenaltyEg + 1*BackwardPawnPenaltyEg + PassedPawnsBonusEg[6]
 	got := ev.egPawnStructure[White]
 
 	if got != expected {
