@@ -3,30 +3,30 @@ package aconcagua
 const (
 	// Mobility
 	QueenMobilityBonusMg  = 3
-	QueenMobilityBonusEg  = 1
+	QueenMobilityBonusEg  = 11
 	QueenMobilityBase     = 7
-	RookMobilityBonusMg   = 2
+	RookMobilityBonusMg   = 10
 	RookMobilityBonusEg   = 2
 	RookMobilityBase      = 4
-	BishopMobilityBonusMg = 2
-	BishopMobilityBonusEg = 3
+	BishopMobilityBonusMg = 10
+	BishopMobilityBonusEg = 2
 	BishopMobilityBase    = 4
-	KnightMobilityBonusMg = 1
-	KnightMobilityBonusEg = 2
+	KnightMobilityBonusMg = 11
+	KnightMobilityBonusEg = 0
 	KnightMobilityBase    = 2
 
 	// Pawn Structure
-	DoubledPawnPenaltyMg  = -8
-	DoubledPawnPenaltyEg  = -12
-	IsolatedPawnPenaltyMg = -5
-	IsolatedPawnPenaltyEg = -15
-	BackwardPawnPenaltyMg = -3
-	BackwardPawnPenaltyEg = -8
+	DoubledPawnPenaltyMg  = -1
+	DoubledPawnPenaltyEg  = -16
+	IsolatedPawnPenaltyMg = -18
+	IsolatedPawnPenaltyEg = -7
+	BackwardPawnPenaltyMg = -8
+	BackwardPawnPenaltyEg = -5
 )
 
 // Passed Pawns Bonus
-var PassedPawnsBonusMg = [8]int{0, 0, 10, 20, 30, 40, 50, 0}
-var PassedPawnsBonusEg = [8]int{0, 0, 20, 40, 60, 80, 100, 0}
+var PassedPawnsBonusMg = [8]int{0, 2, -5, -14, 2, -3, 17, 0}
+var PassedPawnsBonusEg = [8]int{0, 4, 11, 35, 62, 132, 150, 0}
 
 // Evaluation contains the diferent evaluation elements of a position
 type Evaluation struct {
