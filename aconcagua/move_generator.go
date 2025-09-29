@@ -60,27 +60,6 @@ func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 	return
 }
 
-// pawnMoveFlag returns the move flag for the pawn move
-// TODO: imprvome memory efficiency of this, cache into a map?
-func pawnMoveFlag(from *Bitboard, to *Bitboard, pd *PositionData, side Color) []uint16 {
-	fromSq := Bsf(*from)
-	toSq := Bsf(*to)
-	promotion := lastRank(side) & *to
-
-	switch {
-	case promotion > 0 && pd.enemies&*to > 0:
-		return []uint16{knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion}
-	case promotion > 0:
-		return []uint16{knightPromotion, bishopPromotion, rookPromotion, queenPromotion}
-	case toSq-fromSq == 16 || fromSq-toSq == 16:
-		return []uint16{doublePawnPush}
-	case pd.enemies&*to > 0:
-		return []uint16{capture}
-	default:
-		return []uint16{quiet}
-	}
-}
-
 // potentialEpCapturers returns a bitboard with the potential pawn that can caputure enPassant
 func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 	epShift := pos.enPassantTarget >> 8
@@ -139,14 +118,38 @@ func genCastleMoves(pos *Position, ml *MoveList) {
 	}
 }
 
+// genPawnPromotions generates the pawn promotions in the move list
+func genPawnPromotions(from *Bitboard, to *Bitboard, ml *MoveList, isCapture bool) {
+	if isCapture {
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), knightCapturePromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), bishopCapturePromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), rookCapturePromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), queenCapturePromotion))
+	} else {
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), knightPromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), bishopPromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), rookPromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), queenPromotion))
+	}
+}
+
 // genPawnMovesFromTarget generates the pawn moves in the move list
 func genPawnMovesFromTarget(from *Bitboard, targets Bitboard, side Color, ml *MoveList, pd *PositionData) {
 	for targets > 0 {
 		toSquare := targets.NextBit()
-		flags := pawnMoveFlag(from, &toSquare, pd, side)
+		isPromotion := lastRank(side) & toSquare
 
-		for i := range flags {
-			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), flags[i]))
+		switch {
+		case isPromotion > 0 && pd.enemies&toSquare > 0: // Promo Capture
+			genPawnPromotions(from, &toSquare, ml, true)
+		case isPromotion > 0: // Promotion
+			genPawnPromotions(from, &toSquare, ml, false)
+		case pd.enemies&toSquare > 0: // Capture
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), capture))
+		case Bsf(toSquare)-Bsf(*from) == 16 || Bsf(*from)-Bsf(toSquare) == 16: // Double Push
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), doublePawnPush))
+		default: // Quiet
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), quiet))
 		}
 	}
 }
@@ -157,10 +160,13 @@ func genPawnCapturesMoves(from *Bitboard, side Color, ml *MoveList, pd *Position
 
 	for toSquares > 0 {
 		toSquare := toSquares.NextBit()
-		flags := pawnMoveFlag(from, &toSquare, pd, side)
+		isPromotion := lastRank(side) & toSquare
 
-		for i := range flags {
-			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), flags[i]))
+		switch {
+		case isPromotion > 0 && pd.enemies&toSquare > 0: // Promo Capture
+			genPawnPromotions(from, &toSquare, ml, true)
+		default: // Capture
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), capture))
 		}
 	}
 }
