@@ -21,8 +21,10 @@ type Options struct {
 
 // NewEngine returns a new Engine instance
 func NewEngine() *Engine {
+	pos := NewPosition()
+	pos.LoadFromFenString(StartingFenString)
 	return &Engine{
-		pos:         *InitialPosition(),
+		pos:         *pos,
 		search:      *NewSearch(),
 		openingBook: PolyglotBook{},
 		options: Options{

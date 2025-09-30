@@ -3,7 +3,8 @@ package aconcagua
 import "testing"
 
 func TestEval(t *testing.T) {
-	pos := NewPositionFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 	pawnHashTable := NewPawnHashTable(1)
 	ev := pos.Evaluate(pawnHashTable)
 
@@ -13,7 +14,8 @@ func TestEval(t *testing.T) {
 }
 
 func TestDoubledPawns(t *testing.T) {
-	pos := NewPositionFromFen("2k5/8/8/8/1PP3P1/6P1/8/4K3 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("2k5/8/8/8/1PP3P1/6P1/8/4K3 w - - 0 1")
 
 	expected := 1
 	got := DoubledPawns(pos, White).count()
@@ -24,7 +26,8 @@ func TestDoubledPawns(t *testing.T) {
 }
 
 func TestTripledPawnsOnGFile(t *testing.T) {
-	pos := NewPositionFromFen("2k5/6p1/6p1/6p1/1PP3P1/6P1/8/4K3 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("2k5/6p1/6p1/6p1/1PP3P1/6P1/8/4K3 w - - 0 1")
 
 	expected := 2
 	got := DoubledPawns(pos, Black).count()
@@ -36,7 +39,8 @@ func TestTripledPawnsOnGFile(t *testing.T) {
 }
 
 func TestPawnIsIsolated(t *testing.T) {
-	pos := NewPositionFromFen("2k5/8/6p1/3p4/2pP4/2P5/3K4/8 b - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("2k5/8/6p1/3p4/2pP4/2P5/3K4/8 b - - 0 1")
 	pawnBB := bitboardFromCoordinates("g6")
 
 	expected := pawnBB
@@ -48,7 +52,8 @@ func TestPawnIsIsolated(t *testing.T) {
 }
 
 func TestPawnIsNotIsolated(t *testing.T) {
-	pos := NewPositionFromFen("2k5/8/8/3p4/2pP4/2P5/3K4/8 b - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("2k5/8/8/3p4/2pP4/2P5/3K4/8 b - - 0 1")
 
 	expected := Bitboard(0)
 	got := IsolatedPawns(pos, Black)
@@ -59,7 +64,8 @@ func TestPawnIsNotIsolated(t *testing.T) {
 }
 
 func TestPawnIsBackward(t *testing.T) {
-	pos := NewPositionFromFen("1k6/2p5/3p4/3P4/8/8/8/3K4 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("1k6/2p5/3p4/3P4/8/8/8/3K4 w - - 0 1")
 
 	expected := true
 	got := BackwardPawns(pos.Bitboards[BlackPawn], pawnAttacks(&pos.Bitboards[WhitePawn], White), Black)&pos.Bitboards[BlackPawn] > 0
@@ -70,7 +76,8 @@ func TestPawnIsBackward(t *testing.T) {
 }
 
 func TestPawnIsNotBackward(t *testing.T) {
-	pos := NewPositionFromFen("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
 
 	expected := false
 	got := BackwardPawns(pos.Bitboards[WhitePawn], pawnAttacks(&pos.Bitboards[BlackPawn], Black), White)&pos.Bitboards[WhitePawn] > 0
@@ -81,7 +88,8 @@ func TestPawnIsNotBackward(t *testing.T) {
 }
 
 func TestBackwardPawnsForWhite(t *testing.T) {
-	pos := NewPositionFromFen("8/5p2/6p1/p1p3P1/P1P4P/1P6/8/8 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("8/5p2/6p1/p1p3P1/P1P4P/1P6/8/8 w - - 0 1")
 
 	expected := true
 	got := BackwardPawns(pos.Bitboards[WhitePawn], pawnAttacks(&pos.Bitboards[BlackPawn], Black), White)&pos.Bitboards[WhitePawn] > 0
@@ -92,7 +100,8 @@ func TestBackwardPawnsForWhite(t *testing.T) {
 }
 
 func TestPawnIsNotPassed(t *testing.T) {
-	pos := NewPositionFromFen("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("e5")
 
 	expected := false
@@ -104,7 +113,8 @@ func TestPawnIsNotPassed(t *testing.T) {
 }
 
 func TestPawnIsPassed(t *testing.T) {
-	pos := NewPositionFromFen("1k6/2p5/3pP3/3P4/8/8/8/3K4 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("1k6/2p5/3pP3/3P4/8/8/8/3K4 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("e6")
 
 	expected := true
@@ -116,7 +126,8 @@ func TestPawnIsPassed(t *testing.T) {
 }
 
 func TestPassedPawnOn7thRank(t *testing.T) {
-	pos := NewPositionFromFen("1k6/2p4P/3p4/3P4/8/8/8/3K4 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("1k6/2p4P/3p4/3P4/8/8/8/3K4 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("h7")
 
 	expected := true
@@ -129,7 +140,8 @@ func TestPassedPawnOn7thRank(t *testing.T) {
 }
 
 func TestBlackPawnIsNotPassed(t *testing.T) {
-	pos := NewPositionFromFen("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("c7")
 
 	expected := false
@@ -141,7 +153,8 @@ func TestBlackPawnIsNotPassed(t *testing.T) {
 }
 
 func TestPawnStructureEvaluation(t *testing.T) {
-	pos := NewPositionFromFen("1k6/2p4P/2Pp4/1P3p2/1P3P2/8/8/3K4 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("1k6/2p4P/2Pp4/1P3p2/1P3P2/8/8/3K4 w - - 0 1")
 	// 1 doubled pawn b file
 	// 2 isolated pawn g, and h files
 	// 1 passed pawn on 7th rank h file

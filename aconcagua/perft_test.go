@@ -41,8 +41,9 @@ func TestStandardPerft(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		pos := NewPosition()
 		t.Run(tc.name, func(t *testing.T) {
-			pos := NewPositionFromFen(tc.fen)
+			pos.LoadFromFenString(tc.fen)
 			got := pos.Perft(tc.depth)
 			if got != uint64(tc.moves) {
 				t.Errorf("Expected: %v, got: %v", tc.moves, got)
@@ -85,8 +86,9 @@ func Test960Perft(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		pos := NewPosition()
 		t.Run(tc.name, func(t *testing.T) {
-			pos := NewPositionFromFen(tc.fen)
+			pos.LoadFromFenString(tc.fen)
 
 			// setup 960 castle from FEN string
 			fenSegments := strings.Split(tc.fen, " ")

@@ -36,8 +36,9 @@ func TestEvaluation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		pos := aconcagua.NewPosition()
 		t.Run(tc.name, func(t *testing.T) {
-			pos := aconcagua.NewPositionFromFen(tc.fen)
+			pos.LoadFromFenString(tc.fen)
 			staticEval := pos.Evaluate(aconcagua.NewPawnHashTable(1))
 			params := GetEvaluationParams()
 			attr := generatePositionWeights(pos.ToFen())

@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// Constants for pieces
 const (
 	// Pieces
 	WhiteKing = iota
@@ -31,6 +30,8 @@ const (
 	// Colors
 	White = 0
 	Black = 1
+
+	StartingFenString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 )
 
 // squareReference maps an integer(the index of the array) with the
@@ -665,18 +666,19 @@ func toRuneArray(pos *Position) [64]rune {
 	return squares
 }
 
-// Utility functions
-
 // NewPositionFromFen creates a new Position struct from a fen string
-func NewPositionFromFen(fen string) (pos *Position) {
-	// TODO: validate fen string
-	// maybe use a chain of responsibility while parsing each segment??
+func (pos *Position) LoadFromFenString(fen string) {
 	pieceReference := map[string]int{
 		"k": BlackKing, "q": BlackQueen, "r": BlackRook, "b": BlackBishop, "n": BlackKnight, "p": BlackPawn,
 		"K": WhiteKing, "Q": WhiteQueen, "R": WhiteRook, "B": WhiteBishop, "N": WhiteKnight, "P": WhitePawn,
 	}
 
-	pos = EmptyPosition()
+	pos.Bitboards = [12]Bitboard{}
+	pos.pieces = [2]Bitboard{}
+	pos.positionHistory.clear()
+	pos.positionHistory.previousPosition = [MaxHistoryMoves * 2]uint64{}
+
+	// TODO: validate elements/fen
 	elements := strings.Split(fen, " ")
 
 	// NOTE: Order is reversed to match the square mapping in bitboards
@@ -701,6 +703,7 @@ func NewPositionFromFen(fen string) (pos *Position) {
 	}
 
 	pos.castling = *NewCastlingFromFen(fen, false)
+	pos.enPassantTarget = 0
 	if elements[3] != "-" {
 		pos.enPassantTarget = bitboardFromCoordinates(elements[3])
 	}
@@ -709,17 +712,12 @@ func NewPositionFromFen(fen string) (pos *Position) {
 
 	pos.Hash = zobristHashKeys.fullZobristHash(pos)
 	pos.PawnHash = zobristHashKeys.pawnHash(pos)
-	return
+
+	pos.evaluation.clear()
 }
 
-// InitialPosition is a factory that returns an initial postion board
-func InitialPosition() (pos *Position) {
-	pos = NewPositionFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-	return
-}
-
-// EmptyPosition returns an empty Position struct
-func EmptyPosition() (pos *Position) {
+// NewPosition returns a new Position struct
+func NewPosition() (pos *Position) {
 	return &Position{
 		positionHistory: *NewPositionHistory(),
 		castling:        *NewCastling(4, 7, 0),

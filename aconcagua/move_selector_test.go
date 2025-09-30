@@ -3,7 +3,7 @@ package aconcagua
 import "testing"
 
 func TestMoveSelectorHasNextMove(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	hashMove := encodeMove(0, 0, quiet)
 	killers := Killer{NoMove, NoMove}
 	ms := NewMoveSelector(pos, hashMove, &killers[0], &killers[1], &HistoryMovesTable{})
@@ -16,7 +16,7 @@ func TestMoveSelectorHasNextMove(t *testing.T) {
 }
 
 func TestMoveSelectorNotHasNextMove(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	hashMove := NoMove
 	killers := Killer{NoMove, NoMove}
 	ms := NewMoveSelector(pos, &hashMove, &killers[0], &killers[1], &HistoryMovesTable{})
@@ -31,7 +31,8 @@ func TestMoveSelectorNotHasNextMove(t *testing.T) {
 }
 
 func TestMoveSelectorCreatesCaptures(t *testing.T) {
-	pos := NewPositionFromFen("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
+	pos := NewPosition()
+	pos.LoadFromFenString("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	ms := NewMoveSelector(pos, nil, nil, nil, nil)
 	move := NoMove
 	ms.hashMove = &move
@@ -45,7 +46,8 @@ func TestMoveSelectorCreatesCaptures(t *testing.T) {
 }
 
 func TestMoveSelectorCreatesNonCaptures(t *testing.T) {
-	pos := NewPositionFromFen("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
+	pos := NewPosition()
+	pos.LoadFromFenString("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	noMove := NoMove
 	ms := NewMoveSelector(pos, &noMove, &noMove, &noMove, &HistoryMovesTable{})
 	ms.stage = FirstKillerStage // NOTE: Non captures are generated in killers stage to validate legaliy of killers
@@ -64,7 +66,8 @@ func TestMoveSelectorCreatesNonCaptures(t *testing.T) {
 }
 
 func TestMoveSelectorGetsAllMoves(t *testing.T) {
-	pos := NewPositionFromFen("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // 3 captures + 17 non capt
+	pos := NewPosition()
+	pos.LoadFromFenString("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // 3 captures + 17 non capt
 	hashMove := NoMove
 
 	ml := NewMoveList(20)

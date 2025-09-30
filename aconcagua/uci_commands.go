@@ -27,16 +27,17 @@ func uciCommand(en *Engine, stdout chan string, params ...string) {
 
 // uciNewGameCommand starts a new game
 func uciNewGameCommand(en *Engine, stdout chan string, params ...string) {
-	en.pos = *InitialPosition()
+	en.pos.LoadFromFenString(StartingFenString)
 }
 
 // positionCommand sets up the current position
 func positionCommand(en *Engine, stdout chan string, params ...string) {
 	if params[0] == "startpos" {
-		en.pos = *InitialPosition()
+		en.pos.LoadFromFenString(StartingFenString)
 	} else if params[0] == "fen" {
 		fen := strings.Join(params[1:], " ")
-		en.pos = *NewPositionFromFen(fen)
+		en.pos.LoadFromFenString(fen)
+
 		if en.options.chess960 {
 			en.pos.castling = *NewCastlingFromFen(fen, true)
 		}

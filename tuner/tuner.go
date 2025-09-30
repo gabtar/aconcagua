@@ -31,6 +31,7 @@ func LoadDataSet(filename string) (dataset []DatasetEntry) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	pos := aconcagua.NewPosition()
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.Split(line, "\"")
@@ -42,7 +43,8 @@ func LoadDataSet(filename string) (dataset []DatasetEntry) {
 
 		fen := parts[0]
 		weigths := generatePositionWeights(fen)
-		phase := getMiddleGamePhase(aconcagua.NewPositionFromFen(fen))
+		pos.LoadFromFenString(fen)
+		phase := getMiddleGamePhase(pos)
 		result := resultString[parts[1]]
 		dataset = append(dataset, DatasetEntry{Fen: fen, Result: result, Weights: weigths, Phase: phase})
 	}
@@ -267,7 +269,8 @@ func evaluatePosition(params [810]float64, weights []PositionWeight) (evaluation
 
 // generatePositionWeights returns all the position weights of a position
 func generatePositionWeights(fen string) (weights []PositionWeight) {
-	pos := aconcagua.NewPositionFromFen(fen)
+	pos := aconcagua.NewPosition()
+	pos.LoadFromFenString(fen)
 	phase := getMiddleGamePhase(pos)
 	weights = generatePieceScoreWeights(fen, phase)
 	weights = append(weights, generateMobilityWeights(fen, phase)...)
@@ -281,7 +284,8 @@ func generatePositionWeights(fen string) (weights []PositionWeight) {
 
 // generatePieceScoreWeights returns the weights of the pieces socre in the board
 func generatePieceScoreWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := aconcagua.NewPositionFromFen(fen)
+	pos := aconcagua.NewPosition()
+	pos.LoadFromFenString(fen)
 
 	for piece, bb := range pos.Bitboards {
 		colorModifier := 1 - int(piece/6)*2
@@ -319,7 +323,8 @@ func generatePieceScoreWeights(fen string, phase int) (weights []PositionWeight)
 
 // generateMobilityWeights returns the position weithts of the mobility of the position
 func generateMobilityWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := aconcagua.NewPositionFromFen(fen)
+	pos := aconcagua.NewPosition()
+	pos.LoadFromFenString(fen)
 	var mobilityBase = [4]int{aconcagua.QueenMobilityBase, aconcagua.RookMobilityBase, aconcagua.BishopMobilityBase, aconcagua.KnightMobilityBase}
 	var pieces = [8]int{aconcagua.WhiteQueen, aconcagua.WhiteRook, aconcagua.WhiteBishop, aconcagua.WhiteKnight, aconcagua.BlackQueen, aconcagua.BlackRook, aconcagua.BlackBishop, aconcagua.BlackKnight}
 
@@ -357,7 +362,8 @@ func generateMobilityWeights(fen string, phase int) (weights []PositionWeight) {
 
 // generateDoubledPawnsWeights returns the position weights of the doubled pawns
 func generateDoubledPawnsWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := aconcagua.NewPositionFromFen(fen)
+	pos := aconcagua.NewPosition()
+	pos.LoadFromFenString(fen)
 	wDoubled := bits.OnesCount64(uint64(aconcagua.DoubledPawns(pos, aconcagua.White)))
 	bDoubled := bits.OnesCount64(uint64(aconcagua.DoubledPawns(pos, aconcagua.Black)))
 	sideModifier := [2]int{1, -1}
@@ -380,7 +386,8 @@ func generateDoubledPawnsWeights(fen string, phase int) (weights []PositionWeigh
 
 // generateIsolatedPawnsWeights returns the position weights of the isolated pawns
 func generateIsolatedPawnsWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := aconcagua.NewPositionFromFen(fen)
+	pos := aconcagua.NewPosition()
+	pos.LoadFromFenString(fen)
 	wIsolated := bits.OnesCount64(uint64(aconcagua.IsolatedPawns(pos, aconcagua.White)))
 	bIsolated := bits.OnesCount64(uint64(aconcagua.IsolatedPawns(pos, aconcagua.Black)))
 	sideModifier := [2]int{1, -1}
@@ -403,7 +410,8 @@ func generateIsolatedPawnsWeights(fen string, phase int) (weights []PositionWeig
 
 // generateBackwardsPawnsWeights returns the position weights of the backwards pawns
 func generateBackwardsPawnsWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := aconcagua.NewPositionFromFen(fen)
+	pos := aconcagua.NewPosition()
+	pos.LoadFromFenString(fen)
 	whitePawnsAttacks := aconcagua.Attacks(aconcagua.WhitePawn, pos.Bitboards[aconcagua.WhitePawn], pos.EmptySquares())
 	blackPawnsAttacks := aconcagua.Attacks(aconcagua.BlackPawn, pos.Bitboards[aconcagua.BlackPawn], pos.EmptySquares())
 
@@ -429,7 +437,8 @@ func generateBackwardsPawnsWeights(fen string, phase int) (weights []PositionWei
 
 // generatePassedPawnsWeights returns the position weights of the passed pawns
 func generatePassedPawnsWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := aconcagua.NewPositionFromFen(fen)
+	pos := aconcagua.NewPosition()
+	pos.LoadFromFenString(fen)
 	wPassedPawns := aconcagua.PassedPawns(pos.Bitboards[aconcagua.WhitePawn], pos.Bitboards[aconcagua.BlackPawn], aconcagua.White)
 	bPassedPawns := aconcagua.PassedPawns(pos.Bitboards[aconcagua.BlackPawn], pos.Bitboards[aconcagua.WhitePawn], aconcagua.Black)
 

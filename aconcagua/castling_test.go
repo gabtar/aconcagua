@@ -73,7 +73,8 @@ func TestWhiteCanCastleLong(t *testing.T) {
 }
 
 func TestWhiteCannotCastleLongIfBlocked(t *testing.T) {
-	pos := NewPositionFromFen("r3k2r/8/8/8/8/8/3PP3/R1B1K2R w KQkq - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("r3k2r/8/8/8/8/8/3PP3/R1B1K2R w KQkq - 0 1")
 
 	expected := false
 	got := pos.canCastle(White, queensideCastle)
@@ -86,7 +87,8 @@ func TestWhiteCannotCastleLongIfBlocked(t *testing.T) {
 func TestWhiteCanCastleShort960(t *testing.T) {
 	// starts from ches960 - 484 position
 	// qbbrnknr/pppppppp/8/8/8/8/PPPPPPPP/QBBRNKNR w KQkq - 0 1
-	pos := NewPositionFromFen("qb1rnrk1/ppp1n1pp/3pbp2/8/2PQP3/1P3N2/PB3PPP/1B1RNK1R w KQ - 1 8")
+	pos := NewPosition()
+	pos.LoadFromFenString("qb1rnrk1/ppp1n1pp/3pbp2/8/2PQP3/1P3N2/PB3PPP/1B1RNK1R w KQ - 1 8")
 	pos.castling = *NewCastling(5, 7, 3)
 	pos.castling.castlingRights = KQ
 
@@ -102,7 +104,8 @@ func TestBlackCanCastleShort960(t *testing.T) {
 	// starts from ches960 - 484 position
 	// qbbrnknr/pppppppp/8/8/8/8/PPPPPPPP/QBBRNKNR w KQkq - 0 1
 
-	pos := NewPositionFromFen("qbbrnk1r/ppp1n1pp/3p1p2/8/3QP3/1P3N2/PBP2PPP/1B1RNK1R b KQkq - 1 6")
+	pos := NewPosition()
+	pos.LoadFromFenString("qbbrnk1r/ppp1n1pp/3p1p2/8/3QP3/1P3N2/PBP2PPP/1B1RNK1R b KQkq - 1 6")
 	pos.castling = *NewCastling(5, 7, 3)
 	pos.castling.castlingRights = KQkq
 
@@ -117,7 +120,8 @@ func TestBlackCanCastleShort960(t *testing.T) {
 func TestWhiteCanCastleLong960(t *testing.T) {
 	// starts from ches960 - 484 position
 	// qbbrnknr/pppppppp/8/8/8/8/PPPPPPPP/QBBRNKNR w KQkq - 0 1
-	pos := NewPositionFromFen("qb1rnrk1/ppp1n1pp/3pbp2/8/2PQP3/1P3N2/PB3PPP/1B1R1K1R w KQ - 1 8")
+	pos := NewPosition()
+	pos.LoadFromFenString("qb1rnrk1/ppp1n1pp/3pbp2/8/2PQP3/1P3N2/PB3PPP/1B1R1K1R w KQ - 1 8")
 	pos.castling = *NewCastling(5, 7, 3)
 	pos.castling.castlingRights = KQ
 
@@ -132,7 +136,8 @@ func TestWhiteCanCastleLong960(t *testing.T) {
 func TestWhiteCannotCastleLong960IfSquaresPassingAreAttacked(t *testing.T) {
 	// starts from ches960 - 484 position
 	// qbbrnknr/pppppppp/8/8/8/8/PPPPPPPP/QBBRNKNR w KQkq - 0 1
-	pos := NewPositionFromFen("qb1rnrk1/ppp1n1pp/3p1p2/8/2PQP3/1P3N2/PB1b1PPP/1B1R1K1R w KQ - 1 8")
+	pos := NewPosition()
+	pos.LoadFromFenString("qb1rnrk1/ppp1n1pp/3p1p2/8/2PQP3/1P3N2/PB1b1PPP/1B1R1K1R w KQ - 1 8")
 	pos.castling = *NewCastling(5, 7, 3)
 	pos.castling.castlingRights = KQ
 
@@ -145,7 +150,8 @@ func TestWhiteCannotCastleLong960IfSquaresPassingAreAttacked(t *testing.T) {
 }
 
 func TestWhiteCannotCastleShort960IfPathIsBlocked(t *testing.T) {
-	pos := NewPositionFromFen("qbbrnk1r/ppp1n1pp/3p1p2/8/3QP3/1P3N2/PBP2PPP/1B1RNK1R w KQkq - 1 6")
+	pos := NewPosition()
+	pos.LoadFromFenString("qbbrnk1r/ppp1n1pp/3p1p2/8/3QP3/1P3N2/PBP2PPP/1B1RNK1R w KQkq - 1 6")
 	pos.castling = *NewCastling(5, 7, 3)
 	pos.castling.castlingRights = KQkq
 
@@ -158,7 +164,8 @@ func TestWhiteCannotCastleShort960IfPathIsBlocked(t *testing.T) {
 }
 
 func TestWhiteCannotCastleShort960IfKingInCheck(t *testing.T) {
-	pos := NewPositionFromFen("qbbrnk1r/ppp1n1pp/3p1p2/1b6/3QP3/1P3N2/PBP2PPP/1B1RNK1R w KQkq - 1 6")
+	pos := NewPosition()
+	pos.LoadFromFenString("qbbrnk1r/ppp1n1pp/3p1p2/1b6/3QP3/1P3N2/PBP2PPP/1B1RNK1R w KQkq - 1 6")
 	pos.castling = *NewCastling(5, 7, 3)
 	pos.castling.castlingRights = KQkq
 
@@ -172,7 +179,8 @@ func TestWhiteCannotCastleShort960IfKingInCheck(t *testing.T) {
 
 func TestCanCaslteLong960IfPathIsBlocked(t *testing.T) {
 	// starts from ches960 - 1 position
-	pos := NewPositionFromFen("bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P1B2/NPP1P1PP/B1Q2RKR w KQkq - 2 9")
+	pos := NewPosition()
+	pos.LoadFromFenString("bqnb1rkr/pp3ppp/3ppn2/2p5/5P2/P2P1B2/NPP1P1PP/B1Q2RKR w KQkq - 2 9")
 	pos.castling = *NewCastling(6, 7, 5)
 	pos.castling.castlingRights = KQkq
 	pos.castling.chess960 = true

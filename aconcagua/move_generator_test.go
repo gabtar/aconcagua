@@ -3,7 +3,7 @@ package aconcagua
 import "testing"
 
 func TestStraightPinnedPieces(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(BlackRook, "e8")
 	pos.AddPiece(WhitePawn, "e4")
@@ -17,7 +17,7 @@ func TestStraightPinnedPieces(t *testing.T) {
 }
 
 func TestDiagonalPinnedPieces(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(BlackKing, "e8")
 	pos.AddPiece(BlackPawn, "d7")
 	pos.AddPiece(BlackKnight, "f7")
@@ -33,7 +33,7 @@ func TestDiagonalPinnedPieces(t *testing.T) {
 }
 
 func TestDiagonalNoPinnedPieces(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(BlackKing, "e8")
 	pos.AddPiece(BlackPawn, "d7")
 	pos.AddPiece(BlackPawn, "c6")
@@ -48,7 +48,8 @@ func TestDiagonalNoPinnedPieces(t *testing.T) {
 }
 
 func TestPinnedPiecesOnBlack(t *testing.T) {
-	pos := NewPositionFromFen("7k/6pn/6P1/3B4/7Q/7p/PPP4R/1K6 b - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("7k/6pn/6P1/3B4/7Q/7p/PPP4R/1K6 b - - 0 1")
 
 	expected := Bitboard(1 << 55) // knight on h7
 	got := pos.pinnedPieces(Black)
@@ -59,7 +60,8 @@ func TestPinnedPiecesOnBlack(t *testing.T) {
 }
 
 func TestCheckRestrictedSquares(t *testing.T) {
-	pos := NewPositionFromFen("8/8/8/8/1k4PP/1bp1r2K/8/5N2 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("8/8/8/8/1k4PP/1bp1r2K/8/5N2 w - - 0 1")
 	checkingSliders := pos.Bitboards[BlackRook] // Black Rook on e3
 	checkingNonSliders := Bitboard(0)
 
@@ -72,7 +74,8 @@ func TestCheckRestrictedSquares(t *testing.T) {
 }
 
 func TestPinRestrictedSquares(t *testing.T) {
-	pos := NewPositionFromFen("2br2k1/5pp1/5p2/R4BP1/5PKP/8/8/8 w - - 0 1") // bishop on f5 is pinned can only move along the h3-c8 diagonal
+	pos := NewPosition()
+	pos.LoadFromFenString("2br2k1/5pp1/5p2/R4BP1/5PKP/8/8/8 w - - 0 1") // bishop on f5 is pinned can only move along the h3-c8 diagonal
 
 	piece := pos.Bitboards[WhiteBishop]
 	king := pos.KingPosition(White)
@@ -99,7 +102,7 @@ func TestKingAttacks(t *testing.T) {
 }
 
 func TestKingMovesToEmptySquares(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e4")
 	kingBB := bitboardFromCoordinates("e4")
 
@@ -112,7 +115,7 @@ func TestKingMovesToEmptySquares(t *testing.T) {
 }
 
 func TestKingCannotMoveToAttackedSquare(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e4")
 	pos.AddPiece(BlackKnight, "c6")
 	kingBB := bitboardFromCoordinates("e4")
@@ -127,7 +130,7 @@ func TestKingCannotMoveToAttackedSquare(t *testing.T) {
 }
 
 func TestKingMovesWhenInCheck(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(BlackRook, "h1")
 	kingBB := bitboardFromCoordinates("e1")
@@ -142,7 +145,7 @@ func TestKingMovesWhenInCheck(t *testing.T) {
 }
 
 func TestKingValidMoves(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(BlackRook, "h1")
 	kingBB := bitboardFromCoordinates("e1")
@@ -156,7 +159,7 @@ func TestKingValidMoves(t *testing.T) {
 }
 
 func TestKingCanCastleShort(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.castling.castlingRights = Kk
@@ -170,7 +173,8 @@ func TestKingCanCastleShort(t *testing.T) {
 }
 
 func TestKingCanCastleShortTwo(t *testing.T) {
-	pos := NewPositionFromFen("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9")
+	pos := NewPosition()
+	pos.LoadFromFenString("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9")
 	pos.castling.castlingRights = Kk
 
 	expected := true
@@ -182,7 +186,7 @@ func TestKingCanCastleShortTwo(t *testing.T) {
 }
 
 func TestKingCannotCastleShortIfPathBlocked(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(WhiteKnight, "f1")
@@ -197,7 +201,7 @@ func TestKingCannotCastleShortIfPathBlocked(t *testing.T) {
 }
 
 func TestKingCannotCastleShortIfItsInCheck(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(BlackRook, "f4")
@@ -212,7 +216,7 @@ func TestKingCannotCastleShortIfItsInCheck(t *testing.T) {
 }
 
 func TestKingCanCastleLong(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "a1")
 	pos.castling.castlingRights = Qq
@@ -226,7 +230,7 @@ func TestKingCanCastleLong(t *testing.T) {
 }
 
 func TestBlackKingCannotCastleLongIfPathBlocked(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(BlackKing, "e8")
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(BlackKnight, "b8")
@@ -241,7 +245,7 @@ func TestBlackKingCannotCastleLongIfPathBlocked(t *testing.T) {
 }
 
 func TestKingCannotCastleLongIfItsInCheck(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(BlackKing, "e8")
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(WhiteRook, "c6")
@@ -256,7 +260,7 @@ func TestKingCannotCastleLongIfItsInCheck(t *testing.T) {
 }
 
 func TestGenKingMoves(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(WhiteRook, "a1")
@@ -275,7 +279,7 @@ func TestGenKingMoves(t *testing.T) {
 }
 
 func TestGenCastles(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "e1")
 	pos.AddPiece(WhiteRook, "h1")
 	pos.AddPiece(WhiteRook, "a1")
@@ -294,7 +298,7 @@ func TestGenCastles(t *testing.T) {
 
 // Rook tests
 func TestRookAttacksOnEmptyBoard(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(BlackRook, "e4")
 	rookBB := bitboardFromCoordinates("e4")
 
@@ -308,7 +312,7 @@ func TestRookAttacksOnEmptyBoard(t *testing.T) {
 }
 
 func TestRookAttacksWithBlockedSquares(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(BlackRook, "e4")
 	pos.AddPiece(WhiteKnight, "c4") // Knight blocking on c4
 	rookBB := bitboardFromCoordinates("e4")
@@ -323,7 +327,7 @@ func TestRookAttacksWithBlockedSquares(t *testing.T) {
 }
 
 func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(BlackRook, "b3")
 	pos.AddPiece(WhiteKnight, "b4") // Knight blocking on b4
 	pos.AddPiece(WhiteKnight, "b2") // Knight blocking on b5
@@ -340,7 +344,7 @@ func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
 }
 
 func TestRookMovesWithCaptures(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.Turn = Black
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(WhiteKnight, "a4") // Can move(capture) white knight on a4
@@ -357,7 +361,7 @@ func TestRookMovesWithCaptures(t *testing.T) {
 }
 
 func TestRookMovesWithBlockingPieces(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteRook, "g2")
 	pos.AddPiece(BlackKnight, "g4") // Can move(capture) white knight on g4
 	pos.AddPiece(WhiteKnight, "f2") // Cannot move to f2, because its blocked by Knight
@@ -373,7 +377,7 @@ func TestRookMovesWithBlockingPieces(t *testing.T) {
 }
 
 func TestRookMoveWhenCanBlockCheck(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.Turn = Black
 	pos.AddPiece(BlackRook, "c6") // Black king is in check, so only legal move is Re6 blocking the check
 	pos.AddPiece(WhiteRook, "e1")
@@ -390,7 +394,7 @@ func TestRookMoveWhenCanBlockCheck(t *testing.T) {
 }
 
 func TestRookMovesWhenKingInDoubleCheck(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.Turn = Black
 	pos.AddPiece(BlackRook, "c6")
 	pos.AddPiece(WhiteRook, "e1") // Gives check to the black king on e8
@@ -408,7 +412,7 @@ func TestRookMovesWhenKingInDoubleCheck(t *testing.T) {
 }
 
 func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.Turn = Black
 	pos.AddPiece(BlackKing, "e8")
 	pos.AddPiece(BlackRook, "e4")
@@ -430,7 +434,7 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 }
 
 func TestGenTargetMovesForRook(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.Turn = Black
 	pos.AddPiece(BlackRook, "a8")
 	pos.AddPiece(WhiteKnight, "a4") // Can move(capture) white knight on a4
@@ -453,7 +457,7 @@ func TestGenTargetMovesForRook(t *testing.T) {
 
 // Bishop tests
 func TestBishopAttacksOnEmptyBoard(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteBishop, "h1")
 	bishopBB := bitboardFromCoordinates("h1")
 
@@ -466,7 +470,7 @@ func TestBishopAttacksOnEmptyBoard(t *testing.T) {
 }
 
 func TestBishopAttacksWithBlockedSquares(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteBishop, "e3")
 	pos.AddPiece(BlackRook, "g5")
 	bishopBB := bitboardFromCoordinates("e3")
@@ -480,7 +484,7 @@ func TestBishopAttacksWithBlockedSquares(t *testing.T) {
 }
 
 func TestBishopMovesWithCaptures(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.Turn = Black
 	pos.AddPiece(BlackBishop, "c4")
 	pos.AddPiece(WhiteRook, "f7")   // Can move(capture) white rook on f7
@@ -497,7 +501,7 @@ func TestBishopMovesWithCaptures(t *testing.T) {
 }
 
 func TestBishopMovesWithBlockingPieces(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteBishop, "g6")
 	pos.AddPiece(WhiteKnight, "e8") // Cannot move, blocked by same color knight
 	pos.AddPiece(WhiteRook, "f5")   // Cannot move to f5, because its blocked by Rook
@@ -513,7 +517,7 @@ func TestBishopMovesWithBlockingPieces(t *testing.T) {
 }
 
 func TestBishopMoveWhenCanBlockCheck(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "d1") // White king is in check, only legal move is Bd2
 	pos.AddPiece(BlackRook, "d8") // And also Bxd8 by capturing the Rook which is checking the king
 	pos.AddPiece(WhiteBishop, "g5")
@@ -529,7 +533,7 @@ func TestBishopMoveWhenCanBlockCheck(t *testing.T) {
 }
 
 func TestBishopMovesWhenPinnedAndInCheck(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "d1")
 	pos.AddPiece(BlackRook, "h1") // Gives check to the white king on d1
 	pos.AddPiece(BlackRook, "d8") // Gives check to the white king on d1 (by xrays) -> pins the bishop
@@ -546,7 +550,7 @@ func TestBishopMovesWhenPinnedAndInCheck(t *testing.T) {
 }
 
 func TestBishpMovesWhenTheBishopIsPinned(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKing, "c4")
 	pos.AddPiece(BlackBishop, "g8")
 	pos.AddPiece(WhiteBishop, "d5")
@@ -564,7 +568,7 @@ func TestBishpMovesWhenTheBishopIsPinned(t *testing.T) {
 }
 
 func TestGenTargetMovesForBishop(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteBishop, "g6")
 	pos.AddPiece(WhiteKnight, "e8") // Cannot move, blocked by same color knight
 	pos.AddPiece(WhiteRook, "f5")   // Cannot move to f5, because its blocked by Rook
@@ -585,7 +589,7 @@ func TestGenTargetMovesForBishop(t *testing.T) {
 
 // Knight tests
 func TestKnightAttacks(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(BlackKnight, "e4")
 	knightBB := bitboardFromCoordinates("e4")
 
@@ -598,7 +602,7 @@ func TestKnightAttacks(t *testing.T) {
 }
 
 func TestKnightMovesWhenBlockedBySameColorPieces(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.Turn = Black
 	pos.AddPiece(BlackKnight, "e4")
 	pos.AddPiece(BlackRook, "d6")
@@ -617,7 +621,7 @@ func TestKnightMovesWhenBlockedBySameColorPieces(t *testing.T) {
 }
 
 func TestKnightMovesWithCaptures(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKnight, "b1")
 	pos.AddPiece(BlackBishop, "c3")
 	pos.AddPiece(WhiteRook, "a3")
@@ -634,7 +638,7 @@ func TestKnightMovesWithCaptures(t *testing.T) {
 }
 
 func TestKnightMovesWhenPinned(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKnight, "e4")
 	pos.AddPiece(BlackRook, "e8")
 	pos.AddPiece(WhiteKing, "e1")
@@ -651,7 +655,7 @@ func TestKnightMovesWhenPinned(t *testing.T) {
 }
 
 func TestGenTargetMovesForKnight(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteKnight, "b1")
 	pos.AddPiece(BlackBishop, "c3")
 	pos.AddPiece(WhiteRook, "a3")
@@ -671,7 +675,7 @@ func TestGenTargetMovesForKnight(t *testing.T) {
 
 // Pawn tests
 func TestPawnAttacks(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhitePawn, "e2")
 	pawnBB := bitboardFromCoordinates("e2")
 
@@ -686,7 +690,7 @@ func TestPawnAttacks(t *testing.T) {
 }
 
 func TestPawnAttacksOnEdgeFiles(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhitePawn, "h2")
 	// pawn, _ := pos.PieceAt("h2")
 	pawnBB := bitboardFromCoordinates("h2")
@@ -702,7 +706,7 @@ func TestPawnAttacksOnEdgeFiles(t *testing.T) {
 }
 
 func TestPawnMovesOnEmptyBoard(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhitePawn, "e2")
 	pawnBB := bitboardFromCoordinates("e2")
 	pd := pos.generatePositionData()
@@ -718,7 +722,7 @@ func TestPawnMovesOnEmptyBoard(t *testing.T) {
 }
 
 func TestPawnMovesWithCapturesFrom7thRank(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.Turn = Black
 	pos.AddPiece(BlackPawn, "b7")
 	pos.AddPiece(WhiteBishop, "a6")
@@ -739,7 +743,7 @@ func TestPawnMovesWithCapturesFrom7thRank(t *testing.T) {
 }
 
 func TestPawnCanBlockACheckOnFirstMove(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhitePawn, "f2")
 	pos.AddPiece(BlackRook, "h4")
 	pos.AddPiece(WhiteKing, "c4")
@@ -758,7 +762,7 @@ func TestPawnCanBlockACheckOnFirstMove(t *testing.T) {
 }
 
 func TestPawnCanOnlyMoveInThePinnedDirection(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhitePawn, "f2")
 	pos.AddPiece(BlackBishop, "e3")
 	pos.AddPiece(WhiteKing, "g1")
@@ -777,7 +781,7 @@ func TestPawnCanOnlyMoveInThePinnedDirection(t *testing.T) {
 }
 
 func TestPawnPinnedAndInCheck(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhitePawn, "f2")
 	pos.AddPiece(BlackBishop, "e3")
 	pos.AddPiece(BlackRook, "g8")
@@ -796,7 +800,8 @@ func TestPawnPinnedAndInCheck(t *testing.T) {
 }
 
 func TestBlackPawnInA4Moves(t *testing.T) {
-	pos := NewPositionFromFen("rnbqkbnr/1ppppppp/8/8/p7/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("rnbqkbnr/1ppppppp/8/8/p7/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1")
 	pawnBB := bitboardFromCoordinates("a4")
 	pd := pos.generatePositionData()
 
@@ -809,7 +814,8 @@ func TestBlackPawnInA4Moves(t *testing.T) {
 }
 
 func TestPawnIsNotPinnedIfCapturesThePinnedPiece(t *testing.T) {
-	pos := NewPositionFromFen("r1bqkbnr/7p/2p1p1p1/p1pp1p1Q/P4P2/3PP3/1PPBN1PP/RN3RK1 b kq - 1 9")
+	pos := NewPosition()
+	pos.LoadFromFenString("r1bqkbnr/7p/2p1p1p1/p1pp1p1Q/P4P2/3PP3/1PPBN1PP/RN3RK1 b kq - 1 9")
 	pawnBB := bitboardFromCoordinates("g6")
 	pd := pos.generatePositionData()
 
@@ -822,7 +828,7 @@ func TestPawnIsNotPinnedIfCapturesThePinnedPiece(t *testing.T) {
 }
 
 func TestPawnsMoves(t *testing.T) {
-	pos := InitialPosition()
+	pos := NewPosition()
 	pawnBB := bitboardFromCoordinates("e2")
 	pd := pos.generatePositionData()
 	ml := NewMoveList(100)
@@ -837,7 +843,8 @@ func TestPawnsMoves(t *testing.T) {
 }
 
 func TestPawnsMovesPromo(t *testing.T) {
-	pos := NewPositionFromFen("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
 	pawnBB := bitboardFromCoordinates("h7")
 	pd := pos.generatePositionData()
 	ml := NewMoveList(100)
@@ -854,7 +861,8 @@ func TestPawnsMovesPromo(t *testing.T) {
 func TestGenEpPawnCaptures(t *testing.T) {
 	ml := NewMoveList(100)
 
-	pos := NewPositionFromFen("4r3/8/8/R7/3Pp2k/8/8/4K3 b - d3 0 1")
+	pos := NewPosition()
+	pos.LoadFromFenString("4r3/8/8/R7/3Pp2k/8/8/4K3 b - d3 0 1")
 
 	genEnPassantCaptures(pos, Black, &ml)
 
@@ -867,7 +875,7 @@ func TestGenEpPawnCaptures(t *testing.T) {
 }
 
 func TestMultiplePawnAttacks(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhitePawn, "e2")
 	pos.AddPiece(WhitePawn, "f2")
 	pos.AddPiece(WhitePawn, "g2")

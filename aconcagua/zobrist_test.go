@@ -20,8 +20,9 @@ func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 	}
 
 	for _, tc := range zobristTestCases {
+		pos := NewPosition()
 		t.Run(tc.name, func(t *testing.T) {
-			pos := NewPositionFromFen(tc.fromFen)
+			pos.LoadFromFenString(tc.fromFen)
 
 			ml := NewMoveList(255)
 			pd := pos.generatePositionData()
@@ -71,8 +72,9 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 	}
 
 	for _, tc := range zobristTestCases {
+		pos := NewPosition()
 		t.Run(tc.name, func(t *testing.T) {
-			pos := NewPositionFromFen(tc.fromFen)
+			pos.LoadFromFenString(tc.fromFen)
 			expected := zobristHashKeys.fullZobristHash(pos)
 
 			ml := NewMoveList(255)
@@ -106,8 +108,11 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 }
 
 func TestPawnHash(t *testing.T) {
-	pos := NewPositionFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-	pos2 := NewPositionFromFen("8/pppppppp/8/8/8/8/PPPPPPPP/8 w - - 0 1")
+	pos := NewPosition()
+	pos2 := NewPosition()
+
+	pos.LoadFromFenString("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+	pos2.LoadFromFenString("8/pppppppp/8/8/8/8/PPPPPPPP/8 w - - 0 1")
 
 	pawnHash := zobristHashKeys.pawnHash(pos)
 	pawnHash2 := zobristHashKeys.pawnHash(pos2)
