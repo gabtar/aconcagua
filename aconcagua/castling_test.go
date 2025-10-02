@@ -2,8 +2,6 @@ package aconcagua
 
 import "testing"
 
-// Castling tests
-
 func TestCastleFromFen(t *testing.T) {
 	var c castlingRights
 	castlings := "KQqk"

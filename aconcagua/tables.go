@@ -2,8 +2,8 @@ package aconcagua
 
 import "math"
 
-// Constants for orthogonal directions in the board
 const (
+	// Constants for orthogonal directions in the board
 	North = iota
 	NorthEast
 	East
@@ -15,6 +15,43 @@ const (
 	Invalid
 )
 
+// init initializes various tables for usage within the engine
+func init() {
+	generatePiecesScoreTables()
+
+	directions = generateDirections()
+	rayAttacks = generateRayAttacks()
+	knightAttacksTable = generateKnightAttacks()
+	attacksFrontSpans = generateAttacksFrontSpans()
+}
+
+// files array contains the bitboard mask for each file in the board
+var files [8]Bitboard = [8]Bitboard{
+	0x0101010101010101,
+	0x0101010101010101 << 1,
+	0x0101010101010101 << 2,
+	0x0101010101010101 << 3,
+	0x0101010101010101 << 4,
+	0x0101010101010101 << 5,
+	0x0101010101010101 << 6,
+	0x0101010101010101 << 7,
+}
+
+// ranks contains the bitboard mask for each rank in the board
+var ranks [8]Bitboard = [8]Bitboard{
+	0x00000000000000FF,
+	0x00000000000000FF << 8,
+	0x00000000000000FF << 16,
+	0x00000000000000FF << 24,
+	0x00000000000000FF << 32,
+	0x00000000000000FF << 40,
+	0x00000000000000FF << 48,
+	0x00000000000000FF << 56,
+}
+
+// AllSquares contains the bitboard mask for all squares in the board
+const AllSquares Bitboard = 0xFFFFFFFFFFFFFFFF
+
 // directions is a table that contains the compass directions between 2 squares in the board
 var directions [64][64]uint64
 
@@ -24,36 +61,39 @@ var rayAttacks [8][64]Bitboard
 // knightAttacksTable is a precalculated table that contains the squares that a knight can attack
 var knightAttacksTable [64]Bitboard
 
-// pieces square tables with the value of each piece + square value for middlegame
-var middlegamePiecesScore [12][64]int
-
-// pieces square tables with the value of each piece + square value for endgame
-var endgamePiecesScore [12][64]int
-
-// MiddlegamePieceValue is the value of each piece for middlegame
-var MiddlegamePieceValue = [6]int{12000, 1032, 497, 397, 374, 88}
-
-// middlegamePieceValue is the value of each piece for middlegame
-var EndgamePieceValue = [6]int{12000, 978, 566, 322, 307, 90}
-
-// initializes various tables for usage within the engine
-func init() {
-	GeneratePiecesScoreTables()
-
-	directions = generateDirections()
-	rayAttacks = generateRayAttacks()
-	knightAttacksTable = generateKnightAttacks()
-	attacksFrontSpans = generateAttacksFrontSpans()
+// isolatedAdjacentFilesMask contains the adjacent files of a pawn to test if it is isolated
+var isolatedAdjacentFilesMask = [8]Bitboard{
+	files[1],
+	files[0] | files[2],
+	files[1] | files[3],
+	files[2] | files[4],
+	files[3] | files[5],
+	files[4] | files[6],
+	files[5] | files[7],
+	files[6],
 }
 
-// GeneratePiecesScoreTables generates the tables with the value of each piece + square
-func GeneratePiecesScoreTables() {
+// attacksFrontSpans is a precalculated table containing the bitmask of front attack spans for each square
+// The mask includes the attacked squares itself, thus it is like a fill of attacked squares in the appropriate
+// direction front attack span for pawn on d4
+// see: https://www.chessprogramming.org/Attack_Spans
+// . . 1 . 1 . . .
+// . . 1 . 1 . . .
+// . . 1 . 1 . . .
+// . . 1 . 1 . . .
+// . . . w . . . .
+// . . . . . . . .
+// . . . . . . . .
+// . . . . . . . .
+var attacksFrontSpans [2][64]Bitboard
+
+// generatePiecesScoreTables generates the tables with the value of each piece + square
+func generatePiecesScoreTables() {
 	for piece := range 6 {
 		whitePiece := piece
 		blackPiece := piece + 6
 
 		for sq := range 64 {
-
 			middlegamePiecesScore[whitePiece][sq] = MiddlegamePieceValue[piece] + MiddlegamePSQT[piece][sq^56]
 			endgamePiecesScore[whitePiece][sq] = EndgamePieceValue[piece] + EndgamePSQT[piece][sq^56]
 
@@ -76,7 +116,6 @@ func generateDirections() (directions [64][64]uint64) {
 			//   ----------------------
 			//   | -1-1 | +1+0 | -1+1 |
 			//   ----------------------
-			// calcuate the direction
 			fileDiff := (to % 8) - (from % 8)
 			rankDiff := (to / 8) - (from / 8)
 			absFileDiff := math.Abs(float64(fileDiff))
@@ -171,6 +210,26 @@ func generateKnightAttacks() (knightAttacksTable [64]Bitboard) {
 	return
 }
 
+// generateAttacksFrontSpans returns a precalculated table containing the front attack spans for each square
+func generateAttacksFrontSpans() (attacksFrontSpans [2][64]Bitboard) {
+
+	for sq := range 64 {
+		file, rank := sq%8, sq/8
+		eastFront, westFront := rank*8+file+1, rank*8+file-1
+
+		if file < 7 {
+			attacksFrontSpans[White][sq] |= rayAttacks[North][eastFront]
+			attacksFrontSpans[Black][sq] |= rayAttacks[South][eastFront]
+		}
+		if file > 0 {
+			attacksFrontSpans[White][sq] |= rayAttacks[North][westFront]
+			attacksFrontSpans[Black][sq] |= rayAttacks[South][westFront]
+		}
+	}
+
+	return
+}
+
 // raysDirection returns the rays along the direction passed that intersects the
 // piece in the square passed
 func raysDirection(square Bitboard, direction uint64) Bitboard {
@@ -196,6 +255,18 @@ func getRayPath(from *Bitboard, to *Bitboard) (rayPath Bitboard) {
 	return rayAttacks[fromDirection][fromSq] &
 		rayAttacks[toDirection][toSq]
 }
+
+// pieces square tables with the value of each piece + square value for middlegame
+var middlegamePiecesScore [12][64]int
+
+// pieces square tables with the value of each piece + square value for endgame
+var endgamePiecesScore [12][64]int
+
+// MiddlegamePieceValue is the value of each piece for middlegame phase
+var MiddlegamePieceValue = [6]int{12000, 1032, 497, 397, 374, 88}
+
+// EndgamePieceValue is the value of each piece endgame phase
+var EndgamePieceValue = [6]int{12000, 978, 566, 322, 307, 90}
 
 // MiddlegamePSQT are the pieces square tables for middlegame
 var MiddlegamePSQT = [6][64]int{

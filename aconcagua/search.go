@@ -17,17 +17,6 @@ const (
 	AspirationWindowSize          = 45
 )
 
-// isCheckmateOrStealmate validates if the current position is checkmated or stealmated
-func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
-	if moves == 0 {
-		if !isCheck {
-			return 0, true
-		}
-		return -MateScore + ply, true
-	}
-	return 0, false
-}
-
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
@@ -35,7 +24,6 @@ type Search struct {
 	killers            KillersTable
 	historyMoves       HistoryMovesTable
 	transpositionTable TranspositionTable
-	pawnTable          PawnHashTable
 	timeControl        TimeControl
 }
 
@@ -47,7 +35,6 @@ func NewSearch() *Search {
 		killers:            KillersTable{},
 		historyMoves:       HistoryMovesTable{},
 		transpositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
-		pawnTable:          *NewPawnHashTable(4),
 		timeControl:        TimeControl{},
 	}
 }
@@ -58,7 +45,6 @@ func (s *Search) clear() {
 	s.killers.clear()
 	s.historyMoves.clear()
 	s.transpositionTable.clear()
-	s.pawnTable.clear()
 }
 
 // reset sets the new iteration parameters in the NewSearch
@@ -113,6 +99,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 	alpha := MinInt
 	beta := MaxInt
 	s.clear()
+	pos.eval.pawnHashTable.clear()
 
 	for d := 1; d <= maxDepth; d++ {
 		s.reset()
@@ -175,7 +162,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 4 && !isCheck && !pvNode {
-		sc := pos.Evaluate(&s.pawnTable)
+		sc := pos.Evaluate()
 		margin := ReverseFutitlityPruningMargin * depth
 		if sc-margin >= beta {
 			return beta
@@ -197,7 +184,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	futilityPruningAllowed := false
 	if depth <= 3 && alpha > -MateScore && beta < MateScore {
 		futilityMargin := []int{0, 300, 500, 900}
-		sc := pos.Evaluate(&s.pawnTable)
+		sc := pos.Evaluate()
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
@@ -212,21 +199,21 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	newScore := MinInt
 	bestMove := NoMove
-	ms := NewMoveSelector(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
+	mg := NewMoveGenerator(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
 
-	for move := ms.nextMove(); move != NoMove; move = ms.nextMove() {
+	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
 		pos.MakeMove(&move)
 		branchPv.reset()
 		moveFlag := move.flag()
 
 		// Late Move Pruning
-		if depth <= 3 && ms.stage >= NonCapturesStage && ms.moveNumber > LateMovePruningMoveNumber && !isCheck && !pvNode && !pos.Check(pos.Turn) {
+		if depth <= 3 && mg.stage >= NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber && !isCheck && !pvNode && !pos.Check(pos.Turn) {
 			pos.UnmakeMove(&move)
 			continue
 		}
 
 		// Futility Pruning
-		if futilityPruningAllowed && moveFlag < capture && !isCheck && !pvNode && ms.moveNumber > 0 {
+		if futilityPruningAllowed && moveFlag < capture && !isCheck && !pvNode && mg.moveNumber > 0 {
 			pos.UnmakeMove(&move)
 			continue
 		}
@@ -238,11 +225,11 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		// Principal Variation Search
 		// Full search at first attempt of this subtree
-		if ms.moveNumber == 0 {
+		if mg.moveNumber == 0 {
 			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
 		} else {
 			// Try first a quick, reduced search, with lmr and a null window(-alpha-1, -alpha)
-			reduction := lmrReductionFactor(depth, ms.moveNumber, moveFlag, isCheck, pvNode)
+			reduction := lmrReductionFactor(depth, mg.moveNumber, moveFlag, isCheck, pvNode)
 			newScore = -s.negamax(pos, depth-1-reduction+extension, ply+1, -alpha-1, -alpha, &branchPv, true)
 
 			// If an improvement was found, we need to search again with a full window and depth
@@ -271,13 +258,56 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 	}
 
-	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, ms.moveNumber, ply)
+	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, mg.moveNumber, ply)
 	if checkmateOrStealmateFound {
 		return score
 	}
 
 	s.transpositionTable.store(pos.Hash, depth, flag, alpha, bestMove)
 	return alpha
+}
+
+// isCheckmateOrStealmate validates if the current position is checkmated or stealmated
+func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
+	if moves == 0 {
+		if !isCheck {
+			return 0, true
+		}
+		return -MateScore + ply, true
+	}
+	return 0, false
+}
+
+// canNullMove returns if the current position allows a null move pruning
+func (pos *Position) canNullMove() bool {
+	if pos.material(pos.Turn) < EndgameMaterialThreshold {
+		return false
+	}
+
+	if pos.kingAndPawnsOnlyEndgame() {
+		return false
+	}
+
+	return true
+}
+
+// kingAndPawnsOnlyEndgame returns if the position is a king and pawns only endgame
+func (pos *Position) kingAndPawnsOnlyEndgame() bool {
+	whiteKingAndPawns := pos.Bitboards[WhiteKing] | pos.Bitboards[WhitePawn]
+	blackKingAndPawns := pos.Bitboards[BlackKing] | pos.Bitboards[BlackPawn]
+
+	return pos.pieces[White] == whiteKingAndPawns && pos.pieces[Black] == blackKingAndPawns
+}
+
+// material returns the total material of the position for the side passed
+func (pos *Position) material(side Color) int {
+	pieceValue := [6]int{0, 900, 500, 300, 300, 100}
+	material := 0
+
+	for piece, bitboard := range pos.getBitboards(side) {
+		material += pieceValue[pieceRole(piece)] * bitboard.count()
+	}
+	return material
 }
 
 // lrmReductionFactor returns a number to reduce the depth on search based on the conditions passed

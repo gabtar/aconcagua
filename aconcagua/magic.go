@@ -8,13 +8,13 @@ var rookAttacksTable [64][4096]Bitboard
 // init initializes the tables for use w/ magic numbers
 func init() {
 	// initialize rooksAttacksMask and bishopsAttacksMask
-	for sq := 0; sq < 64; sq++ {
+	for sq := range 64 {
 		rooksMaskTable[sq] = rookMask(sq)
 		bishopMaskTable[sq] = bishopMask(sq)
 	}
 
 	// initialize rookAttacksTable and bishopAttacksTable
-	for sq := 0; sq < 64; sq++ {
+	for sq := range 64 {
 		bishopMask := bishopMaskTable[sq]
 		rookMask := rooksMaskTable[sq]
 		bishopMaskCount := bishopMask.count()
@@ -23,14 +23,14 @@ func init() {
 		rookBlocksIndices := 1 << rookMaskCount
 
 		// Generate bishop attacks for all possible blocks configurations
-		for i := 0; i < bishopBlocksIndices; i++ {
+		for i := range bishopBlocksIndices {
 			blocks := generateBlockConfiguration(i, bishopMask)
 			magicIndex := (blocks * bishopMagics[sq]) >> (64 - bishopMaskCount)
 			bishopAttacksTable[sq][magicIndex] = bishopAttacksWithBlockers(sq, blocks)
 		}
 
 		// Generate rook attacks for all possible blocks configurations
-		for i := 0; i < rookBlocksIndices; i++ {
+		for i := range rookBlocksIndices {
 			blocks := generateBlockConfiguration(i, rookMask)
 			magicIndex := (blocks * rookMagics[sq]) >> (64 - rookMaskCount)
 			rookAttacksTable[sq][magicIndex] = rooksAttacksWithBlockers(sq, blocks)
@@ -43,7 +43,7 @@ func generateBlockConfiguration(index int, mask Bitboard) Bitboard {
 	var blocks Bitboard
 	bitCount := mask.count()
 
-	for i := 0; i < bitCount; i++ {
+	for i := range bitCount {
 		bitPos := Bsf(mask)
 		mask &= mask - 1
 

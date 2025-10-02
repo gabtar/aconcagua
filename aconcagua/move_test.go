@@ -2,8 +2,6 @@ package aconcagua
 
 import "testing"
 
-// Tests that diferent moves produces the correct update on the board
-
 func TestMoveFlagEncode(t *testing.T) {
 	move := encodeMove(0, 8, capture)
 

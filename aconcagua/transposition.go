@@ -6,7 +6,10 @@ const (
 	FlagBeta  = uint8(2)
 )
 
-const DefaultTableSizeInMb = 64
+const (
+	DefaultTableSizeInMb         = 64
+	DefaultPawnHashTableSizeInMb = 4
+)
 
 // TTEntry represents a transposition table entry
 // key is the zobrist hash of the position - 64bits
@@ -106,7 +109,7 @@ func (tt *TranspositionTable) probe(key uint64, depth int, alpha int, beta int) 
 	return 0, move, false
 }
 
-// pawnHashEntry stores the score of the previously evaluated pawn strucure
+// PawnHashEntry stores the score of the previously evaluated pawn strucure
 type PawnHashEntry struct {
 	key     uint64
 	mgScore int16

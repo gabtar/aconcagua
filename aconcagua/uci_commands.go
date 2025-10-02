@@ -32,17 +32,17 @@ func uciNewGameCommand(en *Engine, stdout chan string, params ...string) {
 
 // positionCommand sets up the current position
 func positionCommand(en *Engine, stdout chan string, params ...string) {
-	if params[0] == "startpos" {
+	switch params[0] {
+	case "startpos":
 		en.pos.LoadFromFenString(StartingFenString)
-	} else if params[0] == "fen" {
+	case "fen":
 		fen := strings.Join(params[1:], " ")
 		en.pos.LoadFromFenString(fen)
 
 		if en.options.chess960 {
 			en.pos.castling = *NewCastlingFromFen(fen, true)
 		}
-
-	} else {
+	default:
 		stdout <- "invalid command"
 		return
 	}
