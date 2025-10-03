@@ -175,7 +175,7 @@ func (pos *Position) generateCaptures(ml *MoveList, pd *PositionData) {
 			}
 		}
 	}
-	// TODO: add en passant captures here??. Need to fix see first(because 'to' square is an empty square)
+	genEnPassantCaptures(pos, pos.Turn, ml)
 }
 
 // generateNonCaptures generates all non captures in the position and stores them in the move list
@@ -202,7 +202,6 @@ func (pos *Position) generateNonCaptures(ml *MoveList, pd *PositionData) {
 			}
 		}
 	}
-	genEnPassantCaptures(pos, pos.Turn, ml)
 }
 
 // kingMoves returns a bitboard with the legal moves of the king from the bitboard passed
