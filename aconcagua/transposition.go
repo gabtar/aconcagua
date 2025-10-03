@@ -73,7 +73,10 @@ func (tt *TranspositionTable) store(key uint64, depth int, flag uint8, score int
 		return
 	}
 
-	tt.stored++
+	if tt.entries[index].key == 0 {
+		tt.stored++
+	}
+
 	tt.entries[index] = TTEntry{
 		key:   key,
 		depth: uint8(depth),
@@ -81,6 +84,10 @@ func (tt *TranspositionTable) store(key uint64, depth int, flag uint8, score int
 		score: int32(score),
 		move:  move,
 	}
+}
+
+func (tt *TranspositionTable) hashfull() int {
+	return 1000 * tt.stored / int(tt.size)
 }
 
 // probe tries to find an entry in the transposition table
