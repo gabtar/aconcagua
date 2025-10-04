@@ -16,7 +16,7 @@ type UciCommand func(en *Engine, stdout chan string, params ...string)
 
 // uciCommand takes care of uci command from gui
 func uciCommand(en *Engine, stdout chan string, params ...string) {
-	stdout <- "id name Aconcagua 3.3.0"
+	stdout <- "id name Aconcagua 3.4.0"
 	stdout <- "id author Gabriel Tarifa"
 	stdout <- ""
 	stdout <- "option name BookPath type string default <empty>"
