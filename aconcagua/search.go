@@ -133,8 +133,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 	return
 }
 
-// negamax returns the score of the best posible move by the evaluation function
-// for a fixed depth
+// negamax returns the score of the best posible move by the evaluation function for a fixed depth
 func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, pvLine *pvLine, nullMoveAllowed bool) int {
 	s.nodes++
 	if s.timeControl.stop {

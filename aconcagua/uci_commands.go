@@ -86,9 +86,12 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 	depthIndex := findParam(params, "depth")
 	wtime := findParam(params, "wtime")
 	btime := findParam(params, "btime")
+	winc := findParam(params, "winc")
+	binc := findParam(params, "binc")
+
 	movetime := findParam(params, "movetime")
 
-	searchStrategy, clock := timeStrategy(params, depth, wtime, btime, movetime)
+	searchStrategy, clock := timeStrategy(params, depth, wtime, btime, winc, binc, movetime)
 	en.search.timeControl.init(searchStrategy, int(en.pos.Turn), en.pos.fullmoveNumber, clock)
 
 	// Set default depth if not passed
@@ -103,7 +106,7 @@ func goCommand(en *Engine, stdout chan string, params ...string) {
 }
 
 // timeStrategy returns the search strategy and the clock for a search
-func timeStrategy(params []string, depth int, wtime int, btime int, movetime int) (int, Clock) {
+func timeStrategy(params []string, depth int, wtime int, btime int, winc int, binc int, movetime int) (int, Clock) {
 	if movetime != -1 {
 		movetime, _ = strconv.Atoi(params[movetime+1])
 		return MoveTimeStrategy, Clock{0, 0, 0, 0, movetime}
@@ -111,7 +114,9 @@ func timeStrategy(params []string, depth int, wtime int, btime int, movetime int
 	if wtime != -1 || btime != -1 {
 		wtime, _ = strconv.Atoi(params[wtime+1])
 		btime, _ = strconv.Atoi(params[btime+1])
-		return TimeLeftStrategy, Clock{wtime, btime, 0, 0, 0}
+		winc, _ = strconv.Atoi(params[winc+1])
+		binc, _ = strconv.Atoi(params[binc+1])
+		return TimeLeftStrategy, Clock{wtime, btime, winc, binc, 0}
 	}
 	if depth != -1 {
 		return DepthStrategy, Clock{0, 0, 0, 0, 0}
