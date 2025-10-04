@@ -3,18 +3,13 @@ package aconcagua
 import "time"
 
 const (
-	DepthStrategy    = iota // fixed depth
-	InfiniteStrategy        // Max depth
-	MoveTimeStrategy        // Move Time
-	TimeLeftStrategy        // wtime and btime passed
+	DepthStrategy    = iota // Fixed depth search
+	InfiniteStrategy        // Max depth search
+	MoveTimeStrategy        // Fixed move time
+	TimeLeftStrategy        // Tournament time control play
 )
 
 // TimeControl hanldes the time during search
-// Strategy for time control during search
-// Assuming a game will last around 50 moves (avegage is 40, but use a margin of 10)
-// Moves 1 - 20 use 60% of time - 0.03 timeLeftInMiliseconds per move
-// Moves 21 - 40 use 30% of time - Less pieces on the board search is faster - 0.015 timeLeftInMiliseconds per move
-// Moves 41 - 50 use 10% of time -  0.01 timeLeftInMiliseconds per move
 type TimeControl struct {
 	startTime          time.Time
 	iterationStartTime time.Time
@@ -32,11 +27,11 @@ type Clock struct {
 }
 
 // timeLeft returns the time left for the side
-func (c *Clock) timeLeft(side Color) float32 {
+func (c *Clock) timeLeft(side Color) (timeLeft float32, increment float32) {
 	if side == 1 {
-		return float32(c.btime + c.binc)
+		return float32(c.btime), float32(c.binc)
 	}
-	return float32(c.wtime + c.winc)
+	return float32(c.wtime), float32(c.winc)
 }
 
 // init initializes the TimeControl struct
@@ -54,23 +49,27 @@ func (tc *TimeControl) calculateSearchTime(strategy int, side int, moveNumber in
 		return clock.moveTime
 	}
 	if strategy == TimeLeftStrategy {
-		timeLeft := clock.timeLeft(Color(side))
-		if moveNumber <= 20 {
-			return int(0.03 * timeLeft)
+		timeLeft, incr := clock.timeLeft(Color(side))
+		if moveNumber <= 25 { // For the first 25 moves takes around 70% of the total time
+			return int(0.03*(1+float32(moveNumber)/25)*timeLeft) + int(incr*4/5)
 		}
-		if moveNumber <= 40 {
-			return int(0.015 * timeLeft)
+		if moveNumber <= 50 { // For moves between 25-50 takes around 15% of the total time
+			return int(0.015*(1+float32(moveNumber-25)/50)*timeLeft) + int(incr*4/5)
 		}
-		return int(0.01 * timeLeft)
+
+		// For moves >50 takes around 10% of the total time
+		return int(0.01*timeLeft) + int(incr/2)
 	}
-	return 0
+	return -1
 }
 
 // stopAfter stops the search after the given miliseconds
 func (tc *TimeControl) stopAfter(miliseconds int) {
-	if miliseconds == 0 {
+	if miliseconds == -1 {
 		return
 	}
+	miliseconds = max(miliseconds, 50) // Give a safe margin
+
 	go func() {
 		time.Sleep(time.Duration(miliseconds) * time.Millisecond)
 		tc.stop = true

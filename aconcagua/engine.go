@@ -8,7 +8,7 @@ import (
 type Engine struct {
 	pos         Position
 	search      Search
-	timeControl *TimeControl
+	timeControl TimeControl
 	openingBook PolyglotBook
 	options     Options
 }
@@ -21,16 +21,11 @@ type Options struct {
 
 // NewEngine returns a new Engine instance
 func NewEngine() *Engine {
+	pos := NewPosition()
+	pos.LoadFromFenString(StartingFenString)
 	return &Engine{
-		pos: *InitialPosition(),
-		search: Search{
-			nodes:       0,
-			maxDepth:    0,
-			pvLine:      NewPvLine(MaxSearchDepth),
-			killers:     [MaxSearchDepth]Killer{},
-			timeControl: TimeControl{},
-			pawnTable:   *NewPawnHashTable(4),
-		},
+		pos:         *pos,
+		search:      *NewSearch(),
 		openingBook: PolyglotBook{},
 		options: Options{
 			useOpeningBook: false,

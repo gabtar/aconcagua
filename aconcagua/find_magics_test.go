@@ -14,7 +14,7 @@ func TestFindMagicNumberForRook(t *testing.T) {
 	used := make([]bool, maskConfigs)
 
 	// Generate all posible configurations for the blockers
-	for i := 0; i < maskConfigs; i++ {
+	for i := range maskConfigs {
 		posibleConfigurations[i] = generateBlockConfiguration(i, mask)
 		attacksConfigurations[i] = rooksAttacksWithBlockers(sq, posibleConfigurations[i])
 	}
@@ -45,7 +45,7 @@ func TestFindMagicNumberForBishop(t *testing.T) {
 	magicAttacks := make([]Bitboard, maskConfigs)
 	used := make([]bool, maskConfigs)
 
-	for i := 0; i < maskConfigs; i++ {
+	for i := range maskConfigs {
 		posibleConfigurations[i] = generateBlockConfiguration(i, mask)
 		attacksConfigurations[i] = bishopAttacksWithBlockers(sq, posibleConfigurations[i])
 	}

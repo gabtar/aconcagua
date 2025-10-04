@@ -17,51 +17,59 @@ const (
 	AspirationWindowSize          = 45
 )
 
-// isCheckmateOrStealmate validates if the current position is checkmated or stealmated
-func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
-	if moves == 0 {
-		if !isCheck {
-			return 0, true
-		}
-		return -MateScore + ply, true
-	}
-	return 0, false
-}
-
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
-	maxDepth           int
 	pvLine             pvLine
-	killers            [MaxSearchDepth]Killer
-	historyMoves       HistoryMoves
+	killers            KillersTable
+	historyMoves       HistoryMovesTable
 	transpositionTable TranspositionTable
-	pawnTable          PawnHashTable
 	timeControl        TimeControl
 }
 
-// init initializes the Search struct
-func (s *Search) init(depth int) {
+// NewSearch returns a pointer to a new Search struct
+func NewSearch() *Search {
+	return &Search{
+		nodes:              0,
+		pvLine:             NewPvLine(MaxSearchDepth),
+		killers:            KillersTable{},
+		historyMoves:       HistoryMovesTable{},
+		transpositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
+		timeControl:        TimeControl{},
+	}
+}
+
+// clear clears the search
+func (s *Search) clear() {
 	s.nodes = 0
-	s.maxDepth = depth
-	s.killers = [MaxSearchDepth]Killer{}
-	s.historyMoves = HistoryMoves{}
-	s.transpositionTable = *NewTranspositionTable(DefaultTableSizeInMb)
-	s.pawnTable.reset()
+	s.killers.clear()
+	s.historyMoves.clear()
+	s.transpositionTable.clear()
 }
 
 // reset sets the new iteration parameters in the NewSearch
 func (s *Search) reset() {
 	s.nodes = 0
-	s.pvLine = NewPvLine(MaxSearchDepth)
+	s.pvLine.reset()
 }
 
-// HistoryMoves is a table for holding the history of moves
-type HistoryMoves [2][64][64]int
+// HistoryMovesTable is a table for holding the history of moves
+type HistoryMovesTable [2][64][64]int
 
 // update updates the history of moves
-func (hm *HistoryMoves) update(depth int, from int, to int, side Color) {
+func (hm *HistoryMovesTable) update(depth int, from int, to int, side Color) {
 	hm[side][from][to] += depth * depth
+}
+
+// clear clears the history of moves
+func (hm *HistoryMovesTable) clear() {
+	for i := range hm {
+		for j := range hm[i] {
+			for k := range hm[i][j] {
+				hm[i][j][k] = 0
+			}
+		}
+	}
 }
 
 // Killer is a list of quiet moves that produces a beta cutoff
@@ -75,11 +83,23 @@ func (k *Killer) add(move Move) {
 	}
 }
 
+// KillersTable is a table of killers moves entries
+type KillersTable [MaxSearchDepth]Killer
+
+// clear clears the killers table
+func (kt *KillersTable) clear() {
+	for i := range kt {
+		kt[i][0] = NoMove
+		kt[i][1] = NoMove
+	}
+}
+
 // root is the entry point of the search
 func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
 	alpha := MinInt
 	beta := MaxInt
-	s.init(maxDepth)
+	s.clear()
+	pos.eval.pawnHashTable.clear()
 
 	for d := 1; d <= maxDepth; d++ {
 		s.reset()
@@ -106,15 +126,14 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 		depthTime := time.Since(s.timeControl.iterationStartTime)
 		s.timeControl.iterationStartTime = time.Now()
 		nps := int(float64(s.nodes) / depthTime.Seconds())
-		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, depthTime.Milliseconds(), s.pvLine.String())
+		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, s.transpositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
 		bestMove = s.pvLine[0].String()
 	}
 
 	return
 }
 
-// negamax returns the score of the best posible move by the evaluation function
-// for a fixed depth
+// negamax returns the score of the best posible move by the evaluation function for a fixed depth
 func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, pvLine *pvLine, nullMoveAllowed bool) int {
 	s.nodes++
 	if s.timeControl.stop {
@@ -127,7 +146,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	isCheck := pos.Check(pos.Turn)
 	if depth <= 0 && !isCheck {
-		return quiescent(pos, s, alpha, beta)
+		return Quiescent(pos, s, alpha, beta)
 	}
 
 	pvNode := beta-alpha > 1
@@ -142,7 +161,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 4 && !isCheck && !pvNode {
-		sc := pos.Evaluate(&s.pawnTable)
+		sc := pos.Evaluate()
 		margin := ReverseFutitlityPruningMargin * depth
 		if sc-margin >= beta {
 			return beta
@@ -164,7 +183,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	futilityPruningAllowed := false
 	if depth <= 3 && alpha > -MateScore && beta < MateScore {
 		futilityMargin := []int{0, 300, 500, 900}
-		sc := pos.Evaluate(&s.pawnTable)
+		sc := pos.Evaluate()
 		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
 	}
 
@@ -179,21 +198,21 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	newScore := MinInt
 	bestMove := NoMove
-	ms := NewMoveSelector(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
+	mg := NewMoveGenerator(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
 
-	for move := ms.nextMove(); move != NoMove; move = ms.nextMove() {
+	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
 		pos.MakeMove(&move)
 		branchPv.reset()
 		moveFlag := move.flag()
 
 		// Late Move Pruning
-		if depth <= 3 && ms.stage >= NonCapturesStage && ms.moveNumber > LateMovePruningMoveNumber && !isCheck && !pvNode && !pos.Check(pos.Turn) {
+		if depth <= 3 && mg.stage >= NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber && !isCheck && !pvNode && !pos.Check(pos.Turn) {
 			pos.UnmakeMove(&move)
 			continue
 		}
 
 		// Futility Pruning
-		if futilityPruningAllowed && moveFlag < capture && !isCheck && !pvNode && ms.moveNumber > 0 {
+		if futilityPruningAllowed && moveFlag < capture && !isCheck && !pvNode && mg.moveNumber > 0 {
 			pos.UnmakeMove(&move)
 			continue
 		}
@@ -205,11 +224,11 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		// Principal Variation Search
 		// Full search at first attempt of this subtree
-		if ms.moveNumber == 0 {
+		if mg.moveNumber == 0 {
 			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
 		} else {
 			// Try first a quick, reduced search, with lmr and a null window(-alpha-1, -alpha)
-			reduction := lmrReductionFactor(depth, ms.moveNumber, moveFlag, isCheck, pvNode)
+			reduction := lmrReductionFactor(depth, mg.moveNumber, moveFlag, isCheck, pvNode)
 			newScore = -s.negamax(pos, depth-1-reduction+extension, ply+1, -alpha-1, -alpha, &branchPv, true)
 
 			// If an improvement was found, we need to search again with a full window and depth
@@ -238,13 +257,56 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 	}
 
-	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, ms.moveNumber, ply)
+	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, mg.moveNumber, ply)
 	if checkmateOrStealmateFound {
 		return score
 	}
 
 	s.transpositionTable.store(pos.Hash, depth, flag, alpha, bestMove)
 	return alpha
+}
+
+// isCheckmateOrStealmate validates if the current position is checkmated or stealmated
+func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
+	if moves == 0 {
+		if !isCheck {
+			return 0, true
+		}
+		return -MateScore + ply, true
+	}
+	return 0, false
+}
+
+// canNullMove returns if the current position allows a null move pruning
+func (pos *Position) canNullMove() bool {
+	if pos.material(pos.Turn) < EndgameMaterialThreshold {
+		return false
+	}
+
+	if pos.kingAndPawnsOnlyEndgame() {
+		return false
+	}
+
+	return true
+}
+
+// kingAndPawnsOnlyEndgame returns if the position is a king and pawns only endgame
+func (pos *Position) kingAndPawnsOnlyEndgame() bool {
+	whiteKingAndPawns := pos.Bitboards[WhiteKing] | pos.Bitboards[WhitePawn]
+	blackKingAndPawns := pos.Bitboards[BlackKing] | pos.Bitboards[BlackPawn]
+
+	return pos.pieces[White] == whiteKingAndPawns && pos.pieces[Black] == blackKingAndPawns
+}
+
+// material returns the total material of the position for the side passed
+func (pos *Position) material(side Color) int {
+	pieceValue := [6]int{0, 900, 500, 300, 300, 100}
+	material := 0
+
+	for piece, bitboard := range pos.getBitboards(side) {
+		material += pieceValue[pieceRole(piece)] * bitboard.count()
+	}
+	return material
 }
 
 // lrmReductionFactor returns a number to reduce the depth on search based on the conditions passed

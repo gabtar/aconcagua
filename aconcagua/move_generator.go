@@ -1,8 +1,208 @@
 package aconcagua
 
-// ------------------------------------------------------------------
-// PIECE MOVES GENERATION (BITBOARD)
-// ------------------------------------------------------------------
+const (
+	// Move Generation Stages flags
+	HashMoveStage = iota
+	GenerateCapturesStage
+	CapturesStage
+	FirstKillerStage
+	SecondKillerStage
+	// TODO: Counter move heruistic???
+	GenerateNonCapturesStage
+	NonCapturesStage
+	BadCapturesStage
+	EndStage
+)
+
+// MoveGenerator implements a staged move generator for a given position
+type MoveGenerator struct {
+	stage                              int
+	moveNumber                         int // the move count selected so far
+	pos                                *Position
+	pd                                 PositionData
+	hashMove                           *Move
+	killer1, killer2                   *Move
+	historyMoves                       *HistoryMovesTable
+	captures, nonCaptures, badCaptures MoveList
+}
+
+// NewMoveGenerator returns a new move generator
+func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, historyMoves *HistoryMovesTable) *MoveGenerator {
+	return &MoveGenerator{
+		stage:        HashMoveStage,
+		pos:          pos,
+		hashMove:     hashMove,
+		killer1:      killer1,
+		killer2:      killer2,
+		moveNumber:   -1, // NOTE: initialize with -1 to make the first move selected to have moveNumber = 0
+		captures:     NewMoveList(30),
+		badCaptures:  NewMoveList(30),
+		nonCaptures:  NewMoveList(100),
+		historyMoves: historyMoves,
+	}
+}
+
+// nextMove return the nextMove move of the position
+func (mg *MoveGenerator) nextMove() (move Move) {
+	mg.moveNumber++
+	switch mg.stage {
+	case HashMoveStage:
+		mg.stage = GenerateCapturesStage
+		if *mg.hashMove != NoMove {
+			return *mg.hashMove
+		}
+		fallthrough
+	case GenerateCapturesStage:
+		mg.pd = mg.pos.generatePositionData()
+		mg.stage = CapturesStage
+		mg.pos.generateCaptures(&mg.captures, &mg.pd)
+		scores := make([]int, len(mg.captures))
+		for i := range len(mg.captures) {
+			scores[i] = mg.pos.see(mg.captures[i].from(), mg.captures[i].to())
+		}
+		mg.captures.sort(scores)
+
+		// BadCaptures
+		for i := range scores {
+			if scores[i] < 0 {
+				mg.badCaptures = mg.captures[i:]
+				mg.captures = mg.captures[:i]
+				break
+			}
+		}
+
+		fallthrough
+	case CapturesStage:
+		move = *mg.captures.pickFirst()
+		if move != NoMove && move == *mg.hashMove {
+			move = *mg.captures.pickFirst()
+		}
+		if move != NoMove {
+			return move
+		}
+		mg.stage = FirstKillerStage
+		fallthrough
+	case FirstKillerStage:
+		mg.stage = SecondKillerStage
+		move = *mg.killer1
+		// NOTE: we need to validate legality of killers for this position, because the may be for the same ply, but of another branch of the tree!!
+		mg.pos.generateNonCaptures(&mg.nonCaptures, &mg.pd)
+		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, &mg.nonCaptures) {
+			return move
+		}
+		fallthrough
+	case SecondKillerStage:
+		mg.stage = GenerateNonCapturesStage
+		move = *mg.killer2
+		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, &mg.nonCaptures) {
+			return move
+		}
+		fallthrough
+	case GenerateNonCapturesStage:
+		mg.stage = NonCapturesStage
+		scores := make([]int, len(mg.nonCaptures))
+		for i := range len(mg.nonCaptures) {
+			scores[i] = mg.historyMoves[mg.pos.Turn][mg.nonCaptures[i].from()][mg.nonCaptures[i].to()]
+		}
+		mg.nonCaptures.sort(scores)
+		fallthrough
+	case NonCapturesStage:
+		move = *mg.nonCaptures.pickFirst()
+
+		if move != NoMove && move == *mg.hashMove {
+			move = *mg.nonCaptures.pickFirst()
+		}
+
+		if move != NoMove && move == *mg.killer1 {
+			move = *mg.nonCaptures.pickFirst()
+		}
+
+		if move != NoMove && move == *mg.killer2 {
+			move = *mg.nonCaptures.pickFirst()
+		}
+
+		if move != NoMove {
+			return move
+		}
+		mg.stage = BadCapturesStage
+		fallthrough
+	case BadCapturesStage:
+		move = *mg.badCaptures.pickFirst()
+		if move != NoMove && move == *mg.hashMove {
+			move = *mg.badCaptures.pickFirst()
+		}
+		if move != NoMove {
+			return move
+		}
+		mg.stage = EndStage
+	case EndStage:
+		return NoMove
+	}
+	return
+}
+
+// isLegalKiller returns if the move is legal in the current position
+func isLegalKiller(move Move, ml *MoveList) bool {
+	// Killer moves are always quiet moves, so we can just pass the non captures list to check if killer exits
+	for i := range len(*ml) {
+		if move == (*ml)[i] {
+			return true
+		}
+	}
+	return false
+}
+
+// generateCaptures generates all captures in the position and stores them in the move list
+func (pos *Position) generateCaptures(ml *MoveList, pd *PositionData) {
+	bitboards := pos.getBitboards(pos.Turn)
+
+	for piece, bb := range bitboards {
+		for bb > 0 {
+			pieceBB := bb.NextBit()
+			switch piece {
+			case King:
+				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&pd.enemies, ml, pd)
+			case Queen:
+				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&pd.enemies, ml, pd)
+			case Rook:
+				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&pd.enemies, ml, pd)
+			case Bishop:
+				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&pd.enemies, ml, pd)
+			case Knight:
+				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&pd.enemies, ml, pd)
+			case Pawn:
+				genPawnCapturesMoves(&pieceBB, pos.Turn, ml, pd)
+			}
+		}
+	}
+	genEnPassantCaptures(pos, pos.Turn, ml)
+}
+
+// generateNonCaptures generates all non captures in the position and stores them in the move list
+func (pos *Position) generateNonCaptures(ml *MoveList, pd *PositionData) {
+	bitboards := pos.getBitboards(pos.Turn)
+
+	for piece, bb := range bitboards {
+		for bb > 0 {
+			pieceBB := bb.NextBit()
+			switch piece {
+			case King:
+				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, pd)
+				genCastleMoves(pos, ml)
+			case Queen:
+				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&^pd.enemies, ml, pd)
+			case Rook:
+				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+			case Bishop:
+				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+			case Knight:
+				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+			case Pawn:
+				genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, pd, pos.Turn)&^pd.enemies, pos.Turn, ml, pd)
+			}
+		}
+	}
+}
 
 // kingMoves returns a bitboard with the legal moves of the king from the bitboard passed
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
@@ -60,26 +260,6 @@ func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 	return
 }
 
-// pawnMoveFlag returns the move flag for the pawn move
-func pawnMoveFlag(from *Bitboard, to *Bitboard, pd *PositionData, side Color) []uint16 {
-	fromSq := Bsf(*from)
-	toSq := Bsf(*to)
-	promotion := lastRank(side) & *to
-
-	switch {
-	case promotion > 0 && pd.enemies&*to > 0:
-		return []uint16{knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion}
-	case promotion > 0:
-		return []uint16{knightPromotion, bishopPromotion, rookPromotion, queenPromotion}
-	case toSq-fromSq == 16 || fromSq-toSq == 16:
-		return []uint16{doublePawnPush}
-	case pd.enemies&*to > 0:
-		return []uint16{capture}
-	default:
-		return []uint16{quiet}
-	}
-}
-
 // potentialEpCapturers returns a bitboard with the potential pawn that can caputure enPassant
 func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 	epShift := pos.enPassantTarget >> 8
@@ -102,10 +282,6 @@ func lastRank(side Color) (rank Bitboard) {
 	}
 	return
 }
-
-// ------------------------------------------------------------------
-// PIECE MOVES GENERATION (MOVE LIST)
-// ------------------------------------------------------------------
 
 // genMovesFromTargets generates the moves from the square passed to the targets passed in a MoveList
 func genMovesFromTargets(from *Bitboard, targets Bitboard, ml *MoveList, pd *PositionData) {
@@ -138,14 +314,38 @@ func genCastleMoves(pos *Position, ml *MoveList) {
 	}
 }
 
+// genPawnPromotions generates the pawn promotions in the move list
+func genPawnPromotions(from *Bitboard, to *Bitboard, ml *MoveList, isCapture bool) {
+	if isCapture {
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), knightCapturePromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), bishopCapturePromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), rookCapturePromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), queenCapturePromotion))
+	} else {
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), knightPromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), bishopPromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), rookPromotion))
+		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), queenPromotion))
+	}
+}
+
 // genPawnMovesFromTarget generates the pawn moves in the move list
 func genPawnMovesFromTarget(from *Bitboard, targets Bitboard, side Color, ml *MoveList, pd *PositionData) {
 	for targets > 0 {
 		toSquare := targets.NextBit()
-		flags := pawnMoveFlag(from, &toSquare, pd, side)
+		isPromotion := lastRank(side) & toSquare
 
-		for i := range flags {
-			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), flags[i]))
+		switch {
+		case isPromotion > 0 && pd.enemies&toSquare > 0: // Promo Capture
+			genPawnPromotions(from, &toSquare, ml, true)
+		case isPromotion > 0: // Promotion
+			genPawnPromotions(from, &toSquare, ml, false)
+		case pd.enemies&toSquare > 0: // Capture
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), capture))
+		case Bsf(toSquare)-Bsf(*from) == 16 || Bsf(*from)-Bsf(toSquare) == 16: // Double Push
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), doublePawnPush))
+		default: // Quiet
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), quiet))
 		}
 	}
 }
@@ -156,10 +356,13 @@ func genPawnCapturesMoves(from *Bitboard, side Color, ml *MoveList, pd *Position
 
 	for toSquares > 0 {
 		toSquare := toSquares.NextBit()
-		flags := pawnMoveFlag(from, &toSquare, pd, side)
+		isPromotion := lastRank(side) & toSquare
 
-		for i := range flags {
-			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), flags[i]))
+		switch {
+		case isPromotion > 0 && pd.enemies&toSquare > 0: // Promo Capture
+			genPawnPromotions(from, &toSquare, ml, true)
+		default: // Capture
+			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), capture))
 		}
 	}
 }
@@ -182,10 +385,6 @@ func genEnPassantCaptures(pos *Position, side Color, ml *MoveList) {
 		pos.UnmakeMove(&move)
 	}
 }
-
-// ------------------------------------------------------------------
-// LEGAL MOVE VALIDATION FUNCTIONS
-// ------------------------------------------------------------------
 
 // checkRestrictedSquares returns a bitboard with the squares that are allowed to move when in check
 func checkRestrictedSquares(king Bitboard, checkingSliders Bitboard, checkingNonSliders Bitboard) (allowedSquares Bitboard) {
@@ -212,57 +411,4 @@ func pinRestrictedSquares(piece Bitboard, king Bitboard, pinnedPieces Bitboard) 
 		return raysDirection(king, direction)
 	}
 	return AllSquares
-}
-
-// generateCaptures generates all captures in the position and stores them in the move list
-func (pos *Position) generateCaptures(ml *MoveList, pd *PositionData) {
-	bitboards := pos.getBitboards(pos.Turn)
-
-	for piece, bb := range bitboards {
-		for bb > 0 {
-			pieceBB := bb.NextBit()
-			switch piece {
-			case King:
-				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&pd.enemies, ml, pd)
-			case Queen:
-				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&pd.enemies, ml, pd)
-			case Rook:
-				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&pd.enemies, ml, pd)
-			case Bishop:
-				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&pd.enemies, ml, pd)
-			case Knight:
-				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&pd.enemies, ml, pd)
-			case Pawn:
-				genPawnCapturesMoves(&pieceBB, pos.Turn, ml, pd)
-			}
-		}
-	}
-	// TODO: add en passant captures here??. Need to fix see first(because 'to' square is an empty square)
-}
-
-// generateNonCaptures generates all non captures in the position and stores them in the move list
-func (pos *Position) generateNonCaptures(ml *MoveList, pd *PositionData) {
-	bitboards := pos.getBitboards(pos.Turn)
-
-	for piece, bb := range bitboards {
-		for bb > 0 {
-			pieceBB := bb.NextBit()
-			switch piece {
-			case King:
-				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, pd)
-				genCastleMoves(pos, ml)
-			case Queen:
-				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&^pd.enemies, ml, pd)
-			case Rook:
-				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
-			case Bishop:
-				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
-			case Knight:
-				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
-			case Pawn:
-				genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, pd, pos.Turn)&^pd.enemies, pos.Turn, ml, pd)
-			}
-		}
-	}
-	genEnPassantCaptures(pos, pos.Turn, ml)
 }

@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// Constants for pieces
 const (
 	// Pieces
 	WhiteKing = iota
@@ -31,6 +30,8 @@ const (
 	// Colors
 	White = 0
 	Black = 1
+
+	StartingFenString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 )
 
 // squareReference maps an integer(the index of the array) with the
@@ -86,39 +87,7 @@ type Position struct {
 	halfmoveClock   int
 	fullmoveNumber  int
 	positionHistory PositionHistory
-	evaluation      Evaluation
-}
-
-// canNullMove returns if the current position allows a null move pruning
-func (pos *Position) canNullMove() bool {
-	if pos.material(pos.Turn) < EndgameMaterialThreshold {
-		return false
-	}
-
-	if pos.kingAndPawnsOnlyEndgame() {
-		return false
-	}
-
-	return true
-}
-
-// material returns the total material of the position for the side passed
-func (pos *Position) material(side Color) int {
-	pieceValue := [6]int{0, 900, 500, 300, 300, 100}
-	material := 0
-
-	for piece, bitboard := range pos.getBitboards(side) {
-		material += pieceValue[pieceRole(piece)] * bitboard.count()
-	}
-	return material
-}
-
-// kingAndPawnsOnlyEndgame returns if the position is a king and pawns only endgame
-func (pos *Position) kingAndPawnsOnlyEndgame() bool {
-	whiteKingAndPawns := pos.Bitboards[WhiteKing] | pos.Bitboards[WhitePawn]
-	blackKingAndPawns := pos.Bitboards[BlackKing] | pos.Bitboards[BlackPawn]
-
-	return pos.pieces[White] == whiteKingAndPawns && pos.pieces[Black] == blackKingAndPawns
+	eval            Evaluation
 }
 
 // PositionData contains relevant data for legal move validations of a position
@@ -144,7 +113,7 @@ func (pos *Position) generatePositionData() PositionData {
 	}
 }
 
-// PieceAt returns a Piece at the given square coordinate in the Position or error
+// PieceAt returns a Piece at the given square coordinate in the Position or NoPiece
 func (pos *Position) PieceAt(square string) (piece int) {
 	bitboardSquare := bitboardFromCoordinates(square)
 
@@ -238,11 +207,8 @@ func (pos *Position) Check(side Color) bool {
 		}
 	}
 
-	if pawnAttacks(&pos.Bitboards[pieceColor(Pawn, opponent)], opponent)&kingPos > 0 {
-		return true
-	}
-
-	return false
+	pawnCheck := pawnAttacks(&pos.Bitboards[pieceColor(Pawn, opponent)], opponent)&kingPos > 0
+	return pawnCheck
 }
 
 // pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
@@ -665,18 +631,19 @@ func toRuneArray(pos *Position) [64]rune {
 	return squares
 }
 
-// Utility functions
-
-// NewPositionFromFen creates a new Position struct from a fen string
-func NewPositionFromFen(fen string) (pos *Position) {
-	// TODO: validate fen string
-	// maybe use a chain of responsibility while parsing each segment??
+// LoadFromFenString creates a new Position struct from a fen string
+func (pos *Position) LoadFromFenString(fen string) {
 	pieceReference := map[string]int{
 		"k": BlackKing, "q": BlackQueen, "r": BlackRook, "b": BlackBishop, "n": BlackKnight, "p": BlackPawn,
 		"K": WhiteKing, "Q": WhiteQueen, "R": WhiteRook, "B": WhiteBishop, "N": WhiteKnight, "P": WhitePawn,
 	}
 
-	pos = EmptyPosition()
+	pos.Bitboards = [12]Bitboard{}
+	pos.pieces = [2]Bitboard{}
+	pos.positionHistory.clear()
+	pos.positionHistory.previousPosition = [MaxHistoryMoves * 2]uint64{}
+
+	// TODO: validate elements/fen
 	elements := strings.Split(fen, " ")
 
 	// NOTE: Order is reversed to match the square mapping in bitboards
@@ -701,6 +668,7 @@ func NewPositionFromFen(fen string) (pos *Position) {
 	}
 
 	pos.castling = *NewCastlingFromFen(fen, false)
+	pos.enPassantTarget = 0
 	if elements[3] != "-" {
 		pos.enPassantTarget = bitboardFromCoordinates(elements[3])
 	}
@@ -709,20 +677,15 @@ func NewPositionFromFen(fen string) (pos *Position) {
 
 	pos.Hash = zobristHashKeys.fullZobristHash(pos)
 	pos.PawnHash = zobristHashKeys.pawnHash(pos)
-	return
+
+	pos.eval.clear()
 }
 
-// InitialPosition is a factory that returns an initial postion board
-func InitialPosition() (pos *Position) {
-	pos = NewPositionFromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-	return
-}
-
-// EmptyPosition returns an empty Position struct
-func EmptyPosition() (pos *Position) {
+// NewPosition returns a new Position struct
+func NewPosition() (pos *Position) {
 	return &Position{
 		positionHistory: *NewPositionHistory(),
 		castling:        *NewCastling(4, 7, 0),
-		evaluation:      *NewEvaluation(),
+		eval:            *NewEvaluation(DefaultPawnHashTableSizeInMb),
 	}
 }

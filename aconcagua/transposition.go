@@ -6,7 +6,10 @@ const (
 	FlagBeta  = uint8(2)
 )
 
-const DefaultTableSizeInMb = 64
+const (
+	DefaultTableSizeInMb         = 64
+	DefaultPawnHashTableSizeInMb = 4
+)
 
 // TTEntry represents a transposition table entry
 // key is the zobrist hash of the position - 64bits
@@ -15,10 +18,10 @@ const DefaultTableSizeInMb = 64
 // score is the evaluation score - 32bits
 type TTEntry struct {
 	key   uint64
-	depth uint8
-	flag  uint8
 	score int32
 	move  Move
+	depth uint8
+	flag  uint8
 }
 
 // TranspositionTable is a database of previously evaluated positions
@@ -33,7 +36,7 @@ type TranspositionTable struct {
 
 // NewTranspositionTable returns a pointer to a new TranspositionTable with the passed size
 func NewTranspositionTable(sizeInMb int) *TranspositionTable {
-	entrySizeInBytes := 18 // 64bits + 8bits + 8bits + 32bits + 32bits = 144 bits bits / 8 = 18 bits per entry
+	entrySizeInBytes := 16 // 64bits + 32bits + 16bits + 8bits + 8bits = 128 bits bits / 8 = 16 bits per entry
 	size := uint64(sizeInMb * 1024 * 1024 / entrySizeInBytes)
 	return &TranspositionTable{
 		entries: make([]TTEntry, size),
@@ -45,6 +48,22 @@ func NewTranspositionTable(sizeInMb int) *TranspositionTable {
 	}
 }
 
+// clear clears the transposition table entries
+func (tt *TranspositionTable) clear() {
+	for i := range tt.size {
+		tt.entries[i].key = 0
+		tt.entries[i].score = 0
+		tt.entries[i].move = NoMove
+		tt.entries[i].depth = 0
+		tt.entries[i].flag = 0
+	}
+
+	tt.stored = 0
+	tt.tried = 0
+	tt.found = 0
+	tt.pruned = 0
+}
+
 // store stores a new entry in the transposition table
 func (tt *TranspositionTable) store(key uint64, depth int, flag uint8, score int, move Move) {
 	index := key % tt.size
@@ -54,7 +73,10 @@ func (tt *TranspositionTable) store(key uint64, depth int, flag uint8, score int
 		return
 	}
 
-	tt.stored++
+	if tt.entries[index].key == 0 {
+		tt.stored++
+	}
+
 	tt.entries[index] = TTEntry{
 		key:   key,
 		depth: uint8(depth),
@@ -62,6 +84,10 @@ func (tt *TranspositionTable) store(key uint64, depth int, flag uint8, score int
 		score: int32(score),
 		move:  move,
 	}
+}
+
+func (tt *TranspositionTable) hashfull() int {
+	return 1000 * tt.stored / int(tt.size)
 }
 
 // probe tries to find an entry in the transposition table
@@ -90,12 +116,13 @@ func (tt *TranspositionTable) probe(key uint64, depth int, alpha int, beta int) 
 	return 0, move, false
 }
 
-// pawnHashEntry stores the score of the previously evaluated pawn strucure
+// PawnHashEntry stores the score of the previously evaluated pawn strucure
 type PawnHashEntry struct {
 	key     uint64
 	mgScore int16
 	egScore int16
 	turn    int8
+	_       [3]byte // Alignment
 }
 
 // PawnHashTable contains the score of the previously evaluated pawn strucure
@@ -108,7 +135,7 @@ type PawnHashTable struct {
 
 // NewPawnHashTable returns a pointer to a new PawnHashTable with the passed size
 func NewPawnHashTable(sizeInMb int) *PawnHashTable {
-	entrySizeInBytes := 13 // 64bits + 16bits + 16bits + 8bits = 80 bits bits / 8 = 13 bits per entry
+	entrySizeInBytes := 16 // 64bits + 16bits + 16bits + 8bits + 3bits + 3*8bits(padding) = 128 bits / 8 = 16 bits per entry
 	size := uint64(sizeInMb * 1024 * 1024 / entrySizeInBytes)
 	return &PawnHashTable{
 		entries: make([]PawnHashEntry, size),
@@ -116,9 +143,14 @@ func NewPawnHashTable(sizeInMb int) *PawnHashTable {
 	}
 }
 
-// reset resets the PawnHashTable
-func (pht *PawnHashTable) reset() {
-	pht.entries = make([]PawnHashEntry, pht.size)
+// clear resets the PawnHashTable
+func (pht *PawnHashTable) clear() {
+	for i := range pht.size {
+		pht.entries[i].key = 0
+		pht.entries[i].mgScore = 0
+		pht.entries[i].egScore = 0
+		pht.entries[i].turn = 0
+	}
 }
 
 // store stores a new entry in the PawnHashTable

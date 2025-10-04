@@ -76,6 +76,7 @@ Feel free to challenge AconcaguaBot on Lichess: [AconcaguaBot](https://lichess.o
 * Some of the open source chess engines that Aconcagua has been inspired by:
     * [Ethereal](https://github.com/etherealengine/ethereal)
     * [Blunder](https://github.com/etherealengine/blunder)
+    * [Zurichess](https://bitbucket.org/zurichess/zurichess/src)
     * [GoBit](https://github.com/carokanns/GoBit)
     * [Vice](https://github.com/bluefeversoft/vice)
     * [WukongJS](https://github.com/maksimKorzh/wukongJS)

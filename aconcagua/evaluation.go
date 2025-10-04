@@ -3,26 +3,32 @@ package aconcagua
 const (
 	// Mobility
 	QueenMobilityBonusMg  = 3
-	QueenMobilityBonusEg  = 1
+	QueenMobilityBonusEg  = 11
 	QueenMobilityBase     = 7
-	RookMobilityBonusMg   = 2
+	RookMobilityBonusMg   = 10
 	RookMobilityBonusEg   = 2
 	RookMobilityBase      = 4
-	BishopMobilityBonusMg = 2
-	BishopMobilityBonusEg = 3
+	BishopMobilityBonusMg = 10
+	BishopMobilityBonusEg = 2
 	BishopMobilityBase    = 4
-	KnightMobilityBonusMg = 1
-	KnightMobilityBonusEg = 2
+	KnightMobilityBonusMg = 11
+	KnightMobilityBonusEg = 0
 	KnightMobilityBase    = 2
 
 	// Pawn Structure
-	DoubledPawnPenaltyMg  = -8
-	DoubledPawnPenaltyEg  = -12
-	IsolatedPawnPenaltyMg = -5
-	IsolatedPawnPenaltyEg = -15
-	BackwardPawnPenaltyMg = -3
-	BackwardPawnPenaltyEg = -8
+	DoubledPawnPenaltyMg  = -1
+	DoubledPawnPenaltyEg  = -16
+	IsolatedPawnPenaltyMg = -18
+	IsolatedPawnPenaltyEg = -7
+	BackwardPawnPenaltyMg = -8
+	BackwardPawnPenaltyEg = -5
 )
+
+// PassedPawnsBonusMg contains the bonus for passed pawns on each rank for mg phase
+var PassedPawnsBonusMg = [8]int{0, 2, -5, -14, 2, -3, 17, 0}
+
+// PassedPawnsBonusEg contains the bonus for passed pawns on each rank for eg phase
+var PassedPawnsBonusEg = [8]int{0, 4, 11, 35, 62, 132, 150, 0}
 
 // Evaluation contains the diferent evaluation elements of a position
 type Evaluation struct {
@@ -33,11 +39,15 @@ type Evaluation struct {
 	mgPawnStrucutre [2]int
 	egPawnStructure [2]int
 	phase           int
+	// Evaluation tables
+	pawnHashTable *PawnHashTable
 }
 
 // NewEvaluation returns a new Evaluation
-func NewEvaluation() *Evaluation {
-	return &Evaluation{}
+func NewEvaluation(size int) *Evaluation {
+	return &Evaluation{
+		pawnHashTable: NewPawnHashTable(size),
+	}
 }
 
 // clear clears the evaluation
@@ -49,6 +59,57 @@ func (ev *Evaluation) clear() {
 	ev.mgPawnStrucutre = [2]int{0, 0}
 	ev.egPawnStructure = [2]int{0, 0}
 	ev.phase = 0
+}
+
+// Evaluate returns the static score of the position
+func (pos *Position) Evaluate() int {
+	pos.eval.clear()
+	blocks := ^pos.EmptySquares()
+
+	enemyPawnsAttacks := [2]Bitboard{
+		pawnAttacks(&pos.Bitboards[BlackPawn], Black),
+		pawnAttacks(&pos.Bitboards[WhitePawn], White),
+	}
+
+	for piece, bb := range pos.Bitboards {
+		color := Color(piece / 6)
+
+		for bb > 0 {
+			bb := bb.NextBit()
+			sq := Bsf(bb)
+
+			switch pieceRole(piece) {
+			case King:
+				pos.eval.evaluateKing(sq, color)
+			case Queen:
+				pos.eval.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], color)
+			case Rook:
+				pos.eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], color)
+			case Bishop:
+				pos.eval.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], color)
+			case Knight:
+				pos.eval.evaluateKnight(sq, blocks, enemyPawnsAttacks[color], color)
+			case Pawn:
+				pos.eval.evaluatePawn(sq, color)
+			}
+		}
+	}
+
+	mgSc, egSc, ok := pos.eval.pawnHashTable.probe(pos.PawnHash, pos.Turn)
+	if ok {
+		pos.eval.mgPawnStrucutre[pos.Turn] = mgSc
+		pos.eval.egPawnStructure[pos.Turn] = egSc
+
+	} else {
+		pos.eval.evaluatePawnStructure(pos, enemyPawnsAttacks[White], White)
+		pos.eval.evaluatePawnStructure(pos, enemyPawnsAttacks[Black], Black)
+
+		mgSc = pos.eval.mgPawnStrucutre[pos.Turn] - pos.eval.mgPawnStrucutre[pos.Turn.Opponent()]
+		egSc = pos.eval.egPawnStructure[pos.Turn] - pos.eval.egPawnStructure[pos.Turn.Opponent()]
+		pos.eval.pawnHashTable.store(pos.PawnHash, mgSc, egSc, pos.Turn)
+	}
+
+	return pos.eval.score(pos.Turn)
 }
 
 // score returns the score relative to the side
@@ -148,21 +209,20 @@ func (ev *Evaluation) evaluatePawn(from int, side Color) {
 
 // evaluatePawnStructure evaluates the pawn structure for the side in the position passed
 func (ev *Evaluation) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bitboard, side Color) {
-	doubledPawns := doubledPawns(pos, side)
+	doubledPawns := DoubledPawns(pos, side)
 	ev.mgPawnStrucutre[side] += doubledPawns.count() * DoubledPawnPenaltyMg
 	ev.egPawnStructure[side] += doubledPawns.count() * DoubledPawnPenaltyEg
 
-	isolatedPawns := isolatedPawns(pos, side)
+	isolatedPawns := IsolatedPawns(pos, side)
 	ev.mgPawnStrucutre[side] += isolatedPawns.count() * IsolatedPawnPenaltyMg
 	ev.egPawnStructure[side] += isolatedPawns.count() * IsolatedPawnPenaltyEg
 
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
-	backwardPawns := backwardPawns(pawns, enemyPawnsAttacks, side)
+	backwardPawns := BackwardPawns(pawns, enemyPawnsAttacks, side)
 	ev.mgPawnStrucutre[side] += backwardPawns.count() * BackwardPawnPenaltyMg
 	ev.egPawnStructure[side] += backwardPawns.count() * BackwardPawnPenaltyEg
 
-	passedPawns := passedPawns(pawns, pos.Bitboards[pieceColor(Pawn, side.Opponent())], side)
-	passedPawnBonus := [8]int{0, 0, 10, 20, 30, 40, 50, 0}
+	passedPawns := PassedPawns(pawns, pos.Bitboards[pieceColor(Pawn, side.Opponent())], side)
 	for passedPawns > 0 {
 		fromBB := passedPawns.NextBit()
 		sq := Bsf(fromBB)
@@ -171,13 +231,13 @@ func (ev *Evaluation) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bit
 			rank = 7 - rank
 		}
 
-		ev.mgPawnStrucutre[side] += passedPawnBonus[rank]
-		ev.egPawnStructure[side] += passedPawnBonus[rank] * 2
+		ev.mgPawnStrucutre[side] += PassedPawnsBonusMg[rank]
+		ev.egPawnStructure[side] += PassedPawnsBonusEg[rank]
 	}
 }
 
-// doubledPawns returns a bitboard with the files with more than 1 pawn
-func doubledPawns(pos *Position, side Color) Bitboard {
+// DoubledPawns returns a bitboard with the files with more than 1 pawn
+func DoubledPawns(pos *Position, side Color) Bitboard {
 	doubledPawns := Bitboard(0)
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
 
@@ -191,66 +251,22 @@ func doubledPawns(pos *Position, side Color) Bitboard {
 	return doubledPawns
 }
 
-// isolatedPawns a bitboard with the isolated pawns for the side
-func isolatedPawns(pos *Position, side Color) Bitboard {
+// IsolatedPawns a bitboard with the isolated pawns for the side
+func IsolatedPawns(pos *Position, side Color) Bitboard {
 	isolatedPawns := Bitboard(0)
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
 
 	for file := range 8 {
-		if IsolatedAdjacentFilesMask[file]&pawns == 0 {
+		if isolatedAdjacentFilesMask[file]&pawns == 0 {
 			isolatedPawns |= files[file] & pawns
 		}
 	}
 	return isolatedPawns
 }
 
-// IsolatedAdjacentFilesMask contains the adjacent files of a pawn to test if it is isolated
-var IsolatedAdjacentFilesMask = [8]Bitboard{
-	files[1],
-	files[0] | files[2],
-	files[1] | files[3],
-	files[2] | files[4],
-	files[3] | files[5],
-	files[4] | files[6],
-	files[5] | files[7],
-	files[6],
-}
-
-// attacksFrontSpans is a precalculated table containing the front attack spans for each square
-// front attack spans includes the attacked squares itself, thus it is like a fill of attacked squares in the appropriate direction
-// front attack span for pawn on d4
-// . . 1 . 1 . . .
-// . . 1 . 1 . . .
-// . . 1 . 1 . . .
-// . . 1 . 1 . . .
-// . . . w . . . .
-// . . . . . . . .
-// . . . . . . . .
-// . . . . . . . .
-var attacksFrontSpans [2][64]Bitboard
-
-func generateAttacksFrontSpans() (attacksFrontSpans [2][64]Bitboard) {
-
-	for sq := range 64 {
-		file, rank := sq%8, sq/8
-		eastFront, westFront := rank*8+file+1, rank*8+file-1
-
-		if file < 7 {
-			attacksFrontSpans[White][sq] |= rayAttacks[North][eastFront]
-			attacksFrontSpans[Black][sq] |= rayAttacks[South][eastFront]
-		}
-		if file > 0 {
-			attacksFrontSpans[White][sq] |= rayAttacks[North][westFront]
-			attacksFrontSpans[Black][sq] |= rayAttacks[South][westFront]
-		}
-	}
-
-	return
-}
-
-// backwardPawns returns a bitboard with the pawns that are backwards
+// BackwardPawns returns a bitboard with the pawns that are backwards
 // A backward pawn is a pawn that is not member of own front-attackspans but controlled by a sentry (definition from CPW)
-func backwardPawns(pawns Bitboard, enemyPawnsAttacks Bitboard, side Color) Bitboard {
+func BackwardPawns(pawns Bitboard, enemyPawnsAttacks Bitboard, side Color) Bitboard {
 	stops := pawns << 8
 	if side == Black {
 		stops = pawns >> 8
@@ -269,9 +285,9 @@ func backwardPawns(pawns Bitboard, enemyPawnsAttacks Bitboard, side Color) Bitbo
 	}
 }
 
-// passedPawns returns a bitboard with the passed pawns for the side
+// PassedPawns returns a bitboard with the passed pawns for the side
 // A passed pawn is a pawn whose path to promotion is not blocke nor attacked by the enemy pawns
-func passedPawns(alliedPawns Bitboard, enemyPawns Bitboard, side Color) (passedPawns Bitboard) {
+func PassedPawns(alliedPawns Bitboard, enemyPawns Bitboard, side Color) (passedPawns Bitboard) {
 	direction := North
 	if side == Black {
 		direction = South
@@ -287,55 +303,4 @@ func passedPawns(alliedPawns Bitboard, enemyPawns Bitboard, side Color) (passedP
 	}
 
 	return
-}
-
-func (pos *Position) Evaluate(pawnTable *PawnHashTable) int {
-	pos.evaluation.clear()
-	blocks := ^pos.EmptySquares()
-
-	enemyPawnsAttacks := [2]Bitboard{
-		pawnAttacks(&pos.Bitboards[BlackPawn], Black),
-		pawnAttacks(&pos.Bitboards[WhitePawn], White),
-	}
-
-	for piece, bb := range pos.Bitboards {
-		color := Color(piece / 6)
-
-		for bb > 0 {
-			bb := bb.NextBit()
-			sq := Bsf(bb)
-
-			switch pieceRole(piece) {
-			case King:
-				pos.evaluation.evaluateKing(sq, color)
-			case Queen:
-				pos.evaluation.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], color)
-			case Rook:
-				pos.evaluation.evaluateRook(sq, blocks, enemyPawnsAttacks[color], color)
-			case Bishop:
-				pos.evaluation.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], color)
-			case Knight:
-				pos.evaluation.evaluateKnight(sq, blocks, enemyPawnsAttacks[color], color)
-			case Pawn:
-				pos.evaluation.evaluatePawn(sq, color)
-			}
-		}
-	}
-
-	// pawnHash := zobristHashKeys.pawnHash(pos)
-	mgSc, egSc, ok := pawnTable.probe(pos.PawnHash, pos.Turn)
-	if ok {
-		pos.evaluation.mgPawnStrucutre[pos.Turn] = mgSc
-		pos.evaluation.egPawnStructure[pos.Turn] = egSc
-
-	} else {
-		pos.evaluation.evaluatePawnStructure(pos, enemyPawnsAttacks[White], White)
-		pos.evaluation.evaluatePawnStructure(pos, enemyPawnsAttacks[Black], Black)
-
-		mgSc = pos.evaluation.mgPawnStrucutre[pos.Turn] - pos.evaluation.mgPawnStrucutre[pos.Turn.Opponent()]
-		egSc = pos.evaluation.egPawnStructure[pos.Turn] - pos.evaluation.egPawnStructure[pos.Turn.Opponent()]
-		pawnTable.store(pos.PawnHash, mgSc, egSc, pos.Turn)
-	}
-
-	return pos.evaluation.score(pos.Turn)
 }

@@ -25,8 +25,9 @@ func TestPolyglotHashKey(t *testing.T) {
 	}
 
 	for _, tc := range polyglotHashSampleCases {
+		pos := NewPosition()
 		t.Run(tc.fen, func(t *testing.T) {
-			pos := NewPositionFromFen(tc.fen)
+			pos.LoadFromFenString(tc.fen)
 			polyglotHash := PolyglotHashFromPosition(pos)
 
 			if polyglotHash != tc.hash {

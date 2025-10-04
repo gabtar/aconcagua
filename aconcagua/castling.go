@@ -49,14 +49,6 @@ type castling struct {
 	chess960         bool
 }
 
-// castleRook matchs a castling to the rook that participates in the castle move
-var castleRook = map[castlingRights]int{
-	K: WhiteRook,
-	Q: WhiteRook,
-	k: BlackRook,
-	q: BlackRook,
-}
-
 // NewCastlingFromFen returns a new castle struct from the fen string
 func NewCastlingFromFen(fen string, is960 bool) *castling {
 	fenElements := strings.Split(fen, " ")
@@ -76,7 +68,7 @@ func NewCastlingFromFen(fen string, is960 bool) *castling {
 	}
 }
 
-// NewCaslting returns a new castling struct
+// NewCastling returns a new castling struct
 func NewCastling(whiteKingStart int, whiteKingsideRook int, whiteQueensideRook int) *castling {
 	blackKingStart := whiteKingStart ^ 56 // flips the board to get the black king
 	blackKingsideRook := whiteKingsideRook ^ 56
@@ -214,7 +206,7 @@ func (c *castling) updateCastleRights(from int, to int) (newCastleRights castlin
 		}
 	}
 
-	newCastleRights = *&c.castlingRights
+	newCastleRights = c.castlingRights
 	newCastleRights.remove(casltesToDisable)
 	return
 }

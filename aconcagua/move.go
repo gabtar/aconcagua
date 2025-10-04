@@ -1,7 +1,7 @@
 package aconcagua
 
-// constants representing the type of move(flags)
 const (
+	// constants representing the type of move(flags)
 	quiet = iota
 	doublePawnPush
 	kingsideCastle

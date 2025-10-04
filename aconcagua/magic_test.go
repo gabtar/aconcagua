@@ -26,7 +26,7 @@ func TestBishopRelevantMask(t *testing.T) {
 }
 
 func TestRookAttacksWithBlockers(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteRook, "c4")
 	pos.AddPiece(WhiteBishop, "b4")
 
@@ -53,7 +53,7 @@ func TestBishopAttacksWithBlockers(t *testing.T) {
 }
 
 func TestRookAttacksSquares(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(BlackRook, "f8")
 	pos.AddPiece(WhiteBishop, "f6")
 	pos.AddPiece(BlackKing, "e8")
@@ -69,7 +69,7 @@ func TestRookAttacksSquares(t *testing.T) {
 }
 
 func TestBishopAttacksSquares(t *testing.T) {
-	pos := EmptyPosition()
+	pos := NewPosition()
 	pos.AddPiece(WhiteBishop, "c5")
 	pos.AddPiece(BlackKing, "d4")
 	pos.AddPiece(WhiteRook, "f8")
