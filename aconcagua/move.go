@@ -52,8 +52,8 @@ func (m *Move) flag() int {
 
 // String returns the long algebraic notation of the move used in uci protocol
 func (m *Move) String() (move string) {
-	move += squareReference[m.from()]
-	move += squareReference[m.to()]
+	move += squareToString(m.from())
+	move += squareToString(m.to())
 	flag := m.flag()
 
 	if flag >= knightPromotion {

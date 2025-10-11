@@ -165,11 +165,11 @@ func (pm *PolyglotMove) String() string {
 
 	toFile := int(*pm & 0b111)
 	toRow := int((*pm & (0b111 << 3)) >> 3)
-	toSq := squareReference[8*toRow+toFile]
+	toSq := squareToString(8*toRow + toFile)
 
 	fromFile := int((*pm & (0b111 << 6)) >> 6)
 	fromRow := int((*pm & (0b111 << 9)) >> 9)
-	fromSq := squareReference[8*fromRow+fromFile]
+	fromSq := squareToString(8*fromRow + fromFile)
 
 	promotion := int(*pm & (0b111 << 12) >> 12)
 	promoChar := []string{"", "k", "b", "r", "q"}

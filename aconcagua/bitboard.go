@@ -76,3 +76,8 @@ func bitboardFromIndex(index int) (bitboard Bitboard) {
 	}
 	return
 }
+
+// squareToString returns a string representation of a square
+func squareToString(square int) string {
+	return fmt.Sprintf("%c%d", square%8+1+96, (square/8)+1)
+}

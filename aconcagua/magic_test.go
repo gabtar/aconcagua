@@ -27,8 +27,8 @@ func TestBishopRelevantMask(t *testing.T) {
 
 func TestRookAttacksWithBlockers(t *testing.T) {
 	pos := NewPosition()
-	pos.AddPiece(WhiteRook, "c4")
-	pos.AddPiece(WhiteBishop, "b4")
+	pos.AddPiece(WhiteRook, c4)
+	pos.AddPiece(WhiteBishop, b4)
 
 	expectedSquares := []string{"c1", "c2", "c3", "c5", "c6", "c7", "c8",
 		"b4", "d4", "e4", "f4", "g4", "h4"}
@@ -54,9 +54,9 @@ func TestBishopAttacksWithBlockers(t *testing.T) {
 
 func TestRookAttacksSquares(t *testing.T) {
 	pos := NewPosition()
-	pos.AddPiece(BlackRook, "f8")
-	pos.AddPiece(WhiteBishop, "f6")
-	pos.AddPiece(BlackKing, "e8")
+	pos.AddPiece(BlackRook, f8)
+	pos.AddPiece(WhiteBishop, f6)
+	pos.AddPiece(BlackKing, e8)
 
 	expectedSquares := []string{"h8", "g8", "e8", "f7", "f6"}
 
@@ -70,9 +70,9 @@ func TestRookAttacksSquares(t *testing.T) {
 
 func TestBishopAttacksSquares(t *testing.T) {
 	pos := NewPosition()
-	pos.AddPiece(WhiteBishop, "c5")
-	pos.AddPiece(BlackKing, "d4")
-	pos.AddPiece(WhiteRook, "f8")
+	pos.AddPiece(WhiteBishop, c5)
+	pos.AddPiece(BlackKing, d4)
+	pos.AddPiece(WhiteRook, f8)
 
 	expectedSquares := []string{"a3", "b4", "a7", "b6", "d6", "e7", "f8", "d4"}
 

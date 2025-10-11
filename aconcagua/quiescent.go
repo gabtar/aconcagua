@@ -48,8 +48,8 @@ func (pos *Position) see(from int, to int) int {
 	side := pos.Turn
 	fromSq := bitboardFromIndex(from)
 
-	targetPiece := pieceRole(pos.PieceAt(squareReference[to]))
-	attackerPiece := pieceRole(pos.PieceAt(squareReference[from]))
+	targetPiece := pieceRole(pos.PieceAt(to))
+	attackerPiece := pieceRole(pos.PieceAt(from))
 
 	blockers := ^pos.EmptySquares()
 	attackers := pos.attackers(to, side, blockers) | pos.attackers(to, side.Opponent(), blockers)

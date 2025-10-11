@@ -5,8 +5,8 @@ import "testing"
 func TestCheckingPieces(t *testing.T) {
 	pos := NewPosition()
 
-	pos.AddPiece(BlackKnight, "f3")
-	pos.AddPiece(WhiteKing, "e1")
+	pos.AddPiece(BlackKnight, f3)
+	pos.AddPiece(WhiteKing, e1)
 
 	expected := 1
 	checkingPieces, _ := pos.CheckingPieces(White)
@@ -19,8 +19,8 @@ func TestCheckingPieces(t *testing.T) {
 
 func TestGetRayPath(t *testing.T) {
 	pos := NewPosition()
-	pos.AddPiece(BlackRook, "c4")
-	pos.AddPiece(WhiteRook, "f4")
+	pos.AddPiece(BlackRook, c4)
+	pos.AddPiece(WhiteRook, f4)
 	from := bitboardFromCoordinates("c4")
 	to := bitboardFromCoordinates("f4")
 
@@ -34,9 +34,9 @@ func TestGetRayPath(t *testing.T) {
 
 func TestPinnedPiece(t *testing.T) {
 	pos := NewPosition()
-	pos.AddPiece(BlackKing, "c7")
-	pos.AddPiece(BlackRook, "c6")
-	pos.AddPiece(WhiteRook, "c1")
+	pos.AddPiece(BlackKing, c7)
+	pos.AddPiece(BlackRook, c6)
+	pos.AddPiece(WhiteRook, c1)
 	from := bitboardFromCoordinates("c6")
 
 	expected := true

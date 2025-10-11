@@ -31,21 +31,19 @@ const (
 	White = 0
 	Black = 1
 
+	// Squares
+	a8, b8, c8, d8, e8, f8, g8, h8 = 56, 57, 58, 59, 60, 61, 62, 63
+	a7, b7, c7, d7, e7, f7, g7, h7 = 48, 49, 50, 51, 52, 53, 54, 55
+	a6, b6, c6, d6, e6, f6, g6, h6 = 40, 41, 42, 43, 44, 45, 46, 47
+	a5, b5, c5, d5, e5, f5, g5, h5 = 32, 33, 34, 35, 36, 37, 38, 39
+	a4, b4, c4, d4, e4, f4, g4, h4 = 24, 25, 26, 27, 28, 29, 30, 31
+	a3, b3, c3, d3, e3, f3, g3, h3 = 16, 17, 18, 19, 20, 21, 22, 23
+	a2, b2, c2, d2, e2, f2, g2, h2 = 8, 9, 10, 11, 12, 13, 14, 15
+	a1, b1, c1, d1, e1, f1, g1, h1 = 0, 1, 2, 3, 4, 5, 6, 7
+	NoSquare                       = 64
+
 	StartingFenString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 )
-
-// squareReference maps an integer(the index of the array) with the
-// corresponding square by using the notation of Little-Endian Rank-File Mapping
-var squareReference = []string{
-	"a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
-	"a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-	"a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
-	"a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-	"a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
-	"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-	"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
-	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
-}
 
 // pieceRole returns the role/type of the piece passed
 func pieceRole(piece int) int {
@@ -114,8 +112,8 @@ func (pos *Position) generatePositionData() PositionData {
 }
 
 // PieceAt returns a Piece at the given square coordinate in the Position or NoPiece
-func (pos *Position) PieceAt(square string) (piece int) {
-	bitboardSquare := bitboardFromCoordinates(square)
+func (pos *Position) PieceAt(square int) (piece int) {
+	bitboardSquare := bitboardFromIndex(square)
 
 	for index, bitboard := range pos.Bitboards {
 		if bitboard&bitboardSquare > 0 {
@@ -129,12 +127,12 @@ func (pos *Position) PieceAt(square string) (piece int) {
 }
 
 // AddPiece adds to the position the Piece passed in the square passed
-func (pos *Position) AddPiece(piece int, square string) {
+func (pos *Position) AddPiece(piece int, square int) {
 	if piece == NoPiece {
 		return
 	}
 
-	bitboardSquare := bitboardFromCoordinates(square)
+	bitboardSquare := bitboardFromIndex(square)
 	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(bitboardSquare))
 	if pieceRole(piece) == Pawn {
 		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(bitboardSquare))
@@ -315,7 +313,7 @@ func (pos *Position) insuficientMaterial() bool {
 
 // MakeMove executes a chess move, updating the board state
 func (pos *Position) MakeMove(move *Move) {
-	pieceToMove := pos.PieceAt(squareReference[move.from()])
+	pieceToMove := pos.PieceAt(move.from())
 	pieceCaptured := pos.getCapturedPiece(move)
 
 	pos.positionHistory.add(
@@ -338,7 +336,7 @@ func (pos *Position) MakeMove(move *Move) {
 	pos.toggleSide()
 
 	toSq := getMoveDestinationSquare(move, pos)
-	pos.AddPiece(pieceToMove, squareReference[toSq])
+	pos.AddPiece(pieceToMove, toSq)
 }
 
 func (pos *Position) updateCastleRights(next castlingRights) {
@@ -446,7 +444,7 @@ func (pos *Position) getCapturedPiece(move *Move) int {
 	if move.flag() == epCapture {
 		return pieceColor(Pawn, pos.Turn.Opponent())
 	}
-	pieceCaptured := pos.PieceAt(squareReference[move.to()])
+	pieceCaptured := pos.PieceAt(move.to())
 	return pieceCaptured
 }
 
@@ -489,13 +487,13 @@ func (pos *Position) UnmakeMove(move *Move) {
 
 	switch flag := move.flag(); flag {
 	case capture, knightCapturePromotion, bishopCapturePromotion, rookCapturePromotion, queenCapturePromotion:
-		pos.AddPiece(prevState.pieceCaptured(), squareReference[move.to()])
+		pos.AddPiece(prevState.pieceCaptured(), move.to())
 	case queensideCastle, kingsideCastle:
 		pos.updateRookPositionOnCaslte(flag, false)
 	case epCapture:
 		colorModifier := 1 - int(pos.Turn)*2
 		restoreSq := move.to() + 8*colorModifier
-		pos.AddPiece(pieceColor(Pawn, pos.Turn), squareReference[restoreSq])
+		pos.AddPiece(pieceColor(Pawn, pos.Turn), restoreSq)
 	case doublePawnPush:
 		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(prevState.epTarget())
 		pos.enPassantTarget = 0
@@ -507,7 +505,7 @@ func (pos *Position) UnmakeMove(move *Move) {
 	if move.flag() == queensideCastle || move.flag() == kingsideCastle {
 		fromSq = pos.castling.kingsStartSquare[pos.Turn]
 	}
-	pos.AddPiece(pieceToAdd, squareReference[fromSq])
+	pos.AddPiece(pieceToAdd, fromSq)
 }
 
 // updateRookPositionOnCaslte updates the rook square after making or unmaking a castle move on the position
@@ -523,7 +521,7 @@ func (pos *Position) updateRookPositionOnCaslte(castle int, makeMove bool) {
 	}
 
 	pos.RemovePiece(rookToMove, bitboardFromIndex(rookFrom))
-	pos.AddPiece(rookToMove, squareReference[rookTo])
+	pos.AddPiece(rookToMove, rookTo)
 }
 
 // makeNullMove performs a null move
@@ -582,7 +580,7 @@ func (pos *Position) ToFen() (fen string) {
 
 	fen += " " + pos.castling.castlingRights.toFen()
 	if pos.enPassantTarget > 0 {
-		fen += " " + squareReference[Bsf(pos.enPassantTarget)]
+		fen += " " + squareToString(Bsf(pos.enPassantTarget))
 	} else {
 		fen += " " + "-"
 	}

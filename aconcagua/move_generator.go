@@ -208,7 +208,7 @@ func (pos *Position) generateNonCaptures(ml *MoveList, pd *PositionData) {
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	pos.RemovePiece(pieceColor(King, side), *k)
 	attackedSquares := pos.AttackedSquares(side.Opponent()) // to check attacks rays (behind) the king he is actually blocking
-	pos.AddPiece(pieceColor(King, side), squareReference[Bsf(*k)])
+	pos.AddPiece(pieceColor(King, side), Bsf(*k))
 
 	moves = kingAttacks(k) & ^attackedSquares & ^pos.pieces[side]
 	return
