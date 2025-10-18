@@ -1,38 +1,57 @@
 package aconcagua
 
-// MoveList is a list of chess moves for a given position of chess
-type MoveList []Move
+const MaxLegalMoves = 100
 
-// NewMoveList returns a new moveList
-func NewMoveList(cap int) MoveList {
-	return make(MoveList, 0, cap)
+// MoveList is a list of moves
+type MoveList struct {
+	moves  [MaxLegalMoves]Move
+	scores [MaxLegalMoves]int
+	length int
 }
 
-// add adds a move to the moveList
+// NewMoveList returns a pointer to a MoveList
+func NewMoveList() *MoveList {
+	return &MoveList{}
+}
+
+// add adds a move to the list
 func (ml *MoveList) add(move Move) {
-	*ml = append(*ml, move)
+	ml.moves[ml.length] = move
+	ml.length++
 }
 
-// pickFirst returns the first move of the list
-func (ml *MoveList) pickFirst() *Move {
-	if len(*ml) == 0 {
-		m := NoMove
-		return &m
+// scoreCaptures scores the captures moves by static exchange evaluation
+func (ml *MoveList) scoreCaptures(pos *Position) {
+	for i := 0; i < ml.length; i++ {
+		ml.scores[i] = pos.see(ml.moves[i].from(), ml.moves[i].to())
+	}
+}
+
+// scoreNonCaptures scores the non captures moves by history score
+func (ml *MoveList) scoreNonCaptures(ht *HistoryMovesTable, side Color, startIndex int) {
+	for i := startIndex; i < ml.length; i++ {
+		ml.scores[i] = ht[side][ml.moves[i].from()][ml.moves[i].to()]
+	}
+}
+
+// getBestIndex returns the index and the score of the best move in the list starting from start index
+func (ml *MoveList) getBestIndex(start int) (index int) {
+	if ml.length == start {
+		return -1
 	}
 
-	move := (*ml)[0]
-	*ml = (*ml)[1:]
-	return &move
-}
-
-// sort sorts the moveList by scores passed
-func (ml *MoveList) sort(scores []int) {
-	for i := range len(*ml) - 1 {
-		for j := range len(*ml) - i - 1 {
-			if scores[j] < scores[j+1] {
-				(*ml)[j], (*ml)[j+1] = (*ml)[j+1], (*ml)[j]
-				scores[j], scores[j+1] = scores[j+1], scores[j]
-			}
+	bestIndex := start
+	for i := start + 1; i < ml.length; i++ {
+		if ml.scores[i] > ml.scores[bestIndex] {
+			bestIndex = i
 		}
 	}
+	return bestIndex
+}
+
+// swap moves the move at index to the end of the list, reducing the length
+func (ml *MoveList) swap(index int) {
+	ml.moves[ml.length-1], ml.moves[index] = ml.moves[index], ml.moves[ml.length-1]
+	ml.scores[ml.length-1], ml.scores[index] = ml.scores[index], ml.scores[ml.length-1]
+	ml.length--
 }

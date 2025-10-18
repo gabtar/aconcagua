@@ -4,71 +4,80 @@ import (
 	"testing"
 )
 
-// Tests for new move list
-func TestNewMoveList(t *testing.T) {
-	ml := NewMoveList(10)
+func TestListOfMovesAddMove(t *testing.T) {
+	lm := MoveList{}
 
-	expected := 10
-	got := cap(ml)
+	move := encodeMove(0, 8, quiet)
+	lm.add(*move)
 
-	if expected != got {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestMoveListAdd(t *testing.T) {
-	ml := NewMoveList(10)
-	ml.add(*encodeMove(8, 16, quiet)) // a2a3
-
-	expected := "a2a3"
-	got := ml[0].String()
+	expected := 1
+	got := lm.length
 
 	if expected != got {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
 
-func TestMoveListPick(t *testing.T) {
-	ml := NewMoveList(10)
-	ml.add(*encodeMove(8, 16, quiet)) // a2a3
+func TestListOfMovesScoreCaptures(t *testing.T) {
+	lm := MoveList{}
 
-	expected := "a2a3"
-	got := ml.pickFirst().String()
+	pos := NewPosition()
+	pos.LoadFromFenString("4k3/8/3r1p2/4P3/4K3/8/8/8 w - - 0 1")
+	m1 := encodeMove(36, 43, capture) // Pawn takes rook. Best move
+	m2 := encodeMove(36, 45, capture) // Pawn takes pawn
+	lm.add(*m1)
+	lm.add(*m2)
 
-	if expected != got {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
+	score1 := pos.see(m1.from(), m1.to())
+	score2 := pos.see(m2.from(), m2.to())
 
-	if len(ml) != 0 {
-		t.Errorf("Expected lenght: %v, got: %v", 0, len(ml))
-	}
-}
+	lm.scoreCaptures(pos)
 
-func TestMoveListPickWithNoMoves(t *testing.T) {
-	ml := NewMoveList(10)
-
-	expected := NoMove
-	got := *ml.pickFirst()
-
-	if expected != got {
-		t.Errorf("Expected: %v, got: %v", expected, got)
+	if lm.scores[0] != score1 || lm.scores[1] != score2 {
+		t.Errorf("Expected: %v, got: %v", []int{score1, score2}, lm.scores)
 	}
 }
 
-func TestMoveListSort(t *testing.T) {
-	ml := NewMoveList(3)
-	move1 := encodeMove(0, 0, quiet)
-	move2 := encodeMove(0, 8, capture)
-	move3 := encodeMove(0, 16, quiet)
+func TestListOfMovesScoreNonCaptures(t *testing.T) {
+	lm := MoveList{}
 
-	ml.add(*move1)
-	ml.add(*move2)
-	ml.add(*move3)
+	pos := NewPosition()
+	pos.LoadFromFenString("8/6k1/2P2pp1/5P2/5K2/2P5/8/8 w - - 0 1")
+	m1 := encodeMove(37, 46, capture) // Capture, non quiet
+	m2 := encodeMove(18, 26, quiet)   // Pawn advance to 4 rank
+	m3 := encodeMove(42, 50, quiet)   // Pawn advance to 7 rank
 
-	expected := []Move{*move2, *move1, *move3}
-	ml.sort([]int{2, 3, 1})
+	lm.add(*m1)
+	lm.add(*m2)
+	lm.add(*m3)
 
-	if ml[0] != expected[0] && ml[1] != expected[1] && ml[2] != expected[2] && ml[3] != expected[3] {
-		t.Errorf("Expected: %v, got: %v", expected, ml)
+	hm := HistoryMovesTable{}
+	hm[White][18][26] = 10
+	hm[White][42][50] = 100 // Pawn advance to 7 rank is historically better
+
+	lm.scoreNonCaptures(&hm, White, 1) // starts from non capture moves
+
+	if lm.scores[1] != 10 || lm.scores[2] != 100 {
+		t.Errorf("Expected: %v, got: %v", []int{0, 10, 100}, lm.scores)
+	}
+}
+
+func TestListOfMovesGetBestMoveIndex(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("4k3/8/3p1q2/4P3/4K3/8/8/8 w - - 0 1")
+
+	m1 := encodeMove(36, 43, capture) // Pawn takes pawn
+	m2 := encodeMove(36, 45, capture) // Pawn takes queen. Best Move!
+	lm := MoveList{}
+	lm.add(*m1)
+	lm.add(*m2)
+
+	lm.scoreCaptures(pos)
+
+	expected := 1
+	got := lm.getBestIndex(0)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }

@@ -16,19 +16,19 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int) int {
 		alpha = score
 	}
 
-	ml := NewMoveList(40)
+	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(&ml, &pd)
+	pos.generateCaptures(ml, &pd)
 
-	for i := range len(ml) {
-		see := pos.see(ml[i].from(), ml[i].to())
+	for i := range ml.length {
+		see := pos.see(ml.moves[i].from(), ml.moves[i].to())
 		if see < 0 {
 			continue
 		}
 
-		pos.MakeMove(&ml[i])
+		pos.MakeMove(&ml.moves[i])
 		score = -Quiescent(pos, s, -beta, -alpha)
-		pos.UnmakeMove(&ml[i])
+		pos.UnmakeMove(&ml.moves[i])
 		if score >= beta {
 			return beta
 		}

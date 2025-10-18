@@ -24,14 +24,14 @@ func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pos.LoadFromFenString(tc.fromFen)
 
-			ml := NewMoveList(255)
+			ml := NewMoveList()
 			pd := pos.generatePositionData()
-			pos.generateCaptures(&ml, &pd)
-			pos.generateNonCaptures(&ml, &pd)
+			pos.generateCaptures(ml, &pd)
+			pos.generateNonCaptures(ml, &pd)
 
-			for moveNumber := range ml {
-				if ml[moveNumber].String() == tc.move {
-					pos.MakeMove(&ml[moveNumber])
+			for moveNumber := range ml.moves {
+				if ml.moves[moveNumber].String() == tc.move {
+					pos.MakeMove(&ml.moves[moveNumber])
 					break
 				}
 			}
@@ -77,15 +77,15 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 			pos.LoadFromFenString(tc.fromFen)
 			expected := zobristHashKeys.fullZobristHash(pos)
 
-			ml := NewMoveList(255)
+			ml := NewMoveList()
 			pd := pos.generatePositionData()
-			pos.generateCaptures(&ml, &pd)
-			pos.generateNonCaptures(&ml, &pd)
+			pos.generateCaptures(ml, &pd)
+			pos.generateNonCaptures(ml, &pd)
 
-			for moveNumber := range ml {
-				if ml[moveNumber].String() == tc.move {
-					pos.MakeMove(&ml[moveNumber])
-					pos.UnmakeMove(&ml[moveNumber])
+			for moveNumber := range ml.moves {
+				if ml.moves[moveNumber].String() == tc.move {
+					pos.MakeMove(&ml.moves[moveNumber])
+					pos.UnmakeMove(&ml.moves[moveNumber])
 					break
 				}
 			}

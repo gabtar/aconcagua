@@ -1,13 +1,12 @@
 package aconcagua
 
+// MoveGenerator stages
 const (
-	// Move Generation Stages flags
 	HashMoveStage = iota
 	GenerateCapturesStage
 	CapturesStage
 	FirstKillerStage
 	SecondKillerStage
-	// TODO: Counter move heruistic???
 	GenerateNonCapturesStage
 	NonCapturesStage
 	BadCapturesStage
@@ -16,14 +15,14 @@ const (
 
 // MoveGenerator implements a staged move generator for a given position
 type MoveGenerator struct {
-	stage                              int
-	moveNumber                         int // the move count selected so far
-	pos                                *Position
-	pd                                 PositionData
-	hashMove                           *Move
-	killer1, killer2                   *Move
-	historyMoves                       *HistoryMovesTable
-	captures, nonCaptures, badCaptures MoveList
+	stage                      int
+	moveNumber                 int // the move count selected so far
+	pos                        *Position
+	pd                         PositionData
+	hashMove, killer1, killer2 *Move
+	historyMoves               *HistoryMovesTable
+	moves                      *MoveList
+	badCapLength               int // To track the number of bad captures
 }
 
 // NewMoveGenerator returns a new move generator
@@ -35,10 +34,8 @@ func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Mov
 		killer1:      killer1,
 		killer2:      killer2,
 		moveNumber:   -1, // NOTE: initialize with -1 to make the first move selected to have moveNumber = 0
-		captures:     NewMoveList(30),
-		badCaptures:  NewMoveList(30),
-		nonCaptures:  NewMoveList(100),
 		historyMoves: historyMoves,
+		moves:        NewMoveList(),
 	}
 }
 
@@ -53,84 +50,48 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 		}
 		fallthrough
 	case GenerateCapturesStage:
-		mg.pd = mg.pos.generatePositionData()
 		mg.stage = CapturesStage
-		mg.pos.generateCaptures(&mg.captures, &mg.pd)
-		scores := make([]int, len(mg.captures))
-		for i := range len(mg.captures) {
-			scores[i] = mg.pos.see(mg.captures[i].from(), mg.captures[i].to())
-		}
-		mg.captures.sort(scores)
-
-		// BadCaptures
-		for i := range scores {
-			if scores[i] < 0 {
-				mg.badCaptures = mg.captures[i:]
-				mg.captures = mg.captures[:i]
-				break
-			}
-		}
-
+		mg.pd = mg.pos.generatePositionData()
+		mg.pos.generateCaptures(mg.moves, &mg.pd)
+		mg.moves.scoreCaptures(mg.pos)
 		fallthrough
 	case CapturesStage:
-		move = *mg.captures.pickFirst()
-		if move != NoMove && move == *mg.hashMove {
-			move = *mg.captures.pickFirst()
-		}
+		move = mg.nextGoodCapture()
 		if move != NoMove {
 			return move
 		}
+		mg.badCapLength = mg.moves.length // keep track of the number of (bad) captures left
 		mg.stage = FirstKillerStage
 		fallthrough
 	case FirstKillerStage:
 		mg.stage = SecondKillerStage
 		move = *mg.killer1
 		// NOTE: we need to validate legality of killers for this position, because the may be for the same ply, but of another branch of the tree!!
-		mg.pos.generateNonCaptures(&mg.nonCaptures, &mg.pd)
-		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, &mg.nonCaptures) {
+		mg.pos.generateNonCaptures(mg.moves, &mg.pd)
+		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, mg.moves, mg.badCapLength) {
 			return move
 		}
 		fallthrough
 	case SecondKillerStage:
 		mg.stage = GenerateNonCapturesStage
 		move = *mg.killer2
-		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, &mg.nonCaptures) {
+		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, mg.moves, mg.badCapLength) {
 			return move
 		}
 		fallthrough
 	case GenerateNonCapturesStage:
 		mg.stage = NonCapturesStage
-		scores := make([]int, len(mg.nonCaptures))
-		for i := range len(mg.nonCaptures) {
-			scores[i] = mg.historyMoves[mg.pos.Turn][mg.nonCaptures[i].from()][mg.nonCaptures[i].to()]
-		}
-		mg.nonCaptures.sort(scores)
+		mg.moves.scoreNonCaptures(mg.historyMoves, mg.pos.Turn, mg.badCapLength)
 		fallthrough
 	case NonCapturesStage:
-		move = *mg.nonCaptures.pickFirst()
-
-		if move != NoMove && move == *mg.hashMove {
-			move = *mg.nonCaptures.pickFirst()
-		}
-
-		if move != NoMove && move == *mg.killer1 {
-			move = *mg.nonCaptures.pickFirst()
-		}
-
-		if move != NoMove && move == *mg.killer2 {
-			move = *mg.nonCaptures.pickFirst()
-		}
-
+		move = mg.nextNonCapture()
 		if move != NoMove {
 			return move
 		}
 		mg.stage = BadCapturesStage
 		fallthrough
 	case BadCapturesStage:
-		move = *mg.badCaptures.pickFirst()
-		if move != NoMove && move == *mg.hashMove {
-			move = *mg.badCaptures.pickFirst()
-		}
+		move = mg.nextBadCapture()
 		if move != NoMove {
 			return move
 		}
@@ -141,11 +102,61 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 	return
 }
 
+// nextGoodCapture returns the next good capture move or NoMove
+func (mg *MoveGenerator) nextGoodCapture() (move Move) {
+	for {
+		idx := mg.moves.getBestIndex(0)
+		// Picks a move unless its the first bad capture or out of moves
+		if idx < 0 || mg.moves.scores[idx] < 0 {
+			return NoMove
+		}
+		move = mg.moves.moves[idx]
+		mg.moves.swap(idx)
+
+		if move != *mg.hashMove {
+			return move
+		}
+	}
+}
+
+// nextNonCapture returns the next non capture move or NoMove
+func (mg *MoveGenerator) nextNonCapture() (move Move) {
+	for {
+		idx := mg.moves.getBestIndex(mg.badCapLength)
+		// Picks the move unless it is a bad capture
+		if idx < mg.badCapLength {
+			return NoMove
+		}
+		move = mg.moves.moves[idx]
+		mg.moves.swap(idx)
+
+		if move != *mg.hashMove && move != *mg.killer1 && move != *mg.killer2 {
+			return move
+		}
+	}
+}
+
+// nextBadCapture returns the next bad capture move or NoMove
+func (mg *MoveGenerator) nextBadCapture() (move Move) {
+	for {
+		idx := mg.moves.getBestIndex(0)
+		if idx < 0 {
+			return NoMove
+		}
+		move = mg.moves.moves[idx]
+		mg.moves.swap(idx)
+
+		if move != *mg.hashMove {
+			return move
+		}
+	}
+}
+
 // isLegalKiller returns if the move is legal in the current position
-func isLegalKiller(move Move, ml *MoveList) bool {
+func isLegalKiller(move Move, ml *MoveList, badCapLength int) bool {
 	// Killer moves are always quiet moves, so we can just pass the non captures list to check if killer exits
-	for i := range len(*ml) {
-		if move == (*ml)[i] {
+	for i := badCapLength; i < ml.length; i++ {
+		if move == ml.moves[i] {
 			return true
 		}
 	}
@@ -376,13 +387,13 @@ func genEnPassantCaptures(pos *Position, side Color, ml *MoveList) {
 
 	for from > 0 {
 		fromBB := from.NextBit()
-		move := *encodeMove(uint16(Bsf(fromBB)), uint16(Bsf(pos.enPassantTarget)), epCapture)
+		move := encodeMove(uint16(Bsf(fromBB)), uint16(Bsf(pos.enPassantTarget)), epCapture)
 
-		pos.MakeMove(&move)
+		pos.MakeMove(move)
 		if !pos.Check(side) {
-			ml.add(move)
+			ml.add(*move)
 		}
-		pos.UnmakeMove(&move)
+		pos.UnmakeMove(move)
 	}
 }
 

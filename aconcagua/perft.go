@@ -5,22 +5,22 @@ import "strconv"
 // Perft returns all the legal moves up to the passed depth
 func (pos *Position) Perft(depth int) (nodes uint64) {
 	if depth == 1 {
-		ml := NewMoveList(255)
+		ml := NewMoveList()
 		pd := pos.generatePositionData()
-		pos.generateCaptures(&ml, &pd)
-		pos.generateNonCaptures(&ml, &pd)
-		return uint64(len(ml))
+		pos.generateCaptures(ml, &pd)
+		pos.generateNonCaptures(ml, &pd)
+		return uint64(ml.length)
 	}
 
-	ml := NewMoveList(255)
+	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(&ml, &pd)
-	pos.generateNonCaptures(&ml, &pd)
+	pos.generateCaptures(ml, &pd)
+	pos.generateNonCaptures(ml, &pd)
 
-	for i := range ml {
-		pos.MakeMove(&ml[i])
+	for i := range ml.length {
+		pos.MakeMove(&ml.moves[i])
 		nodes += pos.Perft(depth - 1)
-		pos.UnmakeMove(&ml[i])
+		pos.UnmakeMove(&ml.moves[i])
 	}
 
 	return nodes
@@ -30,16 +30,16 @@ func (pos *Position) Perft(depth int) (nodes uint64) {
 func (pos *Position) Divide(depth int) (divide string) {
 	var totalNodes uint64 = 0
 
-	ml := NewMoveList(255)
+	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(&ml, &pd)
-	pos.generateNonCaptures(&ml, &pd)
+	pos.generateCaptures(ml, &pd)
+	pos.generateNonCaptures(ml, &pd)
 
-	for i := range ml {
-		pos.MakeMove(&ml[i])
+	for i := range ml.length {
+		pos.MakeMove(&ml.moves[i])
 		nodes := pos.Perft(depth - 1)
-		divide += ml[i].String() + " " + strconv.FormatUint(nodes, 10) + ","
-		pos.UnmakeMove(&ml[i])
+		divide += ml.moves[i].String() + " " + strconv.FormatUint(nodes, 10) + ","
+		pos.UnmakeMove(&ml.moves[i])
 		totalNodes += nodes
 	}
 
