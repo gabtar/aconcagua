@@ -101,6 +101,9 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 	s.clear()
 	pos.eval.pawnHashTable.clear()
 
+	// Ensure to return a move to the GUI
+	bestMove = setDefaultMove(pos)
+
 	for d := 1; d <= maxDepth; d++ {
 		s.reset()
 
@@ -131,6 +134,18 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 	}
 
 	return
+}
+
+// setDefaultMove move returns the first legal move or the uci default null move (0000)
+func setDefaultMove(pos *Position) string {
+	pd := pos.generatePositionData()
+	ml := NewMoveList()
+	pos.generateCaptures(ml, &pd)
+	pos.generateNonCaptures(ml, &pd)
+	if ml.length > 0 {
+		return ml.moves[0].String()
+	}
+	return "0000"
 }
 
 // negamax returns the score of the best posible move by the evaluation function for a fixed depth
