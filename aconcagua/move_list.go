@@ -34,7 +34,7 @@ func (ml *MoveList) scoreNonCaptures(ht *HistoryMovesTable, side Color, startInd
 	}
 }
 
-// getBestIndex returns the index and the score of the best move in the list starting from start index
+// getBestIndex returns the index and the score of the best move in the list
 func (ml *MoveList) getBestIndex(start int) (index int) {
 	if ml.length == start {
 		return -1

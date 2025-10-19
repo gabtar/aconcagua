@@ -66,21 +66,20 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 	case FirstKillerStage:
 		mg.stage = SecondKillerStage
 		move = *mg.killer1
-		// NOTE: we need to validate legality of killers for this position, because the may be for the same ply, but of another branch of the tree!!
-		mg.pos.generateNonCaptures(mg.moves, &mg.pd)
-		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, mg.moves, mg.badCapLength) {
+		if move != NoMove && move != *mg.hashMove && mg.isLegal(move) {
 			return move
 		}
 		fallthrough
 	case SecondKillerStage:
 		mg.stage = GenerateNonCapturesStage
 		move = *mg.killer2
-		if move != NoMove && move != *mg.hashMove && isLegalKiller(move, mg.moves, mg.badCapLength) {
+		if move != NoMove && move != *mg.hashMove && mg.isLegal(move) {
 			return move
 		}
 		fallthrough
 	case GenerateNonCapturesStage:
 		mg.stage = NonCapturesStage
+		mg.pos.generateNonCaptures(mg.moves, &mg.pd)
 		mg.moves.scoreNonCaptures(mg.historyMoves, mg.pos.Turn, mg.badCapLength)
 		fallthrough
 	case NonCapturesStage:
@@ -150,17 +149,6 @@ func (mg *MoveGenerator) nextBadCapture() (move Move) {
 			return move
 		}
 	}
-}
-
-// isLegalKiller returns if the move is legal in the current position
-func isLegalKiller(move Move, ml *MoveList, badCapLength int) bool {
-	// Killer moves are always quiet moves, so we can just pass the non captures list to check if killer exits
-	for i := badCapLength; i < ml.length; i++ {
-		if move == ml.moves[i] {
-			return true
-		}
-	}
-	return false
 }
 
 // generateCaptures generates all captures in the position and stores them in the move list
@@ -422,4 +410,53 @@ func pinRestrictedSquares(piece Bitboard, king Bitboard, pinnedPieces Bitboard) 
 		return raysDirection(king, direction)
 	}
 	return AllSquares
+}
+
+// isLegal returns if the passed move is legal in the current position
+func (mg *MoveGenerator) isLegal(move Move) bool {
+	if move == NoMove {
+		return false
+	}
+
+	side := mg.pos.Turn
+	from, to := move.from(), move.to()
+	fromBB := bitboardFromIndex(from)
+	toBB := bitboardFromIndex(to)
+	if fromBB&mg.pd.allies == 0 {
+		return false
+	}
+	if toBB&(mg.pd.allies|mg.pd.enemies) != 0 {
+		return false
+	}
+
+	flag := move.flag()
+	piece := pieceRole(mg.pos.PieceAt(from))
+	if flag == kingsideCastle || flag == queensideCastle {
+		return mg.pos.canCastle(side, flag)
+	}
+	if flag == doublePawnPush && piece != Pawn {
+		return false
+	}
+	if piece == Pawn && flag == quiet && abs(to-from) == 16 {
+		return false
+	}
+
+	legalMoves := Bitboard(0)
+	switch piece {
+	case Knight:
+		legalMoves = knightMoves(&fromBB, &mg.pd)
+	case Bishop:
+		legalMoves = bishopMoves(&fromBB, &mg.pd)
+	case Rook:
+		legalMoves = rookMoves(&fromBB, &mg.pd)
+	case Queen:
+		legalMoves = (rookMoves(&fromBB, &mg.pd) | bishopMoves(&fromBB, &mg.pd))
+	case King:
+		legalMoves = kingMoves(&fromBB, mg.pos, side)
+	case Pawn:
+		legalMoves = pawnMoves(&fromBB, &mg.pd, side)
+	default:
+		return false
+	}
+	return (toBB & legalMoves) != 0
 }
