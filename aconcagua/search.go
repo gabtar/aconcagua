@@ -75,14 +75,6 @@ func (hm *HistoryMovesTable) clear() {
 // Killer is a list of quiet moves that produces a beta cutoff
 type Killer [2]Move
 
-// add adds a non capture move to the killer list
-func (k *Killer) add(move Move) {
-	if move.flag() < capture {
-		k[1] = k[0]
-		k[0] = move
-	}
-}
-
 // KillersTable is a table of killers moves entries
 type KillersTable [MaxSearchDepth]Killer
 
@@ -91,6 +83,14 @@ func (kt *KillersTable) clear() {
 	for i := range kt {
 		kt[i][0] = NoMove
 		kt[i][1] = NoMove
+	}
+}
+
+// store stores a move in the killers table
+func (kt *KillersTable) store(ply int, move Move) {
+	if move.flag() < capture && ply < MaxSearchDepth && kt[ply][0] != move {
+		kt[ply][1] = kt[ply][0]
+		kt[ply][0] = move
 	}
 }
 
@@ -255,8 +255,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		if newScore >= beta {
 			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta, move)
-			s.killers[ply].add(move)
-			if flag < capture {
+			s.killers.store(ply, move)
+			if moveFlag < capture {
 				s.historyMoves.update(depth, move.from(), move.to(), pos.Turn)
 			}
 
