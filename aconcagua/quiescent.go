@@ -48,17 +48,21 @@ func (pos *Position) see(from int, to int) int {
 	side := pos.Turn
 	fromSq := bitboardFromIndex(from)
 
-	targetPiece := pieceRole(pos.PieceAt(to))
-	attackerPiece := pieceRole(pos.PieceAt(from))
+	targetPiece := pos.PieceAt(to)
+	if targetPiece == NoPiece { // should be an ep capture
+		targetPiece = pieceColor(Pawn, side.Opponent())
+	}
+	targetRole := pieceRole(targetPiece)
+	attackerRole := pieceRole(pos.PieceAt(from))
 
 	blockers := ^pos.EmptySquares()
 	attackers := pos.attackers(to, side, blockers) | pos.attackers(to, side.Opponent(), blockers)
 	alreadyAttacked := Bitboard(0)
-	materialGain[depth] = pieceValue[targetPiece]
+	materialGain[depth] = pieceValue[targetRole]
 
 	for attackers > 0 {
 		depth++
-		materialGain[depth] = pieceValue[attackerPiece] - materialGain[depth-1]
+		materialGain[depth] = pieceValue[attackerRole] - materialGain[depth-1]
 		attackers &= ^fromSq
 		blockers &= ^fromSq
 		alreadyAttacked |= fromSq
@@ -67,8 +71,8 @@ func (pos *Position) see(from int, to int) int {
 		attackers = (pos.attackers(to, side, blockers) | pos.attackers(to, side.Opponent(), blockers)) & ^alreadyAttacked
 
 		side = side.Opponent()
-		fromSq, attackerPiece = pos.getLeastValuableAttacker(attackers, side)
-		if attackerPiece == NoPiece {
+		fromSq, attackerRole = pos.getLeastValuableAttacker(attackers, side)
+		if attackerRole == NoPiece {
 			break
 		}
 	}
