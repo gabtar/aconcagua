@@ -56,7 +56,7 @@ func (pos *Position) see(from int, to int) int {
 	attackerRole := pieceRole(pos.PieceAt(from))
 
 	blockers := ^pos.EmptySquares()
-	attackers := pos.attackers(to, side, blockers) | pos.attackers(to, side.Opponent(), blockers)
+	attackers := pos.attackers(to, side.Opponent(), blockers)
 	alreadyAttacked := Bitboard(0)
 	materialGain[depth] = pieceValue[targetRole]
 
@@ -68,9 +68,8 @@ func (pos *Position) see(from int, to int) int {
 		alreadyAttacked |= fromSq
 
 		// Find new attackers(by xrays) when removing the already considered pieces into the exchange
-		attackers = (pos.attackers(to, side, blockers) | pos.attackers(to, side.Opponent(), blockers)) & ^alreadyAttacked
-
 		side = side.Opponent()
+		attackers = pos.attackers(to, side, blockers) & ^alreadyAttacked
 		fromSq, attackerRole = pos.getLeastValuableAttacker(attackers, side)
 		if attackerRole == NoPiece {
 			break
@@ -106,10 +105,10 @@ func (pos *Position) attackers(to int, side Color, blocks Bitboard) (attackers B
 // getLeastValuableAttacker returns the least valuable attacker from the attackers bitboard
 func (pos *Position) getLeastValuableAttacker(attackers Bitboard, side Color) (Bitboard, int) {
 	bitboards := pos.getBitboards(side)
-	for piece := 5; piece >= 0; piece-- {
-		if bitboards[piece]&attackers > 0 {
-			attacker := bitboards[piece] & attackers
-			return attacker.NextBit(), piece
+	for piece := Pawn; piece >= King; piece-- {
+		attackingPieces := bitboards[piece] & attackers
+		if attackingPieces > 0 {
+			return attackingPieces.NextBit(), piece
 		}
 	}
 	return Bitboard(0), NoPiece
