@@ -56,9 +56,21 @@ func (s *Search) reset() {
 // HistoryMovesTable is a table for holding the history of moves
 type HistoryMovesTable [2][64][64]int
 
-// update updates the history of moves
-func (hm *HistoryMovesTable) update(depth int, from int, to int, side Color) {
-	hm[side][from][to] += depth * depth
+// increment increase the history score of the move passed at depth
+func (hm *HistoryMovesTable) increment(depth int, move *Move, side Color) {
+	if move.flag() < capture {
+		hm[side][move.from()][move.to()] += depth * depth
+	}
+}
+
+// decrement decrements the score of history moves
+func (hm *HistoryMovesTable) decrement(ml *MoveList, start int, side Color) {
+	for i := range start {
+		mv := ml.moves[ml.length+i]
+		if mv.flag() < capture {
+			hm[side][mv.from()][mv.to()]--
+		}
+	}
 }
 
 // clear clears the history of moves
@@ -256,9 +268,9 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		if newScore >= beta {
 			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta, move)
 			s.killers.store(ply, move)
-			if moveFlag < capture {
-				s.historyMoves.update(depth, move.from(), move.to(), pos.Turn)
-			}
+			s.historyMoves.increment(depth, &move, pos.Turn)
+			// Reduce history score for previous 'quiet' moves that did not produce the cutoff
+			s.historyMoves.decrement(mg.moves, mg.moveNumber, pos.Turn)
 
 			return beta
 		}
