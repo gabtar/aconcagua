@@ -106,45 +106,60 @@ func (c *UciGoCommandStruct) Execute(en *engine.Engine, stdout chan string, para
 	}()
 }
 
-// TODO: for now just to setup opening book. Later will handle more options. eg hash table size, etc
-// also use an error handling when parsing input
-// Use specific options?? UciSetChess960CommandStruct ....
-
 // UciSetOptionCommandStruct represents the "setoption" command.
 type UciSetOptionCommandStruct struct{}
 
 // Execute handles the "setoption" command logic.
 func (c *UciSetOptionCommandStruct) Execute(en *engine.Engine, stdout chan string, params ...string) {
-	// sample usage: setoption name bookpath value <bookfilename>
-	if strings.ToLower(params[1]) == "bookpath" {
-		entries, err := en.OpeningBook.Load(params[3])
+	// Format: setoption name <name> [value <value>]
+	// params: ["name", <name>, "value", <value>...]
 
-		if err != nil {
-			stdout <- "option name BookPath value " + err.Error()
-			return
-		}
-
-		stdout <- "option name BookPath set entries found " + strconv.Itoa(entries)
+	if len(params) < 2 || strings.ToLower(params[0]) != "name" {
+		stdout <- "info string Error: Invalid setoption format"
+		return
 	}
 
-	// sample usage: setoption name usebook
-	if strings.ToLower(params[1]) == "usebook" {
-		useBook := params[3] == "true"
-		en.Options.UseOpeningBook = useBook
-		stdout <- "option name UseBook value " + strconv.FormatBool(en.Options.UseOpeningBook)
+	optionName := strings.ToLower(params[1])
+
+	var optionValue string
+	if len(params) >= 4 && strings.ToLower(params[2]) == "value" {
+		optionValue = strings.Join(params[3:], " ")
 	}
 
-	// sample usage: setoption name uci_chess960 value true
-	if strings.ToLower(params[1]) == "uci_chess960" {
-		if len(params) < 3 {
-			stdout <- "invalid command"
-			return
-		}
+	switch optionName {
+	case "bookpath":
+		c.setBookPath(en, stdout, optionValue)
+	case "usebook":
+		c.setUseBook(en, stdout, optionValue)
+	case "uci_chess960":
+		c.setChess960(en, stdout, optionValue)
+	default:
+		stdout <- "info string Error: Unknown option name: " + params[1]
+	}
+}
 
-		en.Options.Chess960 = params[3] == "true"
-		stdout <- "option name UCI_Chess960 value " + strconv.FormatBool(en.Options.Chess960)
+// setBookPath handles the "setoption name BookPath" command logic
+func (c *UciSetOptionCommandStruct) setBookPath(en *engine.Engine, stdout chan string, value string) {
+	entries, err := en.OpeningBook.Load(value)
+	if err != nil {
+		stdout <- "option name BookPath value " + err.Error()
+		return
 	}
 
+	stdout <- "option name BookPath set entries found " + strconv.Itoa(entries)
+}
+
+// setUseBook handles the "setoption name UseBook" command logic
+func (c *UciSetOptionCommandStruct) setUseBook(en *engine.Engine, stdout chan string, value string) {
+	useBook := value == "true"
+	en.Options.UseOpeningBook = useBook
+	stdout <- "option name UseBook value " + strconv.FormatBool(en.Options.UseOpeningBook)
+}
+
+// setChess960 handles the "setoption name UCI_Chess960" command logic
+func (c *UciSetOptionCommandStruct) setChess960(en *engine.Engine, stdout chan string, value string) {
+	en.Options.Chess960 = value == "true"
+	stdout <- "option name UCI_Chess960 value " + strconv.FormatBool(en.Options.Chess960)
 }
 
 // UciStopCommandStruct represents the "stop" command.
