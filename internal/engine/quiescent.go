@@ -2,7 +2,7 @@ package engine
 
 // Quiescent is an evaluation function that takes into account some dynamic possibilities
 func Quiescent(pos *Position, s *Search, alpha int, beta int) int {
-	if s.timeControl.stop {
+	if s.TimeControl.stop {
 		return 0
 	}
 

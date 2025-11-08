@@ -3,11 +3,13 @@ package engine
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 )
 
 // Constants to use in the search
 const (
+	MaxSearchDepth                = 50
 	MateScore                     = 100000
 	MinInt                        = math.MinInt32
 	MaxInt                        = math.MaxInt32
@@ -24,7 +26,7 @@ type Search struct {
 	killers            KillersTable
 	historyMoves       HistoryMovesTable
 	transpositionTable TranspositionTable
-	timeControl        TimeControl
+	TimeControl        TimeControl
 }
 
 // NewSearch returns a pointer to a new Search struct
@@ -35,7 +37,7 @@ func NewSearch() *Search {
 		killers:            KillersTable{},
 		historyMoves:       HistoryMovesTable{},
 		transpositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
-		timeControl:        TimeControl{},
+		TimeControl:        TimeControl{},
 	}
 }
 
@@ -51,6 +53,11 @@ func (s *Search) clear() {
 func (s *Search) reset() {
 	s.nodes = 0
 	s.pvLine.reset()
+}
+
+// Stop stops the search
+func (s *Search) Stop() {
+	s.TimeControl.stop = true
 }
 
 // HistoryMovesTable is a table for holding the history of moves
@@ -106,8 +113,8 @@ func (kt *KillersTable) store(ply int, move Move) {
 	}
 }
 
-// root is the entry point of the search
-func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
+// IterativeDeepening is the entry point of the search
+func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
 	alpha := MinInt
 	beta := MaxInt
 	s.clear()
@@ -123,7 +130,7 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 		bestMoveScore = s.negamax(pos, d, 0, alpha, beta, &s.pvLine, true)
 
 		// If stop by time, set last iteration score and best move/pv
-		if s.timeControl.stop {
+		if s.TimeControl.stop {
 			bestMoveScore = lastScore
 			break
 		}
@@ -138,8 +145,8 @@ func (s *Search) root(pos *Position, maxDepth int, stdout chan string) (bestMove
 		alpha = bestMoveScore - AspirationWindowSize
 		beta = bestMoveScore + AspirationWindowSize
 
-		depthTime := time.Since(s.timeControl.iterationStartTime)
-		s.timeControl.iterationStartTime = time.Now()
+		depthTime := time.Since(s.TimeControl.iterationStartTime)
+		s.TimeControl.iterationStartTime = time.Now()
 		nps := int(float64(s.nodes) / depthTime.Seconds())
 		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, s.transpositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
 		bestMove = s.pvLine[0].String()
@@ -163,7 +170,7 @@ func setDefaultMove(pos *Position) string {
 // negamax returns the score of the best posible move by the evaluation function for a fixed depth
 func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, pvLine *pvLine, nullMoveAllowed bool) int {
 	s.nodes++
-	if s.timeControl.stop {
+	if s.TimeControl.stop {
 		return 0
 	}
 
@@ -343,4 +350,25 @@ func lmrReductionFactor(depth int, moveNumber int, moveFlag int, isCheck, pvNode
 	}
 
 	return int(0.5 + math.Log(float64(depth))*math.Log(float64(moveNumber))/2.0)
+}
+
+// convertScore returns the proper score if it's mate or current centipawns score
+func convertScore(score int, depth int) (result string) {
+	absScore := abs(score)
+	isMate := absScore >= MateScore-depth-5 // NOTE: 5 is used as a fail safe that helps when mate is found earlier/before the actual mate depth
+	if isMate {
+		mateIn := (MateScore - absScore + 1) / 2 // NOTE: in full moves, not ply!
+		result = "mate " + strconv.Itoa((score/absScore)*mateIn)
+	} else {
+		result = "cp " + strconv.Itoa(score)
+	}
+	return
+}
+
+// abs returns the absolute value of the number passed
+func abs(number int) int {
+	if number < 0 {
+		return -number
+	}
+	return number
 }

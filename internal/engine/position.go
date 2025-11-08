@@ -83,7 +83,7 @@ type Position struct {
 	castling        castling
 	enPassantTarget Bitboard
 	halfmoveClock   int
-	fullmoveNumber  int
+	FullMoveNumber  int
 	positionHistory PositionHistory
 	eval            Evaluation
 }
@@ -360,7 +360,7 @@ func (pos *Position) updateMoveState() {
 	pos.halfmoveClock++
 
 	if pos.Turn == Black {
-		pos.fullmoveNumber++
+		pos.FullMoveNumber++
 	}
 }
 
@@ -469,7 +469,7 @@ func (pos *Position) UnmakeMove(move *Move) {
 	pos.RemovePiece(pieceToRemove, bitboardFromIndex(toSq))
 
 	if pos.Turn == White {
-		pos.fullmoveNumber--
+		pos.FullMoveNumber--
 	}
 
 	if pos.enPassantTarget > 0 {
@@ -585,7 +585,7 @@ func (pos *Position) ToFen() (fen string) {
 		fen += " " + "-"
 	}
 	fen += " " + strconv.Itoa(pos.halfmoveClock)
-	fen += " " + strconv.Itoa(pos.fullmoveNumber)
+	fen += " " + strconv.Itoa(pos.FullMoveNumber)
 	return
 }
 
@@ -671,12 +671,34 @@ func (pos *Position) LoadFromFenString(fen string) {
 		pos.enPassantTarget = bitboardFromCoordinates(elements[3])
 	}
 	pos.halfmoveClock, _ = strconv.Atoi(elements[4]) // TODO: handle errors
-	pos.fullmoveNumber, _ = strconv.Atoi(elements[5])
+	pos.FullMoveNumber, _ = strconv.Atoi(elements[5])
 
 	pos.Hash = zobristHashKeys.fullZobristHash(pos)
 	pos.PawnHash = zobristHashKeys.pawnHash(pos)
 
 	pos.eval.clear()
+}
+
+// SetUp960Castles sets up the position for 960 castling
+func (pos *Position) SetUp960Castles(fen string) {
+	pos.castling = *NewCastlingFromFen(fen, true)
+}
+
+// LoadMoves loads moves into the position struct
+func (pos *Position) LoadMoves(moves ...string) {
+	for _, move := range moves {
+		ml := NewMoveList()
+		pd := pos.generatePositionData()
+		pos.generateCaptures(ml, &pd)
+		pos.generateNonCaptures(ml, &pd)
+
+		for i := range ml.length {
+			if ml.moves[i].String() == move {
+				pos.MakeMove(&ml.moves[i])
+			}
+		}
+	}
+	pos.positionHistory.clear()
 }
 
 // NewPosition returns a new Position struct

@@ -6,7 +6,6 @@ import (
 )
 
 // find_magics.go is an utility to find the magic numbers for the bitboards
-
 // based on the original code of Tord Romstad's proposal to find magics:
 // Just trying out random numbers with a low number of nonzero bits until you find a number which works
 // is by far the fastest and easiest way to generate the magic numbers, in my experience. On my Core Duo 2.8 GHz,

@@ -1,6 +1,9 @@
 package engine
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 const (
 	DepthStrategy    = iota // Fixed depth search
@@ -34,8 +37,8 @@ func (c *Clock) timeLeft(side Color) (timeLeft float32, increment float32) {
 	return float32(c.wtime), float32(c.winc)
 }
 
-// init initializes the TimeControl struct
-func (tc *TimeControl) init(strategy int, side int, moveNumber int, clock Clock) {
+// Initialize initializes the TimeControl struct
+func (tc *TimeControl) Initialize(strategy int, side int, moveNumber int, clock Clock) {
 	tc.startTime = time.Now()
 	tc.iterationStartTime = time.Now()
 	tc.stop = false
@@ -74,4 +77,23 @@ func (tc *TimeControl) stopAfter(miliseconds int) {
 		time.Sleep(time.Duration(miliseconds) * time.Millisecond)
 		tc.stop = true
 	}()
+}
+
+// TimeStrategy returns the search strategy and the clock for a search
+func TimeStrategy(params []string, depth int, wtime int, btime int, winc int, binc int, movetime int) (int, Clock) {
+	if movetime != -1 {
+		movetime, _ = strconv.Atoi(params[movetime+1])
+		return MoveTimeStrategy, Clock{0, 0, 0, 0, movetime}
+	}
+	if wtime != -1 || btime != -1 {
+		wtime, _ = strconv.Atoi(params[wtime+1])
+		btime, _ = strconv.Atoi(params[btime+1])
+		winc, _ = strconv.Atoi(params[winc+1])
+		binc, _ = strconv.Atoi(params[binc+1])
+		return TimeLeftStrategy, Clock{wtime, btime, winc, binc, 0}
+	}
+	if depth != -1 {
+		return DepthStrategy, Clock{0, 0, 0, 0, 0}
+	}
+	return InfiniteStrategy, Clock{0, 0, 0, 0, 0}
 }

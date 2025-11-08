@@ -184,30 +184,30 @@ type PolyglotBook struct {
 }
 
 // Load loads a polyglot opening book
-func (pb *PolyglotBook) Load(filename string) error {
+func (pb *PolyglotBook) Load(filename string) (int, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	pb.size = uint64(stat.Size() / PolyGlotBookEntrySizeInBytes)
 
 	pb.entries = make([]PolyglotBookEntry, pb.size)
 	err = binary.Read(file, binary.BigEndian, &pb.entries)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return int(pb.size), nil
 }
 
-// pickRandomOpeningVariation picks a random opening variation for a given position
-func (pb *PolyglotBook) pickRandomOpeningVariation(key uint64) (entry PolyglotBookEntry) {
+// PickRandomOpeningVariation picks a random opening variation for a given position
+func (pb *PolyglotBook) PickRandomOpeningVariation(key uint64) (entry PolyglotBookEntry) {
 	variants := []PolyglotBookEntry{}
 
 	index := polyglotEntriesBinarySearch(pb.entries, key)
