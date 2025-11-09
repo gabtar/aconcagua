@@ -42,11 +42,11 @@ func LoadDataSet(filename string) (dataset []DatasetEntry) {
 		}
 
 		fen := parts[0]
-		weigths := generatePositionWeights(fen)
+		weights := generatePositionWeights(fen)
 		pos.LoadFromFenString(fen)
 		phase := getMiddleGamePhase(pos)
 		result := resultString[parts[1]]
-		dataset = append(dataset, DatasetEntry{Fen: fen, Result: result, Weights: weigths, Phase: phase})
+		dataset = append(dataset, DatasetEntry{Fen: fen, Result: result, Weights: weights, Phase: phase})
 	}
 
 	return dataset

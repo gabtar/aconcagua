@@ -89,7 +89,7 @@ func NewCastling(whiteKingStart int, whiteKingsideRook int, whiteQueensideRook i
 }
 
 // NewCastlingFromShredderFenCastlingCode returns a new castling struct from the fen castling encode
-// NOTE: this only works to set up intial squares for castling in 960 when the castling codes
+// NOTE: this only works to set up initial squares for castling in 960 when the castling codes
 // are given with the with upper case and lower case file characters of the affected rooks for
 // white and black castling rights (Shredder-FEN style). Must be position from move 0 for a given
 // valid chess960 position, otherwise it will not work
@@ -176,10 +176,10 @@ func (c *castlingRights) canCastle(to castlingRights) bool {
 // updateCastleRights updates the castling rights when making a move
 // Got the idea from Tom Kerrigan's TSCP engine
 // based on the from/to squares of the move we can update the castle rights after making a move as following
-// with the 'from' square, we are either moving a rook (disables the castling right asociated to that rook)
+// with the 'from' square, we are either moving a rook (disables the castling right associated to that rook)
 // or the king, in that case disables both castling rights for that color(black/white)
 // with the 'to' square, means we are attaking a rook/capturing move, so we wil have to disable the castling
-// right asociated with that rook after that move
+// right associated with that rook after that move
 func (c *castling) updateCastleRights(from int, to int) (newCastleRights castlingRights) {
 	if c.castlingRights == 0 {
 		return

@@ -78,7 +78,7 @@ func (pos *Position) see(from int, to int) int {
 	}
 
 	// Negamax the material gain to get the final static exchange evaluation
-	for depth = depth - 1; depth > 0; depth-- { // start with depth -1 beacuse the speculative material store for capture at the end of the tactical sequence
+	for depth = depth - 1; depth > 0; depth-- { // start with depth -1 because we use the speculative material store for capture at the end of the tactical sequence
 		materialGain[depth-1] = -max(-materialGain[depth-1], materialGain[depth])
 	}
 

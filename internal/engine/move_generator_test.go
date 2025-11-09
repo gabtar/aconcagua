@@ -220,7 +220,7 @@ func TestKingMovesWhenInCheck(t *testing.T) {
 	pos.AddPiece(BlackRook, h1)
 	kingBB := bitboardFromCoordinates("e1")
 
-	// Can only move to the second rank, becuase first rank is attacked by the rook, by x rays
+	// Can only move to the second rank, because first rank is attacked by the rook, by x rays
 	expected := bitboardFromCoordinates("d2", "e2", "f2")
 	got := kingMoves(&kingBB, pos, White)
 
@@ -504,7 +504,7 @@ func TestRookMovesWhenTheRookIsPinned(t *testing.T) {
 	pos.AddPiece(WhiteRook, e2)
 	pos.AddPiece(WhiteRook, e3)
 
-	// The rook can only move along the e file, becuase it's pinned if moves
+	// The rook can only move along the e file, because it's pinned if moves
 	// along the 4 rank, the king will be in check!
 	rookBB := bitboardFromCoordinates("e4")
 	pd := pos.generatePositionData()

@@ -141,7 +141,7 @@ func (pos *Position) AddPiece(piece int, square int) {
 	pos.pieces[int(piece/6)] |= bitboardSquare
 }
 
-// EmptySquares returns a Bitboard with the empty sqaures of the position
+// EmptySquares returns a Bitboard with the empty squares of the position
 func (pos *Position) EmptySquares() (emptySquares Bitboard) {
 	return ^pos.pieces[White] ^ pos.pieces[Black]
 }
@@ -456,7 +456,7 @@ func getMoveDestinationSquare(move *Move, pos *Position) int {
 	return move.to()
 }
 
-// UnmakeMove undoes a the passed move in the postion
+// UnmakeMove undoes a the passed move in the position
 func (pos *Position) UnmakeMove(move *Move) {
 	prevState, castle := pos.positionHistory.pop()
 

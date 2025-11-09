@@ -30,7 +30,7 @@ var PassedPawnsBonusMg = [8]int{0, 2, -5, -14, 2, -3, 17, 0}
 // PassedPawnsBonusEg contains the bonus for passed pawns on each rank for eg phase
 var PassedPawnsBonusEg = [8]int{0, 4, 11, 35, 62, 132, 150, 0}
 
-// Evaluation contains the diferent evaluation elements of a position
+// Evaluation contains the different evaluation elements of a position
 type Evaluation struct {
 	mgMaterial      [2]int // White and Black scores
 	egMaterial      [2]int

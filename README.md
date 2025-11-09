@@ -11,15 +11,15 @@ A UCI-compatible chess engine written in Go.
 ### 1. Build from source
 
 #### Requirements
-* Go 1.24.3 or later
+* Go 1.25.4 or later
 
 ```
 git clone https://github.com/gabtar/aconcagua
 cd aconcagua
-go build -o aconcagua-engine
+go build -o aconcagua ./cmd/aconcagua
 ```
 
-This will build an executable named `aconcagua-engine` in the current directory.
+This will build an executable named `aconcagua` in the current directory.
 
 > [!NOTE]  
 > Depending on your operating system (especially on some Ubuntu/Debian based distributions) you might not have the required Go version to build Aconcagua. If that's your case, you might want to look at the steps posted by [tissatussa](https://github.com/tissatussa) in this [issue #9](https://github.com/gabtar/aconcagua/issues/9).
