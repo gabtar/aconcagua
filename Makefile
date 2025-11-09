@@ -1,4 +1,6 @@
 BINARY_NAME := aconcagua
+MAIN_PACKAGE := ./cmd/$(BINARY_NAME)
+OUTPUT_DIR := bin
 
 # ==================================================================================== #
 # HELPERS
@@ -48,11 +50,13 @@ test/cover:
 ## build: build the application
 .PHONY: build
 build:
-	GOARCH=amd64 GOOS=darwin go build -o ./bin/${BINARY_NAME}-darwin main.go
-	GOARCH=amd64 GOOS=linux go build -o ./bin/${BINARY_NAME}-linux main.go
-	GOARCH=amd64 GOOS=windows go build -o ./bin/${BINARY_NAME}-windows main.go
+	@echo "--> Building $(BINARY_NAME)..."
+	GOARCH=amd64 GOOS=darwin go build -o $(OUTPUT_DIR)/${BINARY_NAME}-darwin $(MAIN_PACKAGE)
+	GOARCH=amd64 GOOS=linux go build -o $(OUTPUT_DIR)/${BINARY_NAME}-linux $(MAIN_PACKAGE)
+	GOARCH=amd64 GOOS=windows go build -o $(OUTPUT_DIR)/${BINARY_NAME}-windows $(MAIN_PACKAGE)
 
 ## run: run the  application
 .PHONY: run
 run:
-	go run .
+	@echo "--> Running $(BINARY_NAME)..."
+	go run $(MAIN_PACKAGE)
