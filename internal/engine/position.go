@@ -313,6 +313,11 @@ func (pos *Position) insuficientMaterial() bool {
 
 // MakeMove executes a chess move, updating the board state
 func (pos *Position) MakeMove(move *Move) {
+	// TODO: Refactor Steps for making a move:
+	// 1. Save previous board state
+	// 2. Handle special move types
+	// 3. Update general move state - Include castling rights, en passant target, halfmove clock... side to move, pieces, etc
+
 	pieceToMove := pos.PieceAt(move.from())
 	pieceCaptured := pos.getCapturedPiece(move)
 

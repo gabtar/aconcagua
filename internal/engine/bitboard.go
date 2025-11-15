@@ -58,6 +58,7 @@ func squareNumberFromCoordinate(coordinate string) int {
 }
 
 // bitboardFromCoordinates is a factory that returns a bitboard from an array of string coordinates
+// TODO: remove this function, use directly bitboardFromIndex using integer constants...
 func bitboardFromCoordinates(coordinates ...string) (bitboard Bitboard) {
 	for _, c := range coordinates {
 		bitboard |= 1 << squareNumberFromCoordinate(c)
