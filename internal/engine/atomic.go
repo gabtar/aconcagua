@@ -10,9 +10,8 @@ package engine
 // Pawn Captures:
 // This is an special case of explosion. When a pawn is captured, both pawns are
 // removed from the board, and the non pawn surrounding pieces are removed too
-// The special case should be the en passant capture, that the explosion occurs on the
-// ep target square, i think. Need to check out this.
-//
+// The special case is also the en passant capture, that the explosion occurs on the
+// ep target square. Need to check out this.
 // King safety:
 // Kings are not allowed to capture any piece, as this would cause
 // their own king to explode
@@ -43,7 +42,7 @@ func (ep ExplodedPiece) decode() (int, int) {
 
 // Explosion stores the list of pieces that exploded in a single move
 type Explosion struct {
-	explodedPieces [8]ExplodedPiece // 8 'potential' surrounding pieces per explosion
+	explodedPieces [9]ExplodedPiece // 8 'potential' surrounding pieces per explosion + the target piece
 	count          int
 }
 
@@ -117,12 +116,17 @@ func (ap *AtomicPosition) Evaluate() int {
 func (ap *AtomicPosition) MakeMove(move *Move) {
 	ap.pos.MakeMove(move)
 
-	if move.flag() != capture && move.flag() <= knightCapturePromotion {
+	if !isExplosion(move) {
 		return
 	}
 
-	fromBB := bitboardFromIndex(move.to())
-	adjacentSquares := kingAttacks(&fromBB)
+	// Always remove the piece at exploded square since make move will not remove it
+	toBB := bitboardFromIndex(move.to())
+	piece := ap.pos.PieceAt(move.to())
+	ap.pos.RemovePiece(piece, toBB)
+	ap.explosionHistory.add(piece, move.to())
+
+	adjacentSquares := kingAttacks(&toBB)
 	for adjacentSquares > 0 {
 		bb := adjacentSquares.NextBit()
 		sq := Bsf(bb)
@@ -136,15 +140,60 @@ func (ap *AtomicPosition) MakeMove(move *Move) {
 	ap.explosionHistory.increment()
 }
 
+// isExplosion returns if the move results in an explosion in atomic chess
+func isExplosion(move *Move) bool {
+	return move.flag() == capture || move.flag() == epCapture || move.flag() >= knightCapturePromotion
+}
+
 // UnmakeMove reverts a move, restoring any exploded pieces
 func (ap *AtomicPosition) UnmakeMove(move *Move) {
-	explosion := ap.explosionHistory.pop()
-	if move.flag() == capture || move.flag() >= knightCapturePromotion {
-		for i := 0; i < explosion.count; i++ {
+	if isExplosion(move) {
+		explosion := ap.explosionHistory.pop()
+		for i := range explosion.count {
 			sq, piece := explosion.explodedPieces[i].decode()
 			ap.pos.AddPiece(piece, sq)
 		}
 	}
 
 	ap.pos.UnmakeMove(move)
+}
+
+// IsLegal returns if the move is legal in the current position
+// NOTE:
+// Legality moves on Atomic chess
+// - Explode king. If the move explodes your own king, it is illegal.
+// - Check King. If the move leaves your own king in check, it is illegal. Except if the only piece giving check is the oponent king.
+// - King Capture. The king cannot capture any piece(will result in an explosion and remove your own king).
+func (ap *AtomicPosition) IsLegal(move Move) bool {
+	// Kings cannot capture any piece
+	if pieceRole(ap.pos.PieceAt(move.from())) == King && move.flag() == capture {
+		return false
+	}
+
+	side := ap.pos.Turn
+	ap.MakeMove(&move)
+
+	alliedKingCount := ap.pos.KingPosition(side).count()
+	enemyKingCount := ap.pos.KingPosition(side.Opponent()).count()
+
+	// If own king exploded, the move is illegal
+	if alliedKingCount == 0 {
+		ap.UnmakeMove(&move)
+		return false
+	}
+
+	// If enemy king explodes, is legal and we won the game
+	if enemyKingCount == 0 {
+		ap.UnmakeMove(&move)
+		return true
+	}
+
+	// Own king cannot be in check
+	if ap.pos.Check(side) {
+		ap.UnmakeMove(&move)
+		return false
+	}
+
+	ap.UnmakeMove(&move)
+	return true
 }
