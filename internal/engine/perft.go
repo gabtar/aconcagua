@@ -47,3 +47,27 @@ func (pos *Position) Divide(depth int) (divide string) {
 
 	return
 }
+
+// Perft returns all the legal moves up to the passed depth
+func PerftVariant(depth int, pos IPosition) (nodes uint64) {
+	if depth == 1 {
+		ml := NewMoveList()
+		pd := pos.GetPositionData()
+		pos.GenerateCaptures(ml, &pd)
+		pos.GenerateNonCaptures(ml, &pd)
+		return uint64(ml.length)
+	}
+
+	ml := NewMoveList()
+	pd := pos.GetPositionData()
+	pos.GenerateCaptures(ml, &pd)
+	pos.GenerateNonCaptures(ml, &pd)
+
+	for i := range ml.length {
+		pos.MakeMove(&ml.moves[i])
+		nodes += PerftVariant(depth-1, pos)
+		pos.UnmakeMove(&ml.moves[i])
+	}
+
+	return nodes
+}

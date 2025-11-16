@@ -20,7 +20,8 @@ type IPosition interface {
 	UnmakeMove(move *Move)
 	GenerateCaptures(ml *MoveList, pd *PositionData)
 	GenerateNonCaptures(ml *MoveList, pd *PositionData)
-	IsLegal(move Move, pd *PositionData) // should depend on variant. This one should be used in move generator
+	GetPositionData() PositionData
+	IsLegal(move Move) bool // should depend on variant. This one should be used in move generator
 }
 
 // StandardPosition is a Standard chess position
