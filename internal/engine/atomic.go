@@ -122,7 +122,6 @@ func (ap *AtomicPosition) MakeMove(move *Move) {
 	}
 
 	// Always remove the piece at exploded square since make move will not remove it
-	// Except for en passant captures
 	toBB := bitboardFromIndex(move.to())
 	piece := ap.pos.PieceAt(move.to())
 	ap.pos.RemovePiece(piece, toBB)
@@ -135,6 +134,11 @@ func (ap *AtomicPosition) MakeMove(move *Move) {
 		piece := ap.pos.PieceAt(sq)
 
 		if piece != NoPiece && pieceRole(piece) != Pawn {
+			// Need to check if the explosion will affect rook's castling rights
+			if sq == h8 || sq == a8 || sq == h1 || sq == a1 {
+				ap.pos.updateCastleRights(ap.pos.castling.updateCastleRights(move.from(), sq))
+			}
+
 			ap.pos.RemovePiece(piece, bb)
 			ap.explosionHistory.add(piece, sq)
 		}
@@ -180,12 +184,28 @@ func (ap *AtomicPosition) GenerateCaptures(ml *MoveList, pd *PositionData) {
 			case Knight:
 				genMovesFromTargets(&pieceBB, knightAttacksTable[Bsf(pieceBB)]&pd.enemies, ml, pd)
 			case Pawn:
-				side := ap.pos.Turn
-				toSquares := pawnAttacks(&pieceBB, side) & pd.enemies
+				// genPawnCapturesMoves(&pieceBB, ap.pos.Turn, ml, pd)
+
+				toSquares := pawnAttacks(&pieceBB, ap.pos.Turn) & pd.enemies & pd.checkRestrictedSquares
+				if ap.canExplodeOpponent(ap.pos.Turn) {
+					toSquares = pawnAttacks(&pieceBB, ap.pos.Turn) & pd.enemies
+				}
+				// TODO: If is in check and can remove the checker by explosion....
+				if ap.pos.Check(ap.pos.Turn) {
+					checkingPieces, _ := ap.pos.CheckingPieces(ap.pos.Turn)
+					for checkingPieces > 0 {
+						checkingPiece := checkingPieces.NextBit()
+						if kingAttacks(&checkingPiece)&pawnAttacks(&pieceBB, ap.pos.Turn)&pd.enemies > 0 {
+							// If a capture causes an explosion to remove the checker, we cannot restrict the squares
+							toSquares = pawnAttacks(&pieceBB, ap.pos.Turn) & pd.enemies
+						}
+					}
+
+				}
 
 				for toSquares > 0 {
 					toSquare := toSquares.NextBit()
-					isPromotion := lastRank(side) & toSquare
+					isPromotion := lastRank(ap.pos.Turn) & toSquare
 
 					switch {
 					case isPromotion > 0 && pd.enemies&toSquare > 0: // Promo Capture
@@ -199,14 +219,7 @@ func (ap *AtomicPosition) GenerateCaptures(ml *MoveList, pd *PositionData) {
 	}
 	genPosibleEpCaptures(&ap.pos, ap.pos.Turn, ml)
 
-	// TODO: extract to function - Filter Illegal moves
-	for i := range ml.length {
-		if !ap.IsLegal(ml.moves[i]) {
-			ml.moves[i], ml.moves[ml.length-1] = ml.moves[ml.length-1], NoMove
-			ml.scores[i], ml.scores[ml.length-1] = ml.scores[ml.length-1], 0
-			ml.length--
-		}
-	}
+	filterIllegalMoves(ap, ml)
 }
 
 // GenerateNonCaptures generates all non-captures in the position
@@ -234,11 +247,13 @@ func (ap *AtomicPosition) GenerateNonCaptures(ml *MoveList, pd *PositionData) {
 		}
 	}
 
-	// Filter Illegal moves
-	for i := range ml.length {
-		isLegal := ap.IsLegal(ml.moves[i])
-		// fmt.Printf("Move: %s, isLegal: %t\n", ml.moves[i].String(), isLegal)
-		if !isLegal {
+	filterIllegalMoves(ap, ml)
+}
+
+// filterIllegalMoves filters out illegal moves from the move list
+func filterIllegalMoves(ap *AtomicPosition, ml *MoveList) {
+	for i := ml.length - 1; i >= 0; i-- { // NOTE: Iterating backwards avoids affecting the indices already visited, so we dont skip moves
+		if !ap.IsLegal(ml.moves[i]) {
 			ml.moves[i], ml.moves[ml.length-1] = ml.moves[ml.length-1], NoMove
 			ml.scores[i], ml.scores[ml.length-1] = ml.scores[ml.length-1], 0
 			ml.length--
@@ -259,6 +274,8 @@ func (ap *AtomicPosition) GetPositionData() PositionData {
 // - King Capture. The king cannot capture any piece(will result in an explosion and remove your own king). This will be handled when generating king targets bitboards
 func (ap *AtomicPosition) IsLegal(move Move) bool {
 	side := ap.pos.Turn
+	pieceToMove := pieceRole(ap.pos.PieceAt(move.from()))
+
 	ap.MakeMove(&move)
 	alliedKingCount := ap.pos.KingPosition(side).count()
 	enemyKingCount := ap.pos.KingPosition(side.Opponent()).count()
@@ -269,9 +286,17 @@ func (ap *AtomicPosition) IsLegal(move Move) bool {
 		return false
 	}
 
+	// We explode enemy king, so its checkmate and the move is illegal
+	if enemyKingCount == 0 && isExplosion(&move) {
+		ap.UnmakeMove(&move)
+		return true
+	}
+
 	// Our king can be in check as long as we can explode the opponent's king in the next move
+	// But only if we are not already in check
+	// And not placing the king in check
 	if ap.pos.Check(side) {
-		if ap.canExplodeOpponent(side) {
+		if ap.canExplodeOpponent(side.Opponent()) && pieceToMove != King {
 			ap.UnmakeMove(&move)
 			return true
 		}
@@ -279,18 +304,18 @@ func (ap *AtomicPosition) IsLegal(move Move) bool {
 		return false
 	}
 
-	// Its checkmate, so its legal...
-	if enemyKingCount == 0 {
-		ap.UnmakeMove(&move)
-		return true
-	}
-
 	ap.UnmakeMove(&move)
 	return true
 }
 
+// TODO: Check if explosion is illegal. Cannot explode your own king. Exploding both kings is illegal
 func (ap *AtomicPosition) canExplodeOpponent(side Color) bool {
 	enemyKing := ap.pos.KingPosition(side.Opponent())
+	attacks := ap.pos.attackers(Bsf(enemyKing), side, ^ap.pos.EmptySquares())
+	// Check first if the king is not in check
+	if attacks > 0 {
+		return false
+	}
 	enemyKingZone := kingAttacks(&enemyKing)
 	explodableTargets := enemyKingZone & ap.pos.pieces[side.Opponent()]
 
