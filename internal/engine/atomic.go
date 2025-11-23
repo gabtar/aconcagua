@@ -202,6 +202,8 @@ func (ap *AtomicPosition) GenerateCaptures(ml *MoveList, pd *PositionData) {
 					}
 
 				}
+				// TODO: FORCE THIS????
+				toSquares = pawnAttacks(&pieceBB, ap.pos.Turn) & pd.enemies
 
 				for toSquares > 0 {
 					toSquare := toSquares.NextBit()
@@ -226,6 +228,11 @@ func (ap *AtomicPosition) GenerateCaptures(ml *MoveList, pd *PositionData) {
 func (ap *AtomicPosition) GenerateNonCaptures(ml *MoveList, pd *PositionData) {
 	bitboards := ap.pos.getBitboards(ap.pos.Turn)
 
+	// TODO: check restricted squares does not work when king is in check and kings are adjacent.
+	// Cause the explosion blows both kings, so explosion is illegal, and we have no restricted squares due to check
+
+	blocks := pd.allies | pd.enemies
+
 	for piece, bb := range bitboards {
 		for bb > 0 {
 			pieceBB := bb.NextBit()
@@ -234,15 +241,35 @@ func (ap *AtomicPosition) GenerateNonCaptures(ml *MoveList, pd *PositionData) {
 				genMovesFromTargets(&pieceBB, atomicKingMoves(&pieceBB, *pd), ml, pd)
 				genCastleMoves(&ap.pos, ml)
 			case Queen:
-				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&^pd.enemies, ml, pd)
+				// genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&^pd.enemies, ml, pd)
+				genMovesFromTargets(&pieceBB, (rookAttacks(Bsf(pieceBB), blocks)|bishopAttacks(Bsf(pieceBB), blocks))&^blocks, ml, pd)
 			case Rook:
-				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+				// genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+				genMovesFromTargets(&pieceBB, rookAttacks(Bsf(pieceBB), blocks)&^blocks, ml, pd)
 			case Bishop:
-				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+				// genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+				genMovesFromTargets(&pieceBB, bishopAttacks(Bsf(pieceBB), blocks)&^blocks, ml, pd)
 			case Knight:
-				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+				// genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+				genMovesFromTargets(&pieceBB, knightAttacksTable[Bsf(pieceBB)]&^blocks, ml, pd)
 			case Pawn:
-				genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, pd, ap.pos.Turn)&^pd.enemies, ap.pos.Turn, ml, pd)
+				// genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, pd, ap.pos.Turn)&^pd.enemies, ap.pos.Turn, ml, pd)
+				// // genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, pd, ap.pos.Turn)&^blocks, ap.pos.Turn, ml, pd)
+				//
+				emptySquares := ^(pd.allies | pd.enemies)
+
+				posiblesMoves := Bitboard(0)
+				if ap.pos.Turn == White {
+					singleMove := pieceBB << 8 & emptySquares
+					firstPawnMoveAvailable := (pieceBB & ranks[1]) << 16 & (singleMove << 8) & emptySquares
+					posiblesMoves = singleMove | firstPawnMoveAvailable
+				} else {
+					singleMove := pieceBB >> 8 & emptySquares
+					firstPawnMoveAvailable := (pieceBB & ranks[6]) >> 16 & (singleMove >> 8) & emptySquares
+					posiblesMoves = singleMove | firstPawnMoveAvailable
+				}
+
+				genPawnMovesFromTarget(&pieceBB, posiblesMoves, ap.pos.Turn, ml, pd)
 			}
 		}
 	}
@@ -296,10 +323,25 @@ func (ap *AtomicPosition) IsLegal(move Move) bool {
 	// But only if we are not already in check
 	// And not placing the king in check
 	if ap.pos.Check(side) {
-		if ap.canExplodeOpponent(side.Opponent()) && pieceToMove != King {
+		canAtomicExplosion := ap.canExplodeOpponent(side.Opponent())
+		if canAtomicExplosion && pieceToMove != King {
+			// Need to validate if the explosion move is legal
 			ap.UnmakeMove(&move)
 			return true
 		}
+
+		// Rare Special Condition
+		// TODO: need extra condition.
+		// If can not explode opponent due to blowing up both kings, then is legal
+		// Both Kings must be on adjacent squares. And in check
+
+		ourKing := ap.pos.KingPosition(side)
+		enemyKing := ap.pos.KingPosition(side.Opponent())
+		if !canAtomicExplosion && ourKing&kingAttacks(&enemyKing) > 0 {
+			ap.UnmakeMove(&move)
+			return true
+		}
+
 		ap.UnmakeMove(&move)
 		return false
 	}
@@ -312,16 +354,20 @@ func (ap *AtomicPosition) IsLegal(move Move) bool {
 func (ap *AtomicPosition) canExplodeOpponent(side Color) bool {
 	enemyKing := ap.pos.KingPosition(side.Opponent())
 	attacks := ap.pos.attackers(Bsf(enemyKing), side, ^ap.pos.EmptySquares())
-	// Check first if the king is not in check
+	// // Check first if the king is not in check
 	if attacks > 0 {
 		return false
 	}
-	enemyKingZone := kingAttacks(&enemyKing)
+	ourKing := ap.pos.KingPosition(side)
+	enemyKingZone := kingAttacks(&enemyKing) | enemyKing
 	explodableTargets := enemyKingZone & ap.pos.pieces[side.Opponent()]
 
 	for explodableTargets > 0 {
-		targetSq := Bsf(explodableTargets.NextBit())
-		if ap.pos.attackers(targetSq, side, ^ap.pos.EmptySquares()) > 0 {
+		bb := explodableTargets.NextBit()
+		targetSq := Bsf(bb)
+		explosionZone := kingAttacks(&bb) | bb
+
+		if ap.pos.attackers(targetSq, side, ^ap.pos.EmptySquares()) > 0 && explosionZone&ourKing == 0 {
 			return true
 		}
 	}
