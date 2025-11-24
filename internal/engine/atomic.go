@@ -3,22 +3,19 @@ package engine
 // TODO: Use fairly stockfish perft values to check move generation in variants
 
 // Atomic Chess Rules:
-// Explosions:
+// - Explosions:
 // When a capture occurs, an explosion happens on the captured piece's square.
 // The capturing piece, the captured piece, and all surrounding non-pawn pieces
 // are removed from the board.
-// Pawn Captures:
-// This is an special case of explosion. When a pawn is captured, both pawns are
-// removed from the board, and the non pawn surrounding pieces are removed too
-// The special case is also the en passant capture, that the explosion occurs on the
-// ep target square. Need to check out this.
-// King safety:
+// - En Passant Captures:
+// The explosion occurs on the ep target square. Need to check out this.
+// - King safety:
 // Kings are not allowed to capture any piece, as this would cause
 // their own king to explode
-// Adjacent kings: Kings can be on adjacent squares without it being considered check,
+// - Adjacent kings: Kings can be on adjacent squares without it being considered check,
 // because neither can capture the other.
-// Check and checkmate:
-// - A move that results in an explosion that destroys the opponent's king results in an
+// - Check and checkmate:
+// A move that results in an explosion that destroys the opponent's king results in an
 /// immediate victory.
 // - Checkmate is still a way to win.
 // - It is illegal to make a capture that would result in your own king being blown up by
@@ -42,7 +39,7 @@ func (ep ExplodedPiece) decode() (int, int) {
 
 // Explosion stores the list of pieces that exploded in a single move
 type Explosion struct {
-	explodedPieces [9]ExplodedPiece // 8 'potential' surrounding pieces per explosion + the target piece + potential ep capture
+	explodedPieces [9]ExplodedPiece // 8 'potential' surrounding pieces per explosion + the target piece
 	count          int
 }
 
@@ -52,8 +49,15 @@ func (e *Explosion) add(piece ExplodedPiece) {
 	e.count++
 }
 
-// ExplosionHistory stores the history of explosions for all moves in the game,
-// similar to how PositionHistory stores position states
+// clear clears the explosion
+func (e *Explosion) clear() {
+	for i := range e.explodedPieces {
+		e.explodedPieces[i] = 0
+	}
+	e.count = 0
+}
+
+// ExplosionHistory stores the history of explosions during a search
 type ExplosionHistory struct {
 	history      [MaxHistoryMoves * 2]Explosion
 	currentIndex int
@@ -112,7 +116,7 @@ func (ap *AtomicPosition) Evaluate() int {
 	return ap.pos.Evaluate()
 }
 
-// MakeMove applies a move to the position, including Atomic explosion logic
+// MakeMove makes a move in the current position for Atomic chess
 func (ap *AtomicPosition) MakeMove(move *Move) {
 	ap.pos.MakeMove(move)
 
@@ -121,7 +125,7 @@ func (ap *AtomicPosition) MakeMove(move *Move) {
 		return
 	}
 
-	// Always remove the piece at exploded square since make move will not remove it
+	// Remove the piece at exploded square since (standard) make move will not remove it
 	toBB := bitboardFromIndex(move.to())
 	piece := ap.pos.PieceAt(move.to())
 	ap.pos.RemovePiece(piece, toBB)
@@ -134,7 +138,7 @@ func (ap *AtomicPosition) MakeMove(move *Move) {
 		piece := ap.pos.PieceAt(sq)
 
 		if piece != NoPiece && pieceRole(piece) != Pawn {
-			// Need to check if the explosion will affect rook's castling rights
+			// Check if the explosion will affect rooks for updating castling rights
 			if sq == h8 || sq == a8 || sq == h1 || sq == a1 {
 				ap.pos.updateCastleRights(ap.pos.castling.updateCastleRights(move.from(), sq))
 			}
@@ -160,22 +164,20 @@ func (ap *AtomicPosition) UnmakeMove(move *Move) {
 			ap.pos.AddPiece(piece, sq)
 		}
 	}
-	ap.explosionHistory.history[ap.explosionHistory.currentIndex] = Explosion{}
+	ap.explosionHistory.history[ap.explosionHistory.currentIndex].clear()
 	ap.pos.UnmakeMove(move)
 }
 
-// GenerateCaptures generates all captures in the position
+// GenerateCaptures generates all pseudo legal captures in the position
 func (ap *AtomicPosition) GenerateCaptures(ml *MoveList, pd *PositionData) {
-	// generate all captures except for king captures
+	// Need to check all posibles moves, we cannot restrict by check, since check in Atomic chess works different
 	bitboards := ap.pos.getBitboards(ap.pos.Turn)
-	// TODO: Need to check all posibles attacks, because if we are pined but explodes the enemy kin g by an attack, then the move is legal!!!
 
 	for piece, bb := range bitboards {
 		for bb > 0 {
 			pieceBB := bb.NextBit()
 			switch piece {
 			case Queen:
-				// genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&pd.enemies, ml, pd)
 				genMovesFromTargets(&pieceBB, (rookAttacks(Bsf(pieceBB), pd.allies|pd.enemies)|bishopAttacks(Bsf(pieceBB), pd.allies|pd.enemies))&pd.enemies, ml, pd)
 			case Rook:
 				genMovesFromTargets(&pieceBB, rookAttacks(Bsf(pieceBB), pd.allies|pd.enemies)&pd.enemies, ml, pd)
@@ -184,38 +186,7 @@ func (ap *AtomicPosition) GenerateCaptures(ml *MoveList, pd *PositionData) {
 			case Knight:
 				genMovesFromTargets(&pieceBB, knightAttacksTable[Bsf(pieceBB)]&pd.enemies, ml, pd)
 			case Pawn:
-				// genPawnCapturesMoves(&pieceBB, ap.pos.Turn, ml, pd)
-
-				toSquares := pawnAttacks(&pieceBB, ap.pos.Turn) & pd.enemies & pd.checkRestrictedSquares
-				if ap.canExplodeOpponent(ap.pos.Turn) {
-					toSquares = pawnAttacks(&pieceBB, ap.pos.Turn) & pd.enemies
-				}
-				// TODO: If is in check and can remove the checker by explosion....
-				if ap.pos.Check(ap.pos.Turn) {
-					checkingPieces, _ := ap.pos.CheckingPieces(ap.pos.Turn)
-					for checkingPieces > 0 {
-						checkingPiece := checkingPieces.NextBit()
-						if kingAttacks(&checkingPiece)&pawnAttacks(&pieceBB, ap.pos.Turn)&pd.enemies > 0 {
-							// If a capture causes an explosion to remove the checker, we cannot restrict the squares
-							toSquares = pawnAttacks(&pieceBB, ap.pos.Turn) & pd.enemies
-						}
-					}
-
-				}
-				// TODO: FORCE THIS????
-				toSquares = pawnAttacks(&pieceBB, ap.pos.Turn) & pd.enemies
-
-				for toSquares > 0 {
-					toSquare := toSquares.NextBit()
-					isPromotion := lastRank(ap.pos.Turn) & toSquare
-
-					switch {
-					case isPromotion > 0 && pd.enemies&toSquare > 0: // Promo Capture
-						genPawnPromotions(&pieceBB, &toSquare, ml, true)
-					default: // Capture
-						ml.add(*encodeMove(uint16(Bsf(pieceBB)), uint16(Bsf(toSquare)), capture))
-					}
-				}
+				genPawnCapturesFromTargets(&pieceBB, pawnAttacks(&pieceBB, ap.pos.Turn)&pd.enemies, ap.pos.Turn, ml, pd)
 			}
 		}
 	}
@@ -224,13 +195,10 @@ func (ap *AtomicPosition) GenerateCaptures(ml *MoveList, pd *PositionData) {
 	filterIllegalMoves(ap, ml)
 }
 
-// GenerateNonCaptures generates all non-captures in the position
+// GenerateNonCaptures generates all pseudo legal non-captures in the position
 func (ap *AtomicPosition) GenerateNonCaptures(ml *MoveList, pd *PositionData) {
+	// Need to check all posibles moves, we cannot restrict by check, since check in Atomic chess works different
 	bitboards := ap.pos.getBitboards(ap.pos.Turn)
-
-	// TODO: check restricted squares does not work when king is in check and kings are adjacent.
-	// Cause the explosion blows both kings, so explosion is illegal, and we have no restricted squares due to check
-
 	blocks := pd.allies | pd.enemies
 
 	for piece, bb := range bitboards {
@@ -238,38 +206,19 @@ func (ap *AtomicPosition) GenerateNonCaptures(ml *MoveList, pd *PositionData) {
 			pieceBB := bb.NextBit()
 			switch piece {
 			case King:
-				genMovesFromTargets(&pieceBB, atomicKingMoves(&pieceBB, *pd), ml, pd)
+				genMovesFromTargets(&pieceBB, kingAttacks(&pieceBB) & ^blocks, ml, pd)
 				genCastleMoves(&ap.pos, ml)
 			case Queen:
-				// genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&^pd.enemies, ml, pd)
 				genMovesFromTargets(&pieceBB, (rookAttacks(Bsf(pieceBB), blocks)|bishopAttacks(Bsf(pieceBB), blocks))&^blocks, ml, pd)
 			case Rook:
-				// genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 				genMovesFromTargets(&pieceBB, rookAttacks(Bsf(pieceBB), blocks)&^blocks, ml, pd)
 			case Bishop:
-				// genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 				genMovesFromTargets(&pieceBB, bishopAttacks(Bsf(pieceBB), blocks)&^blocks, ml, pd)
 			case Knight:
-				// genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 				genMovesFromTargets(&pieceBB, knightAttacksTable[Bsf(pieceBB)]&^blocks, ml, pd)
 			case Pawn:
-				// genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, pd, ap.pos.Turn)&^pd.enemies, ap.pos.Turn, ml, pd)
-				// // genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, pd, ap.pos.Turn)&^blocks, ap.pos.Turn, ml, pd)
-				//
-				emptySquares := ^(pd.allies | pd.enemies)
-
-				posiblesMoves := Bitboard(0)
-				if ap.pos.Turn == White {
-					singleMove := pieceBB << 8 & emptySquares
-					firstPawnMoveAvailable := (pieceBB & ranks[1]) << 16 & (singleMove << 8) & emptySquares
-					posiblesMoves = singleMove | firstPawnMoveAvailable
-				} else {
-					singleMove := pieceBB >> 8 & emptySquares
-					firstPawnMoveAvailable := (pieceBB & ranks[6]) >> 16 & (singleMove >> 8) & emptySquares
-					posiblesMoves = singleMove | firstPawnMoveAvailable
-				}
-
-				genPawnMovesFromTarget(&pieceBB, posiblesMoves, ap.pos.Turn, ml, pd)
+				emptySquares := ^blocks
+				genPawnMovesFromTarget(&pieceBB, pawnPushes(&pieceBB, &emptySquares, ap.pos.Turn)&^blocks, ap.pos.Turn, ml, pd)
 			}
 		}
 	}
@@ -293,27 +242,21 @@ func (ap *AtomicPosition) GetPositionData() PositionData {
 	return ap.pos.generatePositionData()
 }
 
-// IsLegal returns if the move is legal in the current position
-// NOTE:
-// Legality moves on Atomic chess
-// - Explode king. If the move explodes your own king, it is illegal.
-// - Check King. If the move leaves your own king in check, it is illegal. Except if the only piece giving check is the oponent king.
-// - King Capture. The king cannot capture any piece(will result in an explosion and remove your own king). This will be handled when generating king targets bitboards
+// IsLegal returns if the move is legal in the current position for Atomic chess
 func (ap *AtomicPosition) IsLegal(move Move) bool {
 	side := ap.pos.Turn
-	pieceToMove := pieceRole(ap.pos.PieceAt(move.from()))
-
 	ap.MakeMove(&move)
+
 	alliedKingCount := ap.pos.KingPosition(side).count()
 	enemyKingCount := ap.pos.KingPosition(side.Opponent()).count()
 
-	// If own king exploded, the move is illegal
+	// If our own king has exploded, the move is illegal, we have been checkmated
 	if alliedKingCount == 0 {
 		ap.UnmakeMove(&move)
 		return false
 	}
 
-	// We explode enemy king, so its checkmate and the move is illegal
+	// If we explode enemy king, its a checkmate and the move is illegal
 	if enemyKingCount == 0 && isExplosion(&move) {
 		ap.UnmakeMove(&move)
 		return true
@@ -323,25 +266,23 @@ func (ap *AtomicPosition) IsLegal(move Move) bool {
 	// But only if we are not already in check
 	// And not placing the king in check
 	if ap.pos.Check(side) {
-		canAtomicExplosion := ap.canExplodeOpponent(side.Opponent())
-		if canAtomicExplosion && pieceToMove != King {
-			// Need to validate if the explosion move is legal
+		canAtomicCheckmate := ap.canAtomicCheckmateOpponent(side.Opponent())
+		if canAtomicCheckmate {
 			ap.UnmakeMove(&move)
 			return true
 		}
 
-		// Rare Special Condition
-		// TODO: need extra condition.
-		// If can not explode opponent due to blowing up both kings, then is legal
-		// Both Kings must be on adjacent squares. And in check
-
+		// Special case check: Adjacent Kings
+		// We can be in check if our king is adjacent to the enemy king, because cannot be captured,
+		// since explosion will blow up both kings, and its illegal
 		ourKing := ap.pos.KingPosition(side)
 		enemyKing := ap.pos.KingPosition(side.Opponent())
-		if !canAtomicExplosion && ourKing&kingAttacks(&enemyKing) > 0 {
+		if !canAtomicCheckmate && ourKing&kingAttacks(&enemyKing) > 0 {
 			ap.UnmakeMove(&move)
 			return true
 		}
 
+		// Else the move is illegal, cannot be in regular check
 		ap.UnmakeMove(&move)
 		return false
 	}
@@ -350,18 +291,21 @@ func (ap *AtomicPosition) IsLegal(move Move) bool {
 	return true
 }
 
-// TODO: Check if explosion is illegal. Cannot explode your own king. Exploding both kings is illegal
-func (ap *AtomicPosition) canExplodeOpponent(side Color) bool {
+// canAtomicCheckmateOpponent returns if the opponent can be checkmated by explosion in the next move
+func (ap *AtomicPosition) canAtomicCheckmateOpponent(side Color) bool {
 	enemyKing := ap.pos.KingPosition(side.Opponent())
+
+	// Check first if the king is not in check
 	attacks := ap.pos.attackers(Bsf(enemyKing), side, ^ap.pos.EmptySquares())
-	// // Check first if the king is not in check
 	if attacks > 0 {
 		return false
 	}
+
 	ourKing := ap.pos.KingPosition(side)
 	enemyKingZone := kingAttacks(&enemyKing) | enemyKing
 	explodableTargets := enemyKingZone & ap.pos.pieces[side.Opponent()]
 
+	// Need to check if a capture will explode opponent king and not both Kings at the same time(is illegal)
 	for explodableTargets > 0 {
 		bb := explodableTargets.NextBit()
 		targetSq := Bsf(bb)
@@ -374,10 +318,7 @@ func (ap *AtomicPosition) canExplodeOpponent(side Color) bool {
 	return false
 }
 
-func atomicKingMoves(from *Bitboard, pd PositionData) Bitboard {
-	return kingAttacks(from) & ^pd.enemies &^ pd.allies
-}
-
+// genPosibleEpCaptures generates all posible en passant captures, even if they are illegal in standard chess
 func genPosibleEpCaptures(pos *Position, side Color, ml *MoveList) {
 	if pos.enPassantTarget == 0 {
 		return

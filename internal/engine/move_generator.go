@@ -170,7 +170,7 @@ func (pos *Position) generateCaptures(ml *MoveList, pd *PositionData) {
 			case Knight:
 				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&pd.enemies, ml, pd)
 			case Pawn:
-				genPawnCapturesMoves(&pieceBB, pos.Turn, ml, pd)
+				genPawnCapturesFromTargets(&pieceBB, pawnMoves(&pieceBB, pd, pos.Turn)&pd.enemies, pos.Turn, ml, pd)
 			}
 		}
 	}
@@ -240,22 +240,26 @@ func knightMoves(k *Bitboard, pd *PositionData) (moves Bitboard) {
 
 // pawnMoves returns a Bitboard with the squares a pawn can move to in the passed position
 func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
-	posibleCaptures := pawnAttacks(p, side) & pd.enemies
-	posiblesMoves := Bitboard(0)
+	captures := pawnAttacks(p, side) & pd.enemies
 	emptySquares := ^(pd.allies | pd.enemies)
+	pushes := pawnPushes(p, &emptySquares, side)
 
-	if side == White {
-		singleMove := *p << 8 & emptySquares
-		firstPawnMoveAvailable := (*p & ranks[1]) << 16 & (singleMove << 8) & emptySquares
-		posiblesMoves = singleMove | firstPawnMoveAvailable
-	} else {
-		singleMove := *p >> 8 & emptySquares
-		firstPawnMoveAvailable := (*p & ranks[6]) >> 16 & (singleMove >> 8) & emptySquares
-		posiblesMoves = singleMove | firstPawnMoveAvailable
-	}
-
-	moves = (posibleCaptures | posiblesMoves) & pd.checkRestrictedSquares &
+	moves = (captures | pushes) & pd.checkRestrictedSquares &
 		pinRestrictedSquares(*p, pd.kingPosition, pd.pinnedPieces)
+	return
+}
+
+// pawnPushes returns a bitboard with the squares a pawn can be pushed
+func pawnPushes(p *Bitboard, emptySquares *Bitboard, side Color) (pushes Bitboard) {
+	if side == White {
+		singleMove := *p << 8 & *emptySquares
+		firstPawnMoveAvailable := (*p & ranks[1]) << 16 & (singleMove << 8) & *emptySquares
+		pushes = singleMove | firstPawnMoveAvailable
+	} else {
+		singleMove := *p >> 8 & *emptySquares
+		firstPawnMoveAvailable := (*p & ranks[6]) >> 16 & (singleMove >> 8) & *emptySquares
+		pushes = singleMove | firstPawnMoveAvailable
+	}
 	return
 }
 
@@ -349,12 +353,10 @@ func genPawnMovesFromTarget(from *Bitboard, targets Bitboard, side Color, ml *Mo
 	}
 }
 
-// genPawnCapturesMoves generates the pawn captures in the move list
-func genPawnCapturesMoves(from *Bitboard, side Color, ml *MoveList, pd *PositionData) {
-	toSquares := pawnMoves(from, pd, side) & pd.enemies
-
-	for toSquares > 0 {
-		toSquare := toSquares.NextBit()
+// genPawnCapturesFromTargets generates the pawn captures in the move list
+func genPawnCapturesFromTargets(from *Bitboard, targets Bitboard, side Color, ml *MoveList, pd *PositionData) {
+	for targets > 0 {
+		toSquare := targets.NextBit()
 		isPromotion := lastRank(side) & toSquare
 
 		switch {

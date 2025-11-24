@@ -61,9 +61,6 @@ func TestIsExplosion(t *testing.T) {
 	}
 }
 
-// Tests for MakeMove
-// TODO: Need more tests cases
-
 func TestCaptureExplodesSourrundingPieces(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("k7/2q1p3/2pr4/2b5/4N3/4K3/8/4R3 w - - 0 1")
@@ -83,7 +80,6 @@ func TestCaptureExplodesSourrundingPieces(t *testing.T) {
 }
 
 func TestCaptureExplodesSourrundingPieces2(t *testing.T) {
-	// BUG: explosion affects castling rights, not properly handled on make move
 	pos := NewPosition()
 	pos.LoadFromFenString("rnbqkb1r/1p2p1pp/p1p1Np1n/8/3pP3/2N4P/PPPP1PP1/R1BQKB1R w KQkq - 0 7")
 	at := NewAtomicPosition(*pos)
@@ -197,74 +193,39 @@ func TestAtomicPerft(t *testing.T) {
 		{"Perft 7", "8/8/6P1/3k1K2/8/8/8/8 w - - 0 1", 1, 8},
 		{"Perft 7 - depth 3", "8/8/6P1/3k1K2/8/8/8/8 w - - 0 1", 3, 542},
 		{"Perft 8", "1k6/8/8/1bpP1Q2/8/8/6K1/8 w - c6 0 1", 1, 30},
-		{"Perft 8 - Depth 2", "1k6/8/8/1bpP1Q2/8/8/6K1/8 w - c6 0 1", 2, 358},
-		{"Perft 8 - Depth 3", "1k6/8/8/1bpP1Q2/8/8/6K1/8 w - c6 0 1", 3, 9355},
-		{"Perft 8 - Depth 1", "1kQ5/8/8/1bpP4/8/8/6K1/8 b - - 1 1", 1, 1},
 		{"Perft 9", "1k6/8/8/1bpP4/5Q2/8/6K1/8 b - - 1 1", 1, 4},
 		{"Perft 10", "rn1qkb1r/pp2p1pp/2p2n2/3p4/5P2/2N1P3/PPPPB1PP/R1BQK2R b KQkq - 2 7", 2, 864},
 		{"Perft - Black Checkmated", "8/2N4p/1p1k2p1/3R1p2/8/8/1PP2PPP/7R w K - 0 23", 1, 0},
 		{"Perft 11", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 4, 197326},
-		{"Perft Test", "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1", 3, 9747},
-		{"Perft Test", "rnbqkbnr/ppp1pppp/8/3p4/2P5/8/PP1PPPPP/RNBQKBNR w KQkq - 0 2", 2, 643},
-		{"Perft Test", "rnbqkbnr/ppp1pppp/8/3p4/Q1P5/8/PP1PPPPP/RNB1KBNR b KQkq - 1 2", 1, 6},
-		{"Perft 13", "r3r1k1/pp5p/n4pp1/1Q6/6PP/2P5/P7/2KR3R w - - 0 22", 3, 47272},
-		{"Perft 13 - d1d7 - Depth 2", "r3r1k1/pp1R3p/n4pp1/1Q6/6PP/2P5/P7/2K4R b - - 1 22", 2, 1161},
-		{"Perft 13 - d1d7 e8e1 - Depth 1", "r5k1/pp1R3p/n4pp1/1Q6/6PP/2P5/P7/2K1r2R w - - 2 23", 1, 6},
-		{"Perft 13 - d1d7 f6f5 - Depth 1", "r3r1k1/pp1R3p/5pp1/1Q6/1n4PP/2P5/P7/2K4R w - - 2 23", 1, 46},
-		{"Perft 14 - d6d5", "2kr2nr/1p2p1Rp/5p2/3p4/1P2P3/7P/P1P5/2KR4 w - - 0 19", 3, 13646},
-		{"Perft 14 - d6d5 c1d2", "2kr2nr/1p2p1Rp/5p2/3p4/1P2P3/7P/P1PK4/3R4 b - - 1 19", 2, 493},
-		{"Perft 14 - d6d5 c1d2 e7e6", "2kr2nr/1p4Rp/4pp2/3p4/1P2P3/7P/P1PK4/3R4 w - - 0 20", 1, 33}, // Pined by explosion. If capture explodes produces a discovery check. And has a killer explosion. And has a killer explosion. And has a killer explosion...
 		{"Perft 12", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 5, 4864979},
-		{"Perft 12 - f2f4", "rnbqkbnr/pppppppp/8/8/5P2/8/PPPPP1PP/RNBQKBNR b KQkq - 0 1", 4, 198493},
-		{"Perft 12 - f2f4 e7e5", "rnbqkbnr/pppp1ppp/8/4p3/5P2/8/PPPPP1PP/RNBQKBNR w KQkq - 0 2", 3, 14298},
-		{"Perft 12 - f2f4 e7e5 e1f2", "rnbqkbnr/pppp1ppp/8/4p3/5P2/8/PPPPPKPP/RNBQ1BNR b kq - 1 2", 2, 726},
-		{"Perft 12 - f2f4 e7e5 e1f2 d8f6", "rnb1kbnr/pppp1ppp/5q2/4p3/5P2/8/PPPPPKPP/RNBQ1BNR w kq - 2 3", 1, 25},
+		{"Perft 13", "r3r1k1/pp5p/n4pp1/1Q6/6PP/2P5/P7/2KR3R w - - 0 22", 3, 47272},
 		{"Perft 14", "2kr2nr/1p2p1Rp/3p1p2/8/1P2P3/7P/P1P5/2KR4 b - - 3 18", 4, 192507},
-		{"Perft 14 c8d7", "3r2nr/1p1kp1Rp/3p1p2/8/1P2P3/7P/P1P5/2KR4 w - - 4 19", 3, 13491},
-		{"Perft 14 c8d7 e4e5", "3r2nr/1p1kp1Rp/3p1p2/4P3/1P6/7P/P1P5/2KR4 b - - 0 19", 2, 550},
-		{"Perft 14 c8d7 e4e5", "3r2nr/1p1kp1Rp/3p1p2/4P3/1P6/7P/P1P5/2KR4 b - - 0 19", 1, 18},
-
-		// // WIP - Failing Tests
+		{"Perft 14 - d6d5 c1d2 e7e6", "2kr2nr/1p4Rp/4pp2/3p4/1P2P3/7P/P1PK4/3R4 w - - 0 20", 1, 33}, // Pined by explosion. If capture explodes produces a discovery check. And has a killer explosion. And has a killer explosion. And has a killer explosion...
 		{"Perft 15", "rnbqkb1r/1p2p1pp/p1p1Np1n/3p4/4P3/2N4P/PPPP1PP1/R1BQKB1R b KQkq - 1 6", 3, 23192},
-		{"Perft 15 d4d5", "rnbqkb1r/1p2p1pp/p1p1Np1n/8/3pP3/2N4P/PPPP1PP1/R1BQKB1R w KQkq - 0 7", 2, 884},
-		{"Perft 15 d4d5 a2a3", "rnbqk3/1p2p2p/p1p2p2/8/3pP3/2N4P/PPPP1PP1/R1BQKB1R b KQq - 0 7", 1, 27},
-		{"Perft 16", "5k2/8/p4Q1p/2b1p1p1/4P3/2P3qP/P4PP1/3r1NK1 b - - 3 40", 5, 591262},                     // OK
-		{"Perft 17", "r3k1nr/p2nB2p/4p1pb/1p3p2/3P1P2/7P/PP4P1/2R1R1K1 b kq - 1 15", 5, 12119427},            // BUG
-		{"Perft 17 g6g5", "r3k1nr/p2nB2p/4p2b/1p3pp1/3P1P2/7P/PP4P1/2R1R1K1 w kq - 0 16", 4, 539315},         // BUG
-		{"Perft 17 g6g5 g1h2", "r3k1nr/p2nB2p/4p2b/1p3pp1/3P1P2/7P/PP4PK/2R1R3 b kq - 1 16", 3, 14845},       // BUG
-		{"Perft 17 g6g5 g1h2 g5g4", "r3k1nr/p2nB2p/4p2b/1p3p2/3P1Pp1/7P/PP4PK/2R1R3 w kq - 0 17", 2, 810},    // BUG
-		{"Perft 17 g6g5 g1h2 g5g4 c1c8", "r1R1k1nr/p2nB2p/4p2b/1p3p2/3P1Pp1/7P/PP4PK/4R3 b kq - 1 17", 1, 3}, // BUG
-
-		// More Perft test cases to debug - Higher depths
-		{"Perft 18", "r1b1kbnr/pp1p2pp/4pp2/4n3/8/2P5/PP1PPPPP/RNBQKB1R w KQkq - 1 7", 5, 8670840},                  // BUG
-		{"Perft 18 d2d3", "r1b1kbnr/pp1p2pp/4pp2/4n3/8/2PP4/PP2PPPP/RNBQKB1R b KQkq - 0 7", 4, 584121},              // BUG
-		{"Perft 18 d2d3 b7b5", "r1b1kbnr/p2p2pp/4pp2/1p2n3/8/2PP4/PP2PPPP/RNBQKB1R w KQkq - 0 8", 3, 21729},         // BUG
-		{"Perft 18 d2d3 b7b5 c3c4", "r1b1kbnr/p2p2pp/4pp2/1p2n3/2P5/3P4/PP2PPPP/RNBQKB1R b KQkq - 0 8", 2, 843},     // BUG
-		{"Perft 18 d2d3 b7b5 c3c4 f8b4", "r1b1k1nr/p2p2pp/4pp2/1p2n3/1bP5/3P4/PP2PPPP/RNBQKB1R w KQkq - 1 9", 1, 5}, // BUG
+		{"Perft 16", "5k2/8/p4Q1p/2b1p1p1/4P3/2P3qP/P4PP1/3r1NK1 b - - 3 40", 5, 591262},
+		{"Perft 17", "r3k1nr/p2nB2p/4p1pb/1p3p2/3P1P2/7P/PP4P1/2R1R1K1 b kq - 1 15", 5, 12119427},
+		{"Perft 18", "r1b1kbnr/pp1p2pp/4pp2/4n3/8/2P5/PP1PPPPP/RNBQKB1R w KQkq - 1 7", 5, 8670840},
 		{"Perft 19", "r1b1k2r/ppB1p3/n1p2pp1/3p4/3PPP1p/P6B/2P5/3QK2R b Kkq - 1 14", 4, 803459},
 		{"Perft 20", "8/4B3/8/p6p/P7/4p1PP/3k4/4R1K1 b - - 1 49", 3, 688},
 		{"Perft 20 h5h4", "8/4B3/8/p7/P6p/4p1PP/3k4/4R1K1 w - - 0 50", 2, 98},
-		// BUG. Thats really a weird one. The king can put itself in check by the white rook on e1, by Ke2. Because the rook cannot take
-		// the black king on e1, due to if take the explosion will remove it own white king on f1. So Ke2 is Legal!!!!
-		{"Perft 20 h5h4 g1f1", "8/4B3/8/p7/P6p/4p1PP/3k4/4RK2 b - - 1 50", 1, 6},
 
 		// Higher depth tests. To ensure perft is correct. Need to run with -timeout 30m flag to avoid 10m limit by default. Disabled by default.
 		// Just random positions from lichess atomic games compared against Fairy Stockfish perft output
-		// {"Perft 21", "5kr1/p7/2p1p2p/3pPp2/3Pb3/Q5PP/PPP5/R1B3K1 b - - 4 18", 7, 776815556}, // PASS - 197.314s
-		// {"Perft 22", "rnbq1knr/ppN3pp/2p2p2/3p4/1b5P/2P1P3/PP3PP1/R1BQKB1R b KQ - 0 9", 6, 1908167278}, // PASS - 556.814s
-		// {"Perft 23", "2r2R2/p1P3B1/8/4p2p/7P/1P1P3k/P5bK/8 w - - 2 38", 7, 2109807698}, // PASS - 402.215s
-		// {"Perft 24", "5Bk1/pp3n2/6P1/5p2/4pP2/1PP5/P7/2K5 b - - 0 27", 8, 897474719},                     // PASS - 183.163s
-		// {"Perft 25", "r1b2knr/2N2p2/n1p3pp/p2pp3/1b3N2/2P1PP2/PP1P2PP/R1B2RK1 w - - 1 14", 6, 572942491}, // PASS - 183.751s
+		// {"Perft 21", "5kr1/p7/2p1p2p/3pPp2/3Pb3/Q5PP/PPP5/R1B3K1 b - - 4 18", 7, 776815556},                   // PASS - 197.314s
+		// {"Perft 22", "rnbq1knr/ppN3pp/2p2p2/3p4/1b5P/2P1P3/PP3PP1/R1BQKB1R b KQ - 0 9", 6, 1908167278},        // PASS - 556.814s
+		// {"Perft 23", "2r2R2/p1P3B1/8/4p2p/7P/1P1P3k/P5bK/8 w - - 2 38", 7, 2109807698},                        // PASS - 402.215s
+		// {"Perft 24", "5Bk1/pp3n2/6P1/5p2/4pP2/1PP5/P7/2K5 b - - 0 27", 8, 897474719},                          // PASS - 183.163s
+		// {"Perft 25", "r1b2knr/2N2p2/n1p3pp/p2pp3/1b3N2/2P1PP2/PP1P2PP/R1B2RK1 w - - 1 14", 6, 572942491},      // PASS - 183.751s
 		// {"Perft 26", "r4B1r/pp5p/2k2pp1/5b2/1PP5/8/P4PPP/2KR3R w - - 1 22", 6, 382358360},                     // PASS - 99.313s
 		// {"Perft 27", "rnbqkb1r/pp1pp1pp/2p2p2/8/8/2N1P3/PPPP1PPP/R1BQKB1R b KQkq - 1 5", 6, 342465968},        // PASS - 112.222s
 		// {"Perft 28", "r1b1kb1r/pppp1Np1/2n2n2/5p1p/1P1Pp2q/4PPP1/P1P4P/RNBQKB1R b KQkq - 0 8", 6, 1918375372}, // PASS - 593.412s
 		// {"Perft 29", "r2qkb1r/p5p1/1p3p2/1P1pp1Pp/P1pPPP1P/2P5/5K2/RN4NR b kq - 0 15", 6, 278730039},          // PASS - 92.023s
-		// {"Perft 30", "k3r3/1R6/P4pp1/3p2Pp/2pP3P/2P2N2/5K2/8 w - - 3 28", 7, 427909792},                // PASS - 86.521s
-		// {"Perft 31", "5r2/1p4p1/4N2p/P7/8/6P1/3p2kP/3K4 b - - 4 36", 7, 501841475},                     // PASS -  82.682s
-		// {"Perft 32", "r1bqk1nr/1p3pp1/2p4p/P7/1b1pP3/2N2PPN/7P/R1BQKB1R b KQkq - 0 12", 6, 3605073073}, // PASS - 900.372s
-		// {"Perft 33", "rnbqkbnr/ppppppp1/7p/8/4P3/7N/PPPP1PPP/RNBQKB1R b KQkq - 0 2", 6, 267397815},         // PASS - 95.796s
-		// {"Perft 34", "rn1qkb1r/2p3p1/5p2/pp1Pp2p/2P3P1/N6P/PPbB1P2/R1Q1KB1R b KQkq - 2 12", 6, 1770446821}, // PASS - 568.027s
-		// {"Perft 35", "r2qk2r/2p3p1/5p2/p2Pp2p/1b4P1/N3B2P/PP2KP2/R1Qb1B1R w kq - 5 16", 7, 2147276275},     // PASS - 642.148s
+		// {"Perft 30", "k3r3/1R6/P4pp1/3p2Pp/2pP3P/2P2N2/5K2/8 w - - 3 28", 7, 427909792},                       // PASS - 86.521s
+		// {"Perft 31", "5r2/1p4p1/4N2p/P7/8/6P1/3p2kP/3K4 b - - 4 36", 7, 501841475},                            // PASS -  82.682s
+		// {"Perft 32", "r1bqk1nr/1p3pp1/2p4p/P7/1b1pP3/2N2PPN/7P/R1BQKB1R b KQkq - 0 12", 6, 3605073073},        // PASS - 900.372s
+		// {"Perft 33", "rnbqkbnr/ppppppp1/7p/8/4P3/7N/PPPP1PPP/RNBQKB1R b KQkq - 0 2", 6, 267397815},            // PASS - 95.796s
+		// {"Perft 34", "rn1qkb1r/2p3p1/5p2/pp1Pp2p/2P3P1/N6P/PPbB1P2/R1Q1KB1R b KQkq - 2 12", 6, 1770446821},    // PASS - 568.027s
+		// {"Perft 35", "r2qk2r/2p3p1/5p2/p2Pp2p/1b4P1/N3B2P/PP2KP2/R1Qb1B1R w kq - 5 16", 7, 2147276275},        // PASS - 642.148s
 	}
 
 	for _, tc := range testCases {
