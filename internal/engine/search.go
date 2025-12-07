@@ -15,9 +15,11 @@ const (
 	MaxInt                        = math.MaxInt32
 	EndgameMaterialThreshold      = 1600
 	ReverseFutitlityPruningMargin = 200
-	LateMovePruningMoveNumber     = 20
 	AspirationWindowSize          = 45
 )
+
+// LateMovePruningMoveNumber contains the move number to start pruning for each depth
+var LateMovePruningMoveNumber = [5]int{0, 5, 10, 15, 20}
 
 // Search is the main struct for the search
 type Search struct {
@@ -239,8 +241,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		branchPv.reset()
 		moveFlag := move.flag()
 
-		// Late Move Pruning
-		if depth <= 3 && mg.stage >= NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber && !isCheck && !pvNode && !pos.Check(pos.Turn) {
+		// Late Move Pruning. Prunes quiet moves that are likely to not be good, by assuming we have a good move ordering
+		if depth <= 4 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[depth] && !isCheck && !pvNode && !pos.Check(pos.Turn) {
 			pos.UnmakeMove(&move)
 			continue
 		}
