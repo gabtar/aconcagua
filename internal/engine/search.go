@@ -14,7 +14,7 @@ const (
 	MinInt                        = math.MinInt32
 	MaxInt                        = math.MaxInt32
 	EndgameMaterialThreshold      = 1600
-	ReverseFutitlityPruningMargin = 200
+	ReverseFutitlityPruningMargin = 130
 	AspirationWindowSize          = 45
 )
 
