@@ -21,6 +21,9 @@ const (
 // LateMovePruningMoveNumber contains the move number to start pruning for each depth
 var LateMovePruningMoveNumber = [5]int{0, 5, 10, 15, 20}
 
+// FutilityPruningMargins contains the margin for futility pruning for each depth
+var FutilityMargin = []int{0, 120, 180, 280, 420}
+
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
@@ -215,12 +218,12 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 	}
 
-	// Futility pruning flag
+	// Extended Futility Pruning
+	// Discards potential moves near the horizon that are not likely to raise alpha (will not improve the position)
 	futilityPruningAllowed := false
-	if depth <= 3 && alpha > -MateScore && beta < MateScore {
-		futilityMargin := []int{0, 300, 500, 900}
+	if depth <= 4 && alpha > -MateScore && beta < MateScore {
 		sc := pos.Evaluate()
-		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
+		futilityPruningAllowed = sc+FutilityMargin[depth] <= alpha
 	}
 
 	// Internal Iterative Deepening
@@ -241,13 +244,14 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		branchPv.reset()
 		moveFlag := move.flag()
 
-		// Late Move Pruning. Prunes quiet moves that are likely to not be good, by assuming we have a good move ordering
+		// Late Move Pruning
+		// Prunes quiet moves that are likely not to be good, by assuming we have a good move ordering
 		if depth <= 4 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[depth] && !isCheck && !pvNode && !pos.Check(pos.Turn) {
 			pos.UnmakeMove(&move)
 			continue
 		}
 
-		// Futility Pruning
+		// Futility Pruning. Apply futility pruning if conditions are met
 		if futilityPruningAllowed && moveFlag < capture && !isCheck && !pvNode && mg.moveNumber > 0 {
 			pos.UnmakeMove(&move)
 			continue
