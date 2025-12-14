@@ -53,15 +53,10 @@ func (tc *TimeControl) calculateSearchTime(strategy int, side int, moveNumber in
 	}
 	if strategy == TimeLeftStrategy {
 		timeLeft, incr := clock.timeLeft(Color(side))
-		if moveNumber <= 25 { // For the first 25 moves takes around 70% of the total time
-			return int(0.03*(1+float32(moveNumber)/25)*timeLeft) + int(incr*4/5)
+		if moveNumber <= 50 {
+			return int(0.035*(1+float32(moveNumber)/100)*timeLeft) + int(incr)
 		}
-		if moveNumber <= 50 { // For moves between 25-50 takes around 15% of the total time
-			return int(0.015*(1+float32(moveNumber-25)/50)*timeLeft) + int(incr*4/5)
-		}
-
-		// For moves >50 takes around 10% of the total time
-		return int(0.01*timeLeft) + int(incr/2)
+		return int(0.01*timeLeft) + int(incr)
 	}
 	return -1
 }
