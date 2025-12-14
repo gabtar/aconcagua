@@ -17,7 +17,7 @@ type UciCommandStruct struct{}
 
 // Execute handles the "uci" command logic.
 func (c *UciCommandStruct) Execute(en *engine.Engine, stdout chan string, params ...string) {
-	stdout <- "id name Aconcagua 4.0.0"
+	stdout <- "id name Aconcagua 4.1.0"
 	stdout <- "id author Gabriel Tarifa"
 	stdout <- ""
 	stdout <- "option name BookPath type string default <empty>"

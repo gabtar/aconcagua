@@ -21,8 +21,8 @@ const (
 // LateMovePruningMoveNumber contains the move number to start pruning for each depth
 var LateMovePruningMoveNumber = [5]int{0, 5, 10, 15, 20}
 
-// FutilityPruningMargins contains the margin for futility pruning for each depth
-var FutilityMargin = []int{0, 120, 180, 280, 420}
+// FutilityPruningMargin contains the margin for futility pruning for each depth
+var FutilityPruningMargin = []int{0, 120, 180, 280, 420}
 
 // Search is the main struct for the search
 type Search struct {
@@ -223,7 +223,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	futilityPruningAllowed := false
 	if depth <= 4 && alpha > -MateScore && beta < MateScore {
 		sc := pos.Evaluate()
-		futilityPruningAllowed = sc+FutilityMargin[depth] <= alpha
+		futilityPruningAllowed = sc+FutilityPruningMargin[depth] <= alpha
 	}
 
 	// Internal Iterative Deepening
