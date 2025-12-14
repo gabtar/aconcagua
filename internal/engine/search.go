@@ -14,10 +14,15 @@ const (
 	MinInt                        = math.MinInt32
 	MaxInt                        = math.MaxInt32
 	EndgameMaterialThreshold      = 1600
-	ReverseFutitlityPruningMargin = 200
-	LateMovePruningMoveNumber     = 20
+	ReverseFutitlityPruningMargin = 130
 	AspirationWindowSize          = 45
 )
+
+// LateMovePruningMoveNumber contains the move number to start pruning for each depth
+var LateMovePruningMoveNumber = [5]int{0, 5, 10, 15, 20}
+
+// FutilityPruningMargin contains the margin for futility pruning for each depth
+var FutilityPruningMargin = []int{0, 120, 180, 280, 420}
 
 // Search is the main struct for the search
 type Search struct {
@@ -213,12 +218,12 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 	}
 
-	// Futility pruning flag
+	// Extended Futility Pruning
+	// Discards potential moves near the horizon that are not likely to raise alpha (will not improve the position)
 	futilityPruningAllowed := false
-	if depth <= 3 && alpha > -MateScore && beta < MateScore {
-		futilityMargin := []int{0, 300, 500, 900}
+	if depth <= 4 && alpha > -MateScore && beta < MateScore {
 		sc := pos.Evaluate()
-		futilityPruningAllowed = sc+futilityMargin[depth] <= alpha
+		futilityPruningAllowed = sc+FutilityPruningMargin[depth] <= alpha
 	}
 
 	// Internal Iterative Deepening
@@ -240,12 +245,13 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		moveFlag := move.flag()
 
 		// Late Move Pruning
-		if depth <= 3 && mg.stage >= NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber && !isCheck && !pvNode && !pos.Check(pos.Turn) {
+		// Prunes quiet moves that are likely not to be good, by assuming we have a good move ordering
+		if depth <= 4 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[depth] && !isCheck && !pvNode && !pos.Check(pos.Turn) {
 			pos.UnmakeMove(&move)
 			continue
 		}
 
-		// Futility Pruning
+		// Futility Pruning. Apply futility pruning if conditions are met
 		if futilityPruningAllowed && moveFlag < capture && !isCheck && !pvNode && mg.moveNumber > 0 {
 			pos.UnmakeMove(&move)
 			continue
