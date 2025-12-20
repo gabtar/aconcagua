@@ -22,6 +22,18 @@ const (
 	IsolatedPawnPenaltyEg = -7
 	BackwardPawnPenaltyMg = -8
 	BackwardPawnPenaltyEg = -5
+
+	// Config #2
+	// 	--------------------------------------------------
+	// Results of Aconcagua v4.1.0-DEV vs Aconcagua-v4.1.0 (8+0.08, NULL, NULL, Blitz_Testing_4moves.epd):
+	// Elo: 6.86 +/- 8.78, nElo: 8.42 +/- 10.77
+	// LOS: 93.73 %, DrawRatio: 36.25 %, PairsRatio: 1.06
+	// Games: 4000, Wins: 1438, Losses: 1359, Draws: 1203, Points: 2039.5 (50.99 %)
+	// Ptnml(0-2): [211, 407, 725, 406, 251], WL/DD Ratio: 2.72
+	// LLR: 1.13 (39.2%) (-2.25, 2.89) [0.00, 10.00]
+	// --------------------------------------------------
+	BishopPairBonusMg = 26
+	BishopPairBonusEg = 14
 )
 
 // PassedPawnsBonusMg contains the bonus for passed pawns on each rank for mg phase
@@ -93,6 +105,17 @@ func (pos *Position) Evaluate() int {
 				pos.eval.evaluatePawn(sq, color)
 			}
 		}
+	}
+
+	// Bishop pair bonus
+	if pos.Bitboards[WhiteBishop].count() >= 2 {
+		pos.eval.mgMaterial[White] += BishopPairBonusMg
+		pos.eval.egMaterial[White] += BishopPairBonusEg
+	}
+
+	if pos.Bitboards[BlackBishop].count() >= 2 {
+		pos.eval.mgMaterial[Black] += BishopPairBonusMg
+		pos.eval.egMaterial[Black] += BishopPairBonusEg
 	}
 
 	mgSc, egSc, ok := pos.eval.pawnHashTable.probe(pos.PawnHash, pos.Turn)
