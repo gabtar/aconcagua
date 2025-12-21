@@ -17,3 +17,6 @@ bin/*
 
 # tags
 tags
+
+# Tuner data
+internal/tuner/training-set/*

@@ -54,7 +54,7 @@ func ComputeGradients(entry DatasetEntry, params [810]float64, K float64) []floa
 	lossGradient := 2 * error * K * predicted * (1 - predicted)
 
 	for _, attr := range entry.Weights {
-		if attr.paramIndex >= 0 && attr.paramIndex < len(gradients) {
+		if attr.paramIndex >= 0 && int(attr.paramIndex) < len(gradients) {
 			evalGradient := float64(attr.weight) / 62.0
 			gradients[attr.paramIndex] += lossGradient * evalGradient
 		}

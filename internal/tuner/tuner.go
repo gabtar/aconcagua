@@ -22,19 +22,44 @@ type DatasetEntry struct {
 	Phase   int
 }
 
+// NewDataset returns a new preallocated dataset
+func NewDataset(size int) (dataset []DatasetEntry) {
+	dataset = make([]DatasetEntry, size)
+	for i := range size {
+		dataset[i] = DatasetEntry{
+			Fen:     "",
+			Result:  0.0,
+			Weights: make([]PositionWeight, 0, 810),
+			Phase:   0,
+		}
+	}
+
+	return
+}
+
 // LoadDataSet loads a dataset from a file
-func LoadDataSet(filename string) (dataset []DatasetEntry) {
+func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 	file, err := os.Open(filename)
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer file.Close()
 
+	// Preallocate memory to load entries faster
+	dataset = NewDataset(size)
+
 	scanner := bufio.NewScanner(file)
+
+	// Increase buffer size for faster scanning
+	buf := make([]byte, 0, 1024*1024) // 1MB buffer
+	scanner.Buffer(buf, 1024*1024)
+
 	pos := engine.NewPosition()
+	count := 0
 	for scanner.Scan() {
 		line := scanner.Text()
-		parts := strings.Split(line, "\"")
+		// parts := strings.Split(line, "\"") for zurichess dataset
+		parts := strings.Split(line, "[") // for lichess-big3-resolved dataset
 		resultString := map[string]float64{
 			"1-0":     1.0,
 			"0-1":     0.0,
@@ -47,6 +72,16 @@ func LoadDataSet(filename string) (dataset []DatasetEntry) {
 		phase := getMiddleGamePhase(pos)
 		result := resultString[parts[1]]
 		dataset = append(dataset, DatasetEntry{Fen: fen, Result: result, Weights: weights, Phase: phase})
+
+		count++
+		if count >= size {
+			break
+		}
+
+		// Progress indicator
+		if count%100000 == 0 {
+			fmt.Printf("Loaded %d positions...\n", count)
+		}
 	}
 
 	return dataset
@@ -253,8 +288,8 @@ func worker(scalingFactor float64, params *[810]float64, jobs <-chan WorkerJob, 
 // The paramIndex corresponds with the index of the params array we are trying to optimize
 // The product of the param value and the weigth value represents the final score
 type PositionWeight struct {
-	paramIndex int
-	weight     int
+	paramIndex int16
+	weight     int16
 }
 
 // evaluatePosition returns the static evaluation of a position based on the weights and current params
@@ -297,23 +332,23 @@ func generatePieceScoreWeights(fen string, phase int) (weights []PositionWeight)
 
 			// Piece value Mg
 			weights = append(weights, PositionWeight{
-				paramIndex: 768 + piece%6,
-				weight:     colorModifier * phase,
+				paramIndex: int16(768 + piece%6),
+				weight:     int16(colorModifier * phase),
 			})
 			// Piece value Eg
 			weights = append(weights, PositionWeight{
-				paramIndex: 768 + piece%6 + 6,
-				weight:     colorModifier * (62 - phase),
+				paramIndex: int16(768 + piece%6 + 6),
+				weight:     int16(colorModifier * (62 - phase)),
 			})
 			// PSQT value Mg
 			weights = append(weights, PositionWeight{
-				paramIndex: (piece%6)*64 + sq,
-				weight:     colorModifier * phase,
+				paramIndex: int16((piece%6)*64 + sq),
+				weight:     int16(colorModifier * phase),
 			})
 			// PSQT value Eg
 			weights = append(weights, PositionWeight{
-				paramIndex: 384 + (piece%6)*64 + sq,
-				weight:     colorModifier * (62 - phase),
+				paramIndex: int16(384 + (piece%6)*64 + sq),
+				weight:     int16(colorModifier * (62 - phase)),
 			})
 		}
 	}
@@ -346,14 +381,14 @@ func generateMobilityWeights(fen string, phase int) (weights []PositionWeight) {
 
 			// mg
 			weights = append(weights, PositionWeight{
-				paramIndex: 780 + piece%4*2,
-				weight:     colorModifier * safeSquares * phase,
+				paramIndex: int16(780 + piece%4*2),
+				weight:     int16(colorModifier * safeSquares * phase),
 			})
 
 			// eg
 			weights = append(weights, PositionWeight{
-				paramIndex: 780 + piece%4*2 + 1,
-				weight:     colorModifier * safeSquares * (62 - phase),
+				paramIndex: int16(780 + piece%4*2 + 1),
+				weight:     int16(colorModifier * safeSquares * (62 - phase)),
 			})
 		}
 	}
@@ -371,13 +406,13 @@ func generateDoubledPawnsWeights(fen string, phase int) (weights []PositionWeigh
 
 	for i := range 2 {
 		weights = append(weights, PositionWeight{
-			paramIndex: 788,
-			weight:     sideModifier[i] * doubledPawns[i] * phase,
+			paramIndex: int16(788),
+			weight:     int16(sideModifier[i] * doubledPawns[i] * phase),
 		})
 
 		weights = append(weights, PositionWeight{
-			paramIndex: 789,
-			weight:     sideModifier[i] * doubledPawns[i] * (62 - phase),
+			paramIndex: int16(789),
+			weight:     int16(sideModifier[i] * doubledPawns[i] * (62 - phase)),
 		})
 	}
 
@@ -395,13 +430,13 @@ func generateIsolatedPawnsWeights(fen string, phase int) (weights []PositionWeig
 
 	for i := range 2 {
 		weights = append(weights, PositionWeight{
-			paramIndex: 790,
-			weight:     sideModifier[i] * isolatedPawns[i] * phase,
+			paramIndex: int16(790),
+			weight:     int16(sideModifier[i] * isolatedPawns[i] * phase),
 		})
 
 		weights = append(weights, PositionWeight{
-			paramIndex: 791,
-			weight:     sideModifier[i] * isolatedPawns[i] * (62 - phase),
+			paramIndex: int16(791),
+			weight:     int16(sideModifier[i] * isolatedPawns[i] * (62 - phase)),
 		})
 	}
 
@@ -422,13 +457,13 @@ func generateBackwardsPawnsWeights(fen string, phase int) (weights []PositionWei
 
 	for i := range 2 {
 		weights = append(weights, PositionWeight{
-			paramIndex: 792,
-			weight:     sideModifier[i] * backwardsPawns[i] * phase,
+			paramIndex: int16(792),
+			weight:     int16(sideModifier[i] * backwardsPawns[i] * phase),
 		})
 
 		weights = append(weights, PositionWeight{
-			paramIndex: 793,
-			weight:     sideModifier[i] * backwardsPawns[i] * (62 - phase),
+			paramIndex: int16(793),
+			weight:     int16(sideModifier[i] * backwardsPawns[i] * (62 - phase)),
 		})
 	}
 
@@ -448,12 +483,12 @@ func generatePassedPawnsWeights(fen string, phase int) (weights []PositionWeight
 		rank := sq / 8
 
 		weights = append(weights, PositionWeight{
-			paramIndex: 794 + rank,
-			weight:     phase,
+			paramIndex: int16(794 + rank),
+			weight:     int16(phase),
 		})
 		weights = append(weights, PositionWeight{
-			paramIndex: 802 + rank,
-			weight:     (62 - phase),
+			paramIndex: int16(802 + rank),
+			weight:     int16(62 - phase),
 		})
 	}
 
@@ -463,12 +498,12 @@ func generatePassedPawnsWeights(fen string, phase int) (weights []PositionWeight
 		rank := 7 - sq/8
 
 		weights = append(weights, PositionWeight{
-			paramIndex: 794 + rank,
-			weight:     -1 * phase,
+			paramIndex: int16(794 + rank),
+			weight:     int16(-1 * phase),
 		})
 		weights = append(weights, PositionWeight{
-			paramIndex: 802 + rank,
-			weight:     -1 * (62 - phase),
+			paramIndex: int16(802 + rank),
+			weight:     int16(-1 * (62 - phase)),
 		})
 	}
 
