@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gabtar/aconcagua/internal/engine"
 )
@@ -29,7 +30,7 @@ func NewDataset(size int) (dataset []DatasetEntry) {
 		dataset[i] = DatasetEntry{
 			Fen:     "",
 			Result:  0.0,
-			Weights: make([]PositionWeight, 0, 810),
+			Weights: make([]PositionWeight, 0, 200),
 			Phase:   0,
 		}
 	}
@@ -56,6 +57,7 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 
 	pos := engine.NewPosition()
 	count := 0
+	start := time.Now()
 	for scanner.Scan() {
 		line := scanner.Text()
 		// parts := strings.Split(line, "\"") for zurichess dataset
@@ -67,20 +69,23 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 		}
 
 		fen := parts[0]
-		weights := generatePositionWeights(fen)
 		pos.LoadFromFenString(fen)
 		phase := getMiddleGamePhase(pos)
 		result := resultString[parts[1]]
-		dataset = append(dataset, DatasetEntry{Fen: fen, Result: result, Weights: weights, Phase: phase})
+
+		generatePositionWeights(pos, phase, &dataset[count].Weights)
+		dataset[count].Fen = fen
+		dataset[count].Result = result
+		dataset[count].Phase = phase
 
 		count++
 		if count >= size {
 			break
 		}
 
-		// Progress indicator
 		if count%100000 == 0 {
-			fmt.Printf("Loaded %d positions...\n", count)
+			elapsed := time.Since(start)
+			fmt.Printf("Loaded %d entries in %s\n", count, elapsed)
 		}
 	}
 
@@ -303,25 +308,17 @@ func evaluatePosition(params [810]float64, weights []PositionWeight) (evaluation
 }
 
 // generatePositionWeights returns all the position weights of a position
-func generatePositionWeights(fen string) (weights []PositionWeight) {
-	pos := engine.NewPosition()
-	pos.LoadFromFenString(fen)
-	phase := getMiddleGamePhase(pos)
-	weights = generatePieceScoreWeights(fen, phase)
-	weights = append(weights, generateMobilityWeights(fen, phase)...)
-	weights = append(weights, generateDoubledPawnsWeights(fen, phase)...)
-	weights = append(weights, generateIsolatedPawnsWeights(fen, phase)...)
-	weights = append(weights, generateBackwardsPawnsWeights(fen, phase)...)
-	weights = append(weights, generatePassedPawnsWeights(fen, phase)...)
-
-	return
+func generatePositionWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	generatePieceScoreWeights(pos, phase, weights)
+	generateMobilityWeights(pos, phase, weights)
+	generateDoubledPawnsWeights(pos, phase, weights)
+	generateIsolatedPawnsWeights(pos, phase, weights)
+	generateBackwardsPawnsWeights(pos, phase, weights)
+	generatePassedPawnsWeights(pos, phase, weights)
 }
 
 // generatePieceScoreWeights returns the weights of the pieces socre in the board
-func generatePieceScoreWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := engine.NewPosition()
-	pos.LoadFromFenString(fen)
-
+func generatePieceScoreWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	for piece, bb := range pos.Bitboards {
 		colorModifier := 1 - int(piece/6)*2
 		for bb > 0 {
@@ -330,36 +327,18 @@ func generatePieceScoreWeights(fen string, phase int) (weights []PositionWeight)
 				sq = sq ^ 56 // white pieces uses mirror square index in psqt
 			}
 
-			// Piece value Mg
-			weights = append(weights, PositionWeight{
-				paramIndex: int16(768 + piece%6),
-				weight:     int16(colorModifier * phase),
-			})
-			// Piece value Eg
-			weights = append(weights, PositionWeight{
-				paramIndex: int16(768 + piece%6 + 6),
-				weight:     int16(colorModifier * (62 - phase)),
-			})
-			// PSQT value Mg
-			weights = append(weights, PositionWeight{
-				paramIndex: int16((piece%6)*64 + sq),
-				weight:     int16(colorModifier * phase),
-			})
-			// PSQT value Eg
-			weights = append(weights, PositionWeight{
-				paramIndex: int16(384 + (piece%6)*64 + sq),
-				weight:     int16(colorModifier * (62 - phase)),
-			})
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(768 + piece%6), weight: int16(colorModifier * phase)},
+				PositionWeight{paramIndex: int16(768 + piece%6 + 6), weight: int16(colorModifier * (62 - phase))},
+				PositionWeight{paramIndex: int16((piece%6)*64 + sq), weight: int16(colorModifier * phase)},
+				PositionWeight{paramIndex: int16(384 + (piece%6)*64 + sq), weight: int16(colorModifier * (62 - phase))},
+			)
 		}
 	}
-
-	return
 }
 
 // generateMobilityWeights returns the position weithts of the mobility of the position
-func generateMobilityWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := engine.NewPosition()
-	pos.LoadFromFenString(fen)
+func generateMobilityWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	var mobilityBase = [4]int{engine.QueenMobilityBase, engine.RookMobilityBase, engine.BishopMobilityBase, engine.KnightMobilityBase}
 	var pieces = [8]int{engine.WhiteQueen, engine.WhiteRook, engine.WhiteBishop, engine.WhiteKnight, engine.BlackQueen, engine.BlackRook, engine.BlackBishop, engine.BlackKnight}
 
@@ -370,7 +349,11 @@ func generateMobilityWeights(fen string, phase int) (weights []PositionWeight) {
 	}
 	whiteBB := pos.Bitboards[1:5]
 	blackBB := pos.Bitboards[7:11]
-	bitboards := append(whiteBB, blackBB...)
+
+	// NOTE: Need to make a new slice, otherwise we will mutate the Bitboards array in Position struct
+	bitboards := make([]engine.Bitboard, 0, 8)
+	bitboards = append(bitboards, whiteBB...)
+	bitboards = append(bitboards, blackBB...)
 
 	for piece, bb := range bitboards {
 		colorModifier := 1 - int(piece/4)*2
@@ -379,101 +362,58 @@ func generateMobilityWeights(fen string, phase int) (weights []PositionWeight) {
 			attacks := engine.Attacks(pieces[piece], fromBB, blocks)
 			safeSquares := bits.OnesCount64(uint64(attacks & ^enemyPawnsAttacks[piece/4])) - mobilityBase[piece%4]
 
-			// mg
-			weights = append(weights, PositionWeight{
-				paramIndex: int16(780 + piece%4*2),
-				weight:     int16(colorModifier * safeSquares * phase),
-			})
-
-			// eg
-			weights = append(weights, PositionWeight{
-				paramIndex: int16(780 + piece%4*2 + 1),
-				weight:     int16(colorModifier * safeSquares * (62 - phase)),
-			})
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(780 + piece%4*2), weight: int16(colorModifier * safeSquares * phase)},
+				PositionWeight{paramIndex: int16(780 + piece%4*2 + 1), weight: int16(colorModifier * safeSquares * (62 - phase))},
+			)
 		}
 	}
-	return
 }
 
 // generateDoubledPawnsWeights returns the position weights of the doubled pawns
-func generateDoubledPawnsWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := engine.NewPosition()
-	pos.LoadFromFenString(fen)
+func generateDoubledPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	wDoubled := bits.OnesCount64(uint64(engine.DoubledPawns(pos, engine.White)))
 	bDoubled := bits.OnesCount64(uint64(engine.DoubledPawns(pos, engine.Black)))
-	sideModifier := [2]int{1, -1}
-	doubledPawns := [2]int{wDoubled, bDoubled}
 
-	for i := range 2 {
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(788),
-			weight:     int16(sideModifier[i] * doubledPawns[i] * phase),
-		})
-
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(789),
-			weight:     int16(sideModifier[i] * doubledPawns[i] * (62 - phase)),
-		})
-	}
-
-	return
+	*weights = append(*weights,
+		PositionWeight{paramIndex: 788, weight: int16(wDoubled * phase)},
+		PositionWeight{paramIndex: 789, weight: int16(wDoubled * (62 - phase))},
+		PositionWeight{paramIndex: 788, weight: int16(-bDoubled * phase)},
+		PositionWeight{paramIndex: 789, weight: int16(-bDoubled * (62 - phase))},
+	)
 }
 
 // generateIsolatedPawnsWeights returns the position weights of the isolated pawns
-func generateIsolatedPawnsWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := engine.NewPosition()
-	pos.LoadFromFenString(fen)
+func generateIsolatedPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	wIsolated := bits.OnesCount64(uint64(engine.IsolatedPawns(pos, engine.White)))
 	bIsolated := bits.OnesCount64(uint64(engine.IsolatedPawns(pos, engine.Black)))
-	sideModifier := [2]int{1, -1}
-	isolatedPawns := [2]int{wIsolated, bIsolated}
 
-	for i := range 2 {
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(790),
-			weight:     int16(sideModifier[i] * isolatedPawns[i] * phase),
-		})
-
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(791),
-			weight:     int16(sideModifier[i] * isolatedPawns[i] * (62 - phase)),
-		})
-	}
-
-	return
+	*weights = append(*weights,
+		PositionWeight{paramIndex: 790, weight: int16(wIsolated * phase)},
+		PositionWeight{paramIndex: 791, weight: int16(wIsolated * (62 - phase))},
+		PositionWeight{paramIndex: 790, weight: int16(-bIsolated * phase)},
+		PositionWeight{paramIndex: 791, weight: int16(-bIsolated * (62 - phase))},
+	)
 }
 
 // generateBackwardsPawnsWeights returns the position weights of the backwards pawns
-func generateBackwardsPawnsWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := engine.NewPosition()
-	pos.LoadFromFenString(fen)
+func generateBackwardsPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	whitePawnsAttacks := engine.Attacks(engine.WhitePawn, pos.Bitboards[engine.WhitePawn], pos.EmptySquares())
 	blackPawnsAttacks := engine.Attacks(engine.BlackPawn, pos.Bitboards[engine.BlackPawn], pos.EmptySquares())
 
 	wBackwards := bits.OnesCount64(uint64(engine.BackwardPawns(pos.Bitboards[engine.WhitePawn], blackPawnsAttacks, engine.White)))
 	bBackwards := bits.OnesCount64(uint64(engine.BackwardPawns(pos.Bitboards[engine.BlackPawn], whitePawnsAttacks, engine.Black)))
-	sideModifier := [2]int{1, -1}
-	backwardsPawns := [2]int{wBackwards, bBackwards}
 
-	for i := range 2 {
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(792),
-			weight:     int16(sideModifier[i] * backwardsPawns[i] * phase),
-		})
-
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(793),
-			weight:     int16(sideModifier[i] * backwardsPawns[i] * (62 - phase)),
-		})
-	}
-
-	return
+	*weights = append(*weights,
+		PositionWeight{paramIndex: 792, weight: int16(wBackwards * phase)},
+		PositionWeight{paramIndex: 793, weight: int16(wBackwards * (62 - phase))},
+		PositionWeight{paramIndex: 792, weight: int16(-bBackwards * phase)},
+		PositionWeight{paramIndex: 793, weight: int16(-bBackwards * (62 - phase))},
+	)
 }
 
 // generatePassedPawnsWeights returns the position weights of the passed pawns
-func generatePassedPawnsWeights(fen string, phase int) (weights []PositionWeight) {
-	pos := engine.NewPosition()
-	pos.LoadFromFenString(fen)
+func generatePassedPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	wPassedPawns := engine.PassedPawns(pos.Bitboards[engine.WhitePawn], pos.Bitboards[engine.BlackPawn], engine.White)
 	bPassedPawns := engine.PassedPawns(pos.Bitboards[engine.BlackPawn], pos.Bitboards[engine.WhitePawn], engine.Black)
 
@@ -482,14 +422,10 @@ func generatePassedPawnsWeights(fen string, phase int) (weights []PositionWeight
 		sq := engine.Bsf(fromBB)
 		rank := sq / 8
 
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(794 + rank),
-			weight:     int16(phase),
-		})
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(802 + rank),
-			weight:     int16(62 - phase),
-		})
+		*weights = append(*weights,
+			PositionWeight{paramIndex: int16(794 + rank), weight: int16(phase)},
+			PositionWeight{paramIndex: int16(802 + rank), weight: int16(62 - phase)},
+		)
 	}
 
 	for bPassedPawns > 0 {
@@ -497,17 +433,11 @@ func generatePassedPawnsWeights(fen string, phase int) (weights []PositionWeight
 		sq := engine.Bsf(fromBB)
 		rank := 7 - sq/8
 
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(794 + rank),
-			weight:     int16(-1 * phase),
-		})
-		weights = append(weights, PositionWeight{
-			paramIndex: int16(802 + rank),
-			weight:     int16(-1 * (62 - phase)),
-		})
+		*weights = append(*weights,
+			PositionWeight{paramIndex: int16(794 + rank), weight: int16(-phase)},
+			PositionWeight{paramIndex: int16(802 + rank), weight: int16(-(62 - phase))},
+		)
 	}
-
-	return
 }
 
 // getMiddleGamePhase returns the value of the middle game phase of a position

@@ -41,9 +41,11 @@ func TestEvaluation(t *testing.T) {
 			pos.LoadFromFenString(tc.fen)
 			staticEval := pos.Evaluate()
 			params := GetEvaluationParams()
-			attr := generatePositionWeights(pos.ToFen())
+			weights := make([]PositionWeight, 0, 200)
+			phase := getMiddleGamePhase(pos)
+			generatePositionWeights(pos, phase, &weights)
 
-			got := int(evaluatePosition(params, attr))
+			got := int(evaluatePosition(params, weights))
 
 			// Always return evaluation from white's perspective
 			if pos.Turn == engine.Black {
