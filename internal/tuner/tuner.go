@@ -13,7 +13,8 @@ import (
 	"github.com/gabtar/aconcagua/internal/engine"
 )
 
-const ScalingFactor = 0.0084 // Best Scaling factor found for zurichess training dataset
+// const ScalingFactor = 0.0084 // Best Scaling factor found for zurichess training dataset
+const ScalingFactor = 0.008000000000000007 // lichess-big3-resolved
 
 // DatasetEntry is an struct conatining a single training example
 type DatasetEntry struct {
@@ -61,11 +62,16 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		// parts := strings.Split(line, "\"") for zurichess dataset
+		// resultString := map[string]float64{
+		// 	"1-0":     1.0,
+		// 	"0-1":     0.0,
+		// 	"1/2-1/2": 0.5,
+		// }
 		parts := strings.Split(line, "[") // for lichess-big3-resolved dataset
 		resultString := map[string]float64{
-			"1-0":     1.0,
-			"0-1":     0.0,
-			"1/2-1/2": 0.5,
+			"1.0]": 1.0,
+			"0.0]": 0.0,
+			"0.5]": 0.5,
 		}
 
 		fen := parts[0]

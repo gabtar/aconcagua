@@ -43,7 +43,7 @@ func (adam *AdamOptimizer) Update(params *[810]float64, gradients []float64) {
 }
 
 // ComputeGradients computes the gradients of the loss with respect to the parameters
-func ComputeGradients(entry DatasetEntry, params [810]float64, K float64) []float64 {
+func ComputeGradients(entry *DatasetEntry, params [810]float64, K float64) []float64 {
 	gradients := make([]float64, len(params))
 
 	eval := evaluatePosition(params, entry.Weights)
@@ -63,36 +63,37 @@ func ComputeGradients(entry DatasetEntry, params [810]float64, K float64) []floa
 	return gradients
 }
 
-func AdamTuner(params [810]float64, dataset []DatasetEntry, K float64, epochs int) {
+func AdamTuner(params [810]float64, dataset *[]DatasetEntry, K float64, epochs int) {
 	adam := NewAdamOptimizer(len(params), 0.1)
+	entries := len(*dataset)
 
 	fmt.Printf("Starting Adam optimization with %d parameters, %d positions, K=%.6f\n",
-		len(params), len(dataset), K)
+		len(params), entries, K)
 
 	for epoch := 1; epoch <= epochs; epoch++ {
 		totalGradients := make([]float64, len(params))
 		totalLoss := 0.0
 
-		for _, entry := range dataset {
-			gradients := ComputeGradients(entry, params, K)
+		for i := range entries {
+			gradients := ComputeGradients(&(*dataset)[i], params, K)
 
 			for i := range totalGradients {
 				totalGradients[i] += gradients[i]
 			}
 
-			eval := evaluatePosition(params, entry.Weights)
+			eval := evaluatePosition(params, (*dataset)[i].Weights)
 			predicted := 1.0 / (1.0 + math.Exp(-K*eval))
-			error := predicted - entry.Result
+			error := predicted - (*dataset)[i].Result
 			totalLoss += error * error
 		}
 
 		for i := range totalGradients {
-			totalGradients[i] /= float64(len(dataset))
+			totalGradients[i] /= float64(entries)
 		}
 
 		adam.Update(&params, totalGradients)
 
-		mse := totalLoss / float64(len(dataset))
+		mse := totalLoss / float64(entries)
 		fmt.Printf("Epoch %3d: MSE = %.8f, LR = %.6f\n", epoch, mse, adam.learningRate)
 
 		if epoch > 0 && epoch%50 == 0 {
