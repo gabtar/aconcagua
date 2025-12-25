@@ -246,11 +246,11 @@ func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 
 	if side == White {
 		singleMove := *p << 8 & emptySquares
-		firstPawnMoveAvailable := (*p & ranks[1]) << 16 & (singleMove << 8) & emptySquares
+		firstPawnMoveAvailable := (*p & Ranks[1]) << 16 & (singleMove << 8) & emptySquares
 		posiblesMoves = singleMove | firstPawnMoveAvailable
 	} else {
 		singleMove := *p >> 8 & emptySquares
-		firstPawnMoveAvailable := (*p & ranks[6]) >> 16 & (singleMove >> 8) & emptySquares
+		firstPawnMoveAvailable := (*p & Ranks[6]) >> 16 & (singleMove >> 8) & emptySquares
 		posiblesMoves = singleMove | firstPawnMoveAvailable
 	}
 
@@ -265,8 +265,8 @@ func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 	if side == Black {
 		epShift = epShift << 16
 	}
-	notInHFile := epShift & ^(epShift & files[7])
-	notInAFile := epShift & ^(epShift & files[0])
+	notInHFile := epShift & ^(epShift & Files[7])
+	notInAFile := epShift & ^(epShift & Files[0])
 
 	epCaptures |= pos.getBitboards(side)[Pawn] & (notInAFile>>1 | notInHFile<<1)
 	return
@@ -275,9 +275,9 @@ func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 // lastRank returns the rank of the last rank for the side passed
 func lastRank(side Color) (rank Bitboard) {
 	if side == White {
-		rank = ranks[7]
+		rank = Ranks[7]
 	} else {
-		rank = ranks[0]
+		rank = Ranks[0]
 	}
 	return
 }

@@ -99,8 +99,8 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // GetEvaluationParams returns the current evaluation params
-func GetEvaluationParams() (params [810]float64) {
-	intParams := [810]int{}
+func GetEvaluationParams() (params [816]float64) {
+	intParams := [816]int{}
 
 	// Psqt params
 	for piece := range 6 {
@@ -135,19 +135,31 @@ func GetEvaluationParams() (params [810]float64) {
 	intParams[792] = engine.BackwardPawnPenaltyMg
 	intParams[793] = engine.BackwardPawnPenaltyEg
 
+	// Passed Pawns
 	for i := range 8 {
 		intParams[794+i] = engine.PassedPawnsBonusMg[i]
 		intParams[802+i] = engine.PassedPawnsBonusEg[i]
 	}
 
-	for i := range 810 {
+	// Material adjustments
+	intParams[810] = engine.BishopPairBonusMg
+	intParams[811] = engine.BishopPairBonusEg
+
+	intParams[812] = engine.RookOnOpenFileMg
+	intParams[813] = engine.RookOnSemiOpenFileMg
+
+	// King Safety
+	intParams[814] = engine.KingOnOpenFilePenaltyMg
+	intParams[815] = engine.KingOnSemiOpenFilePenaltyMg
+
+	for i := range 816 {
 		params[i] = float64(intParams[i])
 	}
 	return
 }
 
 // saveParams sotres the best params found in a file
-func saveParams(bestParams [810]float64, iteration int) {
+func saveParams(bestParams [816]float64, iteration int) {
 	dir := "tuner/params"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		os.MkdirAll(dir, 0755)
@@ -167,7 +179,7 @@ func saveParams(bestParams [810]float64, iteration int) {
 }
 
 // paramsToPrettyFormat returns the params as a string
-func paramsToPrettyFormat(bestParams [810]float64) (psqt string) {
+func paramsToPrettyFormat(bestParams [816]float64) (psqt string) {
 	piece := []string{"King", "Queen", "Rook", "Bishop", "Knight", "Pawn"}
 	psqt = "MiddlegamePSQT: \n"
 	for i := range 6 {
@@ -232,6 +244,16 @@ func paramsToPrettyFormat(bestParams [810]float64) (psqt string) {
 	}
 	psqt += "\n"
 
+	// Material adjustments
+	psqt += fmt.Sprintf("BishopPairBonusMg: %d\n", int(bestParams[810]))
+	psqt += fmt.Sprintf("BishopPairBonusEg: %d\n", int(bestParams[811]))
+	psqt += fmt.Sprintf("RookOnOpenFileMg: %d\n", int(bestParams[812]))
+	psqt += fmt.Sprintf("RookOnSemiOpenFileMg: %d\n", int(bestParams[813]))
+
+	// King Safety
+	psqt += fmt.Sprintf("KingOnOpenFilePenaltyMg: %d\n", int(bestParams[814]))
+	psqt += fmt.Sprintf("KingOnSemiOpenFilePenaltyMg: %d\n", int(bestParams[815]))
+
 	return psqt
 }
 
@@ -248,7 +270,7 @@ type WorkerResult struct {
 }
 
 // MeanSquareError returns the mean square error using parallel processing
-func MeanSquareError(scalingFactor float64, params *[810]float64, dataset *[]DatasetEntry) float64 {
+func MeanSquareError(scalingFactor float64, params *[816]float64, dataset *[]DatasetEntry) float64 {
 	const numWorkers = 4
 	entries := len(*dataset)
 
@@ -282,7 +304,7 @@ func MeanSquareError(scalingFactor float64, params *[810]float64, dataset *[]Dat
 }
 
 // worker processes jobs from the jobs channel
-func worker(scalingFactor float64, params *[810]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
+func worker(scalingFactor float64, params *[816]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range jobs {
@@ -304,7 +326,7 @@ type PositionWeight struct {
 }
 
 // evaluatePosition returns the static evaluation of a position based on the weights and current params
-func evaluatePosition(params [810]float64, weights []PositionWeight) (evaluation float64) {
+func evaluatePosition(params [816]float64, weights []PositionWeight) (evaluation float64) {
 	eval := 0.0
 	for _, attr := range weights {
 		eval += params[attr.paramIndex] * float64(attr.weight)
@@ -321,6 +343,8 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 	generateIsolatedPawnsWeights(pos, phase, weights)
 	generateBackwardsPawnsWeights(pos, phase, weights)
 	generatePassedPawnsWeights(pos, phase, weights)
+	generateMaterialAdjustmentsWeights(pos, phase, weights)
+	generateKingSafetyWeights(pos, phase, weights)
 }
 
 // generatePieceScoreWeights returns the weights of the pieces socre in the board
@@ -446,6 +470,99 @@ func generatePassedPawnsWeights(pos *engine.Position, phase int, weights *[]Posi
 	}
 }
 
+// generateMaterialAdjustmentsWeights returns the position weights of the material adjustments
+func generateMaterialAdjustmentsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	// Bishop pairs bonuses
+	whiteBishopCount := bits.OnesCount64(uint64(pos.Bitboards[engine.WhiteBishop]))
+	if whiteBishopCount >= 2 {
+		*weights = append(*weights,
+			PositionWeight{paramIndex: 810, weight: int16(phase)},
+			PositionWeight{paramIndex: 811, weight: int16(62 - phase)},
+		)
+	}
+	blackBishopCount := bits.OnesCount64(uint64(pos.Bitboards[engine.BlackBishop]))
+	if blackBishopCount >= 2 {
+		*weights = append(*weights,
+			PositionWeight{paramIndex: 810, weight: int16(-phase)},
+			PositionWeight{paramIndex: 811, weight: int16(-(62 - phase))},
+		)
+	}
+
+	// Rook on Open/SemiOpenFile
+	generateRookOnOpenFileWeights(pos, phase, weights, engine.White)
+	generateRookOnOpenFileWeights(pos, phase, weights, engine.Black)
+}
+
+// generateRookOnOpenFileWeights returns the position weights of the rook on open file
+func generateRookOnOpenFileWeights(pos *engine.Position, phase int, weights *[]PositionWeight, side engine.Color) {
+	sideModifier := 1 - int(side)*2
+	alliedPawns := pos.Bitboards[engine.Pawn+int(side)*6]
+	enemyPawns := pos.Bitboards[engine.Pawn+int(side.Opponent())*6]
+
+	rooks := pos.Bitboards[engine.Rook+int(side)*6]
+
+	for rooks > 0 {
+		fromBB := rooks.NextBit()
+		sq := engine.Bsf(fromBB)
+
+		if (alliedPawns|enemyPawns)&engine.Files[sq%8] == 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(812), weight: int16(sideModifier * phase)},
+			)
+		}
+		if alliedPawns&engine.Files[sq%8] == 0 && enemyPawns&engine.Files[sq%8] > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(813), weight: int16(sideModifier * phase)},
+			)
+		}
+	}
+}
+
+// generateKingSafetyWeights returns the position weights of the king safety
+func generateKingSafetyWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	generateKingOnOpenFileWeights(pos, phase, weights, engine.White)
+	generateKingOnOpenFileWeights(pos, phase, weights, engine.Black)
+}
+
+// generateKingOnOpenFileWeights returns the position weights of the king on open file
+func generateKingOnOpenFileWeights(pos *engine.Position, phase int, weights *[]PositionWeight, side engine.Color) {
+	sideModifier := 1 - int(side)*2
+	alliedPawns := pos.Bitboards[engine.Pawn+int(side)*6]
+	enemyPawns := pos.Bitboards[engine.Pawn+int(side.Opponent())*6]
+
+	kingFile := engine.Bsf(pos.KingPosition(side)) % 8
+
+	for file := kingFile - 1; file >= kingFile+1; file++ {
+		if file < 0 || file > 7 {
+			continue
+		}
+
+		if (alliedPawns|enemyPawns)&engine.Files[file] == 0 {
+			if kingFile == file {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(814), weight: int16(sideModifier * phase)},
+				)
+			} else {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(814), weight: int16(sideModifier * phase / 3)},
+				)
+			}
+		}
+
+		if alliedPawns&engine.Files[file] == 0 && enemyPawns&engine.Files[file] > 0 {
+			if kingFile == file {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(815), weight: int16(sideModifier * phase)},
+				)
+			} else {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(815), weight: int16(sideModifier * phase / 3)},
+				)
+			}
+		}
+	}
+}
+
 // getMiddleGamePhase returns the value of the middle game phase of a position
 func getMiddleGamePhase(pos *engine.Position) (mgPhase int) {
 	phaseInc := [6]int{0, 9, 5, 3, 3, 0}
@@ -460,7 +577,7 @@ func getMiddleGamePhase(pos *engine.Position) (mgPhase int) {
 }
 
 // FindOptimalScalingFactor returns the scaling factor that minimizes the mean square error
-func FindOptimalScalingFactor(dataset []DatasetEntry, params [810]float64) float64 {
+func FindOptimalScalingFactor(dataset []DatasetEntry, params [816]float64) float64 {
 	bestK := 0.0
 	bestError := math.Inf(1)
 

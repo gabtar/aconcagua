@@ -25,8 +25,8 @@ func init() {
 	attacksFrontSpans = generateAttacksFrontSpans()
 }
 
-// files array contains the bitboard mask for each file in the board
-var files [8]Bitboard = [8]Bitboard{
+// Files array contains the bitboard mask for each file in the board
+var Files [8]Bitboard = [8]Bitboard{
 	0x0101010101010101,
 	0x0101010101010101 << 1,
 	0x0101010101010101 << 2,
@@ -37,8 +37,8 @@ var files [8]Bitboard = [8]Bitboard{
 	0x0101010101010101 << 7,
 }
 
-// ranks contains the bitboard mask for each rank in the board
-var ranks [8]Bitboard = [8]Bitboard{
+// Ranks contains the bitboard mask for each rank in the board
+var Ranks [8]Bitboard = [8]Bitboard{
 	0x00000000000000FF,
 	0x00000000000000FF << 8,
 	0x00000000000000FF << 16,
@@ -63,14 +63,14 @@ var knightAttacksTable [64]Bitboard
 
 // isolatedAdjacentFilesMask contains the adjacent files of a pawn to test if it is isolated
 var isolatedAdjacentFilesMask = [8]Bitboard{
-	files[1],
-	files[0] | files[2],
-	files[1] | files[3],
-	files[2] | files[4],
-	files[3] | files[5],
-	files[4] | files[6],
-	files[5] | files[7],
-	files[6],
+	Files[1],
+	Files[0] | Files[2],
+	Files[1] | Files[3],
+	Files[2] | Files[4],
+	Files[3] | Files[5],
+	Files[4] | Files[6],
+	Files[5] | Files[7],
+	Files[6],
 }
 
 // attacksFrontSpans is a precalculated table containing the bitmask of front attack spans for each square
@@ -197,10 +197,10 @@ func generateKnightAttacks() (knightAttacksTable [64]Bitboard) {
 	for sq := range 64 {
 		from := Bitboard(1 << sq)
 
-		notInHFile := from & ^(from & files[7])
-		notInAFile := from & ^(from & files[0])
-		notInABFiles := from & ^(from & (files[0] | files[1]))
-		notInGHFiles := from & ^(from & (files[7] | files[6]))
+		notInHFile := from & ^(from & Files[7])
+		notInAFile := from & ^(from & Files[0])
+		notInABFiles := from & ^(from & (Files[0] | Files[1]))
+		notInGHFiles := from & ^(from & (Files[7] | Files[6]))
 
 		knightAttacksTable[sq] = notInAFile<<15 | notInHFile<<17 | notInGHFiles<<10 |
 			notInABFiles<<6 | notInHFile>>15 | notInAFile>>17 |

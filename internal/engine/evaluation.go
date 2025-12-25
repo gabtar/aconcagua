@@ -23,17 +23,15 @@ const (
 	BackwardPawnPenaltyMg = -8
 	BackwardPawnPenaltyEg = -5
 
-	// Config #2
-	// 	--------------------------------------------------
-	// Results of Aconcagua v4.1.0-DEV vs Aconcagua-v4.1.0 (8+0.08, NULL, NULL, Blitz_Testing_4moves.epd):
-	// Elo: 6.86 +/- 8.78, nElo: 8.42 +/- 10.77
-	// LOS: 93.73 %, DrawRatio: 36.25 %, PairsRatio: 1.06
-	// Games: 4000, Wins: 1438, Losses: 1359, Draws: 1203, Points: 2039.5 (50.99 %)
-	// Ptnml(0-2): [211, 407, 725, 406, 251], WL/DD Ratio: 2.72
-	// LLR: 1.13 (39.2%) (-2.25, 2.89) [0.00, 10.00]
-	// --------------------------------------------------
-	BishopPairBonusMg = 26
-	BishopPairBonusEg = 14
+	// Material Adjustment
+	BishopPairBonusMg    = 26
+	BishopPairBonusEg    = 14
+	RookOnOpenFileMg     = 22
+	RookOnSemiOpenFileMg = 8
+
+	// King Safety
+	KingOnOpenFilePenaltyMg     = -30
+	KingOnSemiOpenFilePenaltyMg = -18
 )
 
 // PassedPawnsBonusMg contains the bonus for passed pawns on each rank for mg phase
@@ -82,6 +80,10 @@ func (pos *Position) Evaluate() int {
 		pawnAttacks(&pos.Bitboards[BlackPawn], Black),
 		pawnAttacks(&pos.Bitboards[WhitePawn], White),
 	}
+	pawns := [2]Bitboard{
+		pos.Bitboards[WhitePawn],
+		pos.Bitboards[BlackPawn],
+	}
 
 	for piece, bb := range pos.Bitboards {
 		color := Color(piece / 6)
@@ -92,11 +94,11 @@ func (pos *Position) Evaluate() int {
 
 			switch pieceRole(piece) {
 			case King:
-				pos.eval.evaluateKing(sq, color)
+				pos.eval.evaluateKing(sq, pawns, color)
 			case Queen:
 				pos.eval.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], color)
 			case Rook:
-				pos.eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], color)
+				pos.eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], pawns, color)
 			case Bishop:
 				pos.eval.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], color)
 			case Knight:
@@ -148,13 +150,36 @@ func (ev *Evaluation) score(side Color) int {
 
 	mgPhase := min(ev.phase, 62)
 	egPhase := 62 - mgPhase
-
 	return (mg*mgPhase + eg*egPhase) / 62
 }
 
 // evaluateKing evaluates the score of a king
-func (ev *Evaluation) evaluateKing(from int, side Color) {
+func (ev *Evaluation) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 	piece := pieceColor(King, side)
+
+	// King On open files
+	kingFile := from % 8
+	for file := kingFile - 1; file >= kingFile+1; file++ {
+		if file < 0 || file > 7 {
+			continue
+		}
+
+		if (pawns[White]|pawns[Black])&Files[file] == 0 {
+			if kingFile == file {
+				ev.mgMaterial[side] -= KingOnOpenFilePenaltyMg
+			} else {
+				ev.mgMaterial[side] -= KingOnOpenFilePenaltyMg / 3
+			}
+		}
+		if pawns[side]&Files[file] == 0 && pawns[side.Opponent()]&Files[file] > 0 {
+			if kingFile == file {
+				ev.mgMaterial[side] -= KingOnSemiOpenFilePenaltyMg
+			} else {
+				ev.mgMaterial[side] -= KingOnSemiOpenFilePenaltyMg / 3
+			}
+		}
+	}
+
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
 }
@@ -176,10 +201,19 @@ func (ev *Evaluation) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks
 }
 
 // evaluateRook evaluates the score of a rook
-func (ev *Evaluation) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, side Color) {
+func (ev *Evaluation) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, pawns [2]Bitboard, side Color) {
 	piece := pieceColor(Rook, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
+
+	file := from % 8
+	if (pawns[White]|pawns[Black])&Files[file] == 0 {
+		ev.mgMaterial[side] += RookOnOpenFileMg
+	}
+
+	if pawns[side]&Files[file] == 0 && pawns[side.Opponent()]&Files[file] > 0 {
+		ev.mgMaterial[side] += RookOnSemiOpenFileMg
+	}
 
 	fromBB := bitboardFromIndex(from)
 	attacks := Attacks(piece, fromBB, blocks)
@@ -265,7 +299,7 @@ func DoubledPawns(pos *Position, side Color) Bitboard {
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
 
 	for file := range 8 {
-		pawnsInFile := pawns & files[file]
+		pawnsInFile := pawns & Files[file]
 		if pawnsInFile.count() > 1 {
 			pawnsInFile.NextBit() // removes one to not double count the penalty
 			doubledPawns |= pawnsInFile
@@ -281,7 +315,7 @@ func IsolatedPawns(pos *Position, side Color) Bitboard {
 
 	for file := range 8 {
 		if isolatedAdjacentFilesMask[file]&pawns == 0 {
-			isolatedPawns |= files[file] & pawns
+			isolatedPawns |= Files[file] & pawns
 		}
 	}
 	return isolatedPawns
