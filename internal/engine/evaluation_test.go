@@ -169,3 +169,20 @@ func TestPawnStructureEvaluation(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestPawnShieldEvaluation(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/8/6k1/5p2/6p1/7p/8/3K4 w - - 0 1")
+
+	kingBB := pos.KingPosition(Black)
+
+	ev := Evaluation{}
+	ev.evaluateKing(Bsf(kingBB), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
+
+	expected := PawnShieldBonusMg[0] + PawnShieldBonusMg[1] + PawnShieldBonusMg[2]
+	got := ev.mgKingSafety[Black]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

@@ -99,8 +99,8 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // GetEvaluationParams returns the current evaluation params
-func GetEvaluationParams() (params [818]float64) {
-	intParams := [818]int{}
+func GetEvaluationParams() (params [821]float64) {
+	intParams := [821]int{}
 
 	// Psqt params
 	for piece := range 6 {
@@ -154,14 +154,18 @@ func GetEvaluationParams() (params [818]float64) {
 	intParams[816] = engine.KingNearOpenFilePenaltyMg
 	intParams[817] = engine.KingNearSemiOpenFilePenaltyMg
 
-	for i := range 818 {
+	intParams[818] = engine.PawnShieldBonusMg[0]
+	intParams[819] = engine.PawnShieldBonusMg[1]
+	intParams[820] = engine.PawnShieldBonusMg[2]
+
+	for i := range 821 {
 		params[i] = float64(intParams[i])
 	}
 	return
 }
 
 // saveParams sotres the best params found in a file
-func saveParams(bestParams [818]float64, iteration int) {
+func saveParams(bestParams [821]float64, iteration int) {
 	dir := "tuner/params"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		os.MkdirAll(dir, 0755)
@@ -181,7 +185,7 @@ func saveParams(bestParams [818]float64, iteration int) {
 }
 
 // paramsToPrettyFormat returns the params as a string
-func paramsToPrettyFormat(bestParams [818]float64) (psqt string) {
+func paramsToPrettyFormat(bestParams [821]float64) (psqt string) {
 	piece := []string{"King", "Queen", "Rook", "Bishop", "Knight", "Pawn"}
 	psqt = "MiddlegamePSQT: \n"
 	for i := range 6 {
@@ -258,6 +262,11 @@ func paramsToPrettyFormat(bestParams [818]float64) (psqt string) {
 	psqt += fmt.Sprintf("KingNearOpenFilePenaltyMg: %d\n", int(bestParams[816]))
 	psqt += fmt.Sprintf("KingNearSemiOpenFilePenaltyMg: %d\n", int(bestParams[817]))
 
+	psqt += "PawnShieldBonusMg: "
+	for i := range 3 {
+		psqt += fmt.Sprintf("%d, ", int(bestParams[818+i]))
+	}
+
 	return psqt
 }
 
@@ -274,7 +283,7 @@ type WorkerResult struct {
 }
 
 // MeanSquareError returns the mean square error using parallel processing
-func MeanSquareError(scalingFactor float64, params *[818]float64, dataset *[]DatasetEntry) float64 {
+func MeanSquareError(scalingFactor float64, params *[821]float64, dataset *[]DatasetEntry) float64 {
 	const numWorkers = 4
 	entries := len(*dataset)
 
@@ -308,7 +317,7 @@ func MeanSquareError(scalingFactor float64, params *[818]float64, dataset *[]Dat
 }
 
 // worker processes jobs from the jobs channel
-func worker(scalingFactor float64, params *[818]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
+func worker(scalingFactor float64, params *[821]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range jobs {
@@ -330,7 +339,7 @@ type PositionWeight struct {
 }
 
 // evaluatePosition returns the static evaluation of a position based on the weights and current params
-func evaluatePosition(params [818]float64, weights []PositionWeight) (evaluation float64) {
+func evaluatePosition(params [821]float64, weights []PositionWeight) (evaluation float64) {
 	eval := 0.0
 	for _, attr := range weights {
 		eval += params[attr.paramIndex] * float64(attr.weight)
@@ -526,6 +535,7 @@ func generateRookOnOpenFileWeights(pos *engine.Position, phase int, weights *[]P
 func generateKingSafetyWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	generateKingOnOpenFileWeights(pos, phase, weights, engine.White)
 	generateKingOnOpenFileWeights(pos, phase, weights, engine.Black)
+	generatePawnShieldWeights(pos, phase, weights)
 }
 
 // generateKingOnOpenFileWeights returns the position weights of the king on open file
@@ -564,6 +574,39 @@ func generateKingOnOpenFileWeights(pos *engine.Position, phase int, weights *[]P
 	}
 }
 
+// generatePawnShieldWeights returns the position weights of the pawn shield
+func generatePawnShieldWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	for color := engine.White; color <= engine.Black; color++ {
+		king := pos.KingPosition(engine.Color(color))
+		kingFile := engine.Bsf(king) % 8
+		kingRank := engine.Bsf(king) / 8
+		alliedPawns := pos.Bitboards[engine.Pawn+int(color)*6]
+
+		for file := kingFile - 1; file <= kingFile+1; file++ {
+			if file < 0 || file > 7 {
+				continue
+			}
+			pawnsInFile := alliedPawns & engine.Files[file]
+			rankIncrement := 1
+			if color == engine.Black {
+				rankIncrement = -1
+			}
+			for i := range 3 {
+				rank := (kingRank + rankIncrement) + i*rankIncrement
+				if rank < 0 || rank > 7 {
+					break
+				}
+				if pawnsInFile&engine.Ranks[rank] > 0 {
+					*weights = append(*weights,
+						PositionWeight{paramIndex: int16(818 + i), weight: int16((1 - int(color)*2) * phase)},
+					)
+					break
+				}
+			}
+		}
+	}
+}
+
 // getMiddleGamePhase returns the value of the middle game phase of a position
 func getMiddleGamePhase(pos *engine.Position) (mgPhase int) {
 	phaseInc := [6]int{0, 9, 5, 3, 3, 0}
@@ -578,7 +621,7 @@ func getMiddleGamePhase(pos *engine.Position) (mgPhase int) {
 }
 
 // FindOptimalScalingFactor returns the scaling factor that minimizes the mean square error
-func FindOptimalScalingFactor(dataset []DatasetEntry, params [818]float64) float64 {
+func FindOptimalScalingFactor(dataset []DatasetEntry, params [821]float64) float64 {
 	bestK := 0.0
 	bestError := math.Inf(1)
 

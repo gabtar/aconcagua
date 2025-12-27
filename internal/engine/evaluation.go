@@ -30,11 +30,14 @@ const (
 	RookOnSemiOpenFileMg = 8
 
 	// King Safety
-	KingOnOpenFilePenaltyMg     = -30
-	KingOnSemiOpenFilePenaltyMg = -18
-	KingNearOpenFilePenaltyMg   = -10
+	KingOnOpenFilePenaltyMg       = -30
+	KingOnSemiOpenFilePenaltyMg   = -18
+	KingNearOpenFilePenaltyMg     = -10
 	KingNearSemiOpenFilePenaltyMg = -6
 )
+
+// PawnShieldBonusMg contains the bonus for pawn shields for mg phase based on rank distance to the king
+var PawnShieldBonusMg = [3]int{15, 10, 5}
 
 // PassedPawnsBonusMg contains the bonus for passed pawns on each rank for mg phase
 var PassedPawnsBonusMg = [8]int{0, 2, -5, -14, 2, -3, 17, 0}
@@ -50,6 +53,7 @@ type Evaluation struct {
 	egMobility      [2]int
 	mgPawnStrucutre [2]int
 	egPawnStructure [2]int
+	mgKingSafety    [2]int
 	phase           int
 	// Evaluation tables
 	pawnHashTable *PawnHashTable
@@ -70,6 +74,7 @@ func (ev *Evaluation) clear() {
 	ev.egMobility = [2]int{0, 0}
 	ev.mgPawnStrucutre = [2]int{0, 0}
 	ev.egPawnStructure = [2]int{0, 0}
+	ev.mgKingSafety = [2]int{0, 0}
 	ev.phase = 0
 }
 
@@ -149,6 +154,7 @@ func (ev *Evaluation) score(side Color) int {
 	eg += ev.egMobility[side] - ev.egMobility[opponent]
 	mg += ev.mgPawnStrucutre[side] - ev.mgPawnStrucutre[opponent]
 	eg += ev.egPawnStructure[side] - ev.egPawnStructure[opponent]
+	mg += ev.mgKingSafety[side] - ev.mgKingSafety[opponent]
 
 	mgPhase := min(ev.phase, 62)
 	egPhase := 62 - mgPhase
@@ -161,22 +167,44 @@ func (ev *Evaluation) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 
 	// King On open files
 	kingFile := from % 8
+	kingRank := from / 8
 	for file := kingFile - 1; file <= kingFile+1; file++ {
 		if file < 0 || file > 7 {
 			continue
 		}
 
+		// Evaluate pawn Shield
+		pawnsInFile := pawns[side] & Files[file]
+		if pawnsInFile > 0 {
+			// Get the first pawn in file
+			rankIncrement := 1
+			if side == Black {
+				rankIncrement = -1
+			}
+			for i := range 3 {
+				rank := (kingRank + rankIncrement) + i*rankIncrement
+				if rank < 0 || rank > 7 {
+					break
+				}
+
+				if pawnsInFile&Ranks[rank] > 0 {
+					ev.mgKingSafety[side] += PawnShieldBonusMg[i]
+					break // only count the first pawn
+				}
+			}
+		}
+
 		if (pawns[White]|pawns[Black])&Files[file] == 0 {
 			if kingFile == file {
-				ev.mgMaterial[side] += KingOnOpenFilePenaltyMg
+				ev.mgKingSafety[side] += KingOnOpenFilePenaltyMg
 			} else {
-				ev.mgMaterial[side] += KingNearOpenFilePenaltyMg
+				ev.mgKingSafety[side] += KingNearOpenFilePenaltyMg
 			}
 		} else if pawns[side]&Files[file] == 0 && pawns[side.Opponent()]&Files[file] > 0 {
 			if kingFile == file {
-				ev.mgMaterial[side] += KingOnSemiOpenFilePenaltyMg
+				ev.mgKingSafety[side] += KingOnSemiOpenFilePenaltyMg
 			} else {
-				ev.mgMaterial[side] += KingNearSemiOpenFilePenaltyMg
+				ev.mgKingSafety[side] += KingNearSemiOpenFilePenaltyMg
 			}
 		}
 	}
