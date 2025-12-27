@@ -32,6 +32,8 @@ const (
 	// King Safety
 	KingOnOpenFilePenaltyMg     = -30
 	KingOnSemiOpenFilePenaltyMg = -18
+	KingNearOpenFilePenaltyMg   = -10
+	KingNearSemiOpenFilePenaltyMg = -6
 )
 
 // PassedPawnsBonusMg contains the bonus for passed pawns on each rank for mg phase
@@ -159,23 +161,22 @@ func (ev *Evaluation) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 
 	// King On open files
 	kingFile := from % 8
-	for file := kingFile - 1; file >= kingFile+1; file++ {
+	for file := kingFile - 1; file <= kingFile+1; file++ {
 		if file < 0 || file > 7 {
 			continue
 		}
 
 		if (pawns[White]|pawns[Black])&Files[file] == 0 {
 			if kingFile == file {
-				ev.mgMaterial[side] -= KingOnOpenFilePenaltyMg
+				ev.mgMaterial[side] += KingOnOpenFilePenaltyMg
 			} else {
-				ev.mgMaterial[side] -= KingOnOpenFilePenaltyMg / 3
+				ev.mgMaterial[side] += KingNearOpenFilePenaltyMg
 			}
-		}
-		if pawns[side]&Files[file] == 0 && pawns[side.Opponent()]&Files[file] > 0 {
+		} else if pawns[side]&Files[file] == 0 && pawns[side.Opponent()]&Files[file] > 0 {
 			if kingFile == file {
-				ev.mgMaterial[side] -= KingOnSemiOpenFilePenaltyMg
+				ev.mgMaterial[side] += KingOnSemiOpenFilePenaltyMg
 			} else {
-				ev.mgMaterial[side] -= KingOnSemiOpenFilePenaltyMg / 3
+				ev.mgMaterial[side] += KingNearSemiOpenFilePenaltyMg
 			}
 		}
 	}
