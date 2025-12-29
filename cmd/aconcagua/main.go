@@ -14,5 +14,6 @@ func main() {
 	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/lichess-big3-resolved.book", 3000000)
 	// params := tuner.GetEvaluationParams()
 	//
+
 	// tuner.AdamTuner(params, &dataset, tuner.ScalingFactor, 1000)
 }

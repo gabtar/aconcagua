@@ -34,27 +34,43 @@ const (
 	KingOnSemiOpenFilePenaltyMg   = -18
 	KingNearOpenFilePenaltyMg     = -10
 	KingNearSemiOpenFilePenaltyMg = -6
+
+	KnightAttackWeight = 3
+	BishopAttackWeight = 3
+	RookAttackWeight   = 5
+	QueenAttackWeight  = 9
 )
 
 // PawnShieldBonusMg contains the bonus for pawn shields for mg phase based on rank distance to the king
 var PawnShieldBonusMg = [3]int{15, 10, 5}
 
+// KingSafetyTable contains the penalties for king safety based on the number wheigted attacks to the king
+var KingSafetyTable = [50]int{
+	0, 0, 1, 2, 3, 5, 7, 9, 12, 15,
+	18, 22, 26, 30, 35, 40, 45, 51, 57, 64,
+	71, 79, 88, 97, 107, 118, 130, 142, 155, 168,
+	182, 197, 213, 230, 248, 267, 287, 308, 330, 353,
+	377, 400, 400, 400, 400, 400, 400, 400, 400, 400,
+}
+
 // PassedPawnsBonusMg contains the bonus for passed pawns on each rank for mg phase
-var PassedPawnsBonusMg = [8]int{0, 2, -5, -14, 2, -3, 17, 0}
+var PassedPawnsBonusMg = [8]int{0, -5, -9, -11, 15, 11, 11, 0}
 
 // PassedPawnsBonusEg contains the bonus for passed pawns on each rank for eg phase
-var PassedPawnsBonusEg = [8]int{0, 4, 11, 35, 62, 132, 150, 0}
+var PassedPawnsBonusEg = [8]int{0, 10, 14, 37, 60, 119, 134, 0}
 
 // Evaluation contains the different evaluation elements of a position
 type Evaluation struct {
-	mgMaterial      [2]int // White and Black scores
-	egMaterial      [2]int
-	mgMobility      [2]int
-	egMobility      [2]int
-	mgPawnStrucutre [2]int
-	egPawnStructure [2]int
-	mgKingSafety    [2]int
-	phase           int
+	mgMaterial         [2]int // White and Black scores
+	egMaterial         [2]int
+	mgMobility         [2]int
+	egMobility         [2]int
+	mgPawnStrucutre    [2]int
+	egPawnStructure    [2]int
+	mgKingSafety       [2]int
+	kingAttackersCount [2]int
+	kingAttackWeight   [2]int
+	phase              int
 	// Evaluation tables
 	pawnHashTable *PawnHashTable
 }
@@ -72,9 +88,11 @@ func (ev *Evaluation) clear() {
 	ev.egMaterial = [2]int{0, 0}
 	ev.mgMobility = [2]int{0, 0}
 	ev.egMobility = [2]int{0, 0}
+	ev.mgKingSafety = [2]int{0, 0}
 	ev.mgPawnStrucutre = [2]int{0, 0}
 	ev.egPawnStructure = [2]int{0, 0}
-	ev.mgKingSafety = [2]int{0, 0}
+	ev.kingAttackersCount = [2]int{0, 0}
+	ev.kingAttackWeight = [2]int{0, 0}
 	ev.phase = 0
 }
 
@@ -103,13 +121,13 @@ func (pos *Position) Evaluate() int {
 			case King:
 				pos.eval.evaluateKing(sq, pawns, color)
 			case Queen:
-				pos.eval.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], color)
+				pos.eval.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), color)
 			case Rook:
-				pos.eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], pawns, color)
+				pos.eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], pawns, pos.KingPosition(color.Opponent()), color)
 			case Bishop:
-				pos.eval.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], color)
+				pos.eval.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), color)
 			case Knight:
-				pos.eval.evaluateKnight(sq, blocks, enemyPawnsAttacks[color], color)
+				pos.eval.evaluateKnight(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), color)
 			case Pawn:
 				pos.eval.evaluatePawn(sq, color)
 			}
@@ -127,6 +145,7 @@ func (pos *Position) Evaluate() int {
 		pos.eval.egMaterial[Black] += BishopPairBonusEg
 	}
 
+	// Pawn Structure evaluation
 	mgSc, egSc, ok := pos.eval.pawnHashTable.probe(pos.PawnHash, pos.Turn)
 	if ok {
 		pos.eval.mgPawnStrucutre[pos.Turn] = mgSc
@@ -154,6 +173,17 @@ func (ev *Evaluation) score(side Color) int {
 	eg += ev.egMobility[side] - ev.egMobility[opponent]
 	mg += ev.mgPawnStrucutre[side] - ev.mgPawnStrucutre[opponent]
 	eg += ev.egPawnStructure[side] - ev.egPawnStructure[opponent]
+
+	// Apply King Safety Penalties to opponent only if there are at least 2 attackers
+	if ev.kingAttackersCount[side] >= 2 {
+		weight := min(ev.kingAttackWeight[side], 49)
+		ev.mgKingSafety[side] += KingSafetyTable[weight]
+	}
+
+	if ev.kingAttackersCount[opponent] >= 2 {
+		weight := min(ev.kingAttackWeight[opponent], 49)
+		ev.mgKingSafety[opponent] += KingSafetyTable[weight]
+	}
 	mg += ev.mgKingSafety[side] - ev.mgKingSafety[opponent]
 
 	mgPhase := min(ev.phase, 62)
@@ -165,7 +195,6 @@ func (ev *Evaluation) score(side Color) int {
 func (ev *Evaluation) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 	piece := pieceColor(King, side)
 
-	// King On open files
 	kingFile := from % 8
 	kingRank := from / 8
 	for file := kingFile - 1; file <= kingFile+1; file++ {
@@ -176,7 +205,6 @@ func (ev *Evaluation) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 		// Evaluate pawn Shield
 		pawnsInFile := pawns[side] & Files[file]
 		if pawnsInFile > 0 {
-			// Get the first pawn in file
 			rankIncrement := 1
 			if side == Black {
 				rankIncrement = -1
@@ -194,6 +222,7 @@ func (ev *Evaluation) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 			}
 		}
 
+		// Evaluate King on Open/Semi Open File
 		if (pawns[White]|pawns[Black])&Files[file] == 0 {
 			if kingFile == file {
 				ev.mgKingSafety[side] += KingOnOpenFilePenaltyMg
@@ -214,7 +243,7 @@ func (ev *Evaluation) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 }
 
 // evaluateQueen evaluates the score of a queen
-func (ev *Evaluation) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, side Color) {
+func (ev *Evaluation) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, side Color) {
 	piece := pieceColor(Queen, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -223,6 +252,12 @@ func (ev *Evaluation) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks
 	attacks := Attacks(piece, fromBB, blocks)
 	squares := (attacks & ^enemyPawnsAttacks).count()
 
+	kingZone := KingZone(enemyKing)
+	if attacks&kingZone != 0 {
+		ev.kingAttackersCount[side]++
+		ev.kingAttackWeight[side] += QueenAttackWeight * (attacks & kingZone).count()
+	}
+
 	ev.mgMobility[side] += (squares - QueenMobilityBase) * QueenMobilityBonusMg
 	ev.egMobility[side] += (squares - QueenMobilityBase) * QueenMobilityBonusEg
 
@@ -230,7 +265,7 @@ func (ev *Evaluation) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks
 }
 
 // evaluateRook evaluates the score of a rook
-func (ev *Evaluation) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, pawns [2]Bitboard, side Color) {
+func (ev *Evaluation) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, pawns [2]Bitboard, enemyKing Bitboard, side Color) {
 	piece := pieceColor(Rook, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -248,6 +283,12 @@ func (ev *Evaluation) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks 
 	attacks := Attacks(piece, fromBB, blocks)
 	squares := (attacks & ^enemyPawnsAttacks).count()
 
+	kingZone := KingZone(enemyKing)
+	if attacks&kingZone != 0 {
+		ev.kingAttackersCount[side]++
+		ev.kingAttackWeight[side] += RookAttackWeight * (attacks & kingZone).count()
+	}
+
 	ev.mgMobility[side] += (squares - RookMobilityBase) * RookMobilityBonusMg
 	ev.egMobility[side] += (squares - RookMobilityBase) * RookMobilityBonusEg
 
@@ -255,7 +296,7 @@ func (ev *Evaluation) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks 
 }
 
 // evaluateBishop evaluates the score of a bishop
-func (ev *Evaluation) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, side Color) {
+func (ev *Evaluation) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, side Color) {
 	piece := pieceColor(Bishop, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -264,6 +305,12 @@ func (ev *Evaluation) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttack
 	attacks := Attacks(piece, fromBB, blocks)
 	squares := (attacks & ^enemyPawnsAttacks).count()
 
+	kingZone := KingZone(enemyKing)
+	if attacks&kingZone != 0 {
+		ev.kingAttackersCount[side]++
+		ev.kingAttackWeight[side] += BishopAttackWeight * (attacks & kingZone).count()
+	}
+
 	ev.mgMobility[side] += (squares - BishopMobilityBase) * BishopMobilityBonusMg
 	ev.egMobility[side] += (squares - BishopMobilityBase) * BishopMobilityBonusEg
 
@@ -271,7 +318,7 @@ func (ev *Evaluation) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttack
 }
 
 // evaluateKnight evaluates the score of a knight
-func (ev *Evaluation) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, side Color) {
+func (ev *Evaluation) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, side Color) {
 	piece := pieceColor(Knight, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -279,6 +326,12 @@ func (ev *Evaluation) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttack
 	fromBB := bitboardFromIndex(from)
 	attacks := Attacks(piece, fromBB, blocks)
 	squares := (attacks & ^enemyPawnsAttacks).count()
+
+	kingZone := KingZone(enemyKing)
+	if attacks&kingZone != 0 {
+		ev.kingAttackersCount[side]++
+		ev.kingAttackWeight[side] += KnightAttackWeight * (attacks & kingZone).count()
+	}
 
 	ev.mgMobility[side] += (squares - KnightMobilityBase) * KnightMobilityBonusMg
 	ev.egMobility[side] += (squares - KnightMobilityBase) * KnightMobilityBonusEg
@@ -389,4 +442,9 @@ func PassedPawns(alliedPawns Bitboard, enemyPawns Bitboard, side Color) (passedP
 	}
 
 	return
+}
+
+// KingZone returns the king zone for the side
+func KingZone(kingSq Bitboard) Bitboard {
+	return kingAttacks(&kingSq) | kingSq
 }
