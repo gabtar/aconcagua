@@ -15,7 +15,7 @@ const (
 	MaxInt                        = math.MaxInt32
 	EndgameMaterialThreshold      = 1600
 	ReverseFutitlityPruningMargin = 130
-	AspirationWindowSize          = 45
+	AspirationWindowSize          = 25
 )
 
 // LateMovePruningMoveNumber contains the move number to start pruning for each depth
@@ -120,8 +120,6 @@ func (kt *KillersTable) store(ply int, move Move) {
 
 // IterativeDeepening is the entry point of the search
 func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
-	alpha := MinInt
-	beta := MaxInt
 	s.clear()
 	pos.eval.pawnHashTable.clear()
 
@@ -132,23 +130,12 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 		s.reset()
 
 		lastScore := bestMoveScore
-		bestMoveScore = s.negamax(pos, d, 0, alpha, beta, &s.pvLine, true)
+		bestMoveScore = s.aspirationSearch(pos, d, lastScore)
 
-		// If stop by time, set last iteration score and best move/pv
 		if s.TimeControl.stop {
 			bestMoveScore = lastScore
 			break
 		}
-
-		if bestMoveScore <= alpha || bestMoveScore >= beta {
-			alpha = MinInt
-			beta = MaxInt
-			d--
-			continue
-		}
-
-		alpha = bestMoveScore - AspirationWindowSize
-		beta = bestMoveScore + AspirationWindowSize
 
 		depthTime := time.Since(s.TimeControl.iterationStartTime)
 		s.TimeControl.iterationStartTime = time.Now()
@@ -158,6 +145,41 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 	}
 
 	return
+}
+
+// aspirationSearch performs aspiration window search
+func (s *Search) aspirationSearch(pos *Position, depth int, lastScore int) int {
+	if depth < 4 {
+		return s.negamax(pos, depth, 0, MinInt, MaxInt, &s.pvLine, true)
+	}
+
+	delta := AspirationWindowSize
+	alpha := lastScore - delta
+	beta := lastScore + delta
+
+	for {
+		score := s.negamax(pos, depth, 0, alpha, beta, &s.pvLine, true)
+
+		// Score falls inside the aspiration window
+		if score > alpha && score < beta {
+			return score
+		}
+
+		// Adjust window size if fail
+		if score <= alpha {
+			alpha = max(alpha-delta, MinInt)
+			delta *= 2
+		} else if score >= beta {
+			beta = min(beta+delta, MaxInt)
+			delta *= 2
+		}
+
+		// If delta gets too big, make a full search
+		if delta > 500 {
+			alpha = MinInt
+			beta = MaxInt
+		}
+	}
 }
 
 // setDefaultMove move returns the first legal move or the uci default null move (0000)
