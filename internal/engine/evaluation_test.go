@@ -7,7 +7,7 @@ func TestEval(t *testing.T) {
 	pos.LoadFromFenString("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 	ev := pos.Evaluate()
 
-	if ev != 0 {
+	if ev != TempoBonus {
 		t.Errorf("Expected: %v, got: %v", 0, ev)
 	}
 }
@@ -181,6 +181,18 @@ func TestPawnShieldEvaluation(t *testing.T) {
 
 	expected := PawnShieldBonusMg[0] + PawnShieldBonusMg[1] + PawnShieldBonusMg[2]
 	got := ev.mgKingSafety[Black]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestOutpostSquares(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("4r1k1/5ppp/p2p4/3Nb3/2P5/6P1/5P1P/4R1K1 w - - 0 1") // d5 is an outpost
+
+	expected := bitboardFromIndex(d5)
+	got := OutpostSquares(pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn], White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
