@@ -99,8 +99,8 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // GetEvaluationParams returns the current evaluation params
-func GetEvaluationParams() (params [876]float64) {
-	intParams := [876]int{}
+func GetEvaluationParams() (params [1000]float64) {
+	intParams := [1000]int{}
 
 	// Psqt params
 	for piece := range 6 {
@@ -113,70 +113,63 @@ func GetEvaluationParams() (params [876]float64) {
 	copy(intParams[774:780], engine.EndgamePieceValue[:])
 
 	// Mobility params
-	intParams[780] = engine.QueenMobilityBonusMg
-	intParams[781] = engine.QueenMobilityBonusEg
-
-	intParams[782] = engine.RookMobilityBonusMg
-	intParams[783] = engine.RookMobilityBonusEg
-
-	intParams[784] = engine.BishopMobilityBonusMg
-	intParams[785] = engine.BishopMobilityBonusEg
-
-	intParams[786] = engine.KnightMobilityBonusMg
-	intParams[787] = engine.KnightMobilityBonusEg
+	copy(intParams[780:808], engine.QueenMobilityMg[:])
+	copy(intParams[808:836], engine.QueenMobilityEg[:])
+	copy(intParams[836:851], engine.RookMobilityMg[:])
+	copy(intParams[851:866], engine.RookMobilityEg[:])
+	copy(intParams[866:880], engine.BishopMobilityMg[:])
+	copy(intParams[880:894], engine.BishopMobilityEg[:])
+	copy(intParams[894:903], engine.KnightMobilityMg[:])
+	copy(intParams[903:912], engine.KnightMobilityEg[:])
 
 	// Pawn Structure params
-	intParams[788] = engine.DoubledPawnPenaltyMg
-	intParams[789] = engine.DoubledPawnPenaltyEg
+	intParams[912] = engine.DoubledPawnPenaltyMg
+	intParams[913] = engine.DoubledPawnPenaltyEg
 
-	intParams[790] = engine.IsolatedPawnPenaltyMg
-	intParams[791] = engine.IsolatedPawnPenaltyEg
+	intParams[914] = engine.IsolatedPawnPenaltyMg
+	intParams[915] = engine.IsolatedPawnPenaltyEg
 
-	intParams[792] = engine.BackwardPawnPenaltyMg
-	intParams[793] = engine.BackwardPawnPenaltyEg
+	intParams[916] = engine.BackwardPawnPenaltyMg
+	intParams[917] = engine.BackwardPawnPenaltyEg
 
 	// Passed Pawns
-	for i := range 8 {
-		intParams[794+i] = engine.PassedPawnsBonusMg[i]
-		intParams[802+i] = engine.PassedPawnsBonusEg[i]
-	}
+	copy(intParams[918:926], engine.PassedPawnsBonusMg[:])
+	copy(intParams[926:934], engine.PassedPawnsBonusEg[:])
 
 	// Material adjustments
-	intParams[810] = engine.BishopPairBonusMg
-	intParams[811] = engine.BishopPairBonusEg
-	intParams[812] = engine.RookOnOpenFileMg
-	intParams[813] = engine.RookOnSemiOpenFileMg
-	intParams[814] = engine.KnightOutpostBonusMg
-	intParams[815] = engine.KnightOutpostBonusEg
-	intParams[816] = engine.BishopOutpostBonusMg
-	intParams[817] = engine.BishopOutpostBonusEg
+	intParams[934] = engine.BishopPairBonusMg
+	intParams[935] = engine.BishopPairBonusEg
+	intParams[936] = engine.RookOnOpenFileMg
+	intParams[937] = engine.RookOnSemiOpenFileMg
+	intParams[938] = engine.KnightOutpostBonusMg
+	intParams[939] = engine.KnightOutpostBonusEg
+	intParams[940] = engine.BishopOutpostBonusMg
+	intParams[941] = engine.BishopOutpostBonusEg
 
 	// King Safety - Open Files
-	intParams[818] = engine.KingOnOpenFilePenaltyMg
-	intParams[819] = engine.KingOnSemiOpenFilePenaltyMg
-	intParams[820] = engine.KingNearOpenFilePenaltyMg
-	intParams[821] = engine.KingNearSemiOpenFilePenaltyMg
+	intParams[942] = engine.KingOnOpenFilePenaltyMg
+	intParams[943] = engine.KingOnSemiOpenFilePenaltyMg
+	intParams[944] = engine.KingNearOpenFilePenaltyMg
+	intParams[945] = engine.KingNearSemiOpenFilePenaltyMg
 
-	intParams[822] = engine.PawnShieldBonusMg[0]
-	intParams[823] = engine.PawnShieldBonusMg[1]
-	intParams[824] = engine.PawnShieldBonusMg[2]
+	intParams[946] = engine.PawnShieldBonusMg[0]
+	intParams[947] = engine.PawnShieldBonusMg[1]
+	intParams[948] = engine.PawnShieldBonusMg[2]
 
 	// King Safety Table
-	for i := range 50 {
-		intParams[825+i] = engine.KingSafetyTable[i]
-	}
+	copy(intParams[949:999], engine.KingSafetyTable[:])
 
 	// Tempo
-	intParams[875] = engine.TempoBonus
+	intParams[999] = engine.TempoBonus
 
-	for i := range 876 {
+	for i := range 1000 {
 		params[i] = float64(intParams[i])
 	}
 	return
 }
 
 // saveParams sotres the best params found in a file
-func saveParams(bestParams [876]float64, iteration int) {
+func saveParams(bestParams [1000]float64, iteration int) {
 	dir := "tuner/params"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		os.MkdirAll(dir, 0755)
@@ -196,7 +189,12 @@ func saveParams(bestParams [876]float64, iteration int) {
 }
 
 // paramsToPrettyFormat returns the params as a string
-func paramsToPrettyFormat(bestParams [876]float64) (psqt string) {
+func paramsToPrettyFormat(bestParams [1000]float64) (psqt string) {
+	intParams := [1000]int{}
+	for i := range 1000 {
+		intParams[i] = int(bestParams[i])
+	}
+
 	piece := []string{"King", "Queen", "Rook", "Bishop", "Knight", "Pawn"}
 	psqt = "MiddlegamePSQT: \n"
 	for i := range 6 {
@@ -204,7 +202,7 @@ func paramsToPrettyFormat(bestParams [876]float64) (psqt string) {
 		psqt += "{\n"
 		for j := range 8 {
 			for k := range 8 {
-				psqt += fmt.Sprintf("%d, ", int(bestParams[i*64+j*8+k]))
+				psqt += fmt.Sprintf("%d, ", intParams[i*64+j*8+k])
 			}
 			psqt += "\n"
 		}
@@ -216,7 +214,7 @@ func paramsToPrettyFormat(bestParams [876]float64) (psqt string) {
 		psqt += "{\n"
 		for j := range 8 {
 			for k := range 8 {
-				psqt += fmt.Sprintf("%d, ", int(bestParams[(i+6)*64+j*8+k]))
+				psqt += fmt.Sprintf("%d, ", intParams[(i+6)*64+j*8+k])
 			}
 			psqt += "\n"
 		}
@@ -224,78 +222,62 @@ func paramsToPrettyFormat(bestParams [876]float64) (psqt string) {
 	}
 
 	// Pieces Values
-	psqt += "MiddlegamePieceValue: "
-	for i := range 6 {
-		psqt += fmt.Sprintf("%d, ", int(bestParams[768+i]))
-	}
-	psqt += "\n"
-	psqt += "EndgamePieceValue: "
-	for i := range 6 {
-		psqt += fmt.Sprintf("%d, ", int(bestParams[774+i]))
-	}
-	psqt += "\n"
+	psqt += fmt.Sprintf("MiddlegamePieceValue:  %#v\n", intParams[768:774])
+	psqt += fmt.Sprintf("EndgamePieceValue:  %#v\n", intParams[774:780])
 
 	// Mobility Params
-	for i := range 4 {
-		psqt += fmt.Sprintf("MobilityBonusMg%s: %d\n", piece[i+1], int(bestParams[780+i*2]))
-		psqt += fmt.Sprintf("MobilityBonusEg%s: %d\n", piece[i+1], int(bestParams[780+i*2+1]))
-	}
+	psqt += fmt.Sprintf("QueenMobilityMg: %#v\n", intParams[780:808])
+	psqt += fmt.Sprintf("QueenMobilityEg: %#v\n", intParams[808:836])
+	psqt += fmt.Sprintf("RookMobilityMg: %#v\n", intParams[836:851])
+	psqt += fmt.Sprintf("RookMobilityEg: %#v\n", intParams[851:866])
+	psqt += fmt.Sprintf("BishopMobilityMg: %#v\n", intParams[866:880])
+	psqt += fmt.Sprintf("BishopMobilityEg: %#v\n", intParams[880:894])
+	psqt += fmt.Sprintf("KnightMobilityMg: %#v\n", intParams[894:903])
+	psqt += fmt.Sprintf("KnightMobilityEg: %#v\n", intParams[903:912])
 
 	// Pawn Structure Weights
-	psqt += fmt.Sprintf("DoubledPawnPenaltyMg: %d\n", int(bestParams[788]))
-	psqt += fmt.Sprintf("DoubledPawnPenaltyEg: %d\n", int(bestParams[789]))
-	psqt += fmt.Sprintf("IsolatedPawnPenaltyMg: %d\n", int(bestParams[790]))
-	psqt += fmt.Sprintf("IsolatedPawnPenaltyEg: %d\n", int(bestParams[791]))
-	psqt += fmt.Sprintf("BackwardPawnPenaltyMg: %d\n", int(bestParams[792]))
-	psqt += fmt.Sprintf("BackwardPawnPenaltyEg: %d\n", int(bestParams[793]))
+	psqt += fmt.Sprintf("DoubledPawnPenaltyMg: %d\n", intParams[912])
+	psqt += fmt.Sprintf("DoubledPawnPenaltyEg: %d\n", intParams[913])
+	psqt += fmt.Sprintf("IsolatedPawnPenaltyMg: %d\n", intParams[914])
+	psqt += fmt.Sprintf("IsolatedPawnPenaltyEg: %d\n", intParams[915])
+	psqt += fmt.Sprintf("BackwardPawnPenaltyMg: %d\n", intParams[916])
+	psqt += fmt.Sprintf("BackwardPawnPenaltyEg: %d\n", intParams[917])
 
 	// Passed Pawns
-	psqt += "PassedPawnsBonusMg: "
-	for i := range 8 {
-		psqt += fmt.Sprintf("%d, ", int(bestParams[794+i]))
-	}
-	psqt += "\n"
-	psqt += "PassedPawnsBonusEg: "
-	for i := range 8 {
-		psqt += fmt.Sprintf("%d, ", int(bestParams[802+i]))
-	}
-	psqt += "\n"
+	psqt += fmt.Sprintf("PassedPawnsPenaltyMg: %#v\n", intParams[918:926])
+	psqt += fmt.Sprintf("PassedPawnsPenaltyEg: %#v\n", intParams[926:934])
 
 	// Material adjustments
-	psqt += fmt.Sprintf("BishopPairBonusMg: %d\n", int(bestParams[810]))
-	psqt += fmt.Sprintf("BishopPairBonusEg: %d\n", int(bestParams[811]))
-	psqt += fmt.Sprintf("RookOnOpenFileMg: %d\n", int(bestParams[812]))
-	psqt += fmt.Sprintf("RookOnSemiOpenFileMg: %d\n", int(bestParams[813]))
+	psqt += fmt.Sprintf("BishopPairBonusMg: %d\n", intParams[934])
+	psqt += fmt.Sprintf("BishopPairBonusEg: %d\n", intParams[935])
+	psqt += fmt.Sprintf("RookOnOpenFileMg: %d\n", intParams[936])
+	psqt += fmt.Sprintf("RookOnSemiOpenFileMg: %d\n", intParams[937])
 
-	psqt += fmt.Sprintf("KnightOutpostBonusMg: %d\n", int(bestParams[814]))
-	psqt += fmt.Sprintf("KnightOutpostBonusEg: %d\n", int(bestParams[815]))
-	psqt += fmt.Sprintf("BishopOutpostBonusMg: %d\n", int(bestParams[816]))
-	psqt += fmt.Sprintf("BishopOutpostBonusEg: %d\n", int(bestParams[817]))
+	psqt += fmt.Sprintf("KnightOutpostBonusMg: %d\n", intParams[938])
+	psqt += fmt.Sprintf("KnightOutpostBonusEg: %d\n", intParams[939])
+	psqt += fmt.Sprintf("BishopOutpostBonusMg: %d\n", intParams[940])
+	psqt += fmt.Sprintf("BishopOutpostBonusEg: %d\n", intParams[941])
 
 	// King Safety Open Files
-	psqt += fmt.Sprintf("KingOnOpenFilePenaltyMg: %d\n", int(bestParams[818]))
-	psqt += fmt.Sprintf("KingOnSemiOpenFilePenaltyMg: %d\n", int(bestParams[819]))
-	psqt += fmt.Sprintf("KingNearOpenFilePenaltyMg: %d\n", int(bestParams[820]))
-	psqt += fmt.Sprintf("KingNearSemiOpenFilePenaltyMg: %d\n", int(bestParams[821]))
+	psqt += fmt.Sprintf("KingOnOpenFilePenaltyMg: %d\n", intParams[942])
+	psqt += fmt.Sprintf("KingOnSemiOpenFilePenaltyMg: %d\n", intParams[943])
+	psqt += fmt.Sprintf("KingNearOpenFilePenaltyMg: %d\n", intParams[944])
+	psqt += fmt.Sprintf("KingNearSemiOpenFilePenaltyMg: %d\n", intParams[945])
 
-	psqt += "PawnShieldBonusMg: "
-	for i := range 3 {
-		psqt += fmt.Sprintf("%d, ", int(bestParams[822+i]))
-	}
-	psqt += "\n"
+	psqt += fmt.Sprintf("PawnShieldBonusMg: %#v\n", intParams[946:949])
 
 	// King Safety Table
 	psqt += "KingSafetyTable: \n"
 	for i := range 5 {
 		psqt += "\t"
 		for j := range 10 {
-			psqt += fmt.Sprintf("%d, ", int(bestParams[825+i*10+j]))
+			psqt += fmt.Sprintf("%d, ", intParams[949+i*10+j])
 		}
 		psqt += "\n"
 	}
 
 	// Tempo
-	psqt += fmt.Sprintf("TempoBonus: %d\n", int(bestParams[875]))
+	psqt += fmt.Sprintf("TempoBonus: %d\n", intParams[999])
 
 	return psqt
 }
@@ -313,7 +295,7 @@ type WorkerResult struct {
 }
 
 // MeanSquareError returns the mean square error using parallel processing
-func MeanSquareError(scalingFactor float64, params *[876]float64, dataset *[]DatasetEntry) float64 {
+func MeanSquareError(scalingFactor float64, params *[1000]float64, dataset *[]DatasetEntry) float64 {
 	const numWorkers = 4
 	entries := len(*dataset)
 
@@ -347,7 +329,7 @@ func MeanSquareError(scalingFactor float64, params *[876]float64, dataset *[]Dat
 }
 
 // worker processes jobs from the jobs channel
-func worker(scalingFactor float64, params *[876]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
+func worker(scalingFactor float64, params *[1000]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range jobs {
@@ -369,12 +351,13 @@ type PositionWeight struct {
 }
 
 // evaluatePosition returns the static evaluation of a position based on the weights and current params
-func evaluatePosition(params [876]float64, weights []PositionWeight) (evaluation float64) {
+func evaluatePosition(params [1000]float64, weights []PositionWeight) (evaluation float64) {
 	eval := 0.0
 	for _, attr := range weights {
 		eval += params[attr.paramIndex] * float64(attr.weight)
 	}
-	evaluation = eval / 62.0
+	i_eval := int(math.Round(eval))
+	evaluation = float64(i_eval / 62)
 	return
 }
 
@@ -392,8 +375,8 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 	// Tempo Bonus weight
 	sideModifier := 1 - int(pos.Turn)*2
 	*weights = append(*weights,
-		PositionWeight{paramIndex: 875, weight: int16(sideModifier * phase)},
-		PositionWeight{paramIndex: 875, weight: int16(sideModifier * (62 - phase))},
+		PositionWeight{paramIndex: 999, weight: int16(sideModifier * phase)},
+		PositionWeight{paramIndex: 999, weight: int16(sideModifier * (62 - phase))},
 	)
 }
 
@@ -419,8 +402,11 @@ func generatePieceScoreWeights(pos *engine.Position, phase int, weights *[]Posit
 
 // generateMobilityWeights returns the position weithts of the mobility of the position
 func generateMobilityWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
-	var mobilityBase = [4]int{engine.QueenMobilityBase, engine.RookMobilityBase, engine.BishopMobilityBase, engine.KnightMobilityBase}
 	var pieces = [8]int{engine.WhiteQueen, engine.WhiteRook, engine.WhiteBishop, engine.WhiteKnight, engine.BlackQueen, engine.BlackRook, engine.BlackBishop, engine.BlackKnight}
+
+	// Start indexes for mobility arrays (Queen, rook, bishop, knight)
+	mgIndexes := [4]int{780, 836, 866, 894}
+	egIndexes := [4]int{808, 851, 880, 903}
 
 	blocks := ^pos.EmptySquares()
 	enemyPawnsAttacks := [2]engine.Bitboard{
@@ -440,11 +426,11 @@ func generateMobilityWeights(pos *engine.Position, phase int, weights *[]Positio
 		for bb > 0 {
 			fromBB := bb.NextBit()
 			attacks := engine.Attacks(pieces[piece], fromBB, blocks)
-			safeSquares := bits.OnesCount64(uint64(attacks & ^enemyPawnsAttacks[piece/4])) - mobilityBase[piece%4]
+			safeSquares := bits.OnesCount64(uint64(attacks & ^enemyPawnsAttacks[piece/4]))
 
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(780 + piece%4*2), weight: int16(colorModifier * safeSquares * phase)},
-				PositionWeight{paramIndex: int16(780 + piece%4*2 + 1), weight: int16(colorModifier * safeSquares * (62 - phase))},
+				PositionWeight{paramIndex: int16(mgIndexes[piece%4] + safeSquares), weight: int16(colorModifier * phase)},
+				PositionWeight{paramIndex: int16(egIndexes[piece%4] + safeSquares), weight: int16(colorModifier * (62 - phase))},
 			)
 		}
 	}
@@ -456,10 +442,10 @@ func generateDoubledPawnsWeights(pos *engine.Position, phase int, weights *[]Pos
 	bDoubled := bits.OnesCount64(uint64(engine.DoubledPawns(pos, engine.Black)))
 
 	*weights = append(*weights,
-		PositionWeight{paramIndex: 788, weight: int16(wDoubled * phase)},
-		PositionWeight{paramIndex: 789, weight: int16(wDoubled * (62 - phase))},
-		PositionWeight{paramIndex: 788, weight: int16(-bDoubled * phase)},
-		PositionWeight{paramIndex: 789, weight: int16(-bDoubled * (62 - phase))},
+		PositionWeight{paramIndex: 912, weight: int16(wDoubled * phase)},
+		PositionWeight{paramIndex: 913, weight: int16(wDoubled * (62 - phase))},
+		PositionWeight{paramIndex: 912, weight: int16(-bDoubled * phase)},
+		PositionWeight{paramIndex: 913, weight: int16(-bDoubled * (62 - phase))},
 	)
 }
 
@@ -469,10 +455,10 @@ func generateIsolatedPawnsWeights(pos *engine.Position, phase int, weights *[]Po
 	bIsolated := bits.OnesCount64(uint64(engine.IsolatedPawns(pos, engine.Black)))
 
 	*weights = append(*weights,
-		PositionWeight{paramIndex: 790, weight: int16(wIsolated * phase)},
-		PositionWeight{paramIndex: 791, weight: int16(wIsolated * (62 - phase))},
-		PositionWeight{paramIndex: 790, weight: int16(-bIsolated * phase)},
-		PositionWeight{paramIndex: 791, weight: int16(-bIsolated * (62 - phase))},
+		PositionWeight{paramIndex: 914, weight: int16(wIsolated * phase)},
+		PositionWeight{paramIndex: 915, weight: int16(wIsolated * (62 - phase))},
+		PositionWeight{paramIndex: 914, weight: int16(-bIsolated * phase)},
+		PositionWeight{paramIndex: 915, weight: int16(-bIsolated * (62 - phase))},
 	)
 }
 
@@ -485,10 +471,10 @@ func generateBackwardsPawnsWeights(pos *engine.Position, phase int, weights *[]P
 	bBackwards := bits.OnesCount64(uint64(engine.BackwardPawns(pos.Bitboards[engine.BlackPawn], whitePawnsAttacks, engine.Black)))
 
 	*weights = append(*weights,
-		PositionWeight{paramIndex: 792, weight: int16(wBackwards * phase)},
-		PositionWeight{paramIndex: 793, weight: int16(wBackwards * (62 - phase))},
-		PositionWeight{paramIndex: 792, weight: int16(-bBackwards * phase)},
-		PositionWeight{paramIndex: 793, weight: int16(-bBackwards * (62 - phase))},
+		PositionWeight{paramIndex: 916, weight: int16(wBackwards * phase)},
+		PositionWeight{paramIndex: 917, weight: int16(wBackwards * (62 - phase))},
+		PositionWeight{paramIndex: 916, weight: int16(-bBackwards * phase)},
+		PositionWeight{paramIndex: 917, weight: int16(-bBackwards * (62 - phase))},
 	)
 }
 
@@ -503,8 +489,8 @@ func generatePassedPawnsWeights(pos *engine.Position, phase int, weights *[]Posi
 		rank := sq / 8
 
 		*weights = append(*weights,
-			PositionWeight{paramIndex: int16(794 + rank), weight: int16(phase)},
-			PositionWeight{paramIndex: int16(802 + rank), weight: int16(62 - phase)},
+			PositionWeight{paramIndex: int16(918 + rank), weight: int16(phase)},
+			PositionWeight{paramIndex: int16(926 + rank), weight: int16(62 - phase)},
 		)
 	}
 
@@ -514,8 +500,8 @@ func generatePassedPawnsWeights(pos *engine.Position, phase int, weights *[]Posi
 		rank := 7 - sq/8
 
 		*weights = append(*weights,
-			PositionWeight{paramIndex: int16(794 + rank), weight: int16(-phase)},
-			PositionWeight{paramIndex: int16(802 + rank), weight: int16(-(62 - phase))},
+			PositionWeight{paramIndex: int16(918 + rank), weight: int16(-phase)},
+			PositionWeight{paramIndex: int16(926 + rank), weight: int16(-(62 - phase))},
 		)
 	}
 }
@@ -526,15 +512,15 @@ func generateMaterialAdjustmentsWeights(pos *engine.Position, phase int, weights
 	whiteBishopCount := bits.OnesCount64(uint64(pos.Bitboards[engine.WhiteBishop]))
 	if whiteBishopCount >= 2 {
 		*weights = append(*weights,
-			PositionWeight{paramIndex: 810, weight: int16(phase)},
-			PositionWeight{paramIndex: 811, weight: int16(62 - phase)},
+			PositionWeight{paramIndex: 934, weight: int16(phase)},
+			PositionWeight{paramIndex: 935, weight: int16(62 - phase)},
 		)
 	}
 	blackBishopCount := bits.OnesCount64(uint64(pos.Bitboards[engine.BlackBishop]))
 	if blackBishopCount >= 2 {
 		*weights = append(*weights,
-			PositionWeight{paramIndex: 810, weight: int16(-phase)},
-			PositionWeight{paramIndex: 811, weight: int16(-(62 - phase))},
+			PositionWeight{paramIndex: 934, weight: int16(-phase)},
+			PositionWeight{paramIndex: 935, weight: int16(-(62 - phase))},
 		)
 	}
 
@@ -559,12 +545,12 @@ func generateRookOnOpenFileWeights(pos *engine.Position, phase int, weights *[]P
 
 		if (alliedPawns|enemyPawns)&engine.Files[sq%8] == 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(812), weight: int16(sideModifier * phase)},
+				PositionWeight{paramIndex: int16(936), weight: int16(sideModifier * phase)},
 			)
 		}
 		if alliedPawns&engine.Files[sq%8] == 0 && enemyPawns&engine.Files[sq%8] > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(813), weight: int16(sideModifier * phase)},
+				PositionWeight{paramIndex: int16(937), weight: int16(sideModifier * phase)},
 			)
 		}
 	}
@@ -584,8 +570,8 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 
 		if outpostSquares[engine.White]&fromBB > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: 814, weight: int16(phase)},
-				PositionWeight{paramIndex: 815, weight: int16(62 - phase)},
+				PositionWeight{paramIndex: 938, weight: int16(phase)},
+				PositionWeight{paramIndex: 939, weight: int16(62 - phase)},
 			)
 		}
 	}
@@ -596,8 +582,8 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 
 		if outpostSquares[engine.Black]&fromBB > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: 814, weight: int16(-phase)},
-				PositionWeight{paramIndex: 815, weight: int16(-(62 - phase))},
+				PositionWeight{paramIndex: 938, weight: int16(-phase)},
+				PositionWeight{paramIndex: 939, weight: int16(-(62 - phase))},
 			)
 		}
 	}
@@ -609,8 +595,8 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 
 		if outpostSquares[engine.White]&fromBB > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: 816, weight: int16(phase)},
-				PositionWeight{paramIndex: 817, weight: int16(62 - phase)},
+				PositionWeight{paramIndex: 940, weight: int16(phase)},
+				PositionWeight{paramIndex: 941, weight: int16(62 - phase)},
 			)
 		}
 	}
@@ -621,8 +607,8 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 
 		if outpostSquares[engine.Black]&fromBB > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: 816, weight: int16(-phase)},
-				PositionWeight{paramIndex: 817, weight: int16(-(62 - phase))},
+				PositionWeight{paramIndex: 940, weight: int16(-phase)},
+				PositionWeight{paramIndex: 941, weight: int16(-(62 - phase))},
 			)
 		}
 	}
@@ -651,21 +637,21 @@ func generateKingOnOpenFileWeights(pos *engine.Position, phase int, weights *[]P
 		if (alliedPawns|enemyPawns)&engine.Files[file] == 0 {
 			if kingFile == file {
 				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(818), weight: int16(sideModifier * phase)},
+					PositionWeight{paramIndex: int16(942), weight: int16(sideModifier * phase)},
 				)
 			} else {
 				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(820), weight: int16(sideModifier * phase)},
+					PositionWeight{paramIndex: int16(944), weight: int16(sideModifier * phase)},
 				)
 			}
 		} else if alliedPawns&engine.Files[file] == 0 && enemyPawns&engine.Files[file] > 0 {
 			if kingFile == file {
 				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(819), weight: int16(sideModifier * phase)},
+					PositionWeight{paramIndex: int16(943), weight: int16(sideModifier * phase)},
 				)
 			} else {
 				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(821), weight: int16(sideModifier * phase)},
+					PositionWeight{paramIndex: int16(945), weight: int16(sideModifier * phase)},
 				)
 			}
 		}
@@ -696,7 +682,7 @@ func generatePawnShieldWeights(pos *engine.Position, phase int, weights *[]Posit
 				}
 				if pawnsInFile&engine.Ranks[rank] > 0 {
 					*weights = append(*weights,
-						PositionWeight{paramIndex: int16(822 + i), weight: int16((1 - int(color)*2) * phase)},
+						PositionWeight{paramIndex: int16(946 + i), weight: int16((1 - int(color)*2) * phase)},
 					)
 					break
 				}
@@ -712,7 +698,7 @@ func generateSafetyWeights(pos *engine.Position, phase int, weights *[]PositionW
 	for color := engine.White; color <= engine.Black; color++ {
 		c := engine.Color(color)
 		enemyKing := pos.KingPosition(c.Opponent())
-		kingZone := engine.KingZone(enemyKing)
+		kingZone := engine.KingZone[engine.Bsf(enemyKing)]
 
 		attackersCount := 0
 		attackWeight := 0
@@ -753,7 +739,7 @@ func generateSafetyWeights(pos *engine.Position, phase int, weights *[]PositionW
 			safetyIndex := min(attackWeight, 49)
 			*weights = append(*weights,
 				PositionWeight{
-					paramIndex: int16(825 + safetyIndex),
+					paramIndex: int16(949 + safetyIndex),
 					weight:     int16(colorModifier * phase),
 				},
 			)
@@ -775,7 +761,7 @@ func getMiddleGamePhase(pos *engine.Position) (mgPhase int) {
 }
 
 // FindOptimalScalingFactor returns the scaling factor that minimizes the mean square error
-func FindOptimalScalingFactor(dataset []DatasetEntry, params [876]float64) float64 {
+func FindOptimalScalingFactor(dataset []DatasetEntry, params [1000]float64) float64 {
 	bestK := 0.0
 	bestError := math.Inf(1)
 

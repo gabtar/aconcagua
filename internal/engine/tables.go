@@ -23,6 +23,7 @@ func init() {
 	rayAttacks = generateRayAttacks()
 	knightAttacksTable = generateKnightAttacks()
 	attacksFrontSpans = generateAttacksFrontSpans()
+	KingZone = generateKingZone()
 }
 
 // Files array contains the bitboard mask for each file in the board
@@ -86,6 +87,8 @@ var isolatedAdjacentFilesMask = [8]Bitboard{
 // . . . . . . . .
 // . . . . . . . .
 var attacksFrontSpans [2][64]Bitboard
+
+var KingZone [64]Bitboard
 
 // generatePiecesScoreTables generates the tables with the value of each piece + square
 func generatePiecesScoreTables() {
@@ -227,6 +230,15 @@ func generateAttacksFrontSpans() (attacksFrontSpans [2][64]Bitboard) {
 		}
 	}
 
+	return
+}
+
+// generateKingZone returns a precalculated table containing the king zone for each square
+func generateKingZone() (kingZone [64]Bitboard) {
+	for sq := range 64 {
+		from := bitboardFromIndex(sq)
+		kingZone[sq] = kingAttacks(&from) | from
+	}
 	return
 }
 

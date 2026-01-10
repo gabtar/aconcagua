@@ -1,20 +1,6 @@
 package engine
 
 const (
-	// Mobility
-	QueenMobilityBonusMg  = 3
-	QueenMobilityBonusEg  = 11
-	QueenMobilityBase     = 7
-	RookMobilityBonusMg   = 10
-	RookMobilityBonusEg   = 2
-	RookMobilityBase      = 4
-	BishopMobilityBonusMg = 10
-	BishopMobilityBonusEg = 2
-	BishopMobilityBase    = 4
-	KnightMobilityBonusMg = 11
-	KnightMobilityBonusEg = 0
-	KnightMobilityBase    = 2
-
 	// Pawn Structure
 	DoubledPawnPenaltyMg  = -1
 	DoubledPawnPenaltyEg  = -16
@@ -48,29 +34,45 @@ const (
 	TempoBonus = 5
 )
 
-// PawnShieldBonusMg contains the bonus for pawn shields for mg phase based on rank distance to the king
-var PawnShieldBonusMg = [3]int{15, 10, 5}
+var (
+	// Queen Mobility mg/eg contains the bonus for queen mobility
+	QueenMobilityMg = [28]int{-21, -18, -15, -12, -9, -6, -3, 0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57, 60}
+	QueenMobilityEg = [28]int{-77, -66, -55, -44, -33, -22, -11, 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 121, 132, 143, 154, 165, 176, 187, 198, 209, 220}
 
-// KingSafetyTable contains the penalties for king safety based on the number wheigted attacks to the king
-var KingSafetyTable = [50]int{
-	0, 0, 1, 2, 3, 5, 7, 9, 12, 15,
-	18, 22, 26, 30, 35, 40, 45, 51, 57, 64,
-	71, 79, 88, 97, 107, 118, 130, 142, 155, 168,
-	182, 197, 213, 230, 248, 267, 287, 308, 330, 353,
-	377, 400, 400, 400, 400, 400, 400, 400, 400, 400,
-}
+	// Rook Mobility mg/eg contains the bonus for rook mobility
+	RookMobilityMg = [15]int{-40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
+	RookMobilityEg = [15]int{-8, -6, -4, -2, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20}
 
-// PassedPawnsBonusMg contains the bonus for passed pawns on each rank for mg phase
-var PassedPawnsBonusMg = [8]int{0, -5, -9, -11, 15, 11, 11, 0}
+	// Bishop Mobility mg/eg contains the bonus for bishop mobility
+	BishopMobilityMg = [14]int{-40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
+	BishopMobilityEg = [14]int{-8, -6, -4, -2, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18}
 
-// PassedPawnsBonusEg contains the bonus for passed pawns on each rank for eg phase
-var PassedPawnsBonusEg = [8]int{0, 10, 14, 37, 60, 119, 134, 0}
+	// KnightMobility mg/eg contains the bonus for knight mobility
+	KnightMobilityMg = [9]int{-22, -11, 0, 11, 22, 33, 44, 55, 66}
+	KnightMobilityEg = [9]int{0, 0, 0, 0, 0, 0, 0, 0, 0}
 
-// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
-var OutpostsRanks = [2]Bitboard{
-	Ranks[3] | Ranks[4] | Ranks[5],
-	Ranks[2] | Ranks[3] | Ranks[4],
-}
+	// PawnShieldBonusMg contains the bonus for pawn shields for mg phase based on rank distance to the king
+	PawnShieldBonusMg = [3]int{15, 10, 5}
+
+	// PassedPawnsBonus mg/eg contains the bonus for passed pawns
+	PassedPawnsBonusMg = [8]int{0, -5, -9, -11, 15, 11, 11, 0}
+	PassedPawnsBonusEg = [8]int{0, 10, 14, 37, 60, 119, 134, 0}
+
+	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
+	OutpostsRanks = [2]Bitboard{
+		Ranks[3] | Ranks[4] | Ranks[5],
+		Ranks[2] | Ranks[3] | Ranks[4],
+	}
+
+	// KingSafetyTable contains the penalties for king safety based on the number wheigted attacks to the king
+	KingSafetyTable = [50]int{
+		0, 0, 1, 2, 3, 5, 7, 9, 12, 15,
+		18, 22, 26, 30, 35, 40, 45, 51, 57, 64,
+		71, 79, 88, 97, 107, 118, 130, 142, 155, 168,
+		182, 197, 213, 230, 248, 267, 287, 308, 330, 353,
+		377, 400, 400, 400, 400, 400, 400, 400, 400, 400,
+	}
+)
 
 // Evaluation contains the different evaluation elements of a position
 type Evaluation struct {
@@ -273,14 +275,14 @@ func (ev *Evaluation) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks
 	attacks := Attacks(piece, fromBB, blocks)
 	squares := (attacks & ^enemyPawnsAttacks).count()
 
-	kingZone := KingZone(enemyKing)
-	if attacks&kingZone != 0 {
+	enemyKingZone := KingZone[Bsf(enemyKing)]
+	if attacks&enemyKingZone != 0 {
 		ev.kingAttackersCount[side]++
-		ev.kingAttackWeight[side] += QueenAttackWeight * (attacks & kingZone).count()
+		ev.kingAttackWeight[side] += QueenAttackWeight * (attacks & enemyKingZone).count()
 	}
 
-	ev.mgMobility[side] += (squares - QueenMobilityBase) * QueenMobilityBonusMg
-	ev.egMobility[side] += (squares - QueenMobilityBase) * QueenMobilityBonusEg
+	ev.mgMobility[side] += QueenMobilityMg[squares]
+	ev.egMobility[side] += QueenMobilityEg[squares]
 
 	ev.phase += 9
 }
@@ -304,14 +306,14 @@ func (ev *Evaluation) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks 
 	attacks := Attacks(piece, fromBB, blocks)
 	squares := (attacks & ^enemyPawnsAttacks).count()
 
-	kingZone := KingZone(enemyKing)
-	if attacks&kingZone != 0 {
+	enemyKingZone := KingZone[Bsf(enemyKing)]
+	if attacks&enemyKingZone != 0 {
 		ev.kingAttackersCount[side]++
-		ev.kingAttackWeight[side] += RookAttackWeight * (attacks & kingZone).count()
+		ev.kingAttackWeight[side] += RookAttackWeight * (attacks & enemyKingZone).count()
 	}
 
-	ev.mgMobility[side] += (squares - RookMobilityBase) * RookMobilityBonusMg
-	ev.egMobility[side] += (squares - RookMobilityBase) * RookMobilityBonusEg
+	ev.mgMobility[side] += RookMobilityMg[squares]
+	ev.egMobility[side] += RookMobilityEg[squares]
 
 	ev.phase += 5
 }
@@ -331,14 +333,14 @@ func (ev *Evaluation) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttack
 	attacks := Attacks(piece, fromBB, blocks)
 	squares := (attacks & ^enemyPawnsAttacks).count()
 
-	kingZone := KingZone(enemyKing)
-	if attacks&kingZone != 0 {
+	enemyKingZone := KingZone[Bsf(enemyKing)]
+	if attacks&enemyKingZone != 0 {
 		ev.kingAttackersCount[side]++
-		ev.kingAttackWeight[side] += BishopAttackWeight * (attacks & kingZone).count()
+		ev.kingAttackWeight[side] += BishopAttackWeight * (attacks & enemyKingZone).count()
 	}
 
-	ev.mgMobility[side] += (squares - BishopMobilityBase) * BishopMobilityBonusMg
-	ev.egMobility[side] += (squares - BishopMobilityBase) * BishopMobilityBonusEg
+	ev.mgMobility[side] += BishopMobilityMg[squares]
+	ev.egMobility[side] += BishopMobilityEg[squares]
 
 	ev.phase += 3
 }
@@ -358,14 +360,14 @@ func (ev *Evaluation) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttack
 	attacks := Attacks(piece, fromBB, blocks)
 	squares := (attacks & ^enemyPawnsAttacks).count()
 
-	kingZone := KingZone(enemyKing)
-	if attacks&kingZone != 0 {
+	enemyKingZone := KingZone[Bsf(enemyKing)]
+	if attacks&enemyKingZone != 0 {
 		ev.kingAttackersCount[side]++
-		ev.kingAttackWeight[side] += KnightAttackWeight * (attacks & kingZone).count()
+		ev.kingAttackWeight[side] += KnightAttackWeight * (attacks & enemyKingZone).count()
 	}
 
-	ev.mgMobility[side] += (squares - KnightMobilityBase) * KnightMobilityBonusMg
-	ev.egMobility[side] += (squares - KnightMobilityBase) * KnightMobilityBonusEg
+	ev.mgMobility[side] += KnightMobilityMg[squares]
+	ev.egMobility[side] += KnightMobilityEg[squares]
 
 	ev.phase += 3
 }
@@ -491,9 +493,4 @@ func PassedPawns(alliedPawns Bitboard, enemyPawns Bitboard, side Color) (passedP
 	}
 
 	return
-}
-
-// KingZone returns the king zone for the side
-func KingZone(kingSq Bitboard) Bitboard {
-	return kingAttacks(&kingSq) | kingSq
 }

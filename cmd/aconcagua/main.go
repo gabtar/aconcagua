@@ -11,9 +11,7 @@ func main() {
 	uci := uci.NewUciProtocol(eng)
 	uci.Start()
 
-	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/lichess-big3-resolved.book", 3000000)
+	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/lichess-big3-resolved.book", 6000000)
 	// params := tuner.GetEvaluationParams()
-	//
-
-	// tuner.AdamTuner(params, &dataset, tuner.ScalingFactor, 1000)
+	// tuner.AdamTuner(params, &dataset, tuner.ScalingFactor, 2000)
 }
