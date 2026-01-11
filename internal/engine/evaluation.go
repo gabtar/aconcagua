@@ -2,61 +2,61 @@ package engine
 
 const (
 	// Pawn Structure
-	DoubledPawnPenaltyMg  = -1
-	DoubledPawnPenaltyEg  = -16
-	IsolatedPawnPenaltyMg = -18
-	IsolatedPawnPenaltyEg = -7
+	DoubledPawnPenaltyMg  = -3
+	DoubledPawnPenaltyEg  = -14
+	IsolatedPawnPenaltyMg = -11
+	IsolatedPawnPenaltyEg = -11
 	BackwardPawnPenaltyMg = -8
-	BackwardPawnPenaltyEg = -5
+	BackwardPawnPenaltyEg = -7
 
 	// Material Adjustment
-	BishopPairBonusMg    = 26
-	BishopPairBonusEg    = 14
-	RookOnOpenFileMg     = 22
-	RookOnSemiOpenFileMg = 8
+	BishopPairBonusMg    = 29
+	BishopPairBonusEg    = 51
+	RookOnOpenFileMg     = 37
+	RookOnSemiOpenFileMg = 20
 
-	KnightOutpostBonusMg = 15
-	KnightOutpostBonusEg = 5
-	BishopOutpostBonusMg = 10
-	BishopOutpostBonusEg = 4
+	KnightOutpostBonusMg = 34
+	KnightOutpostBonusEg = 20
+	BishopOutpostBonusMg = 38
+	BishopOutpostBonusEg = -3
 
 	// King Safety
-	KingOnOpenFilePenaltyMg       = -30
-	KingOnSemiOpenFilePenaltyMg   = -18
-	KingNearOpenFilePenaltyMg     = -10
-	KingNearSemiOpenFilePenaltyMg = -6
+	KingOnOpenFilePenaltyMg       = -70
+	KingOnSemiOpenFilePenaltyMg   = -14
+	KingNearOpenFilePenaltyMg     = -26
+	KingNearSemiOpenFilePenaltyMg = -11
 
 	KnightAttackWeight = 3
 	BishopAttackWeight = 3
 	RookAttackWeight   = 5
 	QueenAttackWeight  = 9
 
-	TempoBonus = 5
+	TempoBonus = 21
 )
 
 var (
 	// Queen Mobility mg/eg contains the bonus for queen mobility
-	QueenMobilityMg = [28]int{-21, -18, -15, -12, -9, -6, -3, 0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57, 60}
-	QueenMobilityEg = [28]int{-77, -66, -55, -44, -33, -22, -11, 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 110, 121, 132, 143, 154, 165, 176, 187, 198, 209, 220}
+	QueenMobilityMg = [28]int{-21, -18, -18, -32, -34, -8, -1, 2, 6, 9, 13, 18, 22, 27, 28, 29, 29, 28, 27, 26, 32, 32, 40, 32, 31, 39, 41, 45}
+	QueenMobilityEg = [28]int{-77, -66, -56, -56, -50, -24, -9, 10, 34, 55, 66, 73, 83, 86, 93, 103, 108, 118, 127, 132, 137, 135, 142, 147, 158, 168, 183, 195}
 
 	// Rook Mobility mg/eg contains the bonus for rook mobility
-	RookMobilityMg = [15]int{-40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
-	RookMobilityEg = [15]int{-8, -6, -4, -2, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20}
+	RookMobilityMg = [15]int{-42, -35, 4, 12, 18, 21, 24, 26, 29, 35, 38, 41, 47, 57, 68}
+	RookMobilityEg = [15]int{-13, -22, -25, -7, 3, 11, 18, 24, 26, 28, 31, 34, 35, 31, 26}
 
 	// Bishop Mobility mg/eg contains the bonus for bishop mobility
-	BishopMobilityMg = [14]int{-40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
-	BishopMobilityEg = [14]int{-8, -6, -4, -2, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18}
+	BishopMobilityMg = [14]int{-60, -62, -24, -13, 0, 9, 17, 23, 27, 33, 37, 53, 64, 75}
+	BishopMobilityEg = [14]int{-37, -42, -23, 2, 11, 18, 26, 30, 35, 34, 36, 27, 27, 14}
 
 	// KnightMobility mg/eg contains the bonus for knight mobility
-	KnightMobilityMg = [9]int{-22, -11, 0, 11, 22, 33, 44, 55, 66}
-	KnightMobilityEg = [9]int{0, 0, 0, 0, 0, 0, 0, 0, 0}
+	KnightMobilityMg = [9]int{-53, -30, -1, 8, 22, 25, 38, 49, 62}
+	KnightMobilityEg = [9]int{-24, -29, -13, 7, 14, 22, 25, 28, 22}
 
 	// PawnShieldBonusMg contains the bonus for pawn shields for mg phase based on rank distance to the king
-	PawnShieldBonusMg = [3]int{15, 10, 5}
+	PawnShieldBonusMg = [3]int{13, 7, -1}
 
 	// PassedPawnsBonus mg/eg contains the bonus for passed pawns
-	PassedPawnsBonusMg = [8]int{0, -5, -9, -11, 15, 11, 11, 0}
-	PassedPawnsBonusEg = [8]int{0, 10, 14, 37, 60, 119, 134, 0}
+	PassedPawnsBonusMg = [8]int{0, -5, -11, -11, 16, 3, 13, 0}
+	PassedPawnsBonusEg = [8]int{0, 9, 13, 38, 62, 127, 142, 0}
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -66,11 +66,11 @@ var (
 
 	// KingSafetyTable contains the penalties for king safety based on the number wheigted attacks to the king
 	KingSafetyTable = [50]int{
-		0, 0, 1, 2, 3, 5, 7, 9, 12, 15,
-		18, 22, 26, 30, 35, 40, 45, 51, 57, 64,
-		71, 79, 88, 97, 107, 118, 130, 142, 155, 168,
-		182, 197, 213, 230, 248, 267, 287, 308, 330, 353,
-		377, 400, 400, 400, 400, 400, 400, 400, 400, 400,
+		0, 0, 1, 2, 3, 5, 18, 9, 33, 27,
+		9, 41, 18, 38, 20, 36, 39, 75, 59, 48,
+		53, 49, 99, 61, 100, 84, 90, 143, 116, 154,
+		139, 179, 168, 187, 238, 227, 257, 265, 300, 310,
+		348, 356, 354, 388, 383, 380, 367, 378, 366, 364,
 	}
 )
 
