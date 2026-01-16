@@ -282,7 +282,7 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 
 // isDraw returns if the current position is a draw by repetition, 50 move rule or insuficient material
 func (pos *Position) isDraw() bool {
-	return pos.positionHistory.repetitionCount(pos.Hash) >= 2 ||
+	return pos.positionHistory.repetitionCount(pos.Hash, pos.halfmoveClock) >= 2 ||
 		pos.halfmoveClock >= 100 ||
 		pos.insuficientMaterial()
 }
@@ -478,6 +478,8 @@ func (pos *Position) UnmakeMove(move *Move) {
 	if prevState.epTarget() > 0 {
 		pos.enPassantTarget = bitboardFromIndex(prevState.epTarget())
 		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(prevState.epTarget())
+	} else {
+		pos.enPassantTarget = 0
 	}
 	pos.halfmoveClock = prevState.rule50()
 
@@ -494,9 +496,6 @@ func (pos *Position) UnmakeMove(move *Move) {
 		colorModifier := 1 - int(pos.Turn)*2
 		restoreSq := move.to() + 8*colorModifier
 		pos.AddPiece(pieceColor(Pawn, pos.Turn), restoreSq)
-	case doublePawnPush:
-		pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(prevState.epTarget())
-		pos.enPassantTarget = 0
 	}
 
 	pos.toggleSide()
@@ -698,7 +697,6 @@ func (pos *Position) LoadMoves(moves ...string) {
 			}
 		}
 	}
-	pos.positionHistory.clear()
 }
 
 // NewPosition returns a new Position struct

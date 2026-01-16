@@ -201,7 +201,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		return 0
 	}
 
-	if pos.isDraw() {
+	pvLine.reset()
+	if ply != 0 && pos.isDraw() {
 		return 0
 	}
 
@@ -218,7 +219,6 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	flag := FlagAlpha
 	branchPv := NewPvLine(depth)
-	pvLine.reset()
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 4 && !isCheck && !pvNode {
