@@ -18,11 +18,13 @@ const (
 	AspirationWindowSize          = 25
 )
 
-// LateMovePruningMoveNumber contains the move number to start pruning for each depth
-var LateMovePruningMoveNumber = [5]int{0, 5, 10, 15, 20}
+var (
+	// LateMovePruningMoveNumber contains the move number to start pruning for each depth
+	LateMovePruningMoveNumber = [5]int{0, 5, 10, 15, 20}
 
-// FutilityPruningMargin contains the margin for futility pruning for each depth
-var FutilityPruningMargin = []int{0, 120, 180, 280, 420}
+	// FutilityPruningMargin contains the margin for futility pruning for each depth
+	FutilityPruningMargin = [5]int{0, 120, 180, 280, 420}
+)
 
 // Search is the main struct for the search
 type Search struct {
@@ -202,8 +204,22 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	}
 
 	pvLine.reset()
-	if ply != 0 && pos.isDraw() {
-		return 0
+
+	rootNode := ply == 0
+	// Avoid these on root nodes, because otherwise, we'll not be able to return a move
+	if !rootNode {
+		// If the position is either a draw by repetition, 50 move rule or insuficient material
+		// stop inmediatly, to prevent redundant search
+		if pos.isDraw() {
+			return 0
+		}
+
+		// Mate Distance Pruning. Cut the trees and ajust alpha/beta bounds of lines where no shorter mate is possible
+		alpha = max(alpha, -MateScore+ply)
+		beta = min(beta, MateScore-ply-1)
+		if alpha >= beta {
+			return alpha
+		}
 	}
 
 	isCheck := pos.Check(pos.Turn)
