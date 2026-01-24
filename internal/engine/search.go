@@ -10,7 +10,7 @@ import (
 // Constants to use in the search
 const (
 	MaxSearchDepth                = 50
-	MateScore                     = 100000
+	MateScore                     = 20000
 	MinInt                        = math.MinInt32
 	MaxInt                        = math.MaxInt32
 	EndgameMaterialThreshold      = 1600
@@ -32,7 +32,7 @@ type Search struct {
 	pvLine             pvLine
 	killers            KillersTable
 	historyMoves       HistoryMovesTable
-	transpositionTable TranspositionTable
+	TranspositionTable TranspositionTable
 	TimeControl        TimeControl
 }
 
@@ -43,7 +43,7 @@ func NewSearch() *Search {
 		pvLine:             NewPvLine(MaxSearchDepth),
 		killers:            KillersTable{},
 		historyMoves:       HistoryMovesTable{},
-		transpositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
+		TranspositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
 		TimeControl:        TimeControl{},
 	}
 }
@@ -53,7 +53,7 @@ func (s *Search) clear() {
 	s.nodes = 0
 	s.killers.clear()
 	s.historyMoves.clear()
-	s.transpositionTable.clear()
+	s.TranspositionTable.newSearch()
 }
 
 // reset sets the new iteration parameters in the NewSearch
@@ -142,7 +142,7 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 		depthTime := time.Since(s.TimeControl.iterationStartTime)
 		s.TimeControl.iterationStartTime = time.Now()
 		nps := int(float64(s.nodes) / depthTime.Seconds())
-		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, s.transpositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
+		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
 		bestMove = s.pvLine[0].String()
 	}
 
@@ -228,19 +228,22 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	}
 
 	pvNode := beta-alpha > 1
-	ttScore, ttMove, exists := s.transpositionTable.probe(pos.Hash, depth, alpha, beta)
-	if exists && !pvNode {
+
+	// Transposition Table probe. If we already have searched this position with a sufficient depth
+	// we will trust our previous evaluation and return the score
+	ttScore, ttEval, ttMove, ttHit := s.TranspositionTable.probe(pos.Hash, depth, ply, alpha, beta)
+	if ttHit && !pvNode {
 		return ttScore
 	}
 
 	flag := FlagAlpha
 	branchPv := NewPvLine(depth)
+	staticEval := evaluation(pos, ttMove, ttEval)
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 4 && !isCheck && !pvNode {
-		sc := pos.Evaluate()
 		margin := ReverseFutitlityPruningMargin * depth
-		if sc-margin >= beta {
+		if staticEval-margin >= beta {
 			return beta
 		}
 	}
@@ -260,8 +263,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	// Discards potential moves near the horizon that are not likely to raise alpha (will not improve the position)
 	futilityPruningAllowed := false
 	if depth <= 4 && alpha > -MateScore && beta < MateScore {
-		sc := pos.Evaluate()
-		futilityPruningAllowed = sc+FutilityPruningMargin[depth] <= alpha
+		futilityPruningAllowed = staticEval+FutilityPruningMargin[depth] <= alpha
 	}
 
 	// Internal Iterative Deepening
@@ -317,7 +319,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		pos.UnmakeMove(&move)
 
 		if newScore >= beta {
-			s.transpositionTable.store(pos.Hash, depth, FlagBeta, beta, move)
+			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, staticEval, move)
 			s.killers.store(ply, move)
 			s.historyMoves.increment(depth, &move, pos.Turn)
 			// Reduce history score for previous 'quiet' moves that did not produce the cutoff
@@ -337,11 +339,20 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, mg.moveNumber, ply)
 	if checkmateOrStealmateFound {
+		s.TranspositionTable.store(pos.Hash, depth, ply, FlagExact, score, staticEval, NoMove)
 		return score
 	}
 
-	s.transpositionTable.store(pos.Hash, depth, flag, alpha, bestMove)
+	s.TranspositionTable.store(pos.Hash, depth, ply, flag, alpha, staticEval, bestMove)
 	return alpha
+}
+
+// evaluation returns the evaluation of the position
+func evaluation(pos *Position, ttMove Move, ttEval int) int {
+	if ttMove != NoMove {
+		return ttEval
+	}
+	return pos.Evaluate()
 }
 
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated

@@ -1,11 +1,16 @@
 package engine
 
-import "testing"
+import (
+	"math"
+	"testing"
+	"unsafe"
+)
 
 func TestNewTranspositionTable(t *testing.T) {
-	tt := NewTranspositionTable(64)
+	ttSizeInMb := 64
+	tt := NewTranspositionTable(ttSizeInMb)
 
-	expected := uint64(64 * 1024 * 1024 / 16)
+	expected := uint64(ttSizeInMb * 1024 * 1024 / (16 * BucketSize))
 	got := tt.size
 
 	if got != expected {
@@ -13,55 +18,130 @@ func TestNewTranspositionTable(t *testing.T) {
 	}
 }
 
-func TestStore(t *testing.T) {
-	entryTestCases := []struct {
-		name  string
-		key   uint64
-		depth int
-		flag  uint8
-		score int
-		move  Move
-	}{
-		{name: "store entry", key: 1, depth: 2, flag: 3, score: 4, move: 5},
-		{name: "store entry", key: 2, depth: 2, flag: 3, score: 4, move: 5},
-		{name: "not store if depth < stored depth", key: 2, depth: 1, flag: 3, score: 4, move: 5},
-	}
-	tt := NewTranspositionTable(64)
+func TestBucketsSizeInMemory(t *testing.T) {
+	ttSizeInMb := 64
+	tt := NewTranspositionTable(ttSizeInMb)
 
-	for _, testCase := range entryTestCases {
-		t.Run(testCase.name, func(t *testing.T) {
+	bucketsSizeInMb := float64(unsafe.Sizeof(tt.buckets[0])) * float64(cap(tt.buckets)) / (1024.0 * 1024.0)
 
-			tt.store(testCase.key, testCase.depth, testCase.flag, testCase.score, testCase.move)
-			if tt.entries[testCase.key%tt.size].depth != 2 {
-				t.Errorf("Expected: %v, got: %v", 1, tt.stored)
-			}
-		})
+	got := int(math.Ceil(bucketsSizeInMb))
+
+	if got != ttSizeInMb {
+		t.Errorf("Expected: %v, got: %v", ttSizeInMb, got)
 	}
 }
 
-func TestProbe(t *testing.T) {
-	entryTestCases := []struct {
-		name  string
-		key   uint64
-		depth int
-		flag  uint8
-		score int
-		move  Move
-	}{
-		{name: "alpha", key: 1, depth: 2, flag: FlagAlpha, score: 10, move: 0},
-		{name: "beta", key: 2, depth: 2, flag: FlagBeta, score: 10, move: 0},
-		{name: "exact", key: 3, depth: 2, flag: FlagExact, score: 10, move: 0},
+func TestStoreEntryWithExactMatch(t *testing.T) {
+	tt := NewTranspositionTable(1)
+
+	key := uint64(1)
+	depth := 2
+	ply := 3
+	flag := FlagExact
+	score := 10
+	eval := 0
+	move := NoMove
+
+	tt.store(key, depth, ply, flag, score, eval, move)
+
+	index := key % tt.size
+	bucket := &tt.buckets[index]
+
+	expected := uint32(key >> 32)
+	got := bucket.entries[0].key32
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
+}
 
-	for _, testCase := range entryTestCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			tt := NewTranspositionTable(64)
+func TestReplaceEntryWithExactMatch(t *testing.T) {
+	tt := NewTranspositionTable(1)
 
-			tt.store(testCase.key, testCase.depth, testCase.flag, testCase.score, testCase.move)
-			_, _, found := tt.probe(testCase.key, testCase.depth, testCase.score, testCase.score)
-			if !found {
-				t.Errorf("Expected: %v, got: %v", true, found)
-			}
-		})
+	key := uint64(0)
+	depth := 2
+	ply := 3
+	flag := FlagExact
+	score := 10
+	eval := 0
+	move := NoMove
+
+	tt.store(key, depth, ply, flag, score, eval, move)
+	tt.store(key, depth+3, ply, flag, score, eval, move)
+
+	index := key % tt.size
+	bucket := &tt.buckets[index]
+
+	expected := depth + 3
+	got := int(bucket.entries[0].depth)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestProbeEntryWithExactMatch(t *testing.T) {
+	tt := NewTranspositionTable(1)
+
+	key := uint64(0)
+	depth := 2
+	ply := 3
+	flag := FlagExact
+	score := 10
+	eval := 0
+	move := NoMove
+
+	tt.store(key, depth, ply, flag, score, eval, move)
+	ttScore, ttEval, ttMove, ttHit := tt.probe(key, depth, ply, MinInt, MaxInt)
+
+	expectedScore := score
+	expectedEval := eval
+	expectedMove := move
+	expectedHit := true
+
+	if ttScore != expectedScore {
+		t.Errorf("Expected: %v, got: %v", expectedScore, ttScore)
+	}
+	if ttEval != expectedEval {
+		t.Errorf("Expected: %v, got: %v", expectedEval, ttEval)
+	}
+	if ttMove != expectedMove {
+		t.Errorf("Expected: %v, got: %v", expectedMove, ttMove)
+	}
+	if ttHit != expectedHit {
+		t.Errorf("Expected: %v, got: %v", expectedHit, ttHit)
+	}
+}
+
+func TestProbeEntryInsufficientDepth(t *testing.T) {
+	tt := NewTranspositionTable(1)
+
+	key := uint64(10240)
+	depth := 2
+	ply := 3
+	flag := FlagExact
+	score := 10
+	eval := 0
+	move := Move(55)
+
+	tt.store(key, depth, ply, flag, score, eval, move)
+	ttScore, ttEval, ttMove, ttHit := tt.probe(key, depth+1, ply, MinInt, MaxInt)
+
+	expectedScore := 0
+	expectedEval := eval
+	expectedMove := move
+	expectedHit := false
+
+	if ttScore != expectedScore {
+		t.Errorf("Expected: %v, got: %v", expectedScore, ttScore)
+	}
+	if ttEval != expectedEval {
+		t.Errorf("Expected: %v, got: %v", expectedEval, ttEval)
+	}
+	if ttMove != expectedMove {
+		t.Errorf("Expected: %v, got: %v", expectedMove, ttMove)
+	}
+	if ttHit != expectedHit {
+		t.Errorf("Expected: %v, got: %v", expectedHit, ttHit)
 	}
 }
