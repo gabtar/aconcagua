@@ -53,10 +53,13 @@ func (tc *TimeControl) calculateSearchTime(strategy int, side int, moveNumber in
 	}
 	if strategy == TimeLeftStrategy {
 		timeLeft, incr := clock.timeLeft(Color(side))
-		if moveNumber <= 50 {
+		if moveNumber <= 20 {
 			return int(0.035*(1+float32(moveNumber)/100)*timeLeft) + int(incr)
 		}
-		return int(0.01*timeLeft) + int(incr)
+		if moveNumber <= 45 {
+			return int(0.025*(1+float32(moveNumber)/100)*timeLeft) + int(incr)
+		}
+		return int(0.015*timeLeft) + int(incr)
 	}
 	return -1
 }
