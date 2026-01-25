@@ -69,9 +69,9 @@ func TestPositionBeforeEpTarget(t *testing.T) {
 }
 
 func TestPositionBeforeRule50(t *testing.T) {
-	positionBefore := encodePositionBefore(1, 2, 8, 50)
+	positionBefore := encodePositionBefore(1, 2, 8, 100)
 
-	expected := 50
+	expected := 100
 	got := positionBefore.rule50()
 
 	if got != expected {

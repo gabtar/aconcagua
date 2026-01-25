@@ -2,8 +2,8 @@ package engine
 
 // kingAttacks returns a bitboard with the squares the king attacks from the passed bitboard
 func kingAttacks(k *Bitboard) (attacks Bitboard) {
-	notInHFile := *k & ^(*k & files[7])
-	notInAFile := *k & ^(*k & files[0])
+	notInHFile := *k & ^(*k & Files[7])
+	notInAFile := *k & ^(*k & Files[0])
 
 	attacks = notInAFile<<7 | *k<<8 | notInHFile<<9 |
 		notInHFile<<1 | notInAFile>>1 | notInHFile>>7 |
@@ -33,8 +33,8 @@ func bishopAttacks(square int, blocks Bitboard) Bitboard {
 
 // pawnAttacks returns a bitboard with the squares the pawn attacks from the position passed
 func pawnAttacks(p *Bitboard, side Color) (attacks Bitboard) {
-	notInHFile := *p & ^(*p & files[7])
-	notInAFile := *p & ^(*p & files[0])
+	notInHFile := *p & ^(*p & Files[7])
+	notInAFile := *p & ^(*p & Files[0])
 
 	if side == White {
 		attacks = notInAFile<<7 | notInHFile<<9

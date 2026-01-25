@@ -72,11 +72,16 @@ func (m *Move) String() (move string) {
 }
 
 // positionBefore is an encoded board state before making a move
+// the position is represented with 32 bits
+// first 4 bits for the piece moved (values 0-11)
+// second 4 bits for the piece captured (values 0-11)
+// third 6 bits for the en passant target square (1-64)
+// last 7 bits for the rule50 counter (0-100)
 type positionBefore uint32
 
 // encodePositionBefore returns a reference to an encoded board state before the move
 func encodePositionBefore(pieceMoved uint16, pieceCaptured uint16, epTarget uint16, rule50 uint16) positionBefore {
-	rule50uint32 := positionBefore(uint32(rule50) << 15)
+	rule50uint32 := positionBefore(uint32(rule50) << 16)
 	bb := positionBefore(pieceMoved | pieceCaptured<<4 | epTarget<<8)
 	bb = bb | rule50uint32
 	return bb
@@ -99,5 +104,5 @@ func (pb *positionBefore) epTarget() int {
 
 // rule50 returns the rule50 counter before the move
 func (pb *positionBefore) rule50() int {
-	return int((*pb & (0b111111 << 15)) >> 15)
+	return int((*pb & (0b1111111 << 16)) >> 16)
 }

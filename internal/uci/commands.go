@@ -7,6 +7,12 @@ import (
 	"github.com/gabtar/aconcagua/internal/engine"
 )
 
+const (
+	// Allowed hash sizes in MB
+	MaxHashSize = 1024
+	MinHashSize = 1
+)
+
 // UciCommand defines the interface for all UCI commands.
 type UciCommand interface {
 	Execute(en *engine.Engine, stdout chan string, params ...string)
@@ -17,12 +23,14 @@ type UciCommandStruct struct{}
 
 // Execute handles the "uci" command logic.
 func (c *UciCommandStruct) Execute(en *engine.Engine, stdout chan string, params ...string) {
-	stdout <- "id name Aconcagua 4.1.0"
+	stdout <- "id name Aconcagua 5.0.0"
 	stdout <- "id author Gabriel Tarifa"
 	stdout <- ""
 	stdout <- "option name BookPath type string default <empty>"
 	stdout <- "option name UseBook type check default false"
 	stdout <- "option name UCI_Chess960 type check default false"
+	stdout <- "option name Hash type spin default 64 min " + strconv.Itoa(MinHashSize) + " max " + strconv.Itoa(MaxHashSize)
+	stdout <- "option name ClearHash type button"
 	stdout <- "uciok"
 }
 
@@ -133,6 +141,10 @@ func (c *UciSetOptionCommandStruct) Execute(en *engine.Engine, stdout chan strin
 		c.setUseBook(en, stdout, optionValue)
 	case "uci_chess960":
 		c.setChess960(en, stdout, optionValue)
+	case "hash":
+		c.setHashSize(en, stdout, optionValue)
+	case "clearhash":
+		en.Search.TranspositionTable.Clear()
 	default:
 		stdout <- "info string Error: Unknown option name: " + params[1]
 	}
@@ -160,6 +172,17 @@ func (c *UciSetOptionCommandStruct) setUseBook(en *engine.Engine, stdout chan st
 func (c *UciSetOptionCommandStruct) setChess960(en *engine.Engine, stdout chan string, value string) {
 	en.Options.Chess960 = value == "true"
 	stdout <- "option name UCI_Chess960 value " + strconv.FormatBool(en.Options.Chess960)
+}
+
+// setHashSize handles the "setoption name Hash" command logic
+func (c *UciSetOptionCommandStruct) setHashSize(en *engine.Engine, stdout chan string, value string) {
+	sizeInMb, err := strconv.Atoi(value)
+	if err != nil || (sizeInMb < MinHashSize || sizeInMb > MaxHashSize) {
+		return
+	}
+
+	en.Search.TranspositionTable.Resize(sizeInMb)
+	stdout <- "option name Hash value " + value
 }
 
 // UciStopCommandStruct represents the "stop" command.
@@ -213,4 +236,11 @@ func (c *DivideCommandStruct) Execute(en *engine.Engine, stdout chan string, par
 	for perft := range strings.SplitSeq(en.Pos.Divide(depth), ",") {
 		stdout <- perft
 	}
+}
+
+// TTStatsCommandStructs returns usage stats for the transposition table
+type TTStatsCommandStruct struct{}
+
+func (c *TTStatsCommandStruct) Execute(en *engine.Engine, stdout chan string, params ...string) {
+	stdout <- en.Search.TranspositionTable.Stats()
 }

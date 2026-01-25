@@ -53,7 +53,7 @@ build:
 	@echo "--> Building $(BINARY_NAME)..."
 	GOARCH=amd64 GOOS=darwin go build -o $(OUTPUT_DIR)/${BINARY_NAME}-darwin $(MAIN_PACKAGE)
 	GOARCH=amd64 GOOS=linux go build -o $(OUTPUT_DIR)/${BINARY_NAME}-linux $(MAIN_PACKAGE)
-	GOARCH=amd64 GOOS=windows go build -o $(OUTPUT_DIR)/${BINARY_NAME}-windows $(MAIN_PACKAGE)
+	GOARCH=amd64 GOOS=windows go build -o $(OUTPUT_DIR)/${BINARY_NAME}-windows.exe $(MAIN_PACKAGE)
 
 ## run: run the  application
 .PHONY: run

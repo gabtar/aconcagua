@@ -33,7 +33,7 @@ func TestRayAttack(t *testing.T) {
 		sq        int
 		ray       Bitboard
 	}{
-		{"North Ray", North, 0, files[0] &^ Bitboard(1)},
+		{"North Ray", North, 0, Files[0] &^ Bitboard(1)},
 		{"Northeast Ray", NorthEast, 46, bitboardFromCoordinates("h7")},
 		{"East Ray", East, 51, bitboardFromCoordinates("e7", "f7", "g7", "h7")},
 		{"SouthEast Ray", SouthEast, 19, bitboardFromCoordinates("e2", "f1")},

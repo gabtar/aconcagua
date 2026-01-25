@@ -1,5 +1,11 @@
 package engine
 
+import (
+	"runtime"
+	"runtime/debug"
+	"strconv"
+)
+
 const (
 	FlagExact = uint8(0)
 	FlagAlpha = uint8(1)
@@ -9,111 +15,233 @@ const (
 const (
 	DefaultTableSizeInMb         = 64
 	DefaultPawnHashTableSizeInMb = 4
+	BucketSize                   = 3
 )
 
 // TTEntry represents a transposition table entry
-// key is the zobrist hash of the position - 64bits
-// depth is the depth of the position - 32bits
-// flag is the evaluation flag - 32bits
-// score is the evaluation score - 32bits
+// For key it uses only the upper 32 bits of the zobrist hash.
+// Collisions are reduced by using multiple entries per bucket, and when
+// practically minimal if the size of the table is large enough
 type TTEntry struct {
-	key   uint64
-	score int32
+	key32 uint32 // Upper 32 bits of hash for verification
 	move  Move
+	score int16
+	eval  int16 // Static evaluation
 	depth uint8
 	flag  uint8
+	age   uint8   // Age of the entry
+	_     [3]byte // Alignment
+}
+
+// TTBucket holds multiple entries to reduce collisions
+type TTBucket struct {
+	entries [BucketSize]TTEntry
 }
 
 // TranspositionTable is a database of previously evaluated positions
 type TranspositionTable struct {
-	entries []TTEntry
+	buckets []TTBucket
 	size    uint64
-	stored  int // number of entries stored
-	tried   int // number of entries tried
-	found   int // number of entries found
-	pruned  int // number of entries pruned
+	age     uint8 // Last age/generation of the table
+
+	// Stats
+	stored int
+	tried  int
+	hits   int
+	pruned int
 }
 
 // NewTranspositionTable returns a pointer to a new TranspositionTable with the passed size
 func NewTranspositionTable(sizeInMb int) *TranspositionTable {
-	entrySizeInBytes := 16 // 64bits + 32bits + 16bits + 8bits + 8bits = 128 bits bits / 8 = 16 bits per entry
-	size := uint64(sizeInMb * 1024 * 1024 / entrySizeInBytes)
+	bucketSizeInBytes := 16 * BucketSize // 16 bytes(TTEntry) per entry * 3 entries
+	numBuckets := uint64(sizeInMb * 1024 * 1024 / bucketSizeInBytes)
+
 	return &TranspositionTable{
-		entries: make([]TTEntry, size),
-		size:    size,
+		buckets: make([]TTBucket, numBuckets),
+		size:    numBuckets,
+		age:     0,
 		stored:  0,
 		tried:   0,
-		found:   0,
+		hits:    0,
 		pruned:  0,
 	}
 }
 
-// clear clears the transposition table entries
-func (tt *TranspositionTable) clear() {
-	for i := range tt.size {
-		tt.entries[i].key = 0
-		tt.entries[i].score = 0
-		tt.entries[i].move = NoMove
-		tt.entries[i].depth = 0
-		tt.entries[i].flag = 0
-	}
+func (tt *TranspositionTable) Resize(sizeInMb int) {
+	bucketSizeInBytes := 16 * BucketSize
+	numBuckets := uint64(sizeInMb * 1024 * 1024 / bucketSizeInBytes)
 
+	// Force Clear
+	tt.buckets = nil
+	runtime.GC()
+	debug.FreeOSMemory()
+
+	tt.buckets = make([]TTBucket, numBuckets)
+	tt.size = numBuckets
+}
+
+// Clear clears the transposition table entries
+func (tt *TranspositionTable) Clear() {
+	for i := range tt.buckets {
+		for j := range tt.buckets[i].entries {
+			tt.buckets[i].entries[j].key32 = 0
+			tt.buckets[i].entries[j].move = NoMove
+			tt.buckets[i].entries[j].score = 0
+			tt.buckets[i].entries[j].eval = 0
+			tt.buckets[i].entries[j].depth = 0
+			tt.buckets[i].entries[j].flag = 0
+			tt.buckets[i].entries[j].age = 0
+		}
+	}
 	tt.stored = 0
 	tt.tried = 0
-	tt.found = 0
+	tt.hits = 0
 	tt.pruned = 0
+	tt.age = 0
+}
+
+// newSearch resets the stats for a new search
+func (tt *TranspositionTable) newSearch() {
+	tt.age++
+	tt.tried = 0
+	tt.hits = 0
+	tt.pruned = 0
+	tt.stored = 0
 }
 
 // store stores a new entry in the transposition table
-func (tt *TranspositionTable) store(key uint64, depth int, flag uint8, score int, move Move) {
+func (tt *TranspositionTable) store(key uint64, depth int, ply int, flag uint8, score int, eval int, move Move) {
 	index := key % tt.size
+	key32 := uint32(key >> 32) // Use only upper 32 bits for hash verification
+	bucket := &tt.buckets[index]
 
-	// replacement scheme -> Only replace entry if stored depth >= current depth
-	if tt.entries[index].key == key && tt.entries[index].depth > uint8(depth) {
-		return
+	// Look for existing entry with same key or find best slot to replace
+	replaceIdx, replaceDepth := 0, 0
+
+	for i := range BucketSize {
+		entry := &bucket.entries[i]
+
+		// Always replace entry for exact key match
+		if entry.key32 == key32 {
+			replaceIdx = i
+			break
+		}
+
+		// Empty slot
+		if entry.depth == 0 {
+			replaceIdx = i
+			tt.stored++
+			break
+		}
+
+		// Replacement strategy
+		// New entry replaces the entry with lowest depth
+		if replaceDepth == 0 || int(entry.depth) < replaceDepth {
+			replaceIdx = i
+			replaceDepth = int(entry.depth)
+		}
 	}
 
-	if tt.entries[index].key == 0 {
-		tt.stored++
-	}
-
-	tt.entries[index] = TTEntry{
-		key:   key,
+	bucket.entries[replaceIdx] = TTEntry{
+		key32: key32,
+		move:  move,
+		score: int16(adjustMateScoreForTT(score, ply)),
+		eval:  int16(eval),
 		depth: uint8(depth),
 		flag:  flag,
-		score: int32(score),
-		move:  move,
+		age:   tt.age,
 	}
-}
-
-func (tt *TranspositionTable) hashfull() int {
-	return 1000 * tt.stored / int(tt.size)
 }
 
 // probe tries to find an entry in the transposition table
-func (tt *TranspositionTable) probe(key uint64, depth int, alpha int, beta int) (int, Move, bool) {
+func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, beta int) (int, int, Move, bool) {
 	tt.tried++
 	index := key % tt.size
-	entry := tt.entries[index]
-	move := NoMove
+	key32 := uint32(key >> 32)
+	bucket := &tt.buckets[index]
 
-	if entry.key == key && entry.depth >= uint8(depth) {
-		tt.found++
-		move = entry.move
-		if entry.flag == FlagExact {
-			tt.pruned++
-			return int(entry.score), move, true
-		}
-		if entry.flag == FlagAlpha && entry.score <= int32(alpha) {
-			tt.pruned++
-			return alpha, move, true
-		}
-		if entry.flag == FlagBeta && entry.score >= int32(beta) {
-			tt.pruned++
-			return beta, move, true
+	for i := range BucketSize {
+		entry := &bucket.entries[i]
+
+		if entry.key32 == key32 {
+			tt.hits++
+			move := entry.move
+			eval := int(entry.eval)
+
+			if entry.depth >= uint8(depth) {
+				score := adjustMateScoreFromTT(int(entry.score), ply)
+
+				// Update age to mark as recently used
+				entry.age = tt.age
+
+				if entry.flag == FlagExact {
+					tt.pruned++
+					return score, eval, move, true
+				}
+				if entry.flag == FlagAlpha && score <= alpha {
+					tt.pruned++
+					return alpha, eval, move, true
+				}
+				if entry.flag == FlagBeta && score >= beta {
+					tt.pruned++
+					return beta, eval, move, true
+				}
+			}
+			// Found entry but can't use score, return move and eval
+			return 0, eval, move, false
 		}
 	}
-	return 0, move, false
+	return 0, 0, NoMove, false
+}
+
+// hashfull returns the approximate percentage of the transposition table that is used
+func (tt *TranspositionTable) hashfull() int {
+	// Take a sample of only 1000 buckets to improve performance
+	sampleSize := min(int(tt.size), 1000)
+
+	used := 0
+	for i := range sampleSize {
+		bucket := &tt.buckets[i]
+		for j := range BucketSize {
+			// Check if entry is occupied (depth > 0)
+			if tt.age == bucket.entries[j].age && bucket.entries[j].depth > 0 {
+				used++
+				break // Only count one entry per bucket
+			}
+		}
+	}
+
+	return 1000 * used / sampleSize
+}
+
+// adjustMateScoreForTT converts mate scores to be ply-independent for storage
+func adjustMateScoreForTT(score int, ply int) int {
+	if score >= MateScore-MaxSearchDepth {
+		return score + ply
+	}
+	if score <= -MateScore+MaxSearchDepth {
+		return score - ply
+	}
+	return score
+}
+
+// adjustMateScoreFromTT converts mate scores from TT back to ply-dependent
+func adjustMateScoreFromTT(score int, ply int) int {
+	if score >= MateScore-MaxSearchDepth {
+		return score - ply
+	}
+	if score <= -MateScore+MaxSearchDepth {
+		return score + ply
+	}
+	return score
+}
+
+// Stats returns an string with useful Stats about the transposition table
+func (tt *TranspositionTable) Stats() string {
+	return "Hashfull: " + strconv.Itoa(tt.hashfull()) + " Age: " + strconv.Itoa(int(tt.age)) + "\n" +
+		"Stored: " + strconv.Itoa(tt.stored) +
+		" Tried: " + strconv.Itoa(tt.tried) + " Hits: " + strconv.Itoa(tt.hits) +
+		" Pruned: " + strconv.Itoa(tt.pruned)
 }
 
 // PawnHashEntry stores the score of the previously evaluated pawn strucure

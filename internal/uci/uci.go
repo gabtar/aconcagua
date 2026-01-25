@@ -33,9 +33,10 @@ func (uci *UciProtocol) Execute(command string, stdout chan string, params ...st
 		"setoption":  &UciSetOptionCommandStruct{},
 
 		// utility/debug commands
-		"d":      &PrintBoardCommandStruct{},
-		"perft":  &PerftCommandStruct{},
-		"divide": &DivideCommandStruct{},
+		"d":       &PrintBoardCommandStruct{},
+		"ttstats": &TTStatsCommandStruct{},
+		"perft":   &PerftCommandStruct{},
+		"divide":  &DivideCommandStruct{},
 	}
 
 	comm, exists := uciCommands[command]

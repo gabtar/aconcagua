@@ -33,6 +33,7 @@ func TestEvaluation(t *testing.T) {
 		{"Eval 20", "8/P1k5/K7/8/8/8/8/8 w - - 0 1"},
 		{"Eval 21", "rnb1kbnr/ppp1ppp1/8/q5B1/8/2NPQN2/PPP2P1P/R3KB1q w Qkq - 0 0"},
 		{"Eval 22", "2k5/8/8/8/8/4K3/8/8 w - - 0 1"},
+		{"Eval 23", "4r1k1/5ppp/2N5/3Pb3/8/6P1/5P1P/4R1K1 w - - 0 1"}, // Outpost test
 	}
 
 	for _, tc := range testCases {
@@ -41,9 +42,11 @@ func TestEvaluation(t *testing.T) {
 			pos.LoadFromFenString(tc.fen)
 			staticEval := pos.Evaluate()
 			params := GetEvaluationParams()
-			attr := generatePositionWeights(pos.ToFen())
+			weights := make([]PositionWeight, 0, 200)
+			phase := getMiddleGamePhase(pos)
+			generatePositionWeights(pos, phase, &weights)
 
-			got := int(evaluatePosition(params, attr))
+			got := int(evaluatePosition(params, weights))
 
 			// Always return evaluation from white's perspective
 			if pos.Turn == engine.Black {
