@@ -64,6 +64,12 @@ func (pos *Position) see(from int, to int) int {
 	for attackers > 0 {
 		depth++
 		materialGain[depth] = pieceValue[attackerRole] - materialGain[depth-1]
+
+		// Early termination, if we're already losing
+		if max(-materialGain[depth-1], materialGain[depth]) < 0 {
+			break
+		}
+
 		attackers &= ^fromSq
 		blockers &= ^fromSq
 		alreadyAttacked |= fromSq
