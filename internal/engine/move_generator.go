@@ -174,7 +174,7 @@ func (pos *Position) generateCaptures(ml *MoveList, pd *PositionData) {
 			}
 		}
 	}
-	genEnPassantCaptures(pos, pos.Turn, ml)
+	genEnPassantCaptures(pos, pos.Turn, ml, pd)
 }
 
 // generateNonCaptures generates all non captures in the position and stores them in the move list
@@ -268,7 +268,7 @@ func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 	notInHFile := epShift & ^(epShift & Files[7])
 	notInAFile := epShift & ^(epShift & Files[0])
 
-	epCaptures |= pos.getBitboards(side)[Pawn] & (notInAFile>>1 | notInHFile<<1)
+	epCaptures |= pos.Bitboards[pieceColor(Pawn, side)] & (notInAFile>>1 | notInHFile<<1)
 	return
 }
 
@@ -367,22 +367,63 @@ func genPawnCapturesMoves(from *Bitboard, side Color, ml *MoveList, pd *Position
 }
 
 // genEnPassantCaptures generates the enPassant captures on the move list
-func genEnPassantCaptures(pos *Position, side Color, ml *MoveList) {
+func genEnPassantCaptures(pos *Position, side Color, ml *MoveList, pd *PositionData) {
 	if pos.enPassantTarget == 0 {
 		return
 	}
-	from := potentialEpCapturers(pos, side)
 
-	for from > 0 {
-		fromBB := from.NextBit()
-		move := encodeMove(uint16(Bsf(fromBB)), uint16(Bsf(pos.enPassantTarget)), epCapture)
-
-		pos.MakeMove(move)
-		if !pos.Check(side) {
-			ml.add(*move)
-		}
-		pos.UnmakeMove(move)
+	// TODO: replace with a simple pawn push function depending on the side...
+	// Its also used on other places. eg make move???
+	capturedPawnBB := Bitboard(0)
+	if side == White {
+		capturedPawnBB = pos.enPassantTarget >> 8
+	} else {
+		capturedPawnBB = pos.enPassantTarget << 8
 	}
+
+	// If we're in check, it will be legal only if we can block the check or capture the checker
+	if pd.checkRestrictedSquares != AllSquares {
+		if (pos.enPassantTarget&pd.checkRestrictedSquares) == 0 &&
+			(capturedPawnBB&pd.checkRestrictedSquares) == 0 {
+			return
+		}
+	}
+
+	capturers := potentialEpCapturers(pos, side) & ^pd.pinnedPieces
+	for capturers > 0 {
+		fromBB := capturers.NextBit()
+
+		// Check for horizontal pin (both pawns on same rank as king)
+		if !isEnPassantHorizontalPinned(pos, fromBB, capturedPawnBB, side, pd) {
+			continue
+		}
+
+		ml.add(*encodeMove(uint16(Bsf(fromBB)), uint16(Bsf(pos.enPassantTarget)), epCapture))
+	}
+}
+
+// isEnPassantHorizontalPinned checks for horizontal pins in en passant captures
+func isEnPassantHorizontalPinned(pos *Position, capturerBB Bitboard, capturedPawnBB Bitboard, side Color, pd *PositionData) bool {
+	capturerRank, capturedRank := Bsf(capturerBB)/8, Bsf(capturedPawnBB)/8
+	kingSq := Bsf(pd.kingPosition)
+	kingRank := kingSq / 8
+
+	// For horizontal ep pin king and both pawns must be on the same rank
+	if capturerRank == kingRank && capturedRank == kingRank {
+		blockers := (pd.allies | pd.enemies) &^ capturerBB &^ capturedPawnBB
+
+		// Check attacks if we remove both pawns
+		kingRankAttacks := rookAttacks(kingSq, blockers) & Ranks[kingRank]
+		opponentRooksQueens := pos.Bitboards[pieceColor(Rook, side.Opponent())] |
+			pos.Bitboards[pieceColor(Queen, side.Opponent())]
+
+		// If king results attacked, then its not legal
+		if (kingRankAttacks & opponentRooksQueens) != 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 // checkRestrictedSquares returns a bitboard with the squares that are allowed to move when in check

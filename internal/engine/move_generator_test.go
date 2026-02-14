@@ -948,8 +948,9 @@ func TestGenEpPawnCaptures(t *testing.T) {
 
 	pos := NewPosition()
 	pos.LoadFromFenString("4r3/8/8/R7/3Pp2k/8/8/4K3 b - d3 0 1")
+	pd := pos.generatePositionData()
 
-	genEnPassantCaptures(pos, Black, ml)
+	genEnPassantCaptures(pos, Black, ml, &pd)
 
 	expected := 1
 	got := ml.length
@@ -969,6 +970,21 @@ func TestMultiplePawnAttacks(t *testing.T) {
 
 	expected := bitboardFromCoordinates("d3", "e3", "f3", "g3", "h3")
 	got := pawnAttacks(&pawns, White)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestIsEnPassnatHorizontalPinned(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/6bb/8/8/R1pP2k1/4P3/P7/K7 b - d3 0 1")
+	capturerBB := bitboardFromIndex(d4)
+	capturedBB := bitboardFromIndex(d3)
+	pd := pos.generatePositionData()
+
+	expected := true
+	got := isEnPassantHorizontalPinned(pos, capturerBB, capturedBB, Black, &pd)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
