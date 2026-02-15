@@ -33,6 +33,8 @@ type Search struct {
 	killers            KillersTable
 	historyMoves       HistoryMovesTable
 	TranspositionTable TranspositionTable
+	counterMovesTable  CounterMoveTable
+	stack              Stack
 	TimeControl        TimeControl
 }
 
@@ -44,6 +46,8 @@ func NewSearch() *Search {
 		killers:            KillersTable{},
 		historyMoves:       HistoryMovesTable{},
 		TranspositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
+		counterMovesTable:  CounterMoveTable{},
+		stack:              Stack{},
 		TimeControl:        TimeControl{},
 	}
 }
@@ -54,12 +58,15 @@ func (s *Search) clear() {
 	s.killers.clear()
 	s.historyMoves.clear()
 	s.TranspositionTable.newSearch()
+	s.counterMovesTable.clear()
+	s.stack.clear()
 }
 
 // reset sets the new iteration parameters in the NewSearch
 func (s *Search) reset() {
 	s.nodes = 0
 	s.pvLine.reset()
+	s.stack.clear()
 }
 
 // Stop stops the search
@@ -118,6 +125,63 @@ func (kt *KillersTable) store(ply int, move Move) {
 		kt[ply][1] = kt[ply][0]
 		kt[ply][0] = move
 	}
+}
+
+// Stack is a stack of moves
+type Stack struct {
+	moves [MaxSearchDepth * 2]Move
+}
+
+// store stores the move in the stack at the given ply
+func (s *Stack) store(move Move, ply int) {
+	s.moves[ply] = move
+}
+
+// clear clears the stack
+func (s *Stack) clear() {
+	for i := range s.moves {
+		s.moves[i] = NoMove
+	}
+}
+
+// getPriorMove returns the previous move at the given ply
+func (s *Stack) getPriorMove(ply int) Move {
+	if ply == 0 {
+		return NoMove
+	}
+
+	return s.moves[ply-1]
+}
+
+// CounterMoveTable is a table for holding the history of moves
+type CounterMoveTable [2][64][64]Move
+
+// clear clears the history of moves
+func (cm *CounterMoveTable) clear() {
+	for i := range cm[White] {
+		for j := range cm[White][i] {
+			cm[White][i][j] = NoMove
+			cm[Black][i][j] = NoMove
+		}
+	}
+}
+
+// store stores a move in the history of moves
+func (cm *CounterMoveTable) store(priorMove, move Move, side Color) {
+	if priorMove == NoMove {
+		return
+	}
+
+	cm[side][priorMove.from()][priorMove.to()] = move
+}
+
+// get gets a move from the history of moves
+func (cm *CounterMoveTable) get(priorMove Move, side Color) Move {
+	if priorMove == NoMove {
+		return NoMove
+	}
+
+	return cm[side][priorMove.from()][priorMove.to()]
 }
 
 // IterativeDeepening is the entry point of the search
@@ -251,6 +315,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	// Null Move Pruning
 	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode && pos.canNullMove() {
 		ep := pos.makeNullMove()
+		s.stack.store(NoMove, ply)
 		sc := -s.negamax(pos, depth-4, ply+1, -beta, -beta+1, &branchPv, false)
 		pos.unmakeNullMove(ep)
 
@@ -277,25 +342,26 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	newScore := MinInt
 	bestMove := NoMove
-	mg := NewMoveGenerator(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
+	cm := s.counterMovesTable.get(s.stack.getPriorMove(ply), pos.Turn)
+	mg := NewMoveGenerator(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &cm, &s.historyMoves)
 
 	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
-		pos.MakeMove(&move)
 		branchPv.reset()
 		moveFlag := move.flag()
 
 		// Late Move Pruning
 		// Prunes quiet moves that are likely not to be good, by assuming we have a good move ordering
-		if depth <= 4 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[depth] && !isCheck && !pvNode && !pos.Check(pos.Turn) {
-			pos.UnmakeMove(&move)
+		if depth <= 4 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[depth] && !isCheck && !pvNode {
 			continue
 		}
 
 		// Futility Pruning. Apply futility pruning if conditions are met
 		if futilityPruningAllowed && moveFlag < capture && !isCheck && !pvNode && mg.moveNumber > 0 {
-			pos.UnmakeMove(&move)
 			continue
 		}
+
+		pos.MakeMove(&move)
+		s.stack.store(move, ply)
 
 		extension := 0
 		if isCheck {
@@ -321,6 +387,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		if newScore >= beta {
 			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, staticEval, move)
 			s.killers.store(ply, move)
+			s.counterMovesTable.store(s.stack.getPriorMove(ply), move, pos.Turn)
 			s.historyMoves.increment(depth, &move, pos.Turn)
 			// Reduce history score for previous 'quiet' moves that did not produce the cutoff
 			s.historyMoves.decrement(mg.moves, mg.moveNumber, pos.Turn)

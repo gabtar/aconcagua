@@ -7,6 +7,7 @@ const (
 	CapturesStage
 	FirstKillerStage
 	SecondKillerStage
+	CounterMoveStage
 	GenerateNonCapturesStage
 	NonCapturesStage
 	BadCapturesStage
@@ -20,19 +21,21 @@ type MoveGenerator struct {
 	pos                        *Position
 	pd                         PositionData
 	hashMove, killer1, killer2 *Move
+	cm                         *Move
 	historyMoves               *HistoryMovesTable
 	moves                      *MoveList
 	badCapLength               int // To track the number of bad captures
 }
 
 // NewMoveGenerator returns a new move generator
-func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, historyMoves *HistoryMovesTable) *MoveGenerator {
+func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, cm *Move, historyMoves *HistoryMovesTable) *MoveGenerator {
 	return &MoveGenerator{
 		stage:        HashMoveStage,
 		pos:          pos,
 		hashMove:     hashMove,
 		killer1:      killer1,
 		killer2:      killer2,
+		cm:           cm,
 		moveNumber:   -1, // NOTE: initialize with -1 to make the first move selected to have moveNumber = 0
 		historyMoves: historyMoves,
 		moves:        NewMoveList(),
@@ -57,6 +60,11 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 		fallthrough
 	case CapturesStage:
 		move = mg.nextGoodCapture()
+		// Reset counter move, to avoid repeating if it was picked here
+		if move == *mg.cm {
+			*mg.cm = NoMove
+		}
+
 		if move != NoMove {
 			return move
 		}
@@ -71,9 +79,43 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 		}
 		fallthrough
 	case SecondKillerStage:
-		mg.stage = GenerateNonCapturesStage
+		mg.stage = CounterMoveStage
 		move = *mg.killer2
 		if move != NoMove && move != *mg.hashMove && mg.isLegal(move) {
+			return move
+		}
+		fallthrough
+	case CounterMoveStage:
+		mg.stage = GenerateNonCapturesStage
+		move = *mg.cm
+
+		// DEBUG: only for legal move validation testing. Remove later...
+		// if move.flag() >= quiet {
+		// 	legal := mg.isLegal(move)
+		// 	realLegal := false
+		// 	ml := NewMoveList()
+		// 	pd := mg.pos.generatePositionData()
+		// 	mg.pos.generateCaptures(ml, &pd)
+		// 	mg.pos.generateNonCaptures(ml, &pd)
+		// 	for i := range ml.length {
+		// 		if ml.moves[i] == move {
+		// 			realLegal = true
+		// 			break
+		// 		}
+		// 	}
+		// 	if realLegal != legal {
+		// 		flags := [14]string{"quiet", "doublePawnPush", "kingsideCastle", "queensideCastle",
+		// 			"capture", "epCapture", "knightPromotion", "bishopPromotion", "rookPromotion",
+		// 			"queenPromotion", "knightCapturePromotion", "bishopCapturePromotion",
+		// 			"rookCapturePromotion", "queenCapturePromotion"}
+		//
+		// 		fmt.Println("Counter move: ", mg.cm.String(), " / Flag: ", flags[move.flag()])
+		// 		fmt.Println("Legal function: ", legal, " / Real Legal (in move list): ", realLegal, " / Move: ", move.String())
+		// 		fmt.Println("Fen: ", mg.pos.ToFen())
+		// 	}
+		// }
+
+		if move != NoMove && move != *mg.hashMove && move != *mg.killer1 && move != *mg.killer2 && mg.isLegal(move) {
 			return move
 		}
 		fallthrough
@@ -129,7 +171,7 @@ func (mg *MoveGenerator) nextNonCapture() (move Move) {
 		move = mg.moves.moves[idx]
 		mg.moves.swap(idx)
 
-		if move != *mg.hashMove && move != *mg.killer1 && move != *mg.killer2 {
+		if move != *mg.hashMove && move != *mg.killer1 && move != *mg.killer2 && move != *mg.cm {
 			return move
 		}
 	}
@@ -145,7 +187,7 @@ func (mg *MoveGenerator) nextBadCapture() (move Move) {
 		move = mg.moves.moves[idx]
 		mg.moves.swap(idx)
 
-		if move != *mg.hashMove {
+		if move != *mg.hashMove && move != *mg.cm {
 			return move
 		}
 	}
@@ -394,7 +436,7 @@ func genEnPassantCaptures(pos *Position, side Color, ml *MoveList, pd *PositionD
 		fromBB := capturers.NextBit()
 
 		// Check for horizontal pin (both pawns on same rank as king)
-		if !isEnPassantHorizontalPinned(pos, fromBB, capturedPawnBB, side, pd) {
+		if isEnPassantHorizontalPinned(pos, fromBB, capturedPawnBB, side, pd) {
 			continue
 		}
 
@@ -417,13 +459,13 @@ func isEnPassantHorizontalPinned(pos *Position, capturerBB Bitboard, capturedPaw
 		opponentRooksQueens := pos.Bitboards[pieceColor(Rook, side.Opponent())] |
 			pos.Bitboards[pieceColor(Queen, side.Opponent())]
 
-		// If king results attacked, then its not legal
+		// If king results attacked, then its pinned, not legal
 		if (kingRankAttacks & opponentRooksQueens) != 0 {
-			return false
+			return true
 		}
 	}
 
-	return true
+	return false
 }
 
 // checkRestrictedSquares returns a bitboard with the squares that are allowed to move when in check
@@ -463,27 +505,89 @@ func (mg *MoveGenerator) isLegal(move Move) bool {
 	from, to := move.from(), move.to()
 	fromBB := bitboardFromIndex(from)
 	toBB := bitboardFromIndex(to)
-	if fromBB&mg.pd.allies == 0 {
-		return false
-	}
-	if toBB&(mg.pd.allies|mg.pd.enemies) != 0 {
+	flag := move.flag()
+	pieceToMove := pieceRole(mg.pos.PieceAt(from))
+
+	// Quick validations
+	// Illegal if we don't have a piece on the from square
+	// Illegal if we one of our pieces is on the to square
+	// Illegal if quiet moves and there is an enemy piece on the to square
+	// Illegal if its a caputre and not enemy piece on the to square
+	if fromBB&mg.pd.allies == 0 || toBB&mg.pd.allies != 0 ||
+		(flag == quiet && toBB&mg.pd.enemies > 0) ||
+		(flag == capture && toBB&mg.pd.enemies == 0) {
 		return false
 	}
 
-	flag := move.flag()
-	piece := pieceRole(mg.pos.PieceAt(from))
+	// Validate have castling rights and clear paths when the move is a castle
 	if flag == kingsideCastle || flag == queensideCastle {
 		return mg.pos.canCastle(side, flag)
 	}
-	if flag == doublePawnPush && piece != Pawn {
-		return false
-	}
-	if piece == Pawn && flag == quiet && abs(to-from) == 16 {
+
+	// Double pawn push is only valid for pawns
+	if flag == doublePawnPush && pieceToMove != Pawn {
 		return false
 	}
 
+	// Single pawn push are only valid when pushes are 1 square forward only
+	if pieceToMove == Pawn && flag == quiet && abs(to-from) == 16 {
+		return false
+	}
+
+	// Ep captures are only valid, if ep square is set and the potential capturer is on the to square
+	if flag == epCapture {
+		if pieceToMove != Pawn || mg.pos.enPassantTarget == 0 {
+			return false
+		}
+
+		var capturedPawnBB Bitboard
+		if side == White {
+			capturedPawnBB = mg.pos.enPassantTarget >> 8
+		} else {
+			capturedPawnBB = mg.pos.enPassantTarget << 8
+		}
+
+		if fromBB&mg.pd.pinnedPieces > 0 {
+			return false
+		}
+
+		if mg.pos.enPassantTarget == toBB && potentialEpCapturers(mg.pos, side)&fromBB > 0 {
+
+			if mg.pd.checkRestrictedSquares != AllSquares {
+				if (mg.pos.enPassantTarget&mg.pd.checkRestrictedSquares) == 0 &&
+					(capturedPawnBB&mg.pd.checkRestrictedSquares) == 0 {
+					return false
+				}
+			}
+
+			if isEnPassantHorizontalPinned(mg.pos, fromBB, capturedPawnBB, side, &mg.pd) {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	// Promotions
+	if flag >= knightPromotion && pieceToMove != Pawn {
+		return false
+	}
+
+	isPromotion := lastRank(side)&toBB > 0 && pieceToMove == Pawn
+	if isPromotion {
+		if flag < knightPromotion {
+			return false
+		}
+
+		// Captures must have enemies on the to square
+		if move.flag() >= knightCapturePromotion && mg.pd.enemies&toBB == 0 {
+			return false
+		}
+	}
+
+	// Validate move accoring to piece movements rules
 	legalMoves := Bitboard(0)
-	switch piece {
+	switch pieceToMove {
 	case Knight:
 		legalMoves = knightMoves(&fromBB, &mg.pd)
 	case Bishop:

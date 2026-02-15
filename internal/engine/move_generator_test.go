@@ -6,7 +6,8 @@ func TestMoveGeneratorHasNextMove(t *testing.T) {
 	pos := NewPosition()
 	hashMove := encodeMove(0, 0, quiet)
 	killers := Killer{NoMove, NoMove}
-	mg := NewMoveGenerator(pos, hashMove, &killers[0], &killers[1], &HistoryMovesTable{})
+	cm := NoMove
+	mg := NewMoveGenerator(pos, hashMove, &killers[0], &killers[1], &cm, &HistoryMovesTable{})
 
 	got := mg.nextMove()
 
@@ -19,7 +20,8 @@ func TestMoveGeneratorNotHasNextMove(t *testing.T) {
 	pos := NewPosition()
 	hashMove := NoMove
 	killers := Killer{NoMove, NoMove}
-	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &HistoryMovesTable{})
+	cm := NoMove
+	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &HistoryMovesTable{})
 	mg.stage = EndStage
 
 	expected := NoMove
@@ -33,7 +35,8 @@ func TestMoveGeneratorNotHasNextMove(t *testing.T) {
 func TestMoveGeneratorCreatesCaptures(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
-	mg := NewMoveGenerator(pos, nil, nil, nil, nil)
+	cm := NoMove
+	mg := NewMoveGenerator(pos, nil, nil, nil, &cm, nil)
 	move := NoMove
 	mg.hashMove = &move
 
@@ -49,7 +52,7 @@ func TestMoveGeneratorCreatesNonCaptures(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	noMove := NoMove
-	mg := NewMoveGenerator(pos, &noMove, &noMove, &noMove, &HistoryMovesTable{})
+	mg := NewMoveGenerator(pos, &noMove, &noMove, &noMove, &noMove, &HistoryMovesTable{})
 	mg.stage = FirstKillerStage // NOTE: Non captures are generated in killers stage to validate legaliy of killers
 	move := NoMove
 	mg.hashMove = &move
@@ -74,8 +77,9 @@ func TestMoveGeneratorGetsAllMoves(t *testing.T) {
 	pd := pos.generatePositionData()
 	pos.generateNonCaptures(ml, &pd)
 	killers := Killer{ml.moves[0], ml.moves[5]}
+	cm := ml.moves[3]
 
-	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &HistoryMovesTable{})
+	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &HistoryMovesTable{})
 	for mg.nextMove() != NoMove {
 	}
 
@@ -979,8 +983,8 @@ func TestMultiplePawnAttacks(t *testing.T) {
 func TestIsEnPassnatHorizontalPinned(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("8/6bb/8/8/R1pP2k1/4P3/P7/K7 b - d3 0 1")
-	capturerBB := bitboardFromIndex(d4)
-	capturedBB := bitboardFromIndex(d3)
+	capturerBB := bitboardFromIndex(c4)
+	capturedBB := bitboardFromIndex(d4)
 	pd := pos.generatePositionData()
 
 	expected := true
