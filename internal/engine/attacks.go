@@ -1,16 +1,5 @@
 package engine
 
-// kingAttacks returns a bitboard with the squares the king attacks from the passed bitboard
-func kingAttacks(k *Bitboard) (attacks Bitboard) {
-	notInHFile := *k & ^(*k & Files[7])
-	notInAFile := *k & ^(*k & Files[0])
-
-	attacks = notInAFile<<7 | *k<<8 | notInHFile<<9 |
-		notInHFile<<1 | notInAFile>>1 | notInHFile>>7 |
-		*k>>8 | notInAFile>>9
-	return
-}
-
 // queenAttacks returns a Bitboard with all the squares a queen is attacking
 func queenAttacks(q *Bitboard, blocks Bitboard) (attacks Bitboard) {
 	attacks = rookAttacks(Bsf(*q), blocks) | bishopAttacks(Bsf(*q), blocks)
@@ -48,7 +37,7 @@ func pawnAttacks(p *Bitboard, side Color) (attacks Bitboard) {
 func Attacks(piece int, from Bitboard, blocks Bitboard) (attacks Bitboard) {
 	switch piece {
 	case WhiteKing, BlackKing:
-		attacks |= kingAttacks(&from)
+		attacks |= kingAttacksTable[Bsf(from)]
 	case WhiteQueen, BlackQueen:
 		attacks |= queenAttacks(&from, blocks)
 	case WhiteRook, BlackRook:

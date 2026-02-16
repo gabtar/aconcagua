@@ -21,7 +21,10 @@ func init() {
 
 	directions = generateDirections()
 	rayAttacks = generateRayAttacks()
-	knightAttacksTable = generateKnightAttacks()
+	knightAttacksTable = generateKnightAttacksTable()
+	kingAttacksTable = generateKingAttacksTable()
+	pawnPushesTable = generatePawnPushesTable()
+	pawnDoublePushesTable = generatePawnDoublePushesTable()
 	attacksFrontSpans = generateAttacksFrontSpans()
 	KingZone = generateKingZone()
 }
@@ -61,6 +64,15 @@ var rayAttacks [8][64]Bitboard
 
 // knightAttacksTable is a precalculated table that contains the squares that a knight can attack
 var knightAttacksTable [64]Bitboard
+
+// kingAttacksTable is a precalculated table that contains the squares that a king can attack
+var kingAttacksTable [64]Bitboard
+
+// pawnPushesTable is a precalculated table that contains the squares that a pawn can push
+var pawnPushesTable [2][64]Bitboard
+
+// pawnDoublePushesTable is a precalculated table that contains the squares that a pawn can double push
+var pawnDoublePushesTable [2][64]Bitboard
 
 // isolatedAdjacentFilesMask contains the adjacent files of a pawn to test if it is isolated
 var isolatedAdjacentFilesMask = [8]Bitboard{
@@ -195,8 +207,8 @@ func generateRayAttacks() (rayAttacks [8][64]Bitboard) {
 	return
 }
 
-// generateKnightAttacks returns a precalculated array for all posible knight moves from each square in the board
-func generateKnightAttacks() (knightAttacksTable [64]Bitboard) {
+// generateKnightAttacksTable returns a precalculated array for all posible knight moves from each square in the board
+func generateKnightAttacksTable() (knightAttacksTable [64]Bitboard) {
 	for sq := range 64 {
 		from := Bitboard(1 << sq)
 
@@ -209,6 +221,42 @@ func generateKnightAttacks() (knightAttacksTable [64]Bitboard) {
 			notInABFiles<<6 | notInHFile>>15 | notInAFile>>17 |
 			notInABFiles>>10 | notInGHFiles>>6
 
+	}
+	return
+}
+
+// generateKingAttacksTable returns a precalculated array for all posible king moves from each square in the board
+func generateKingAttacksTable() (kingAttacksTable [64]Bitboard) {
+	for sq := range 64 {
+		k := Bitboard(1 << sq)
+		notInHFile := k & ^(k & Files[7])
+		notInAFile := k & ^(k & Files[0])
+
+		kingAttacksTable[sq] = notInAFile<<7 | k<<8 | notInHFile<<9 |
+			notInHFile<<1 | notInAFile>>1 | notInHFile>>7 |
+			k>>8 | notInAFile>>9
+	}
+	return
+}
+
+// generatePawnPushesTable returns a precalculated table containing the squares that a pawn can push
+func generatePawnPushesTable() (pawnPushesTable [2][64]Bitboard) {
+	for sq := a2; sq <= h7; sq++ { // Only from 2nd to 7th rank
+		bb := bitboardFromIndex(sq)
+		pawnPushesTable[White][sq] = bb << 8
+		pawnPushesTable[Black][sq] = bb >> 8
+	}
+	return
+}
+
+// generateDoublePushesTable returns a precalculated table containing the squares that a pawn can double push
+func generatePawnDoublePushesTable() (pawnDoublePushesTable [2][64]Bitboard) {
+	for file := range 8 {
+		whiteSq := a2 + file
+		blackSq := a7 + file
+
+		pawnDoublePushesTable[White][whiteSq] = bitboardFromIndex(whiteSq + 16)
+		pawnDoublePushesTable[Black][blackSq] = bitboardFromIndex(blackSq - 16)
 	}
 	return
 }
@@ -237,7 +285,7 @@ func generateAttacksFrontSpans() (attacksFrontSpans [2][64]Bitboard) {
 func generateKingZone() (kingZone [64]Bitboard) {
 	for sq := range 64 {
 		from := bitboardFromIndex(sq)
-		kingZone[sq] = kingAttacks(&from) | from
+		kingZone[sq] = kingAttacksTable[sq] | from
 	}
 	return
 }

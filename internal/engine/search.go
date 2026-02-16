@@ -127,7 +127,15 @@ func (kt *KillersTable) store(ply int, move Move) {
 	}
 }
 
-// Stack is a stack of moves
+// get returns the killers at the given ply
+func (kt *KillersTable) get(ply int) (Move, Move) {
+	if ply >= MaxSearchDepth {
+		return NoMove, NoMove
+	}
+	return kt[ply][0], kt[ply][1]
+}
+
+// Stack contains the history of moves played in the current branch of the search
 type Stack struct {
 	moves [MaxSearchDepth * 2]Move
 }
@@ -153,7 +161,7 @@ func (s *Stack) getPriorMove(ply int) Move {
 	return s.moves[ply-1]
 }
 
-// CounterMoveTable is a table for holding the history of moves
+// CounterMoveTable is a table for storing the following move that might produce a beta cutoff
 type CounterMoveTable [2][64][64]Move
 
 // clear clears the history of moves
@@ -166,7 +174,7 @@ func (cm *CounterMoveTable) clear() {
 	}
 }
 
-// store stores a move in the history of moves
+// store stores a move in the counter move table
 func (cm *CounterMoveTable) store(priorMove, move Move, side Color) {
 	if priorMove == NoMove {
 		return
@@ -175,7 +183,7 @@ func (cm *CounterMoveTable) store(priorMove, move Move, side Color) {
 	cm[side][priorMove.from()][priorMove.to()] = move
 }
 
-// get gets a move from the history of moves
+// get gets a move from the counter move table
 func (cm *CounterMoveTable) get(priorMove Move, side Color) Move {
 	if priorMove == NoMove {
 		return NoMove
@@ -184,7 +192,7 @@ func (cm *CounterMoveTable) get(priorMove Move, side Color) Move {
 	return cm[side][priorMove.from()][priorMove.to()]
 }
 
-// IterativeDeepening is the entry point of the search
+// IterativeDeepening performs a progressive deepening search and returns the best move
 func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
 	s.clear()
 	pos.eval.pawnHashTable.clear()
@@ -207,6 +215,8 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 		s.TimeControl.iterationStartTime = time.Now()
 		nps := int(float64(s.nodes) / depthTime.Seconds())
 		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
+
+		// TODO: handle out of bounds when indexing s.pvLine[0] ???
 		bestMove = s.pvLine[0].String()
 	}
 
@@ -312,7 +322,9 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 	}
 
-	// Null Move Pruning
+	// Null Move Pruning. Gives a free shot to the opponent by passing the turn.
+	// If we still exceed beta in the reduced search, we will trust our position is so good,
+	// that it will also exceed beta if we search all moves.
 	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode && pos.canNullMove() {
 		ep := pos.makeNullMove()
 		s.stack.store(NoMove, ply)
@@ -332,6 +344,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	}
 
 	// Internal Iterative Deepening
+	// If we dont have a move from the transposition table, make a reduced search to find a good
+	// move to improve our move ordering
 	if depth > 5 && pvNode && ttMove == NoMove {
 		s.negamax(pos, depth/2, ply+1, alpha, beta, &branchPv, true)
 		if len(branchPv) > 0 {
@@ -343,7 +357,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	newScore := MinInt
 	bestMove := NoMove
 	cm := s.counterMovesTable.get(s.stack.getPriorMove(ply), pos.Turn)
-	mg := NewMoveGenerator(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &cm, &s.historyMoves)
+	k1, k2 := s.killers.get(ply)
+	mg := NewMoveGenerator(pos, &ttMove, &k1, &k2, &cm, &s.historyMoves)
 
 	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
 		branchPv.reset()

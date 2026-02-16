@@ -194,7 +194,7 @@ func (pos *Position) Check(side Color) bool {
 	kingPos := pos.KingPosition(side)
 	opponent := side.Opponent()
 
-	for piece, bb := range pos.getBitboards(opponent)[1:5] {
+	for piece, bb := range pos.getBitboards(opponent)[Queen:Pawn] {
 		blocks := ^pos.EmptySquares()
 
 		for bb > 0 {
@@ -370,7 +370,7 @@ func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *int, pieceC
 	case quiet:
 		pos.handleQuietMove(*pieceToMove)
 	case doublePawnPush:
-		pos.handleDoublePawnPush(*move, *pieceToMove)
+		pos.handleDoublePawnPush(*move)
 	case capture:
 		pos.handleCapture(*move, pieceCaptured)
 	case knightPromotion, bishopPromotion, rookPromotion, queenPromotion,
@@ -379,7 +379,7 @@ func (pos *Position) handleSpecialMoveTypes(move *Move, pieceToMove *int, pieceC
 	case kingsideCastle, queensideCastle:
 		pos.updateRookPositionOnCaslte(flag, true)
 	case epCapture:
-		pos.handleEnPassantCapture(*move, *pieceToMove)
+		pos.handleEnPassantCapture(*move)
 	}
 }
 
@@ -391,12 +391,8 @@ func (pos *Position) handleQuietMove(pieceToMove int) {
 }
 
 // handleDoublePawnPush sets en passant target square
-func (pos *Position) handleDoublePawnPush(move Move, pieceToMove int) {
-	if pieceToMove == WhitePawn {
-		pos.enPassantTarget = bitboardFromIndex(move.to()) >> 8
-	} else {
-		pos.enPassantTarget = bitboardFromIndex(move.to()) << 8
-	}
+func (pos *Position) handleDoublePawnPush(move Move) {
+	pos.enPassantTarget = pawnPushesTable[pos.Turn.Opponent()][move.to()]
 	pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
 }
 
@@ -415,12 +411,9 @@ func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int, piec
 }
 
 // handleEnPassantCapture removes the captured pawn in en passant
-func (pos *Position) handleEnPassantCapture(move Move, pieceToMove int) {
-	if pieceToMove == WhitePawn {
-		pos.RemovePiece(BlackPawn, bitboardFromIndex(move.to())>>8)
-	} else {
-		pos.RemovePiece(WhitePawn, bitboardFromIndex(move.to())<<8)
-	}
+func (pos *Position) handleEnPassantCapture(move Move) {
+	removePieceBB := pawnPushesTable[pos.Turn.Opponent()][move.to()]
+	pos.RemovePiece(pieceColor(Pawn, pos.Turn.Opponent()), removePieceBB)
 	pos.halfmoveClock = 0
 }
 
@@ -590,27 +583,27 @@ func (pos *Position) ToFen() (fen string) {
 
 // String prints the Position to the terminal from white's view perspective
 func (pos *Position) String() string {
-	position := ""
+	var position strings.Builder
 	board := toRuneArray(pos)
 
 	currentSq := 63
-	position += "\n    -------------------------------\n"
+	position.WriteString("\n    -------------------------------\n")
 	for rank := 7; rank >= 0; rank-- {
-		position += " " + strconv.Itoa(rank+1)
+		position.WriteString(" " + strconv.Itoa(rank+1))
 		for file := 7; file >= 0; file-- {
 			piece := board[currentSq-file]
 			if piece == rune(0) { // Default rune char
 				piece = ' '
 			}
-			position += " | " + string(piece)
+			position.WriteString(" | " + string(piece))
 		}
-		position += " |\n    -------------------------------\n"
+		position.WriteString(" |\n    -------------------------------\n")
 		currentSq -= 8
 	}
-	position += "     a   b   c   d   e   f   g   h \n\n"
-	position += "Fen: " + pos.ToFen() + "\n"
-	position += "Key: " + strconv.FormatUint(pos.Hash, 10)
-	return position
+	position.WriteString("     a   b   c   d   e   f   g   h \n\n")
+	position.WriteString("Fen: " + pos.ToFen() + "\n")
+	position.WriteString("Key: " + strconv.FormatUint(pos.Hash, 10))
+	return position.String()
 }
 
 // toRuneArray returns an array of 64 runes with the position of the pieces
