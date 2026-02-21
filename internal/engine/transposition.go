@@ -249,62 +249,150 @@ type PawnHashEntry struct {
 	key     uint64
 	mgScore int16
 	egScore int16
-	turn    int8
+	age     uint8
 	_       [3]byte // Alignment
+}
+
+// PawnHashBucketSize is the number of entries per bucket for the pawn hash table
+const PawnHashBucketSize = 2
+
+// PawnHashBucket holds multiple entries to reduce collisions
+type PawnHashBucket struct {
+	entries [PawnHashBucketSize]PawnHashEntry
 }
 
 // PawnHashTable contains the score of the previously evaluated pawn strucure
 type PawnHashTable struct {
-	entries []PawnHashEntry
+	buckets []PawnHashBucket
 	size    uint64
+	age     uint8
 	stores  int
+	probes  int
 	found   int
 }
 
 // NewPawnHashTable returns a pointer to a new PawnHashTable with the passed size
 func NewPawnHashTable(sizeInMb int) *PawnHashTable {
-	entrySizeInBytes := 16 // 64bits + 16bits + 16bits + 8bits + 3bits + 3*8bits(padding) = 128 bits / 8 = 16 bits per entry
-	size := uint64(sizeInMb * 1024 * 1024 / entrySizeInBytes)
+	bucketSize := 32 // 16 bytes per entry * 2
+	numBuckets := uint64(sizeInMb * 1024 * 1024 / bucketSize)
 	return &PawnHashTable{
-		entries: make([]PawnHashEntry, size),
-		size:    size,
+		buckets: make([]PawnHashBucket, numBuckets),
+		size:    numBuckets,
+		age:     0,
 	}
 }
 
 // clear resets the PawnHashTable
 func (pht *PawnHashTable) clear() {
-	for i := range pht.size {
-		pht.entries[i].key = 0
-		pht.entries[i].mgScore = 0
-		pht.entries[i].egScore = 0
-		pht.entries[i].turn = 0
+	for i := range pht.buckets {
+		for j := range pht.buckets[i].entries {
+			pht.buckets[i].entries[j].key = 0
+			pht.buckets[i].entries[j].mgScore = 0
+			pht.buckets[i].entries[j].egScore = 0
+			pht.buckets[i].entries[j].age = 0
+		}
 	}
+	pht.stores = 0
+	pht.probes = 0
+	pht.found = 0
 }
 
 // store stores a new entry in the PawnHashTable
-func (pht *PawnHashTable) store(key uint64, mgScore int, egScore int, turn Color) {
+func (pht *PawnHashTable) store(key uint64, mgScore int, egScore int) {
 	pht.stores++
 	index := key % pht.size
-	pht.entries[index] = PawnHashEntry{
+	bucket := &pht.buckets[index]
+
+	// First check for existing entry or empty slot
+	replaceIdx := 0
+
+	for i := range PawnHashBucketSize {
+		entry := &bucket.entries[i]
+
+		// Always replace exact match
+		if entry.key == key {
+			replaceIdx = i
+			break
+		}
+
+		// Found empty slot
+		if entry.key == 0 {
+			replaceIdx = i
+			break
+		}
+
+		// Replace older entries
+		if entry.age < bucket.entries[replaceIdx].age {
+			replaceIdx = i
+		}
+	}
+
+	bucket.entries[replaceIdx] = PawnHashEntry{
 		key:     key,
 		mgScore: int16(mgScore),
 		egScore: int16(egScore),
-		turn:    int8(turn),
+		age:     uint8(pht.age),
 	}
 }
 
 // probe tries to find an entry in the PawnHashTable
 func (pht *PawnHashTable) probe(key uint64, side Color) (int, int, bool) {
+	pht.probes++
 	index := key % pht.size
-	entry := pht.entries[index]
-	if entry.key == key {
-		// returns the score relative to the side passed
-		opponentModifier := 1
-		if side != Color(entry.turn) {
-			opponentModifier = -1
-		}
+	bucket := &pht.buckets[index]
 
-		return int(entry.mgScore) * opponentModifier, int(entry.egScore) * opponentModifier, true
+	for i := range PawnHashBucketSize {
+		entry := &bucket.entries[i]
+		if entry.key == key {
+			pht.found++
+			entry.age = uint8(pht.age)
+
+			if side == Black {
+				return -int(entry.mgScore), -int(entry.egScore), true
+			}
+			return int(entry.mgScore), int(entry.egScore), true
+		}
 	}
 	return 0, 0, false
+}
+
+func (pht *PawnHashTable) newSearch() {
+	pht.age++
+	pht.probes = 0
+	pht.found = 0
+	pht.stores = 0
+}
+
+// Stats returns an string with useful Stats about the PawnHashTable
+func (pht *PawnHashTable) Stats() string {
+	return "Hashfull: " + strconv.Itoa(pht.hashfull()) + " Age: " + strconv.Itoa(int(pht.age)) + "\n" +
+		"Stored: " + strconv.Itoa(pht.stores) +
+		" Tried: " + strconv.Itoa(pht.probes) + " Hits: " + strconv.Itoa(pht.found) + "\n" +
+		"Hitrate: " + strconv.FormatFloat(pht.hitRate(), 'f', 2, 64)
+}
+
+// hashfull returns the approximate percentage of the PawnHashTable that is used
+func (pht *PawnHashTable) hashfull() int {
+	sampleSize := min(int(pht.size), 1000)
+
+	used := 0
+	for i := range sampleSize {
+		bucket := &pht.buckets[i]
+		for j := range PawnHashBucketSize {
+			if pht.age == bucket.entries[j].age {
+				used++
+				break // Only count one entry per bucket
+			}
+		}
+	}
+
+	return 1000 * used / sampleSize
+}
+
+// hitRate returns the hit rate of the PawnHashTable
+func (pht *PawnHashTable) hitRate() float64 {
+	if pht.probes == 0 {
+		return 0
+	}
+	return float64(pht.found) / float64(pht.probes)
 }

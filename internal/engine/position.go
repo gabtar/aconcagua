@@ -85,7 +85,6 @@ type Position struct {
 	halfmoveClock   int
 	FullMoveNumber  int
 	positionHistory PositionHistory
-	eval            Evaluation
 }
 
 // PositionData contains relevant data for legal move validations of a position
@@ -667,8 +666,6 @@ func (pos *Position) LoadFromFenString(fen string) {
 
 	pos.Hash = zobristHashKeys.fullZobristHash(pos)
 	pos.PawnHash = zobristHashKeys.pawnHash(pos)
-
-	pos.eval.clear()
 }
 
 // SetUp960Castles sets up the position for 960 castling
@@ -697,6 +694,5 @@ func NewPosition() (pos *Position) {
 	return &Position{
 		positionHistory: *NewPositionHistory(),
 		castling:        *NewCastling(4, 7, 0),
-		eval:            *NewEvaluation(DefaultPawnHashTableSizeInMb),
 	}
 }

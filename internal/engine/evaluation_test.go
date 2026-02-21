@@ -5,9 +5,9 @@ import "testing"
 func TestEval(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-	ev := pos.Evaluate()
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
 
-	if ev != TempoBonus {
+	if ev.Evaluate(pos) != TempoBonus {
 		t.Errorf("Expected: %v, got: %v", 0, ev)
 	}
 }
@@ -159,7 +159,7 @@ func TestPawnStructureEvaluation(t *testing.T) {
 	// 1 passed pawn on 7th rank h file
 	// 1 backward pawns f file
 
-	ev := Evaluation{}
+	ev := EvalVector{}
 	ev.evaluatePawnStructure(pos, pawnAttacks(&pos.Bitboards[BlackPawn], Black), White)
 
 	expected := DoubledPawnPenaltyEg + 2*IsolatedPawnPenaltyEg + 1*BackwardPawnPenaltyEg + PassedPawnsBonusEg[6]
@@ -176,7 +176,7 @@ func TestPawnShieldEvaluation(t *testing.T) {
 
 	kingBB := pos.KingPosition(Black)
 
-	ev := Evaluation{}
+	ev := EvalVector{}
 	ev.evaluateKing(Bsf(kingBB), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
 
 	expected := PawnShieldBonusMg[0] + PawnShieldBonusMg[1] + PawnShieldBonusMg[2]

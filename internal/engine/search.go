@@ -36,6 +36,7 @@ type Search struct {
 	counterMovesTable  CounterMoveTable
 	stack              Stack
 	TimeControl        TimeControl
+	Evaluation         Evaluation
 }
 
 // NewSearch returns a pointer to a new Search struct
@@ -49,6 +50,7 @@ func NewSearch() *Search {
 		counterMovesTable:  CounterMoveTable{},
 		stack:              Stack{},
 		TimeControl:        TimeControl{},
+		Evaluation:         *NewEvaluation(DefaultPawnHashTableSizeInMb),
 	}
 }
 
@@ -60,6 +62,7 @@ func (s *Search) clear() {
 	s.TranspositionTable.newSearch()
 	s.counterMovesTable.clear()
 	s.stack.clear()
+	s.Evaluation.PawnCache.newSearch()
 }
 
 // reset sets the new iteration parameters in the NewSearch
@@ -195,7 +198,6 @@ func (cm *CounterMoveTable) get(priorMove Move, side Color) Move {
 // IterativeDeepening performs a progressive deepening search and returns the best move
 func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
 	s.clear()
-	pos.eval.pawnHashTable.clear()
 
 	// Ensure to return a move to the GUI
 	bestMove = setDefaultMove(pos)
@@ -312,7 +314,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	flag := FlagAlpha
 	branchPv := NewPvLine(depth)
-	staticEval := evaluation(pos, ttMove, ttEval)
+	staticEval := s.evaluate(pos, ttMove, ttEval)
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 4 && !isCheck && !pvNode {
@@ -429,14 +431,6 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	return alpha
 }
 
-// evaluation returns the evaluation of the position
-func evaluation(pos *Position, ttMove Move, ttEval int) int {
-	if ttMove != NoMove {
-		return ttEval
-	}
-	return pos.Evaluate()
-}
-
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
 func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 	if moves == 0 {
@@ -446,6 +440,14 @@ func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 		return -MateScore + ply, true
 	}
 	return 0, false
+}
+
+// evaluate returns the evaluation of the position
+func (s *Search) evaluate(pos *Position, ttMove Move, ttEval int) int {
+	if ttMove != NoMove {
+		return ttEval
+	}
+	return s.Evaluation.Evaluate(pos)
 }
 
 // canNullMove returns if the current position allows a null move pruning

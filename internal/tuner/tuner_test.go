@@ -40,7 +40,8 @@ func TestEvaluation(t *testing.T) {
 		pos := engine.NewPosition()
 		t.Run(tc.name, func(t *testing.T) {
 			pos.LoadFromFenString(tc.fen)
-			staticEval := pos.Evaluate()
+			ev := engine.NewEvaluation(engine.DefaultPawnHashTableSizeInMb)
+			staticEval := ev.Evaluate(pos)
 			params := GetEvaluationParams()
 			weights := make([]PositionWeight, 0, 200)
 			phase := getMiddleGamePhase(pos)

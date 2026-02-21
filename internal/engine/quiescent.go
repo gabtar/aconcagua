@@ -7,7 +7,7 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int) int {
 		return 0
 	}
 
-	score := pos.Evaluate()
+	score := s.evaluate(pos, NoMove, 0)
 
 	if score >= beta {
 		return beta
