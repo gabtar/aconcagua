@@ -275,11 +275,11 @@ func setDefaultMove(pos *Position) string {
 // negamax returns the score of the best posible move by the evaluation function for a fixed depth
 func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, pvLine *pvLine, nullMoveAllowed bool) int {
 	s.nodes++
+	pvLine.reset()
+
 	if s.TimeControl.stop {
 		return 0
 	}
-
-	pvLine.reset()
 
 	rootNode := ply == 0
 	// Avoid these on root nodes, because otherwise, we'll not be able to return a move
