@@ -20,9 +20,10 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int) int {
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
 	pos.generateCaptures(ml, &pd)
+	genQueenPromotions(pos, pos.Turn, ml, &pd)
 
 	for i := range ml.length {
-		see := pos.see(ml.moves[i].from(), ml.moves[i].to())
+		see := pos.see(&ml.moves[i])
 		if see < 0 {
 			continue
 		}
@@ -41,8 +42,29 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int) int {
 	return alpha
 }
 
+// genQueenPromotions generates the queen promotions in the move list
+func genQueenPromotions(pos *Position, side Color, ml *MoveList, pd *PositionData) {
+	pawns := pos.Bitboards[pieceColor(Pawn, side)]
+	promoFromRank := [2]Bitboard{Ranks[6], Ranks[1]}
+	posiblesPromotions := pawns & promoFromRank[side] & ^pd.enemies
+
+	for posiblesPromotions > 0 {
+		from := posiblesPromotions.NextBit()
+		targets := pawnMoves(&from, pd, side)
+		to := from << 8
+		if side == Black {
+			to = from >> 8
+		}
+		if targets&to > 0 {
+			ml.add(*encodeMove(uint16(Bsf(from)), uint16(Bsf(to)), queenPromotion))
+		}
+	}
+}
+
 // see implements an static exchange evaluation on the square passed
-func (pos *Position) see(from int, to int) int {
+func (pos *Position) see(move *Move) int {
+	from := move.from()
+	to := move.to()
 	materialGain := [32]int{}
 	pieceValue := [6]int{10000, 900, 500, 300, 300, 100}
 	depth := 0
@@ -53,6 +75,11 @@ func (pos *Position) see(from int, to int) int {
 	if targetPiece == NoPiece { // should be an ep capture
 		targetPiece = pieceColor(Pawn, side.Opponent())
 	}
+	// Promotions
+	if move.flag() >= knightPromotion {
+		targetPiece = pieceColor(Queen, side.Opponent())
+	}
+
 	targetRole := pieceRole(targetPiece)
 	attackerRole := pieceRole(pos.PieceAt(from))
 

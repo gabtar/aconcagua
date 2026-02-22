@@ -28,8 +28,8 @@ func TestListOfMovesScoreCaptures(t *testing.T) {
 	lm.add(*m1)
 	lm.add(*m2)
 
-	score1 := pos.see(m1.from(), m1.to())
-	score2 := pos.see(m2.from(), m2.to())
+	score1 := pos.see(encodeMove(36, 43, capture))
+	score2 := pos.see(encodeMove(36, 45, capture))
 
 	lm.scoreCaptures(pos)
 
