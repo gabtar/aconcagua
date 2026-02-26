@@ -14,6 +14,8 @@ import (
 )
 
 // const ScalingFactor = 0.0084 // Best Scaling factor found for zurichess training dataset
+
+// ScalingFactor is the scaling factor for the training dataset
 const ScalingFactor = 0.008000000000000007 // lichess-big3-resolved
 
 // DatasetEntry is an struct conatining a single training example
@@ -356,8 +358,8 @@ func evaluatePosition(params [1000]float64, weights []PositionWeight) (evaluatio
 	for _, attr := range weights {
 		eval += params[attr.paramIndex] * float64(attr.weight)
 	}
-	i_eval := int(math.Round(eval))
-	evaluation = float64(i_eval / 62)
+	intEval := int(math.Round(eval))
+	evaluation = float64(intEval / 62)
 	return
 }
 

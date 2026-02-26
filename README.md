@@ -11,7 +11,7 @@ A UCI-compatible chess engine written in Go.
 ### 1. Build from source
 
 #### Requirements
-* Go 1.25.4 or later
+* Go 1.26.0 or later
 
 ```
 git clone https://github.com/gabtar/aconcagua

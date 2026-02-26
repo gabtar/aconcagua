@@ -239,7 +239,7 @@ func (c *DivideCommandStruct) Execute(en *engine.Engine, stdout chan string, par
 	}
 }
 
-// TTStatsCommandStructs returns usage stats for the transposition table and pawn hash table
+// TTStatsCommandStruct returns usage stats for the transposition table and pawn hash table
 type TTStatsCommandStruct struct{}
 
 func (c *TTStatsCommandStruct) Execute(en *engine.Engine, stdout chan string, params ...string) {
