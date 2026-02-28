@@ -7,6 +7,7 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 		return 0
 	}
 
+	s.seldepth = max(s.seldepth, uint8(ply))
 	// If the position is a draw avoid redundant search
 	if pos.isDraw() {
 		return 0
@@ -34,7 +35,7 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 	genQueenPromotions(pos, pos.Turn, ml, &pd)
 
 	flag := FlagAlpha
-	bestScore := MinInt
+	newScore := MinInt
 	bestMove := NoMove
 
 	for i := range ml.length {
@@ -44,17 +45,17 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 		}
 
 		pos.MakeMove(&ml.moves[i])
-		bestScore = -Quiescent(pos, s, -beta, -alpha, ply+1)
+		newScore = -Quiescent(pos, s, -beta, -alpha, ply+1)
 		pos.UnmakeMove(&ml.moves[i])
 
-		if bestScore >= beta {
+		if newScore >= beta {
 			s.TranspositionTable.store(pos.Hash, 0, ply, FlagBeta, beta, staticEval, ml.moves[i])
 			return beta
 		}
-		if bestScore > alpha {
+		if newScore > alpha {
 			flag = FlagExact
 			bestMove = ml.moves[i]
-			alpha = bestScore
+			alpha = newScore
 		}
 	}
 

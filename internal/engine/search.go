@@ -30,6 +30,7 @@ var (
 type Search struct {
 	nodes              int
 	pvLine             pvLine
+	seldepth           uint8
 	killers            KillersTable
 	historyMoves       HistoryMovesTable
 	TranspositionTable TranspositionTable
@@ -67,6 +68,7 @@ func (s *Search) clear() {
 
 // reset sets the new iteration parameters in the NewSearch
 func (s *Search) reset() {
+	s.seldepth = 0
 	s.nodes = 0
 	s.pvLine.reset()
 	s.stack.clear()
@@ -216,7 +218,7 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 		depthTime := time.Since(s.TimeControl.iterationStartTime)
 		s.TimeControl.iterationStartTime = time.Now()
 		nps := int(float64(s.nodes) / depthTime.Seconds())
-		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
+		stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
 
 		// TODO: handle out of bounds when indexing s.pvLine[0] ???
 		bestMove = s.pvLine[0].String()
