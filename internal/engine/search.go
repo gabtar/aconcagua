@@ -300,7 +300,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	isCheck := pos.Check(pos.Turn)
 	if depth <= 0 && !isCheck {
-		return Quiescent(pos, s, alpha, beta)
+		return Quiescent(pos, s, alpha, beta, ply)
 	}
 
 	pvNode := beta-alpha > 1
