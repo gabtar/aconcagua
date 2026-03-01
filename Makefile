@@ -65,9 +65,9 @@ test-cover:
 .PHONY: build
 build:
 	@echo "--> Building $(BINARY_NAME) with GOAMD64=$(GOAMD64)..."
-	GOARCH=amd64 GOOS=darwin  GOAMD64=$(GOAMD64) go build -o $(OUTPUT_DIR)/$(BINARY_NAME)-darwin  $(MAIN_PACKAGE)
-	GOARCH=amd64 GOOS=linux   GOAMD64=$(GOAMD64) go build -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux   $(MAIN_PACKAGE)
-	GOARCH=amd64 GOOS=windows GOAMD64=$(GOAMD64) go build -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows.exe $(MAIN_PACKAGE)
+	GOARCH=amd64 GOOS=darwin  GOAMD64=$(GOAMD64) go build -o $(OUTPUT_DIR)/$(BINARY_NAME)-darwin-x86_64  $(MAIN_PACKAGE)
+	GOARCH=amd64 GOOS=linux   GOAMD64=$(GOAMD64) go build -o $(OUTPUT_DIR)/$(BINARY_NAME)-linux-x86_64   $(MAIN_PACKAGE)
+	GOARCH=amd64 GOOS=windows GOAMD64=$(GOAMD64) go build -o $(OUTPUT_DIR)/$(BINARY_NAME)-windows-x86_64.exe $(MAIN_PACKAGE)
 
 ## build-all: build binaries for all os/architectures
 .PHONY: build-all
@@ -78,7 +78,7 @@ build-%:
 	$(eval M_ARCH := $(word 2,$(subst -, ,$*)))
 	$(eval LABEL := $(LABEL_$(M_ARCH)))
 	@echo "--> Building $(BINARY_NAME) for $(OS) [$(M_ARCH) -> $(LABEL)]..."
-	GOARCH=amd64 GOOS=$(OS) GOAMD64=$(M_ARCH) go build -o $(OUTPUT_DIR)/$(BINARY_NAME)-$(OS)-$(LABEL)$(if $(filter windows,$(OS)),.exe,) $(MAIN_PACKAGE)
+	GOARCH=amd64 GOOS=$(OS) GOAMD64=$(M_ARCH) go build -o $(OUTPUT_DIR)/$(BINARY_NAME)-$(OS)-x86_64-$(LABEL)$(if $(filter windows,$(OS)),.exe,) $(MAIN_PACKAGE)
 
 ## run: run the  application
 .PHONY: run
