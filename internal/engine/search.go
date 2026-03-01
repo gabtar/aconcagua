@@ -24,7 +24,18 @@ var (
 
 	// FutilityPruningMargin contains the margin for futility pruning for each depth
 	FutilityPruningMargin = [5]int{0, 120, 180, 280, 420}
+
+	// LateMoveReductionFactor contains the reduction factor for each depth and move number
+	LateMoveReductionFactor = [MaxSearchDepth * 2][MaxLegalMoves * 2]int{}
 )
+
+func init() {
+	for depth := range MaxSearchDepth * 2 {
+		for moveNumber := range MaxLegalMoves * 2 {
+			LateMoveReductionFactor[depth][moveNumber] = int(0.5 + math.Log(float64(depth))*math.Log(float64(moveNumber))/2.0)
+		}
+	}
+}
 
 // Search is the main struct for the search
 type Search struct {
@@ -393,7 +404,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
 		} else {
 			// Try first a quick, reduced search, with lmr and a null window(-alpha-1, -alpha)
-			reduction := lmrReductionFactor(depth, mg.moveNumber, moveFlag, isCheck, pvNode)
+			reduction := lmrReductionFactor(depth, mg.moveNumber, mg.stage, moveFlag, isCheck, pvNode)
 			newScore = -s.negamax(pos, depth-1-reduction+extension, ply+1, -alpha-1, -alpha, &branchPv, true)
 
 			// If an improvement was found, we need to search again with a full window and depth
@@ -485,12 +496,28 @@ func (pos *Position) material(side Color) int {
 }
 
 // lrmReductionFactor returns a number to reduce the depth on search based on the conditions passed
-func lmrReductionFactor(depth int, moveNumber int, moveFlag int, isCheck, pvNode bool) int {
-	if isCheck || pvNode || depth < 3 || moveNumber < 4 || moveFlag >= capture {
+func lmrReductionFactor(depth, moveNumber, stage, moveFlag int, isCheck, pvNode bool) int {
+	if isCheck || depth < 3 || moveNumber < 1 {
 		return 0
 	}
+	reduction := LateMoveReductionFactor[depth][moveNumber]
 
-	return int(0.5 + math.Log(float64(depth))*math.Log(float64(moveNumber))/2.0)
+	// Reduce less on pvNode
+	if pvNode {
+		reduction--
+	}
+
+	// Reduces less on captures/promotions
+	if moveFlag >= capture {
+		reduction--
+	}
+
+	// Reduce less on Killers and counter moves
+	if stage < NonCapturesStage && stage > CapturesStage {
+		reduction--
+	}
+
+	return max(reduction, 0)
 }
 
 // convertScore returns the proper score if it's mate or current centipawns score
