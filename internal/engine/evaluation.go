@@ -92,8 +92,6 @@ type EvalVector struct {
 	kingAttackersCount [2]int
 	kingAttackWeight   [2]int
 	phase              int
-	// Evaluation tables
-	pawnHashTable *PawnHashTable
 }
 
 // NewEvaluation returns a new Evaluation

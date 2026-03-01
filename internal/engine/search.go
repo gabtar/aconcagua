@@ -71,9 +71,9 @@ func (s *Search) clear() {
 	s.nodes = 0
 	s.killers.clear()
 	s.historyMoves.clear()
-	s.TranspositionTable.newSearch()
 	s.counterMovesTable.clear()
 	s.stack.clear()
+	s.TranspositionTable.newSearch()
 	s.Evaluation.PawnCache.newSearch()
 }
 
@@ -231,8 +231,9 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 		nps := int(float64(s.nodes) / depthTime.Seconds())
 		stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
 
-		// TODO: handle out of bounds when indexing s.pvLine[0] ???
-		bestMove = s.pvLine[0].String()
+		if len(s.pvLine) > 0 {
+			bestMove = s.pvLine[0].String()
+		}
 	}
 
 	return
