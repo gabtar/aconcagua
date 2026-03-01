@@ -11,7 +11,7 @@ A UCI-compatible chess engine written in Go.
 ### 1. Build from source
 
 #### Requirements
-* Go 1.25.4 or later
+* Go 1.26.0 or later
 
 ```
 git clone https://github.com/gabtar/aconcagua
@@ -24,7 +24,7 @@ This will build an executable named `aconcagua` in the current directory.
 > [!NOTE]  
 > Depending on your operating system (especially on some Ubuntu/Debian based distributions) you might not have the required Go version to build Aconcagua. If that's your case, you might want to look at the steps posted by [tissatussa](https://github.com/tissatussa) in this [issue #9](https://github.com/gabtar/aconcagua/issues/9).
 
-### 2. Or download precompiled binaries
+### 2. Download precompiled binaries
 
 * Go to the [Releases page](https://github.com/gabtar/aconcagua/releases)
 * Download the binary for your platform(linux, windows or macos)
@@ -43,24 +43,45 @@ Simply add the engine executable to your GUI and set it as an UCI protocol compa
 ## Features
 
 - UCI protocol compatible
+- Chess 960 / Fischer Random Chess suport
 - Bitboards representation
 - Magic bitboards for attacks/move generation
-- Iterative deepening
+
+#### Search
+- Iterative Deepening
+- Aspiration window
+- Principal Variation Search
 - Quiescence search
+- Static Exchage Evaluation
+- Transposition table w/ buckets system
+- Mate Distance Pruning
+- Draw detection(by repetition/insufficient material/50 moves rule)
 - Null move pruning
 - Reverse Futitly Pruning
-- Static Exchage Evaluation
-- Late move reductions
 - Futility pruning
-- Aspiration window
-- Pieces Square Tables
-- Principal Variation Search
-- Killer moves
-- Transposition table
+- Internal Iterative Deepening
+- Late move reductions
+- Late move pruning
 
-## Supported Chess Variants
-- Standard
-- Chess 960
+#### Move Ordering
+- Hash move (from transposition table)
+- Good Captures
+- Killer moves
+- Counter move
+- Non Captures moves ordered by History Heuristic
+- Bad Captures (Static Exchange Evaluation < 0)
+
+#### Evaluation
+- Hand Craft Tuned Evaluation
+- Pieces Square Tables
+- Tappered Evaluation
+- King Safety
+- Mobility
+- Isolated, Doubled, Passed and Backward Pawns
+- Knight/Bishops Outpost
+- Bishop Pairs
+- Rooks on semi open/open files
+- Tempo
 
 ## Lichess Bot
 

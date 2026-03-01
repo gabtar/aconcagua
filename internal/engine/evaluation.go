@@ -74,8 +74,14 @@ var (
 	}
 )
 
-// Evaluation contains the different evaluation elements of a position
+// Evaluation contains the elements for evaluation of a position
 type Evaluation struct {
+	Eval      EvalVector
+	PawnCache PawnHashTable
+}
+
+// EvalVector contains the different evaluation elements of a position
+type EvalVector struct {
 	mgMaterial         [2]int // White and Black scores
 	egMaterial         [2]int
 	mgMobility         [2]int
@@ -86,19 +92,24 @@ type Evaluation struct {
 	kingAttackersCount [2]int
 	kingAttackWeight   [2]int
 	phase              int
-	// Evaluation tables
-	pawnHashTable *PawnHashTable
 }
 
 // NewEvaluation returns a new Evaluation
 func NewEvaluation(size int) *Evaluation {
 	return &Evaluation{
-		pawnHashTable: NewPawnHashTable(size),
+		Eval:      EvalVector{},
+		PawnCache: *NewPawnHashTable(size),
 	}
 }
 
-// clear clears the evaluation
-func (ev *Evaluation) clear() {
+// Clear clears the evaluation
+func (ev *Evaluation) Clear() {
+	ev.Eval.clear()
+	ev.PawnCache.clear()
+}
+
+// clear clears the evaluation vector
+func (ev *EvalVector) clear() {
 	ev.mgMaterial = [2]int{0, 0}
 	ev.egMaterial = [2]int{0, 0}
 	ev.mgMobility = [2]int{0, 0}
@@ -112,8 +123,8 @@ func (ev *Evaluation) clear() {
 }
 
 // Evaluate returns the static score of the position
-func (pos *Position) Evaluate() int {
-	pos.eval.clear()
+func (ev *Evaluation) Evaluate(pos *Position) int {
+	ev.Eval.clear()
 	blocks := ^pos.EmptySquares()
 
 	enemyPawnsAttacks := [2]Bitboard{
@@ -138,56 +149,55 @@ func (pos *Position) Evaluate() int {
 
 			switch pieceRole(piece) {
 			case King:
-				pos.eval.evaluateKing(sq, pawns, color)
+				ev.Eval.evaluateKing(sq, pawns, color)
 			case Queen:
-				pos.eval.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), color)
+				ev.Eval.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), color)
 			case Rook:
-				pos.eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], pawns, pos.KingPosition(color.Opponent()), color)
+				ev.Eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], pawns, pos.KingPosition(color.Opponent()), color)
 			case Bishop:
-				pos.eval.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], color)
+				ev.Eval.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], color)
 			case Knight:
-				pos.eval.evaluateKnight(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], color)
+				ev.Eval.evaluateKnight(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], color)
 			case Pawn:
-				pos.eval.evaluatePawn(sq, color)
+				ev.Eval.evaluatePawn(sq, color)
 			}
 		}
 	}
 
 	// Bishop pair bonus
 	if pos.Bitboards[WhiteBishop].count() >= 2 {
-		pos.eval.mgMaterial[White] += BishopPairBonusMg
-		pos.eval.egMaterial[White] += BishopPairBonusEg
+		ev.Eval.mgMaterial[White] += BishopPairBonusMg
+		ev.Eval.egMaterial[White] += BishopPairBonusEg
 	}
 
 	if pos.Bitboards[BlackBishop].count() >= 2 {
-		pos.eval.mgMaterial[Black] += BishopPairBonusMg
-		pos.eval.egMaterial[Black] += BishopPairBonusEg
+		ev.Eval.mgMaterial[Black] += BishopPairBonusMg
+		ev.Eval.egMaterial[Black] += BishopPairBonusEg
 	}
 
 	// TempoBonus
-	pos.eval.mgMaterial[pos.Turn] += TempoBonus
-	pos.eval.egMaterial[pos.Turn] += TempoBonus
+	ev.Eval.mgMaterial[pos.Turn] += TempoBonus
+	ev.Eval.egMaterial[pos.Turn] += TempoBonus
 
-	// Pawn Structure evaluation
-	mgSc, egSc, ok := pos.eval.pawnHashTable.probe(pos.PawnHash, pos.Turn)
+	mgSc, egSc, ok := ev.PawnCache.probe(pos.PawnHash, pos.Turn)
 	if ok {
-		pos.eval.mgPawnStrucutre[pos.Turn] = mgSc
-		pos.eval.egPawnStructure[pos.Turn] = egSc
-
+		ev.Eval.mgPawnStrucutre[pos.Turn] = mgSc
+		ev.Eval.egPawnStructure[pos.Turn] = egSc
 	} else {
-		pos.eval.evaluatePawnStructure(pos, enemyPawnsAttacks[White], White)
-		pos.eval.evaluatePawnStructure(pos, enemyPawnsAttacks[Black], Black)
+		ev.Eval.evaluatePawnStructure(pos, enemyPawnsAttacks[White], White)
+		ev.Eval.evaluatePawnStructure(pos, enemyPawnsAttacks[Black], Black)
 
-		mgSc = pos.eval.mgPawnStrucutre[pos.Turn] - pos.eval.mgPawnStrucutre[pos.Turn.Opponent()]
-		egSc = pos.eval.egPawnStructure[pos.Turn] - pos.eval.egPawnStructure[pos.Turn.Opponent()]
-		pos.eval.pawnHashTable.store(pos.PawnHash, mgSc, egSc, pos.Turn)
+		// Store always from White's perspective
+		mgScWhite := ev.Eval.mgPawnStrucutre[White] - ev.Eval.mgPawnStrucutre[Black]
+		egScWhite := ev.Eval.egPawnStructure[White] - ev.Eval.egPawnStructure[Black]
+		ev.PawnCache.store(pos.PawnHash, mgScWhite, egScWhite)
 	}
 
-	return pos.eval.score(pos.Turn)
+	return ev.Eval.score(pos.Turn)
 }
 
 // score returns the score relative to the side
-func (ev *Evaluation) score(side Color) int {
+func (ev *EvalVector) score(side Color) int {
 	opponent := side.Opponent()
 
 	mg := ev.mgMaterial[side] - ev.mgMaterial[opponent]
@@ -215,7 +225,7 @@ func (ev *Evaluation) score(side Color) int {
 }
 
 // evaluateKing evaluates the score of a king
-func (ev *Evaluation) evaluateKing(from int, pawns [2]Bitboard, side Color) {
+func (ev *EvalVector) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 	piece := pieceColor(King, side)
 
 	kingFile := from % 8
@@ -266,7 +276,7 @@ func (ev *Evaluation) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 }
 
 // evaluateQueen evaluates the score of a queen
-func (ev *Evaluation) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, side Color) {
+func (ev *EvalVector) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, side Color) {
 	piece := pieceColor(Queen, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -288,7 +298,7 @@ func (ev *Evaluation) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks
 }
 
 // evaluateRook evaluates the score of a rook
-func (ev *Evaluation) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, pawns [2]Bitboard, enemyKing Bitboard, side Color) {
+func (ev *EvalVector) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, pawns [2]Bitboard, enemyKing Bitboard, side Color) {
 	piece := pieceColor(Rook, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -319,7 +329,7 @@ func (ev *Evaluation) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks 
 }
 
 // evaluateBishop evaluates the score of a bishop
-func (ev *Evaluation) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, side Color) {
+func (ev *EvalVector) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, side Color) {
 	piece := pieceColor(Bishop, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -346,7 +356,7 @@ func (ev *Evaluation) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttack
 }
 
 // evaluateKnight evaluates the score of a knight
-func (ev *Evaluation) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, side Color) {
+func (ev *EvalVector) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, side Color) {
 	piece := pieceColor(Knight, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -373,7 +383,7 @@ func (ev *Evaluation) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttack
 }
 
 // evaluatePawn evaluates the score of a pawn
-func (ev *Evaluation) evaluatePawn(from int, side Color) {
+func (ev *EvalVector) evaluatePawn(from int, side Color) {
 	piece := pieceColor(Pawn, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -398,7 +408,7 @@ func OutpostSquares(alliedPawns Bitboard, enemyPawns Bitboard, side Color) Bitbo
 }
 
 // evaluatePawnStructure evaluates the pawn structure for the side in the position passed
-func (ev *Evaluation) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bitboard, side Color) {
+func (ev *EvalVector) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bitboard, side Color) {
 	doubledPawns := DoubledPawns(pos, side)
 	ev.mgPawnStrucutre[side] += doubledPawns.count() * DoubledPawnPenaltyMg
 	ev.egPawnStructure[side] += doubledPawns.count() * DoubledPawnPenaltyEg

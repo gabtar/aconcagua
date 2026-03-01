@@ -23,7 +23,7 @@ func (ml *MoveList) add(move Move) {
 // scoreCaptures scores the captures moves by static exchange evaluation
 func (ml *MoveList) scoreCaptures(pos *Position) {
 	for i := 0; i < ml.length; i++ {
-		ml.scores[i] = pos.see(ml.moves[i].from(), ml.moves[i].to())
+		ml.scores[i] = pos.see(&ml.moves[i])
 	}
 }
 

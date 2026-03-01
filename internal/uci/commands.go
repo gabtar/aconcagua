@@ -23,7 +23,7 @@ type UciCommandStruct struct{}
 
 // Execute handles the "uci" command logic.
 func (c *UciCommandStruct) Execute(en *engine.Engine, stdout chan string, params ...string) {
-	stdout <- "id name Aconcagua 5.0.0"
+	stdout <- "id name Aconcagua 5.1.0"
 	stdout <- "id author Gabriel Tarifa"
 	stdout <- ""
 	stdout <- "option name BookPath type string default <empty>"
@@ -145,6 +145,7 @@ func (c *UciSetOptionCommandStruct) Execute(en *engine.Engine, stdout chan strin
 		c.setHashSize(en, stdout, optionValue)
 	case "clearhash":
 		en.Search.TranspositionTable.Clear()
+		en.Search.Evaluation.Clear()
 	default:
 		stdout <- "info string Error: Unknown option name: " + params[1]
 	}
@@ -238,9 +239,12 @@ func (c *DivideCommandStruct) Execute(en *engine.Engine, stdout chan string, par
 	}
 }
 
-// TTStatsCommandStructs returns usage stats for the transposition table
+// TTStatsCommandStruct returns usage stats for the transposition table and pawn hash table
 type TTStatsCommandStruct struct{}
 
 func (c *TTStatsCommandStruct) Execute(en *engine.Engine, stdout chan string, params ...string) {
+	stdout <- "Transposition Table:"
 	stdout <- en.Search.TranspositionTable.Stats()
+	stdout <- "Evaluation Pawn Hash Table:"
+	stdout <- en.Search.Evaluation.PawnCache.Stats()
 }

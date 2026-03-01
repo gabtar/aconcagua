@@ -1,48 +1,91 @@
 package engine
 
 // Quiescent is an evaluation function that takes into account some dynamic possibilities
-func Quiescent(pos *Position, s *Search, alpha int, beta int) int {
+func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 	s.nodes++
 	if s.TimeControl.stop {
 		return 0
 	}
 
-	score := pos.Evaluate()
+	s.seldepth = max(s.seldepth, uint8(ply))
+	// If the position is a draw avoid redundant search
+	if pos.isDraw() {
+		return 0
+	}
 
-	if score >= beta {
+	// Transposition Table probe
+	ttScore, ttEval, ttMove, ttHit := s.TranspositionTable.probe(pos.Hash, 0, ply, alpha, beta)
+	if ttHit {
+		return ttScore
+	}
+
+	staticEval := s.evaluate(pos, ttMove, ttEval)
+
+	if staticEval >= beta {
 		return beta
 	}
 
-	if score > alpha {
-		alpha = score
+	if staticEval > alpha {
+		alpha = staticEval
 	}
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
 	pos.generateCaptures(ml, &pd)
+	genQueenPromotions(pos, pos.Turn, ml, &pd)
+
+	flag := FlagAlpha
+	newScore := MinInt
+	bestMove := NoMove
 
 	for i := range ml.length {
-		see := pos.see(ml.moves[i].from(), ml.moves[i].to())
+		see := pos.see(&ml.moves[i])
 		if see < 0 {
 			continue
 		}
 
 		pos.MakeMove(&ml.moves[i])
-		score = -Quiescent(pos, s, -beta, -alpha)
+		newScore = -Quiescent(pos, s, -beta, -alpha, ply+1)
 		pos.UnmakeMove(&ml.moves[i])
-		if score >= beta {
+
+		if newScore >= beta {
+			s.TranspositionTable.store(pos.Hash, 0, ply, FlagBeta, beta, staticEval, ml.moves[i])
 			return beta
 		}
-		if score > alpha {
-			alpha = score
+		if newScore > alpha {
+			flag = FlagExact
+			bestMove = ml.moves[i]
+			alpha = newScore
 		}
 	}
 
+	s.TranspositionTable.store(pos.Hash, 0, ply, flag, alpha, staticEval, bestMove)
 	return alpha
 }
 
+// genQueenPromotions generates the queen promotions in the move list
+func genQueenPromotions(pos *Position, side Color, ml *MoveList, pd *PositionData) {
+	pawns := pos.Bitboards[pieceColor(Pawn, side)]
+	promoFromRank := [2]Bitboard{Ranks[6], Ranks[1]}
+	posiblesPromotions := pawns & promoFromRank[side] & ^pd.enemies
+
+	for posiblesPromotions > 0 {
+		from := posiblesPromotions.NextBit()
+		targets := pawnMoves(&from, pd, side)
+		to := from << 8
+		if side == Black {
+			to = from >> 8
+		}
+		if targets&to > 0 {
+			ml.add(*encodeMove(uint16(Bsf(from)), uint16(Bsf(to)), queenPromotion))
+		}
+	}
+}
+
 // see implements an static exchange evaluation on the square passed
-func (pos *Position) see(from int, to int) int {
+func (pos *Position) see(move *Move) int {
+	from := move.from()
+	to := move.to()
 	materialGain := [32]int{}
 	pieceValue := [6]int{10000, 900, 500, 300, 300, 100}
 	depth := 0
@@ -53,6 +96,11 @@ func (pos *Position) see(from int, to int) int {
 	if targetPiece == NoPiece { // should be an ep capture
 		targetPiece = pieceColor(Pawn, side.Opponent())
 	}
+	// Promotions
+	if move.flag() >= knightPromotion {
+		targetPiece = pieceColor(Queen, side.Opponent())
+	}
+
 	targetRole := pieceRole(targetPiece)
 	attackerRole := pieceRole(pos.PieceAt(from))
 
@@ -64,6 +112,12 @@ func (pos *Position) see(from int, to int) int {
 	for attackers > 0 {
 		depth++
 		materialGain[depth] = pieceValue[attackerRole] - materialGain[depth-1]
+
+		// Early termination, if we're already losing
+		if max(-materialGain[depth-1], materialGain[depth]) < 0 {
+			break
+		}
+
 		attackers &= ^fromSq
 		blockers &= ^fromSq
 		alreadyAttacked |= fromSq

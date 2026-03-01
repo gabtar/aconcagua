@@ -24,16 +24,31 @@ var (
 
 	// FutilityPruningMargin contains the margin for futility pruning for each depth
 	FutilityPruningMargin = [5]int{0, 120, 180, 280, 420}
+
+	// LateMoveReductionFactor contains the reduction factor for each depth and move number
+	LateMoveReductionFactor = [MaxSearchDepth * 2][MaxLegalMoves * 2]int{}
 )
+
+func init() {
+	for depth := range MaxSearchDepth * 2 {
+		for moveNumber := range MaxLegalMoves * 2 {
+			LateMoveReductionFactor[depth][moveNumber] = int(0.5 + math.Log(float64(depth))*math.Log(float64(moveNumber))/2.0)
+		}
+	}
+}
 
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
 	pvLine             pvLine
+	seldepth           uint8
 	killers            KillersTable
 	historyMoves       HistoryMovesTable
 	TranspositionTable TranspositionTable
+	counterMovesTable  CounterMoveTable
+	stack              Stack
 	TimeControl        TimeControl
+	Evaluation         Evaluation
 }
 
 // NewSearch returns a pointer to a new Search struct
@@ -44,7 +59,10 @@ func NewSearch() *Search {
 		killers:            KillersTable{},
 		historyMoves:       HistoryMovesTable{},
 		TranspositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
+		counterMovesTable:  CounterMoveTable{},
+		stack:              Stack{},
 		TimeControl:        TimeControl{},
+		Evaluation:         *NewEvaluation(DefaultPawnHashTableSizeInMb),
 	}
 }
 
@@ -53,13 +71,18 @@ func (s *Search) clear() {
 	s.nodes = 0
 	s.killers.clear()
 	s.historyMoves.clear()
+	s.counterMovesTable.clear()
+	s.stack.clear()
 	s.TranspositionTable.newSearch()
+	s.Evaluation.PawnCache.newSearch()
 }
 
 // reset sets the new iteration parameters in the NewSearch
 func (s *Search) reset() {
+	s.seldepth = 0
 	s.nodes = 0
 	s.pvLine.reset()
+	s.stack.clear()
 }
 
 // Stop stops the search
@@ -120,10 +143,74 @@ func (kt *KillersTable) store(ply int, move Move) {
 	}
 }
 
-// IterativeDeepening is the entry point of the search
+// get returns the killers at the given ply
+func (kt *KillersTable) get(ply int) (Move, Move) {
+	if ply >= MaxSearchDepth {
+		return NoMove, NoMove
+	}
+	return kt[ply][0], kt[ply][1]
+}
+
+// Stack contains the history of moves played in the current branch of the search
+type Stack struct {
+	moves [MaxSearchDepth * 2]Move
+}
+
+// store stores the move in the stack at the given ply
+func (s *Stack) store(move Move, ply int) {
+	s.moves[ply] = move
+}
+
+// clear clears the stack
+func (s *Stack) clear() {
+	for i := range s.moves {
+		s.moves[i] = NoMove
+	}
+}
+
+// getPriorMove returns the previous move at the given ply
+func (s *Stack) getPriorMove(ply int) Move {
+	if ply == 0 {
+		return NoMove
+	}
+
+	return s.moves[ply-1]
+}
+
+// CounterMoveTable is a table for storing the following move that might produce a beta cutoff
+type CounterMoveTable [2][64][64]Move
+
+// clear clears the history of moves
+func (cm *CounterMoveTable) clear() {
+	for i := range cm[White] {
+		for j := range cm[White][i] {
+			cm[White][i][j] = NoMove
+			cm[Black][i][j] = NoMove
+		}
+	}
+}
+
+// store stores a move in the counter move table
+func (cm *CounterMoveTable) store(priorMove, move Move, side Color) {
+	if priorMove == NoMove {
+		return
+	}
+
+	cm[side][priorMove.from()][priorMove.to()] = move
+}
+
+// get gets a move from the counter move table
+func (cm *CounterMoveTable) get(priorMove Move, side Color) Move {
+	if priorMove == NoMove {
+		return NoMove
+	}
+
+	return cm[side][priorMove.from()][priorMove.to()]
+}
+
+// IterativeDeepening performs a progressive deepening search and returns the best move
 func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
 	s.clear()
-	pos.eval.pawnHashTable.clear()
 
 	// Ensure to return a move to the GUI
 	bestMove = setDefaultMove(pos)
@@ -142,8 +229,11 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 		depthTime := time.Since(s.TimeControl.iterationStartTime)
 		s.TimeControl.iterationStartTime = time.Now()
 		nps := int(float64(s.nodes) / depthTime.Seconds())
-		stdout <- fmt.Sprintf("info depth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
-		bestMove = s.pvLine[0].String()
+		stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
+
+		if len(s.pvLine) > 0 {
+			bestMove = s.pvLine[0].String()
+		}
 	}
 
 	return
@@ -199,11 +289,11 @@ func setDefaultMove(pos *Position) string {
 // negamax returns the score of the best posible move by the evaluation function for a fixed depth
 func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, pvLine *pvLine, nullMoveAllowed bool) int {
 	s.nodes++
+	pvLine.reset()
+
 	if s.TimeControl.stop {
 		return 0
 	}
-
-	pvLine.reset()
 
 	rootNode := ply == 0
 	// Avoid these on root nodes, because otherwise, we'll not be able to return a move
@@ -224,7 +314,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	isCheck := pos.Check(pos.Turn)
 	if depth <= 0 && !isCheck {
-		return Quiescent(pos, s, alpha, beta)
+		return Quiescent(pos, s, alpha, beta, ply)
 	}
 
 	pvNode := beta-alpha > 1
@@ -238,7 +328,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	flag := FlagAlpha
 	branchPv := NewPvLine(depth)
-	staticEval := evaluation(pos, ttMove, ttEval)
+	staticEval := s.evaluate(pos, ttMove, ttEval)
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 4 && !isCheck && !pvNode {
@@ -248,9 +338,12 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 	}
 
-	// Null Move Pruning
+	// Null Move Pruning. Gives a free shot to the opponent by passing the turn.
+	// If we still exceed beta in the reduced search, we will trust our position is so good,
+	// that it will also exceed beta if we search all moves.
 	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode && pos.canNullMove() {
 		ep := pos.makeNullMove()
+		s.stack.store(NoMove, ply)
 		sc := -s.negamax(pos, depth-4, ply+1, -beta, -beta+1, &branchPv, false)
 		pos.unmakeNullMove(ep)
 
@@ -267,6 +360,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	}
 
 	// Internal Iterative Deepening
+	// If we dont have a move from the transposition table, make a reduced search to find a good
+	// move to improve our move ordering
 	if depth > 5 && pvNode && ttMove == NoMove {
 		s.negamax(pos, depth/2, ply+1, alpha, beta, &branchPv, true)
 		if len(branchPv) > 0 {
@@ -277,25 +372,27 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	newScore := MinInt
 	bestMove := NoMove
-	mg := NewMoveGenerator(pos, &ttMove, &s.killers[ply][0], &s.killers[ply][1], &s.historyMoves)
+	cm := s.counterMovesTable.get(s.stack.getPriorMove(ply), pos.Turn)
+	k1, k2 := s.killers.get(ply)
+	mg := NewMoveGenerator(pos, &ttMove, &k1, &k2, &cm, &s.historyMoves)
 
 	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
-		pos.MakeMove(&move)
 		branchPv.reset()
 		moveFlag := move.flag()
 
 		// Late Move Pruning
 		// Prunes quiet moves that are likely not to be good, by assuming we have a good move ordering
-		if depth <= 4 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[depth] && !isCheck && !pvNode && !pos.Check(pos.Turn) {
-			pos.UnmakeMove(&move)
+		if depth <= 4 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[depth] && !isCheck && !pvNode {
 			continue
 		}
 
 		// Futility Pruning. Apply futility pruning if conditions are met
 		if futilityPruningAllowed && moveFlag < capture && !isCheck && !pvNode && mg.moveNumber > 0 {
-			pos.UnmakeMove(&move)
 			continue
 		}
+
+		pos.MakeMove(&move)
+		s.stack.store(move, ply)
 
 		extension := 0
 		if isCheck {
@@ -308,7 +405,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
 		} else {
 			// Try first a quick, reduced search, with lmr and a null window(-alpha-1, -alpha)
-			reduction := lmrReductionFactor(depth, mg.moveNumber, moveFlag, isCheck, pvNode)
+			reduction := lmrReductionFactor(depth, mg.moveNumber, mg.stage, moveFlag, isCheck, pvNode)
 			newScore = -s.negamax(pos, depth-1-reduction+extension, ply+1, -alpha-1, -alpha, &branchPv, true)
 
 			// If an improvement was found, we need to search again with a full window and depth
@@ -321,6 +418,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		if newScore >= beta {
 			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, staticEval, move)
 			s.killers.store(ply, move)
+			s.counterMovesTable.store(s.stack.getPriorMove(ply), move, pos.Turn)
 			s.historyMoves.increment(depth, &move, pos.Turn)
 			// Reduce history score for previous 'quiet' moves that did not produce the cutoff
 			s.historyMoves.decrement(mg.moves, mg.moveNumber, pos.Turn)
@@ -347,14 +445,6 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	return alpha
 }
 
-// evaluation returns the evaluation of the position
-func evaluation(pos *Position, ttMove Move, ttEval int) int {
-	if ttMove != NoMove {
-		return ttEval
-	}
-	return pos.Evaluate()
-}
-
 // isCheckmateOrStealmate validates if the current position is checkmated or stealmated
 func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 	if moves == 0 {
@@ -364,6 +454,14 @@ func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 		return -MateScore + ply, true
 	}
 	return 0, false
+}
+
+// evaluate returns the evaluation of the position
+func (s *Search) evaluate(pos *Position, ttMove Move, ttEval int) int {
+	if ttMove != NoMove {
+		return ttEval
+	}
+	return s.Evaluation.Evaluate(pos)
 }
 
 // canNullMove returns if the current position allows a null move pruning
@@ -399,12 +497,28 @@ func (pos *Position) material(side Color) int {
 }
 
 // lrmReductionFactor returns a number to reduce the depth on search based on the conditions passed
-func lmrReductionFactor(depth int, moveNumber int, moveFlag int, isCheck, pvNode bool) int {
-	if isCheck || pvNode || depth < 3 || moveNumber < 4 || moveFlag >= capture {
+func lmrReductionFactor(depth, moveNumber, stage, moveFlag int, isCheck, pvNode bool) int {
+	if isCheck || depth < 3 || moveNumber < 1 {
 		return 0
 	}
+	reduction := LateMoveReductionFactor[depth][moveNumber]
 
-	return int(0.5 + math.Log(float64(depth))*math.Log(float64(moveNumber))/2.0)
+	// Reduce less on pvNode
+	if pvNode {
+		reduction--
+	}
+
+	// Reduces less on captures/promotions
+	if moveFlag >= capture {
+		reduction--
+	}
+
+	// Reduce less on Killers and counter moves
+	if stage < NonCapturesStage && stage > CapturesStage {
+		reduction--
+	}
+
+	return max(reduction, 0)
 }
 
 // convertScore returns the proper score if it's mate or current centipawns score
