@@ -105,7 +105,7 @@ func (pos *Position) see(move *Move) int {
 	attackerRole := pieceRole(pos.PieceAt(from))
 
 	blockers := ^pos.EmptySquares()
-	attackers := pos.attackers(to, side.Opponent(), blockers)
+	attackers := pos.attackersTo(to, side.Opponent(), blockers)
 	alreadyAttacked := Bitboard(0)
 	materialGain[depth] = pieceValue[targetRole]
 
@@ -124,7 +124,7 @@ func (pos *Position) see(move *Move) int {
 
 		// Find new attackers(by xrays) when removing the already considered pieces into the exchange
 		side = side.Opponent()
-		attackers = pos.attackers(to, side, blockers) & ^alreadyAttacked
+		attackers = pos.attackersTo(to, side, blockers) & ^alreadyAttacked
 		fromSq, attackerRole = pos.getLeastValuableAttacker(attackers, side)
 		if attackerRole == NoPiece {
 			break
@@ -139,22 +139,19 @@ func (pos *Position) see(move *Move) int {
 	return materialGain[0]
 }
 
-// attackers returns a bitboard with all the attackers of the square passed
-func (pos *Position) attackers(to int, side Color, blocks Bitboard) (attackers Bitboard) {
+// attackersTo returns a bitboard with all the attackersTo of the square passed
+func (pos *Position) attackersTo(to int, side Color, blocks Bitboard) (attackers Bitboard) {
 	toSq := Bitboard(1 << to)
 
-	for p, bitboard := range pos.getBitboards(side) {
-		piece := pieceColor(p, side)
-		from := bitboard.NextBit()
-		for from > 0 {
-			attackedSquares := Attacks(piece, from, blocks)
-			if attackedSquares&toSq > 0 {
-				attackers |= from
-			}
-			from = bitboard.NextBit()
-		}
-	}
-	return
+	// Using the square attacked by algorithm - https://www.chessprogramming.org/Square_Attacked_By#Attacks_to_a_Square
+	pawnAttacks := pawnAttacks(&toSq, side.Opponent()) & pos.Bitboards[pieceColor(Pawn, side)]
+	knightAttacks := knightAttacksTable[to] & pos.Bitboards[pieceColor(Knight, side)]
+	bishopAttacks := bishopAttacks(to, blocks) & pos.Bitboards[pieceColor(Bishop, side)]
+	rookAttacks := rookAttacks(to, blocks) & pos.Bitboards[pieceColor(Rook, side)]
+	queenAttacks := Attacks(Queen, toSq, blocks) & pos.Bitboards[pieceColor(Queen, side)]
+	kingAttacks := kingAttacksTable[to] & pos.Bitboards[pieceColor(King, side)]
+
+	return pawnAttacks | knightAttacks | bishopAttacks | rookAttacks | queenAttacks | kingAttacks
 }
 
 // getLeastValuableAttacker returns the least valuable attacker from the attackers bitboard

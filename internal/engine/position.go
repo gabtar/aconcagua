@@ -190,22 +190,35 @@ func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checki
 
 // Check returns if the side passed is in check
 func (pos *Position) Check(side Color) bool {
-	kingPos := pos.KingPosition(side)
-	opponent := side.Opponent()
+	kingBB := pos.KingPosition(side)
+	if kingBB == 0 {
+		return false
+	}
+	kingSq := Bsf(kingBB)
+	blocks := ^pos.EmptySquares()
 
-	for piece, bb := range pos.getBitboards(opponent)[Queen:Pawn] {
-		blocks := ^pos.EmptySquares()
-
-		for bb > 0 {
-			from := bb.NextBit()
-			if Attacks(pieceColor(piece+1, opponent), from, blocks)&kingPos > 0 {
-				return true
-			}
-		}
+	pawnAttacks := pawnAttacks(&kingBB, side) & pos.Bitboards[pieceColor(Pawn, side.Opponent())]
+	if pawnAttacks > 0 {
+		return true
 	}
 
-	pawnCheck := pawnAttacks(&pos.Bitboards[pieceColor(Pawn, opponent)], opponent)&kingPos > 0
-	return pawnCheck
+	knightAttacks := knightAttacksTable[kingSq] & pos.Bitboards[pieceColor(Knight, side.Opponent())]
+	if knightAttacks > 0 {
+		return true
+	}
+
+	bishopAttacks := bishopAttacks(kingSq, blocks) & pos.Bitboards[pieceColor(Bishop, side.Opponent())]
+	if bishopAttacks > 0 {
+		return true
+	}
+
+	rookAttacks := rookAttacks(kingSq, blocks) & pos.Bitboards[pieceColor(Rook, side.Opponent())]
+	if rookAttacks > 0 {
+		return true
+	}
+
+	queenAttacks := Attacks(Queen, kingBB, blocks) & pos.Bitboards[pieceColor(Queen, side.Opponent())]
+	return queenAttacks > 0
 }
 
 // pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
