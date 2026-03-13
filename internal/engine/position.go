@@ -55,12 +55,6 @@ func pieceColor(role int, color Color) int {
 	return role + int(color)*6
 }
 
-// isSliding returns a the passed Piece is an sliding piece(Queen, Rook or Bishop)
-func isSliding(piece int) bool {
-	return (piece >= WhiteQueen && piece <= WhiteBishop) ||
-		(piece >= BlackQueen && piece <= BlackBishop)
-}
-
 // Color is an int referencing the white or black player in chess
 type Color int
 
@@ -169,23 +163,16 @@ func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checki
 		return
 	}
 	kingSq := pos.KingPosition(side)
-
-	for p, bitboard := range pos.getBitboards(side.Opponent()) {
-		piece := pieceColor(p, side.Opponent())
-
-		for bitboard > 0 {
-			sq := bitboard.NextBit()
-
-			if kingSq&Attacks(piece, sq, ^pos.EmptySquares()) > 0 {
-				if isSliding(piece) {
-					checkingSliders |= sq
-				}
-				checkingPieces |= sq
-			}
-		}
-
+	attackers := pos.attackersTo(Bsf(kingSq)) & pos.pieces[side.Opponent()]
+	if attackers == 0 {
+		return
 	}
-	return
+
+	sliders := pos.Bitboards[pieceColor(Queen, side.Opponent())] |
+		pos.Bitboards[pieceColor(Rook, side.Opponent())] |
+		pos.Bitboards[pieceColor(Bishop, side.Opponent())]
+
+	return attackers, attackers & sliders
 }
 
 // Check returns if the side passed is in check

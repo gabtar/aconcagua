@@ -9,7 +9,7 @@ func TestAttackers(t *testing.T) {
 	pos.LoadFromFenString("6k1/2p5/3p4/3P4/4N3/B7/8/6K1 w - - 0 1")
 
 	expected := 2
-	got := pos.attackersTo(d6, White, ^pos.EmptySquares()).count()
+	got := (pos.attackersTo(d6) & pos.pieces[White]).count()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -21,7 +21,7 @@ func TestGetLeastValuableAttacker(t *testing.T) {
 	// White Bishop(a3) attacks Black Pawn on d6
 	pos := NewPosition()
 	pos.LoadFromFenString("6k1/2p5/3p4/3P4/4N3/B7/8/6K1 w - - 0 1")
-	attackersOnD6 := pos.attackersTo(d6, White, ^pos.EmptySquares())
+	attackersOnD6 := pos.attackersTo(d6)
 
 	expectedBB, expectedPiece := bitboardFromCoordinates("e4"), WhiteKnight
 	gotBB, gotPiece := pos.getLeastValuableAttacker(attackersOnD6, White)
