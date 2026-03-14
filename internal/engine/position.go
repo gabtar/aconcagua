@@ -211,38 +211,27 @@ func (pos *Position) Check(side Color) bool {
 // pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
 func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 	king := pos.KingPosition(side)
-	opponent := side.Opponent()
-	opponentDiagonalAttackers := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Bishop, opponent)]
-	opponentOrthogonalAttackers := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Rook, opponent)]
-	ownPieces := pos.pieces[side] &^ king
-	opponentPieces := pos.pieces[opponent]
-
 	if king == 0 {
 		return
 	}
 
-	for opponentDiagonalAttackers > 0 {
-		attacker := opponentDiagonalAttackers.NextBit()
-		opponentDiagonalRays := bishopAttacks(Bsf(attacker), Bitboard(0))
-		kingToOpponentPath := getRayPath(&attacker, &king)
-		intersectionRay := opponentDiagonalRays & kingToOpponentPath
-		piecesBetween := intersectionRay & ownPieces
-		oponentPiecesBetween := intersectionRay & opponentPieces
-
-		if opponentDiagonalRays&king > 0 && piecesBetween.count() == 1 && oponentPiecesBetween == 0 {
-			pinned |= piecesBetween
-		}
+	opponent := side.Opponent()
+	bishops := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Bishop, opponent)]
+	rooks := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Rook, opponent)]
+	if rooks|bishops == 0 {
+		return
 	}
 
-	for opponentOrthogonalAttackers > 0 {
-		attacker := opponentOrthogonalAttackers.NextBit()
-		opponentOrthogonalRays := rookAttacks(Bsf(attacker), Bitboard(0))
+	// We use the square attacked by algorithm in special way. If any of the opponent sliders can attack
+	// our king when we remove our pieces, and if its only one of our pieces between them the attacker
+	// and our king, then the piece is pinned
+	possiblePinners := bishopAttacks(Bsf(king), pos.pieces[opponent])&bishops |
+		rookAttacks(Bsf(king), pos.pieces[opponent])&rooks
+	for possiblePinners > 0 {
+		attacker := possiblePinners.NextBit()
 		kingToOpponentPath := getRayPath(&attacker, &king)
-		intersectionRay := opponentOrthogonalRays & kingToOpponentPath
-		piecesBetween := intersectionRay & ownPieces
-		oponentPiecesBetween := intersectionRay & opponentPieces
-
-		if opponentOrthogonalRays&king > 0 && piecesBetween.count() == 1 && oponentPiecesBetween == 0 {
+		piecesBetween := kingToOpponentPath & pos.pieces[side]
+		if piecesBetween.count() == 1 {
 			pinned |= piecesBetween
 		}
 	}
