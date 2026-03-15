@@ -229,12 +229,22 @@ func (pos *Position) canCastle(side Color, castleFlag int) bool {
 
 	emptySquares := pos.EmptySquares() | kingBB | rookBB // NOTE: Avoid king and rook, so are not taken into account when calculating whenever the path is clear for castle
 	kingPathClear := (emptySquares & kingFromToPath) == kingFromToPath
-	rookPathClear := (emptySquares & rookFromToPath) == rookFromToPath
-
-	kingSquaresNotAttacked := pos.AttackedSquares(side.Opponent())&(kingFromToPath|kingToSq|kingBB) == 0
-
-	if kingPathClear && rookPathClear && kingSquaresNotAttacked {
-		return true
+	if !kingPathClear {
+		return false
 	}
-	return false
+
+	rookPathClear := (emptySquares & rookFromToPath) == rookFromToPath
+	if !rookPathClear {
+		return false
+	}
+
+	kingPassingSquares := kingFromToPath | kingToSq | kingBB
+	for kingPassingSquares > 0 {
+		sq := Bsf(kingPassingSquares.NextBit())
+		if pos.attackersTo(sq)&pos.pieces[side.Opponent()] > 0 {
+			return false
+		}
+	}
+
+	return true
 }
