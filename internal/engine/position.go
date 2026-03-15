@@ -55,12 +55,6 @@ func pieceColor(role int, color Color) int {
 	return role + int(color)*6
 }
 
-// isSliding returns a the passed Piece is an sliding piece(Queen, Rook or Bishop)
-func isSliding(piece int) bool {
-	return (piece >= WhiteQueen && piece <= WhiteBishop) ||
-		(piece >= BlackQueen && piece <= BlackBishop)
-}
-
 // Color is an int referencing the white or black player in chess
 type Color int
 
@@ -169,80 +163,75 @@ func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checki
 		return
 	}
 	kingSq := pos.KingPosition(side)
-
-	for p, bitboard := range pos.getBitboards(side.Opponent()) {
-		piece := pieceColor(p, side.Opponent())
-
-		for bitboard > 0 {
-			sq := bitboard.NextBit()
-
-			if kingSq&Attacks(piece, sq, ^pos.EmptySquares()) > 0 {
-				if isSliding(piece) {
-					checkingSliders |= sq
-				}
-				checkingPieces |= sq
-			}
-		}
-
+	attackers := pos.attackersTo(Bsf(kingSq)) & pos.pieces[side.Opponent()]
+	if attackers == 0 {
+		return
 	}
-	return
+
+	sliders := pos.Bitboards[pieceColor(Queen, side.Opponent())] |
+		pos.Bitboards[pieceColor(Rook, side.Opponent())] |
+		pos.Bitboards[pieceColor(Bishop, side.Opponent())]
+
+	return attackers, attackers & sliders
 }
 
 // Check returns if the side passed is in check
 func (pos *Position) Check(side Color) bool {
-	kingPos := pos.KingPosition(side)
-	opponent := side.Opponent()
+	kingBB := pos.KingPosition(side)
+	if kingBB == 0 {
+		return false
+	}
+	kingSq := Bsf(kingBB)
+	blocks := ^pos.EmptySquares()
 
-	for piece, bb := range pos.getBitboards(opponent)[Queen:Pawn] {
-		blocks := ^pos.EmptySquares()
-
-		for bb > 0 {
-			from := bb.NextBit()
-			if Attacks(pieceColor(piece+1, opponent), from, blocks)&kingPos > 0 {
-				return true
-			}
-		}
+	pawnAttacks := pawnAttacks(&kingBB, side) & pos.Bitboards[pieceColor(Pawn, side.Opponent())]
+	if pawnAttacks > 0 {
+		return true
 	}
 
-	pawnCheck := pawnAttacks(&pos.Bitboards[pieceColor(Pawn, opponent)], opponent)&kingPos > 0
-	return pawnCheck
+	knightAttacks := knightAttacksTable[kingSq] & pos.Bitboards[pieceColor(Knight, side.Opponent())]
+	if knightAttacks > 0 {
+		return true
+	}
+
+	bishopAttacks := bishopAttacks(kingSq, blocks) & pos.Bitboards[pieceColor(Bishop, side.Opponent())]
+	if bishopAttacks > 0 {
+		return true
+	}
+
+	rookAttacks := rookAttacks(kingSq, blocks) & pos.Bitboards[pieceColor(Rook, side.Opponent())]
+	if rookAttacks > 0 {
+		return true
+	}
+
+	queenAttacks := Attacks(Queen, kingBB, blocks) & pos.Bitboards[pieceColor(Queen, side.Opponent())]
+	return queenAttacks > 0
 }
 
 // pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
 func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 	king := pos.KingPosition(side)
-	opponent := side.Opponent()
-	opponentDiagonalAttackers := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Bishop, opponent)]
-	opponentOrthogonalAttackers := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Rook, opponent)]
-	ownPieces := pos.pieces[side] &^ king
-	opponentPieces := pos.pieces[opponent]
-
 	if king == 0 {
 		return
 	}
 
-	for opponentDiagonalAttackers > 0 {
-		attacker := opponentDiagonalAttackers.NextBit()
-		opponentDiagonalRays := bishopAttacks(Bsf(attacker), Bitboard(0))
-		kingToOpponentPath := getRayPath(&attacker, &king)
-		intersectionRay := opponentDiagonalRays & kingToOpponentPath
-		piecesBetween := intersectionRay & ownPieces
-		oponentPiecesBetween := intersectionRay & opponentPieces
-
-		if opponentDiagonalRays&king > 0 && piecesBetween.count() == 1 && oponentPiecesBetween == 0 {
-			pinned |= piecesBetween
-		}
+	opponent := side.Opponent()
+	bishops := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Bishop, opponent)]
+	rooks := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Rook, opponent)]
+	if rooks|bishops == 0 {
+		return
 	}
 
-	for opponentOrthogonalAttackers > 0 {
-		attacker := opponentOrthogonalAttackers.NextBit()
-		opponentOrthogonalRays := rookAttacks(Bsf(attacker), Bitboard(0))
+	// We use the square attacked by algorithm in special way. If any of the opponent sliders can attack
+	// our king when we remove our pieces, and if its only one of our pieces between them the attacker
+	// and our king, then the piece is pinned
+	possiblePinners := bishopAttacks(Bsf(king), pos.pieces[opponent])&bishops |
+		rookAttacks(Bsf(king), pos.pieces[opponent])&rooks
+	for possiblePinners > 0 {
+		attacker := possiblePinners.NextBit()
 		kingToOpponentPath := getRayPath(&attacker, &king)
-		intersectionRay := opponentOrthogonalRays & kingToOpponentPath
-		piecesBetween := intersectionRay & ownPieces
-		oponentPiecesBetween := intersectionRay & opponentPieces
-
-		if opponentOrthogonalRays&king > 0 && piecesBetween.count() == 1 && oponentPiecesBetween == 0 {
+		piecesBetween := kingToOpponentPath & pos.pieces[side]
+		if piecesBetween.count() == 1 {
 			pinned |= piecesBetween
 		}
 	}

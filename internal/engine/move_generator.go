@@ -433,14 +433,20 @@ func isEnPassantHorizontalPinned(pos *Position, capturerBB Bitboard, capturedPaw
 // checkRestrictedSquares returns a bitboard with the squares that are allowed to move when in check
 func checkRestrictedSquares(king Bitboard, checkingSliders Bitboard, checkingNonSliders Bitboard) (allowedSquares Bitboard) {
 	checkingPieces := checkingSliders | checkingNonSliders
-	if checkingPieces.count() == 0 {
+
+	// If no checking pieces, no restrictions, we can move anywhere
+	if checkingPieces == 0 {
 		return AllSquares
 	}
 
+	// If there is only one sliding piece giving check, we can either block
+	// along the ray or directly capture the checker to avoid the check
 	if checkingPieces == checkingSliders && checkingPieces.count() == 1 {
 		return getRayPath(&checkingPieces, &king) | checkingPieces
 	}
 
+	// If only 1 piece checking next to the king, we can only capture the checker
+	// to evade the check
 	if checkingPieces.count() == 1 {
 		return checkingPieces
 	}
