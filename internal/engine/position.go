@@ -270,7 +270,10 @@ func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
 
 // isDraw returns if the current position is a draw by repetition, 50 move rule or insuficient material
 func (pos *Position) isDraw() bool {
-	return pos.positionHistory.repetitionCount(pos.Hash, pos.halfmoveClock) >= 2 ||
+	// Instead of waiting to get a threefold repetition, Aconcagua assumes
+	// if a position is repeated once, it should be at least a draw. This helps
+	// avoid unecessary search and seems working well.
+	return pos.positionHistory.isRepetition(pos.Hash, pos.halfmoveClock) ||
 		pos.halfmoveClock >= 100 ||
 		pos.insuficientMaterial()
 }
@@ -654,6 +657,8 @@ func (pos *Position) LoadFromFenString(fen string) {
 	pos.FullMoveNumber, _ = strconv.Atoi(elements[5])
 
 	pos.Hash = zobristHashKeys.fullZobristHash(pos)
+	pos.positionHistory.previousPosition[0] = pos.Hash
+	pos.positionHistory.moveCount = 1
 	pos.PawnHash = zobristHashKeys.pawnHash(pos)
 }
 
