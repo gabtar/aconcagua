@@ -28,7 +28,7 @@ func TestRepetitionCount(t *testing.T) {
 	ph.add(positionBefore(0), KQkq, hash)
 	ph.add(positionBefore(0), KQkq, 0)
 
-	if ph.repetitionCount(5, halfmoveClock) != 1 {
-		t.Errorf("Expected: %v, got: %v", 2, ph.repetitionCount(5, halfmoveClock))
+	if ph.isRepetition(5, halfmoveClock) != true {
+		t.Errorf("Expected: %v, got: %v", 2, ph.isRepetition(5, halfmoveClock))
 	}
 }
