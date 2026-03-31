@@ -100,9 +100,12 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 	return dataset
 }
 
+// Number of total tuneable params
+const TuneableParams = 948
+
 // GetEvaluationParams returns the current evaluation params
-func GetEvaluationParams() (params [1000]float64) {
-	intParams := [1000]int{}
+func GetEvaluationParams() (params [TuneableParams]float64) {
+	intParams := [TuneableParams]int{}
 
 	// Psqt params
 	for piece := range 6 {
@@ -148,30 +151,25 @@ func GetEvaluationParams() (params [1000]float64) {
 	intParams[940] = engine.BishopOutpostBonusMg
 	intParams[941] = engine.BishopOutpostBonusEg
 
-	// King Safety - Open Files
-	intParams[942] = engine.KingOnOpenFilePenaltyMg
-	intParams[943] = engine.KingOnSemiOpenFilePenaltyMg
-	intParams[944] = engine.KingNearOpenFilePenaltyMg
-	intParams[945] = engine.KingNearSemiOpenFilePenaltyMg
-
-	intParams[946] = engine.PawnShieldBonusMg[0]
-	intParams[947] = engine.PawnShieldBonusMg[1]
-	intParams[948] = engine.PawnShieldBonusMg[2]
-
-	// King Safety Table
-	copy(intParams[949:999], engine.KingSafetyTable[:])
+	// King Attacks Weights
+	intParams[942] = engine.QueenAttackWeight
+	intParams[943] = engine.RookAttackWeight
+	intParams[944] = engine.BishopAttackWeight
+	intParams[945] = engine.KnightAttackWeight
+	intParams[946] = engine.KingZoneDefenseBonus
 
 	// Tempo
-	intParams[999] = engine.TempoBonus
+	intParams[947] = engine.TempoBonus
 
-	for i := range 1000 {
+	// Convert to float
+	for i := range TuneableParams {
 		params[i] = float64(intParams[i])
 	}
 	return
 }
 
 // saveParams sotres the best params found in a file
-func saveParams(bestParams [1000]float64, iteration int) {
+func saveParams(bestParams [TuneableParams]float64, iteration int) {
 	dir := "tuner/params"
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		os.MkdirAll(dir, 0755)
@@ -191,9 +189,9 @@ func saveParams(bestParams [1000]float64, iteration int) {
 }
 
 // paramsToPrettyFormat returns the params as a string
-func paramsToPrettyFormat(bestParams [1000]float64) (psqt string) {
-	intParams := [1000]int{}
-	for i := range 1000 {
+func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
+	intParams := [TuneableParams]int{}
+	for i := range TuneableParams {
 		intParams[i] = int(bestParams[i])
 	}
 
@@ -260,26 +258,15 @@ func paramsToPrettyFormat(bestParams [1000]float64) (psqt string) {
 	psqt += fmt.Sprintf("BishopOutpostBonusMg: %d\n", intParams[940])
 	psqt += fmt.Sprintf("BishopOutpostBonusEg: %d\n", intParams[941])
 
-	// King Safety Open Files
-	psqt += fmt.Sprintf("KingOnOpenFilePenaltyMg: %d\n", intParams[942])
-	psqt += fmt.Sprintf("KingOnSemiOpenFilePenaltyMg: %d\n", intParams[943])
-	psqt += fmt.Sprintf("KingNearOpenFilePenaltyMg: %d\n", intParams[944])
-	psqt += fmt.Sprintf("KingNearSemiOpenFilePenaltyMg: %d\n", intParams[945])
-
-	psqt += fmt.Sprintf("PawnShieldBonusMg: %#v\n", intParams[946:949])
-
-	// King Safety Table
-	psqt += "KingSafetyTable: \n"
-	for i := range 5 {
-		psqt += "\t"
-		for j := range 10 {
-			psqt += fmt.Sprintf("%d, ", intParams[949+i*10+j])
-		}
-		psqt += "\n"
-	}
+	// King Safety Table attacks
+	psqt += fmt.Sprintf("QueenAttackWeight: %d\n", intParams[942])
+	psqt += fmt.Sprintf("RookAttackWeight: %d\n", intParams[943])
+	psqt += fmt.Sprintf("BishopAttackWeight: %d\n", intParams[944])
+	psqt += fmt.Sprintf("KnightAttackWeight: %d\n", intParams[945])
+	psqt += fmt.Sprintf("KingZoneDefenseBonus: %d\n", intParams[946])
 
 	// Tempo
-	psqt += fmt.Sprintf("TempoBonus: %d\n", intParams[999])
+	psqt += fmt.Sprintf("TempoBonus: %d\n", intParams[947])
 
 	return psqt
 }
@@ -297,7 +284,7 @@ type WorkerResult struct {
 }
 
 // MeanSquareError returns the mean square error using parallel processing
-func MeanSquareError(scalingFactor float64, params *[1000]float64, dataset *[]DatasetEntry) float64 {
+func MeanSquareError(scalingFactor float64, params *[TuneableParams]float64, dataset *[]DatasetEntry) float64 {
 	const numWorkers = 4
 	entries := len(*dataset)
 
@@ -331,7 +318,7 @@ func MeanSquareError(scalingFactor float64, params *[1000]float64, dataset *[]Da
 }
 
 // worker processes jobs from the jobs channel
-func worker(scalingFactor float64, params *[1000]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
+func worker(scalingFactor float64, params *[TuneableParams]float64, jobs <-chan WorkerJob, results chan<- WorkerResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for job := range jobs {
@@ -353,13 +340,12 @@ type PositionWeight struct {
 }
 
 // evaluatePosition returns the static evaluation of a position based on the weights and current params
-func evaluatePosition(params [1000]float64, weights []PositionWeight) (evaluation float64) {
+func evaluatePosition(params [TuneableParams]float64, weights []PositionWeight) (evaluation float64) {
 	eval := 0.0
 	for _, attr := range weights {
 		eval += params[attr.paramIndex] * float64(attr.weight)
 	}
-	intEval := int(math.Round(eval))
-	evaluation = float64(intEval / 62)
+	evaluation = eval / 62
 	return
 }
 
@@ -377,8 +363,8 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 	// Tempo Bonus weight
 	sideModifier := 1 - int(pos.Turn)*2
 	*weights = append(*weights,
-		PositionWeight{paramIndex: 999, weight: int16(sideModifier * phase)},
-		PositionWeight{paramIndex: 999, weight: int16(sideModifier * (62 - phase))},
+		PositionWeight{paramIndex: 947, weight: int16(sideModifier * phase)},
+		PositionWeight{paramIndex: 947, weight: int16(sideModifier * (62 - phase))},
 	)
 }
 
@@ -618,132 +604,50 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 
 // generateKingSafetyWeights returns the position weights of the king safety
 func generateKingSafetyWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
-	generateKingOnOpenFileWeights(pos, phase, weights, engine.White)
-	generateKingOnOpenFileWeights(pos, phase, weights, engine.Black)
-	generatePawnShieldWeights(pos, phase, weights)
-	generateSafetyWeights(pos, phase, weights)
+	generateSafetyAttacksWeights(pos, phase, weights)
 }
 
-// generateKingOnOpenFileWeights returns the position weights of the king on open file
-func generateKingOnOpenFileWeights(pos *engine.Position, phase int, weights *[]PositionWeight, side engine.Color) {
-	sideModifier := 1 - int(side)*2
-	alliedPawns := pos.Bitboards[engine.Pawn+int(side)*6]
-	enemyPawns := pos.Bitboards[engine.Pawn+int(side.Opponent())*6]
-	kingFile := engine.Bsf(pos.KingPosition(side)) % 8
-
-	for file := kingFile - 1; file <= kingFile+1; file++ {
-		if file < 0 || file > 7 {
-			continue
-		}
-
-		if (alliedPawns|enemyPawns)&engine.Files[file] == 0 {
-			if kingFile == file {
-				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(942), weight: int16(sideModifier * phase)},
-				)
-			} else {
-				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(944), weight: int16(sideModifier * phase)},
-				)
-			}
-		} else if alliedPawns&engine.Files[file] == 0 && enemyPawns&engine.Files[file] > 0 {
-			if kingFile == file {
-				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(943), weight: int16(sideModifier * phase)},
-				)
-			} else {
-				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(945), weight: int16(sideModifier * phase)},
-				)
-			}
-		}
-	}
-}
-
-// generatePawnShieldWeights returns the position weights of the pawn shield
-func generatePawnShieldWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
-	for color := engine.White; color <= engine.Black; color++ {
-		king := pos.KingPosition(engine.Color(color))
-		kingFile := engine.Bsf(king) % 8
-		kingRank := engine.Bsf(king) / 8
-		alliedPawns := pos.Bitboards[engine.Pawn+int(color)*6]
-
-		for file := kingFile - 1; file <= kingFile+1; file++ {
-			if file < 0 || file > 7 {
-				continue
-			}
-			pawnsInFile := alliedPawns & engine.Files[file]
-			rankIncrement := 1
-			if color == engine.Black {
-				rankIncrement = -1
-			}
-			for i := range 3 {
-				rank := (kingRank + rankIncrement) + i*rankIncrement
-				if rank < 0 || rank > 7 {
-					break
-				}
-				if pawnsInFile&engine.Ranks[rank] > 0 {
-					*weights = append(*weights,
-						PositionWeight{paramIndex: int16(946 + i), weight: int16((1 - int(color)*2) * phase)},
-					)
-					break
-				}
-			}
-		}
-	}
-}
-
-// generateSafetyWeights returns the position weights of the king safety attacks weights
-func generateSafetyWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+// generateSafetyAttacksWeights returns the attacks weights of the position for king safety evaluation
+func generateSafetyAttacksWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	blocks := ^pos.EmptySquares()
 
 	for color := engine.White; color <= engine.Black; color++ {
 		c := engine.Color(color)
 		enemyKing := pos.KingPosition(c.Opponent())
-		kingZone := engine.KingZone[engine.Bsf(enemyKing)]
-
+		kingZone := engine.KingZone[color][engine.Bsf(enemyKing)]
+		enemyPawns := pos.Bitboards[engine.Pawn+int(c.Opponent())*6]
+		defendedZone := engine.Attacks(engine.Pawn+int(c.Opponent())*6, enemyPawns, blocks)
+		tempWeights := []PositionWeight{}
 		attackersCount := 0
-		attackWeight := 0
-
-		pieces := []struct {
-			pieceType int
-			weight    int
-		}{
-			{engine.Knight, engine.KnightAttackWeight},
-			{engine.Bishop, engine.BishopAttackWeight},
-			{engine.Rook, engine.RookAttackWeight},
-			{engine.Queen, engine.QueenAttackWeight},
-		}
 
 		colorModifier := 1
 		if color == engine.Black {
 			colorModifier = -1
 		}
 
-		for _, p := range pieces {
-			piece := p.pieceType + int(color)*6
-			bb := pos.Bitboards[piece]
-
-			for bb > 0 {
-				fromBB := bb.NextBit()
-				attacks := engine.Attacks(piece, fromBB, blocks)
-
+		for piece := engine.Queen; piece <= engine.Knight; piece++ {
+			pieceBB := pos.Bitboards[piece+int(c)*6]
+			for pieceBB > 0 {
+				fromBB := pieceBB.NextBit()
+				attacks := engine.Attacks(piece+int(c)*6, fromBB, blocks)
 				if attacks&kingZone != 0 {
+					attacksToKingZone := bits.OnesCount64(uint64(attacks & kingZone))
 					attackersCount++
-					attackCount := bits.OnesCount64(uint64(attacks & kingZone))
-					attackWeight += attackCount * p.weight
+					tempWeights = append(tempWeights,
+						PositionWeight{paramIndex: int16(941 + piece), weight: int16(colorModifier * attacksToKingZone * phase)},
+					)
 				}
 			}
 		}
 
 		// Safety is only applied if there are at least 2 attackers
-		if attackersCount >= 2 {
-			safetyIndex := min(attackWeight, 49)
+		if attackersCount >= 2 && pos.Bitboards[engine.Queen+int(c)*6] > 0 {
+			*weights = append(*weights, tempWeights...)
+
+			zoneDefense := kingZone & defendedZone
+			defenseCount := bits.OnesCount64(uint64(zoneDefense))
 			*weights = append(*weights,
-				PositionWeight{
-					paramIndex: int16(949 + safetyIndex),
-					weight:     int16(colorModifier * phase),
-				},
+				PositionWeight{paramIndex: 946, weight: int16(-defenseCount * colorModifier * phase)},
 			)
 		}
 	}
@@ -763,7 +667,7 @@ func getMiddleGamePhase(pos *engine.Position) (mgPhase int) {
 }
 
 // FindOptimalScalingFactor returns the scaling factor that minimizes the mean square error
-func FindOptimalScalingFactor(dataset []DatasetEntry, params [1000]float64) float64 {
+func FindOptimalScalingFactor(dataset []DatasetEntry, params [TuneableParams]float64) float64 {
 	bestK := 0.0
 	bestError := math.Inf(1)
 
