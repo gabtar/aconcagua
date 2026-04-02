@@ -101,7 +101,7 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 948
+const TuneableParams = 956
 
 // GetEvaluationParams returns the current evaluation params
 func GetEvaluationParams() (params [TuneableParams]float64) {
@@ -158,8 +158,12 @@ func GetEvaluationParams() (params [TuneableParams]float64) {
 	intParams[945] = engine.KnightAttackWeight
 	intParams[946] = engine.KingZoneDefenseBonus
 
+	// PawnShield
+	copy(intParams[947:951], engine.PawnShieldFrontBonus[:])
+	copy(intParams[951:955], engine.PawnShieldSideBonus[:])
+
 	// Tempo
-	intParams[947] = engine.TempoBonus
+	intParams[955] = engine.TempoBonus
 
 	// Convert to float
 	for i := range TuneableParams {
@@ -265,8 +269,12 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 	psqt += fmt.Sprintf("KnightAttackWeight: %d\n", intParams[945])
 	psqt += fmt.Sprintf("KingZoneDefenseBonus: %d\n", intParams[946])
 
+	// Pawn Shield
+	psqt += fmt.Sprintf("PawnShieldFrontBonus: %#v\n", intParams[947:951])
+	psqt += fmt.Sprintf("PawnShieldSideBonus: %#v\n", intParams[951:955])
+
 	// Tempo
-	psqt += fmt.Sprintf("TempoBonus: %d\n", intParams[947])
+	psqt += fmt.Sprintf("TempoBonus: %d\n", intParams[955])
 
 	return psqt
 }
@@ -361,28 +369,27 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 	generateKingSafetyWeights(pos, phase, weights)
 
 	// Tempo Bonus weight
-	sideModifier := 1 - int(pos.Turn)*2
 	*weights = append(*weights,
-		PositionWeight{paramIndex: 947, weight: int16(sideModifier * phase)},
-		PositionWeight{paramIndex: 947, weight: int16(sideModifier * (62 - phase))},
+		PositionWeight{paramIndex: 955, weight: int16(pos.Turn.Modifier() * phase)},
+		PositionWeight{paramIndex: 955, weight: int16(pos.Turn.Modifier() * (62 - phase))},
 	)
 }
 
 // generatePieceScoreWeights returns the weights of the pieces socre in the board
 func generatePieceScoreWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	for piece, bb := range pos.Bitboards {
-		colorModifier := 1 - int(piece/6)*2
+		side := engine.Color(piece / 6)
 		for bb > 0 {
 			sq := engine.Bsf(bb.NextBit())
-			if colorModifier == 1 {
+			if side.Modifier() == 1 {
 				sq = sq ^ 56 // white pieces uses mirror square index in psqt
 			}
 
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(768 + piece%6), weight: int16(colorModifier * phase)},
-				PositionWeight{paramIndex: int16(768 + piece%6 + 6), weight: int16(colorModifier * (62 - phase))},
-				PositionWeight{paramIndex: int16((piece%6)*64 + sq), weight: int16(colorModifier * phase)},
-				PositionWeight{paramIndex: int16(384 + (piece%6)*64 + sq), weight: int16(colorModifier * (62 - phase))},
+				PositionWeight{paramIndex: int16(768 + piece%6), weight: int16(side.Modifier() * phase)},
+				PositionWeight{paramIndex: int16(768 + piece%6 + 6), weight: int16(side.Modifier() * (62 - phase))},
+				PositionWeight{paramIndex: int16((piece%6)*64 + sq), weight: int16(side.Modifier() * phase)},
+				PositionWeight{paramIndex: int16(384 + (piece%6)*64 + sq), weight: int16(side.Modifier() * (62 - phase))},
 			)
 		}
 	}
@@ -410,15 +417,15 @@ func generateMobilityWeights(pos *engine.Position, phase int, weights *[]Positio
 	bitboards = append(bitboards, blackBB...)
 
 	for piece, bb := range bitboards {
-		colorModifier := 1 - int(piece/4)*2
+		side := engine.Color(piece / 4)
 		for bb > 0 {
 			fromBB := bb.NextBit()
 			attacks := engine.Attacks(pieces[piece], fromBB, blocks)
 			safeSquares := bits.OnesCount64(uint64(attacks & ^enemyPawnsAttacks[piece/4]))
 
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(mgIndexes[piece%4] + safeSquares), weight: int16(colorModifier * phase)},
-				PositionWeight{paramIndex: int16(egIndexes[piece%4] + safeSquares), weight: int16(colorModifier * (62 - phase))},
+				PositionWeight{paramIndex: int16(mgIndexes[piece%4] + safeSquares), weight: int16(side.Modifier() * phase)},
+				PositionWeight{paramIndex: int16(egIndexes[piece%4] + safeSquares), weight: int16(side.Modifier() * (62 - phase))},
 			)
 		}
 	}
@@ -521,7 +528,6 @@ func generateMaterialAdjustmentsWeights(pos *engine.Position, phase int, weights
 
 // generateRookOnOpenFileWeights returns the position weights of the rook on open file
 func generateRookOnOpenFileWeights(pos *engine.Position, phase int, weights *[]PositionWeight, side engine.Color) {
-	sideModifier := 1 - int(side)*2
 	alliedPawns := pos.Bitboards[engine.Pawn+int(side)*6]
 	enemyPawns := pos.Bitboards[engine.Pawn+int(side.Opponent())*6]
 
@@ -533,12 +539,12 @@ func generateRookOnOpenFileWeights(pos *engine.Position, phase int, weights *[]P
 
 		if (alliedPawns|enemyPawns)&engine.Files[sq%8] == 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(936), weight: int16(sideModifier * phase)},
+				PositionWeight{paramIndex: int16(936), weight: int16(side.Modifier() * phase)},
 			)
 		}
 		if alliedPawns&engine.Files[sq%8] == 0 && enemyPawns&engine.Files[sq%8] > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(937), weight: int16(sideModifier * phase)},
+				PositionWeight{paramIndex: int16(937), weight: int16(side.Modifier() * phase)},
 			)
 		}
 	}
@@ -605,6 +611,7 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 // generateKingSafetyWeights returns the position weights of the king safety
 func generateKingSafetyWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	generateSafetyAttacksWeights(pos, phase, weights)
+	generatePawnShieldWeights(pos, phase, weights)
 }
 
 // generateSafetyAttacksWeights returns the attacks weights of the position for king safety evaluation
@@ -620,11 +627,6 @@ func generateSafetyAttacksWeights(pos *engine.Position, phase int, weights *[]Po
 		tempWeights := []PositionWeight{}
 		attackersCount := 0
 
-		colorModifier := 1
-		if color == engine.Black {
-			colorModifier = -1
-		}
-
 		for piece := engine.Queen; piece <= engine.Knight; piece++ {
 			pieceBB := pos.Bitboards[piece+int(c)*6]
 			for pieceBB > 0 {
@@ -634,7 +636,7 @@ func generateSafetyAttacksWeights(pos *engine.Position, phase int, weights *[]Po
 					attacksToKingZone := bits.OnesCount64(uint64(attacks & kingZone))
 					attackersCount++
 					tempWeights = append(tempWeights,
-						PositionWeight{paramIndex: int16(941 + piece), weight: int16(colorModifier * attacksToKingZone * phase)},
+						PositionWeight{paramIndex: int16(941 + piece), weight: int16(c.Modifier() * attacksToKingZone * phase)},
 					)
 				}
 			}
@@ -647,8 +649,46 @@ func generateSafetyAttacksWeights(pos *engine.Position, phase int, weights *[]Po
 			zoneDefense := kingZone & defendedZone
 			defenseCount := bits.OnesCount64(uint64(zoneDefense))
 			*weights = append(*weights,
-				PositionWeight{paramIndex: 946, weight: int16(-defenseCount * colorModifier * phase)},
+				PositionWeight{paramIndex: 946, weight: int16(-defenseCount * c.Modifier() * phase)},
 			)
+		}
+	}
+}
+
+// generatePawnShieldWeights returns the position weights of the pawn shield
+func generatePawnShieldWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	pawns := [2]engine.Bitboard{
+		pos.Bitboards[engine.WhitePawn],
+		pos.Bitboards[engine.BlackPawn],
+	}
+
+	for color := engine.White; color <= engine.Black; color++ {
+		c := engine.Color(color)
+		kingSq := engine.Bsf(pos.KingPosition(c))
+		kingFile, kingRank := kingSq%8, kingSq/8
+
+		for file := max(0, kingFile-1); file <= min(7, kingFile+1); file++ {
+			for r := range 4 {
+				rank := kingRank + c.Modifier()*(r+1)
+				if rank < 0 || rank > 7 {
+					continue
+				}
+
+				sq := rank*8 + file
+				bb := engine.Bitboard(1 << sq)
+				if pawns[color]&bb > 0 {
+					if file == kingFile {
+						*weights = append(*weights,
+							PositionWeight{paramIndex: int16(947 + r), weight: int16(c.Modifier() * phase)},
+						)
+					} else {
+						*weights = append(*weights,
+							PositionWeight{paramIndex: int16(951 + r), weight: int16(c.Modifier() * phase)},
+						)
+					}
+					break
+				}
+			}
 		}
 	}
 }

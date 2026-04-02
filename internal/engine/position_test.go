@@ -516,3 +516,15 @@ func TestUnMakeMoveWithCastling960(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestColorModifier(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/8/8/8/8/8/8/8 w - - 0 1")
+
+	expected := 1
+	got := pos.Turn.Modifier()
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

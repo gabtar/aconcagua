@@ -1,5 +1,6 @@
 package engine
 
+// SEEPieceValues contains the value of the pieces for static exchange evaluation
 var SEEPieceValues = [6]int{10000, 900, 500, 300, 300, 100}
 
 // Quiescent is an evaluation function that takes into account some dynamic possibilities
