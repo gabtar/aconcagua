@@ -101,7 +101,7 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 956
+const TuneableParams = 964
 
 // GetEvaluationParams returns the current evaluation params
 func GetEvaluationParams() (params [TuneableParams]float64) {
@@ -162,8 +162,12 @@ func GetEvaluationParams() (params [TuneableParams]float64) {
 	copy(intParams[947:951], engine.PawnShieldFrontBonus[:])
 	copy(intParams[951:955], engine.PawnShieldSideBonus[:])
 
+	// Pawn Storm
+	copy(intParams[955:959], engine.PawnStormFrontPenalty[:])
+	copy(intParams[959:963], engine.PawnStormSidePenalty[:])
+
 	// Tempo
-	intParams[955] = engine.TempoBonus
+	intParams[963] = engine.TempoBonus
 
 	// Convert to float
 	for i := range TuneableParams {
@@ -273,8 +277,12 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 	psqt += fmt.Sprintf("PawnShieldFrontBonus: %#v\n", intParams[947:951])
 	psqt += fmt.Sprintf("PawnShieldSideBonus: %#v\n", intParams[951:955])
 
+	// Pawn Storm
+	psqt += fmt.Sprintf("PawnStormFrontPenalty: %#v\n", intParams[955:959])
+	psqt += fmt.Sprintf("PawnStormSidePenalty: %#v\n", intParams[959:963])
+
 	// Tempo
-	psqt += fmt.Sprintf("TempoBonus: %d\n", intParams[955])
+	psqt += fmt.Sprintf("TempoBonus: %d\n", intParams[963])
 
 	return psqt
 }
@@ -370,8 +378,8 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 
 	// Tempo Bonus weight
 	*weights = append(*weights,
-		PositionWeight{paramIndex: 955, weight: int16(pos.Turn.Modifier() * phase)},
-		PositionWeight{paramIndex: 955, weight: int16(pos.Turn.Modifier() * (62 - phase))},
+		PositionWeight{paramIndex: 963, weight: int16(pos.Turn.Modifier() * phase)},
+		PositionWeight{paramIndex: 963, weight: int16(pos.Turn.Modifier() * (62 - phase))},
 	)
 }
 
@@ -611,7 +619,7 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 // generateKingSafetyWeights returns the position weights of the king safety
 func generateKingSafetyWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	generateSafetyAttacksWeights(pos, phase, weights)
-	generatePawnShieldWeights(pos, phase, weights)
+	generatePawnShieldAndStormWeights(pos, phase, weights)
 }
 
 // generateSafetyAttacksWeights returns the attacks weights of the position for king safety evaluation
@@ -621,7 +629,7 @@ func generateSafetyAttacksWeights(pos *engine.Position, phase int, weights *[]Po
 	for color := engine.White; color <= engine.Black; color++ {
 		c := engine.Color(color)
 		enemyKing := pos.KingPosition(c.Opponent())
-		kingZone := engine.KingZone[color][engine.Bsf(enemyKing)]
+		kingZone := engine.KingZone[c.Opponent()][engine.Bsf(enemyKing)]
 		enemyPawns := pos.Bitboards[engine.Pawn+int(c.Opponent())*6]
 		defendedZone := engine.Attacks(engine.Pawn+int(c.Opponent())*6, enemyPawns, blocks)
 		tempWeights := []PositionWeight{}
@@ -655,8 +663,8 @@ func generateSafetyAttacksWeights(pos *engine.Position, phase int, weights *[]Po
 	}
 }
 
-// generatePawnShieldWeights returns the position weights of the pawn shield
-func generatePawnShieldWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+// generatePawnShieldAndStormWeights returns the position weights of the pawn shield and storm
+func generatePawnShieldAndStormWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	pawns := [2]engine.Bitboard{
 		pos.Bitboards[engine.WhitePawn],
 		pos.Bitboards[engine.BlackPawn],
@@ -666,29 +674,54 @@ func generatePawnShieldWeights(pos *engine.Position, phase int, weights *[]Posit
 		c := engine.Color(color)
 		kingSq := engine.Bsf(pos.KingPosition(c))
 		kingFile, kingRank := kingSq%8, kingSq/8
+		direction := engine.North
+		if c == engine.Black {
+			direction = engine.South
+		}
 
 		for file := max(0, kingFile-1); file <= min(7, kingFile+1); file++ {
-			for r := range 4 {
-				rank := kingRank + c.Modifier()*(r+1)
-				if rank < 0 || rank > 7 {
-					continue
-				}
+			from := kingRank*8 + file
+			frontMask := engine.RayAttacks[direction][from] | engine.Bitboard(1<<from)
+			shielders := pawns[c] & frontMask
+			stormers := pawns[c.Opponent()] & frontMask
+			shield := engine.NearestFromSide(shielders&engine.Files[file], c)
+			storm := engine.NearestFromSide(stormers&engine.Files[file], c.Opponent())
+			shieldRank := shield / 8
+			stormRank := storm / 8
 
-				sq := rank*8 + file
-				bb := engine.Bitboard(1 << sq)
-				if pawns[color]&bb > 0 {
-					if file == kingFile {
-						*weights = append(*weights,
-							PositionWeight{paramIndex: int16(947 + r), weight: int16(c.Modifier() * phase)},
-						)
-					} else {
-						*weights = append(*weights,
-							PositionWeight{paramIndex: int16(951 + r), weight: int16(c.Modifier() * phase)},
-						)
-					}
-					break
+			shieldDist := kingRank - shieldRank
+			if shieldDist < 0 {
+				shieldDist = -shieldDist
+			}
+			stormDist := kingRank - stormRank
+			if stormDist < 0 {
+				stormDist = -stormDist
+			}
+
+			if shieldDist < 4 {
+				if file == kingFile {
+					*weights = append(*weights,
+						PositionWeight{paramIndex: 947 + int16(shieldDist), weight: int16(c.Modifier() * phase)},
+					)
+				} else {
+					*weights = append(*weights,
+						PositionWeight{paramIndex: 951 + int16(shieldDist), weight: int16(c.Modifier() * phase)},
+					)
 				}
 			}
+
+			if stormDist > 0 && stormDist < 5 && shieldDist != stormDist-1 {
+				if file == kingFile {
+					*weights = append(*weights,
+						PositionWeight{paramIndex: 955 + int16(stormDist-1), weight: int16(c.Modifier() * phase)},
+					)
+				} else {
+					*weights = append(*weights,
+						PositionWeight{paramIndex: 959 + int16(stormDist-1), weight: int16(c.Modifier() * phase)},
+					)
+				}
+			}
+
 		}
 	}
 }

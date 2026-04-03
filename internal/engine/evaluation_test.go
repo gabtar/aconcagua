@@ -1,9 +1,6 @@
 package engine
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestEval(t *testing.T) {
 	pos := NewPosition()
@@ -198,10 +195,53 @@ func TestKingSafety(t *testing.T) {
 	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
 	ev.Evaluate(pos)
 
-	got := ev.Eval.mgKingSafety[Black]
-	expected := -(KnightAttackWeight*2 + BishopAttackWeight*2) + 2*KingZoneDefenseBonus
+	got := ev.Eval.kingAttacksWeight[White]
+	expected := KnightAttackWeight*2 + BishopAttackWeight*3
 
-	fmt.Println(ev.Eval.kingAttacksWeight[White])
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnShield(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/8/8/8/8/6P1/5PKP/8 w - - 0 1")
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+
+	ev.Eval.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, White)
+
+	got := ev.Eval.mgKingSafety[White]
+	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnStorm(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/8/8/5ppp/8/8/8/6K1 w - - 0 1")
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+
+	ev.Eval.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, White)
+
+	got := ev.Eval.mgKingSafety[White]
+	expected := PawnStormFrontPenalty[3] + 2*PawnStormSidePenalty[3]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnStormPlusShield(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/8/5pkp/6p1/6P1/5P1P/8/8 w - - 0 1")
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+
+	ev.Eval.evaluateKing(Bsf(pos.Bitboards[BlackKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
+
+	got := ev.Eval.mgKingSafety[Black]
+	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0] + 2*PawnStormSidePenalty[2]
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
