@@ -50,6 +50,21 @@ func Bsf(bitboard Bitboard) int {
 	return bits.TrailingZeros64(uint64(bitboard))
 }
 
+// Bsr (bit scan reverse) returns the bit-index of the most significant 1
+// bit (MS1B) in an integer Bitboard(uint64)
+func Bsr(bitboard Bitboard) int {
+	return 63 - bits.LeadingZeros64(uint64(bitboard))
+}
+
+// NearestFromSide returns the nearest square from the point of view of the side
+func NearestFromSide(bitboard Bitboard, side Color) int {
+	if side == White {
+		return Bsf(bitboard)
+	} else {
+		return Bsr(bitboard)
+	}
+}
+
 // squareNumberFromCoordinate returns the square number from a string coordinate
 func squareNumberFromCoordinate(coordinate string) int {
 	fileNumber := int(coordinate[0]) - 96

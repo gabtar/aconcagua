@@ -28,12 +28,12 @@ func NewAdamOptimizer(numParams int, lr float64) *AdamOptimizer {
 }
 
 // Update updates the parameters
-func (adam *AdamOptimizer) Update(params *[1000]float64, gradients []float64) {
+func (adam *AdamOptimizer) Update(params *[TuneableParams]float64, gradients *[]float64) {
 	adam.t++
 
 	for i := range params {
-		adam.m[i] = adam.beta1*adam.m[i] + (1-adam.beta1)*gradients[i]
-		adam.v[i] = adam.beta2*adam.v[i] + (1-adam.beta2)*gradients[i]*gradients[i]
+		adam.m[i] = adam.beta1*adam.m[i] + (1-adam.beta1)*(*gradients)[i]
+		adam.v[i] = adam.beta2*adam.v[i] + (1-adam.beta2)*(*gradients)[i]*(*gradients)[i]
 
 		mHat := adam.m[i] / (1 - math.Pow(adam.beta1, float64(adam.t)))
 		vHat := adam.v[i] / (1 - math.Pow(adam.beta2, float64(adam.t)))
@@ -43,7 +43,7 @@ func (adam *AdamOptimizer) Update(params *[1000]float64, gradients []float64) {
 }
 
 // ComputeGradients computes the gradients of the loss with respect to the parameters
-func ComputeGradients(entry *DatasetEntry, params [1000]float64, K float64) []float64 {
+func ComputeGradients(entry *DatasetEntry, params [TuneableParams]float64, K float64) []float64 {
 	gradients := make([]float64, len(params))
 
 	eval := evaluatePosition(params, entry.Weights)
@@ -63,7 +63,7 @@ func ComputeGradients(entry *DatasetEntry, params [1000]float64, K float64) []fl
 	return gradients
 }
 
-func AdamTuner(params [1000]float64, dataset *[]DatasetEntry, K float64, epochs int) {
+func AdamTuner(params [TuneableParams]float64, dataset *[]DatasetEntry, K float64, epochs int) {
 	adam := NewAdamOptimizer(len(params), 0.1)
 	entries := len(*dataset)
 
@@ -91,7 +91,7 @@ func AdamTuner(params [1000]float64, dataset *[]DatasetEntry, K float64, epochs 
 			totalGradients[i] /= float64(entries)
 		}
 
-		adam.Update(&params, totalGradients)
+		adam.Update(&params, &totalGradients)
 
 		mse := totalLoss / float64(entries)
 		fmt.Printf("Epoch %3d: MSE = %.8f, LR = %.6f\n", epoch, mse, adam.learningRate)

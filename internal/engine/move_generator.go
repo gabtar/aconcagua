@@ -307,9 +307,8 @@ func genMovesFromTargets(from *Bitboard, targets Bitboard, ml *MoveList, pd *Pos
 // genCastleMoves generates the castles moves availabes in the move list
 func genCastleMoves(pos *Position, ml *MoveList) {
 	fromSq := pos.castling.kingsStartSquare[pos.Turn]
-	flipModifier := 2 - (int(pos.Turn) + 1)
-	kingsideCastleTo := 62 ^ (flipModifier * 56) // Flip to g1 or g8 depending on current side
-	queensideCastleTo := 58 ^ (flipModifier * 56)
+	kingsideCastleTo := g8 ^ (int(pos.Turn.Opponent()) * 56) // Flip to g1 or g8 depending on side
+	queensideCastleTo := c8 ^ (int(pos.Turn.Opponent()) * 56)
 	if pos.castling.chess960 {
 		kingsideCastleTo = pos.castling.rooksStartSquare[pos.Turn][0]
 		queensideCastleTo = pos.castling.rooksStartSquare[pos.Turn][1]

@@ -170,29 +170,93 @@ func TestPawnStructureEvaluation(t *testing.T) {
 	}
 }
 
-func TestPawnShieldEvaluation(t *testing.T) {
-	pos := NewPosition()
-	pos.LoadFromFenString("8/8/6k1/5p2/6p1/7p/8/3K4 w - - 0 1")
-
-	kingBB := pos.KingPosition(Black)
-
-	ev := EvalVector{}
-	ev.evaluateKing(Bsf(kingBB), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
-
-	expected := PawnShieldBonusMg[0] + PawnShieldBonusMg[1] + PawnShieldBonusMg[2]
-	got := ev.mgKingSafety[Black]
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 func TestOutpostSquares(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("4r1k1/5ppp/p2p4/3Nb3/2P5/6P1/5P1P/4R1K1 w - - 0 1") // d5 is an outpost
 
 	expected := bitboardFromIndex(d5)
 	got := OutpostSquares(pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn], White)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestKingSafety(t *testing.T) {
+	pos := NewPosition()
+	// Black king zone attacks:
+	// A knight on g7 attacks a pawn on f5 and the e6 square in the black king zone
+	// A Bishop on b1 attacks the pawn on f5 and the e4 square in the black king zone
+	// The White Queen on h8, is not attacking. Just to met the safety condition (>= two attackers and one is a queen)
+	// The black pawns defends g4 and e4 in the king zone
+	// Safety = KnightAttackWeight + BishopAttackWeight - 2 * KingZoneDefenseBonus
+	pos.LoadFromFenString("7Q/6N1/8/4kpp1/8/8/8/1B4K1 w - - 0 1")
+
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+	ev.Evaluate(pos)
+
+	got := ev.Eval.kingAttacksWeight[White]
+	expected := KnightAttackWeight*2 + BishopAttackWeight*3
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnShield(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/8/8/8/8/6P1/5PKP/8 w - - 0 1")
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+
+	ev.Eval.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, White)
+
+	got := ev.Eval.mgKingSafety[White]
+	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnShieldFromBlack(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/5pkp/6p1/8/8/8/8/8 w - - 0 1")
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+
+	ev.Eval.evaluateKing(Bsf(pos.Bitboards[BlackKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
+
+	got := ev.Eval.mgKingSafety[Black]
+	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnStorm(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/8/8/5ppp/8/8/8/6K1 w - - 0 1")
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+
+	ev.Eval.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, White)
+
+	got := ev.Eval.mgKingSafety[White]
+	expected := PawnStormFrontPenalty[3] + 2*PawnStormSidePenalty[3]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestPawnStormPlusShield(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/8/5pkp/6p1/6P1/5P1P/8/8 w - - 0 1")
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+
+	ev.Eval.evaluateKing(Bsf(pos.Bitboards[BlackKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
+
+	got := ev.Eval.mgKingSafety[Black]
+	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0] + 2*PawnStormSidePenalty[2]
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

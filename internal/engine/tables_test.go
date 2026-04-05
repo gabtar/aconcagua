@@ -45,7 +45,7 @@ func TestRayAttack(t *testing.T) {
 
 	for _, tc := range rayTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := rayAttacks[tc.direction][tc.sq]
+			got := RayAttacks[tc.direction][tc.sq]
 
 			if got != tc.ray {
 				t.Errorf("Input: dir: %d, sq: %d, Expected: %d, Got: %d", tc.direction, tc.sq, tc.ray, got)

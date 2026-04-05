@@ -56,14 +56,17 @@ func pieceColor(role int, color Color) int {
 }
 
 // Color is an int referencing the white or black player in chess
-type Color int
+type Color int8
 
 // Opponent returns the Opponent color to the actual color
-func (c Color) Opponent() Color {
-	if c == White {
-		return Black
-	}
-	return White
+func (c *Color) Opponent() Color {
+	return Color(*c ^ 1)
+}
+
+// Modifier returns the factor modifier for the color passed (white = 1, black = -1)
+// Usefull for evaluation
+func (c *Color) Modifier() int {
+	return -(^int(*c) ^ int(-*c))
 }
 
 // Position contains all information about a chess position
@@ -477,8 +480,7 @@ func (pos *Position) UnmakeMove(move *Move) {
 	case queensideCastle, kingsideCastle:
 		pos.updateRookPositionOnCaslte(flag, false)
 	case epCapture:
-		colorModifier := 1 - int(pos.Turn)*2
-		restoreSq := move.to() + 8*colorModifier
+		restoreSq := move.to() + 8*pos.Turn.Modifier()
 		pos.AddPiece(pieceColor(Pawn, pos.Turn), restoreSq)
 	}
 

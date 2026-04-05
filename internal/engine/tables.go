@@ -20,7 +20,7 @@ func init() {
 	generatePiecesScoreTables()
 
 	directions = generateDirections()
-	rayAttacks = generateRayAttacks()
+	RayAttacks = generateRayAttacks()
 	knightAttacksTable = generateKnightAttacksTable()
 	kingAttacksTable = generateKingAttacksTable()
 	pawnPushesTable = generatePawnPushesTable()
@@ -59,8 +59,8 @@ const AllSquares Bitboard = 0xFFFFFFFFFFFFFFFF
 // directions is a table that contains the compass directions between 2 squares in the board
 var directions [64][64]uint64
 
-// rayAttacks is a precalculated table that contains the rays on each direction for each square
-var rayAttacks [8][64]Bitboard
+// RayAttacks is a precalculated table that contains the rays on each direction for each square
+var RayAttacks [8][64]Bitboard
 
 // knightAttacksTable is a precalculated table that contains the squares that a knight can attack
 var knightAttacksTable [64]Bitboard
@@ -100,7 +100,7 @@ var isolatedAdjacentFilesMask = [8]Bitboard{
 // . . . . . . . .
 var attacksFrontSpans [2][64]Bitboard
 
-var KingZone [64]Bitboard
+var KingZone [2][64]Bitboard
 
 // generatePiecesScoreTables generates the tables with the value of each piece + square
 func generatePiecesScoreTables() {
@@ -269,12 +269,12 @@ func generateAttacksFrontSpans() (attacksFrontSpans [2][64]Bitboard) {
 		eastFront, westFront := rank*8+file+1, rank*8+file-1
 
 		if file < 7 {
-			attacksFrontSpans[White][sq] |= rayAttacks[North][eastFront]
-			attacksFrontSpans[Black][sq] |= rayAttacks[South][eastFront]
+			attacksFrontSpans[White][sq] |= RayAttacks[North][eastFront]
+			attacksFrontSpans[Black][sq] |= RayAttacks[South][eastFront]
 		}
 		if file > 0 {
-			attacksFrontSpans[White][sq] |= rayAttacks[North][westFront]
-			attacksFrontSpans[Black][sq] |= rayAttacks[South][westFront]
+			attacksFrontSpans[White][sq] |= RayAttacks[North][westFront]
+			attacksFrontSpans[Black][sq] |= RayAttacks[South][westFront]
 		}
 	}
 
@@ -282,10 +282,31 @@ func generateAttacksFrontSpans() (attacksFrontSpans [2][64]Bitboard) {
 }
 
 // generateKingZone returns a precalculated table containing the king zone for each square
-func generateKingZone() (kingZone [64]Bitboard) {
+// King zone is defined as the squares a king can move plus the squares 2 ranks ahead, depending on the side
+// Here is an example. White zone from g2, and black zone from b8
+// x k x . . . . .
+// x x x . . . . .
+// x x x . . . . .
+// . . . . . . . .
+// . . . . . x x x
+// . . . . . x x x
+// . . . . . x K x
+// . . . . . x x x
+func generateKingZone() (kingZone [2][64]Bitboard) {
 	for sq := range 64 {
-		from := bitboardFromIndex(sq)
-		kingZone[sq] = kingAttacksTable[sq] | from
+		from := Bitboard(1 << sq)
+
+		// White
+		kingZone[White][sq] = kingAttacksTable[sq]
+		fromUp := from << 8
+		kingZone[White][sq] |= pawnAttacks(&fromUp, White)
+		kingZone[White][sq] |= from << 16
+
+		// Black
+		kingZone[Black][sq] = kingAttacksTable[sq]
+		fromDown := from >> 8
+		kingZone[Black][sq] |= pawnAttacks(&fromDown, Black)
+		kingZone[Black][sq] |= from >> 16
 	}
 	return
 }
@@ -295,8 +316,8 @@ func generateKingZone() (kingZone [64]Bitboard) {
 func raysDirection(square Bitboard, direction uint64) Bitboard {
 	oppositeDirections := [8]uint64{South, SouthWest, West, NorthWest, North, NorthEast, East, SouthEast}
 
-	return rayAttacks[direction][Bsf(square)] | square |
-		rayAttacks[oppositeDirections[direction]][Bsf(square)]
+	return RayAttacks[direction][Bsf(square)] | square |
+		RayAttacks[oppositeDirections[direction]][Bsf(square)]
 }
 
 // getRayPath returns a Bitboard with the path between 2 bitboards pieces
@@ -312,8 +333,8 @@ func getRayPath(from *Bitboard, to *Bitboard) (rayPath Bitboard) {
 		return
 	}
 
-	return rayAttacks[fromDirection][fromSq] &
-		rayAttacks[toDirection][toSq]
+	return RayAttacks[fromDirection][fromSq] &
+		RayAttacks[toDirection][toSq]
 }
 
 // pieces square tables with the value of each piece + square value for middlegame
@@ -323,77 +344,77 @@ var middlegamePiecesScore [12][64]int
 var endgamePiecesScore [12][64]int
 
 // MiddlegamePieceValue is the value of each piece for middlegame phase
-var MiddlegamePieceValue = [6]int{12000, 1049, 432, 343, 338, 74}
+var MiddlegamePieceValue = [6]int{10000, 1021, 435, 344, 311, 73}
 
 // EndgamePieceValue is the value of each piece endgame phase
-var EndgamePieceValue = [6]int{12000, 1036, 612, 338, 335, 98}
+var EndgamePieceValue = [6]int{10000, 1061, 592, 356, 344, 83}
 
 // MiddlegamePSQT are the pieces square tables for middlegame
 var MiddlegamePSQT = [6][64]int{
 	// King
 	{
-		-36, 12, 21, -14, -54, -28, 5, -16,
-		-6, 16, 1, 39, 14, 21, 3, -32,
-		-17, 44, 17, 1, 21, 59, 38, -9,
-		-25, -12, -14, -55, -56, -37, -31, -92,
-		-63, -7, -44, -75, -68, -46, -69, -122,
-		-18, 22, -22, -29, -20, -39, -9, -57,
-		52, 23, 17, -19, -21, -7, 34, 29,
-		35, 58, 39, -35, 17, -20, 38, 42,
+		-48, 25, 24, -24, -45, -26, 13, 8,
+		-9, -2, -30, 14, 1, 2, -9, -17,
+		-55, 21, -24, -27, -6, 39, 14, -25,
+		-48, -50, -63, -95, -89, -68, -64, -101,
+		-66, -43, -73, -104, -102, -68, -79, -128,
+		-25, 4, -46, -57, -47, -55, -16, -51,
+		46, 4, 0, -27, -34, -13, 13, 30,
+		43, 58, 40, -28, 21, -17, 41, 51,
 	},
 	// Queen
 	{
-		-26, -29, -15, 3, 21, 18, 40, 14,
-		14, -13, -7, -26, -20, 19, 14, 67,
-		13, 6, 11, 9, 22, 61, 64, 53,
-		2, 7, 6, 7, 10, 16, 24, 24,
-		12, 2, 4, 10, 9, 7, 20, 28,
-		12, 14, 7, 5, 10, 14, 30, 31,
-		21, 16, 21, 23, 20, 32, 39, 45,
-		11, 17, 21, 20, 24, 11, 21, 10,
+		-25, -29, -10, 8, 17, 31, 56, 5,
+		3, -24, -24, -37, -44, 3, 2, 57,
+		0, -8, -10, -12, -9, 37, 37, 36,
+		-13, -6, -11, -11, -17, -10, -7, -3,
+		-3, -12, -10, -8, -9, -17, 0, 0,
+		-3, 0, -7, -10, -4, -3, 12, 10,
+		7, 3, 5, 8, 6, 17, 27, 40,
+		-3, 1, 3, 4, 7, -3, 7, 13,
 	},
 	// Rook
 	{
-		-2, -4, -18, -11, -2, 1, 9, 28,
-		-5, -7, 8, 24, 16, 37, 28, 44,
-		-16, 10, 9, 9, 36, 46, 80, 40,
-		-20, -3, -7, 0, 4, 16, 20, 7,
-		-32, -31, -21, -14, -13, -22, 4, -13,
-		-33, -28, -24, -23, -11, -7, 27, 3,
-		-30, -26, -14, -12, -6, 3, 19, -15,
-		-15, -11, -10, -2, 5, 1, 7, -8,
+		1, -4, -4, -10, 8, 29, 35, 44,
+		-6, -9, 6, 23, 3, 40, 30, 51,
+		-22, 2, -3, -5, 17, 27, 57, 24,
+		-25, -11, -10, -3, -3, 3, 9, -5,
+		-33, -34, -25, -16, -15, -28, -5, -21,
+		-34, -30, -27, -23, -11, -11, 16, -5,
+		-31, -27, -15, -12, -7, 0, 15, -18,
+		-16, -12, -11, -4, 3, -1, 2, -9,
 	},
 	// Bishop
 	{
-		-12, -42, -56, -77, -72, -80, -31, -30,
-		0, 14, 3, -14, 19, 2, -3, -15,
-		3, 7, 10, 14, 10, 42, 28, 24,
-		-8, 7, 7, 23, 19, 18, 13, -3,
-		6, -7, 0, 22, 22, 0, 0, 23,
-		9, 17, 10, 10, 13, 11, 18, 31,
-		32, 12, 26, 2, 9, 23, 34, 30,
-		17, 36, 8, 3, 10, 4, 25, 44,
+		-24, -50, -54, -94, -74, -84, -31, -55,
+		-10, 9, -4, -16, 3, -14, -26, -39,
+		-1, 0, 5, 10, 0, 30, 9, 8,
+		-14, 3, 3, 18, 12, 7, 0, -15,
+		0, -12, -4, 15, 13, -6, -4, 16,
+		3, 13, 4, 5, 8, 8, 13, 25,
+		26, 7, 19, -2, 5, 19, 30, 27,
+		13, 23, 1, -3, 5, -1, 18, 42,
 	},
 	// Knight
 	{
-		-133, -111, -83, -50, -1, -89, -57, -98,
-		-32, -7, 20, 28, 11, 59, -9, 12,
-		-21, -3, 11, 10, 47, 45, 25, 4,
-		-14, -14, -3, 22, 6, 28, -5, 24,
-		-22, -20, -14, -4, 0, 1, 9, -5,
-		-37, -29, -32, -24, -7, -28, -6, -21,
-		-39, -34, -31, -16, -18, -14, -14, -14,
-		-72, -31, -48, -35, -24, -24, -30, -33,
+		-118, -96, -54, -29, 14, -69, -39, -76,
+		1, 17, 41, 49, 16, 74, 6, 24,
+		6, 21, 32, 32, 66, 66, 33, 11,
+		7, 7, 20, 41, 19, 43, 13, 39,
+		0, 3, 6, 16, 18, 18, 16, 9,
+		-16, -5, -8, -1, 15, -5, 16, 0,
+		-17, -12, -7, 7, 4, 8, 11, 7,
+		-49, -12, -25, -12, -4, 0, -10, -10,
 	},
 	// Pawn
 	{
 		0, 0, 0, 0, 0, 0, 0, 0,
-		66, 87, 49, 86, 44, 50, -43, -56,
-		22, 11, 43, 47, 59, 93, 61, 26,
-		-7, -4, 2, 5, 27, 29, 8, 6,
-		-10, -12, 0, 13, 14, 16, 0, -2,
-		-14, -8, -4, 2, 16, 1, 19, -2,
-		-12, -8, -3, -5, 7, 20, 27, -11,
+		75, 85, 59, 97, 63, 51, -36, -55,
+		20, 12, 46, 52, 61, 94, 56, 25,
+		-7, -4, 4, 7, 29, 24, 9, 4,
+		-9, -12, 0, 14, 15, 14, 0, -4,
+		-14, -7, -4, 2, 15, 3, 16, 0,
+		-13, -8, -5, -6, 1, 18, 19, -12,
 		0, 0, 0, 0, 0, 0, 0, 0,
 	},
 }
@@ -402,68 +423,68 @@ var MiddlegamePSQT = [6][64]int{
 var EndgamePSQT = [6][64]int{
 	// King
 	{
-		-87, -50, -35, -9, -13, -9, -9, -75,
-		-33, 7, 12, 12, 25, 33, 33, 2,
-		-16, 12, 27, 37, 43, 40, 36, 3,
-		-21, 14, 32, 46, 48, 43, 30, 7,
-		-27, -1, 27, 44, 43, 27, 15, 0,
-		-39, -14, 8, 22, 19, 10, -10, -20,
-		-56, -26, -13, 1, 2, -9, -31, -50,
-		-94, -71, -49, -24, -46, -34, -67, -102,
+		-79, -42, -25, 3, -1, 4, -1, -81,
+		-17, 26, 34, 30, 42, 53, 51, 13,
+		3, 32, 49, 58, 62, 58, 55, 21,
+		-3, 34, 54, 66, 67, 62, 50, 21,
+		-12, 17, 44, 61, 60, 43, 30, 13,
+		-25, 0, 24, 38, 35, 25, 2, -9,
+		-45, -13, 1, 13, 15, 0, -19, -42,
+		-85, -63, -38, -14, -37, -24, -57, -93,
 	},
 	// Queen
 	{
-		32, 44, 64, 60, 43, 49, 19, 31,
-		23, 42, 68, 93, 105, 67, 54, 53,
-		30, 35, 50, 70, 76, 58, 33, 45,
-		36, 37, 42, 58, 68, 68, 68, 58,
-		15, 37, 36, 48, 53, 50, 43, 41,
-		2, 12, 27, 30, 33, 29, 10, 13,
-		-6, -9, -8, -3, 2, -20, -43, -40,
-		-3, -6, -13, 1, -13, -12, -17, 0,
+		27, 41, 58, 54, 50, 46, 6, 35,
+		19, 47, 76, 98, 120, 80, 64, 53,
+		27, 36, 66, 78, 95, 75, 47, 51,
+		35, 41, 53, 71, 87, 79, 78, 66,
+		17, 40, 41, 60, 59, 59, 45, 48,
+		3, 15, 32, 32, 35, 34, 13, 11,
+		-6, -9, -6, -1, 4, -17, -44, -57,
+		-5, -6, -7, 5, -7, -11, -22, -23,
 	},
 	// Rook
 	{
-		37, 38, 50, 39, 33, 36, 35, 29,
-		35, 45, 46, 34, 31, 28, 27, 19,
-		36, 33, 33, 29, 20, 11, 9, 10,
-		39, 33, 40, 34, 21, 14, 18, 17,
-		31, 33, 30, 26, 24, 22, 14, 14,
-		22, 20, 17, 18, 12, 4, -13, -7,
-		13, 15, 14, 11, 3, -2, -12, -3,
-		13, 12, 20, 12, 3, 5, 0, -2,
+		47, 51, 57, 53, 44, 42, 41, 37,
+		48, 59, 60, 48, 52, 41, 40, 31,
+		49, 47, 49, 46, 37, 31, 28, 27,
+		51, 46, 51, 45, 35, 31, 34, 33,
+		41, 43, 41, 36, 34, 36, 28, 28,
+		30, 28, 26, 27, 20, 16, 0, 3,
+		20, 24, 23, 20, 13, 7, 0, 6,
+		19, 19, 27, 21, 13, 15, 10, 3,
 	},
 	// Bishop
 	{
-		10, 15, 16, 21, 17, 10, 10, -5,
-		-1, 3, 6, 9, -5, 2, 9, 2,
-		18, 6, 11, 0, 3, 10, 3, 12,
-		12, 13, 9, 22, 16, 12, 8, 14,
-		2, 15, 20, 17, 16, 15, 13, -8,
-		7, 11, 15, 20, 22, 16, 4, 2,
-		11, -1, -2, 8, 11, 2, 2, -4,
-		0, 12, 0, 4, 0, 13, -6, -23,
+		3, 8, 5, 14, 9, 2, 0, -6,
+		-8, -8, -3, -1, -11, -2, 1, 0,
+		8, -2, 1, -8, -3, 3, 0, 9,
+		3, 3, 0, 15, 7, 5, 1, 8,
+		-5, 4, 12, 8, 7, 4, 1, -16,
+		-3, 2, 5, 9, 11, 4, -6, -7,
+		6, -12, -13, -3, -1, -10, -7, -11,
+		-7, 5, -10, -5, -9, 2, -14, -26,
 	},
 	// Knight
 	{
-		-50, -16, 5, -8, -12, -23, -28, -64,
-		4, 3, -7, -6, -15, -22, -4, -24,
-		0, 0, 9, 9, -4, -14, -17, -17,
-		6, 8, 18, 18, 17, 10, 9, -5,
-		4, 6, 22, 17, 25, 12, 2, 0,
-		-8, 0, 7, 22, 19, 3, -2, -1,
-		-6, 2, 0, -1, -1, -3, -7, 3,
-		-1, -20, -5, -4, -4, -10, -9, -15,
+		-39, -16, -3, -12, -16, -28, -28, -61,
+		-4, -4, -13, -14, -16, -29, -5, -22,
+		-7, -10, 1, 4, -11, -21, -18, -15,
+		2, 0, 8, 11, 14, 7, 7, -6,
+		0, -4, 12, 9, 18, 4, 0, 0,
+		-11, -8, -3, 11, 9, -8, -12, -6,
+		-6, -4, -10, -10, -11, -13, -13, 7,
+		7, -19, -11, -10, -7, -16, -8, 1,
 	},
 	// Pawn
 	{
 		0, 0, 0, 0, 0, 0, 0, 0,
-		91, 69, 81, 23, 25, 34, 81, 102,
-		54, 59, 15, -23, -28, -9, 33, 37,
-		37, 24, 9, -10, -11, -4, 12, 11,
-		18, 14, 2, -5, -6, -2, 3, 1,
-		12, 8, 4, 4, 3, 5, -2, -1,
-		14, 11, 6, 6, 13, 5, -3, -2,
+		149, 134, 138, 75, 78, 96, 142, 165,
+		77, 80, 35, -5, -11, 11, 56, 60,
+		59, 46, 30, 10, 8, 17, 34, 34,
+		40, 36, 24, 15, 13, 19, 24, 23,
+		34, 30, 26, 25, 25, 26, 20, 19,
+		36, 33, 29, 26, 37, 27, 20, 19,
 		0, 0, 0, 0, 0, 0, 0, 0,
 	},
 }
