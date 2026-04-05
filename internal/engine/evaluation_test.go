@@ -218,6 +218,21 @@ func TestPawnShield(t *testing.T) {
 	}
 }
 
+func TestPawnShieldFromBlack(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/5pkp/6p1/8/8/8/8/8 w - - 0 1")
+	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+
+	ev.Eval.evaluateKing(Bsf(pos.Bitboards[BlackKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
+
+	got := ev.Eval.mgKingSafety[Black]
+	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0]
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
 func TestPawnStorm(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("8/8/8/5ppp/8/8/8/6K1 w - - 0 1")

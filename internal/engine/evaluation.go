@@ -2,61 +2,64 @@ package engine
 
 const (
 	// Pawn Structure
-	DoubledPawnPenaltyMg  = -4
+	DoubledPawnPenaltyMg  = -2
 	DoubledPawnPenaltyEg  = -15
-	IsolatedPawnPenaltyMg = -12
+	IsolatedPawnPenaltyMg = -11
 	IsolatedPawnPenaltyEg = -11
 	BackwardPawnPenaltyMg = -8
 	BackwardPawnPenaltyEg = -8
 
 	// Material Adjustment
 	BishopPairBonusMg    = 22
-	BishopPairBonusEg    = 74
+	BishopPairBonusEg    = 75
 	RookOnOpenFileMg     = 39
 	RookOnSemiOpenFileMg = 20
 
 	KnightOutpostBonusMg = 36
-	KnightOutpostBonusEg = 19
+	KnightOutpostBonusEg = 20
 	BishopOutpostBonusMg = 41
-	BishopOutpostBonusEg = -5
+	BishopOutpostBonusEg = -4
 
-	KnightAttackWeight   = 22
+	KnightAttackWeight   = 21
 	BishopAttackWeight   = 19
-	RookAttackWeight     = 23
+	RookAttackWeight     = 22
 	QueenAttackWeight    = 19
 	KingZoneDefenseBonus = 19
+
+	KingOnOpenFilePenalty   = -54
+	KingNearOpenFilePenalty = -18
 
 	TempoBonus = 22
 )
 
 var (
 	// Queen Mobility mg/eg contains the bonus for queen mobility
-	QueenMobilityMg = [28]int{-21, -18, -26, -57, -35, -12, -7, -4, 0, 1, 6, 10, 14, 19, 20, 21, 21, 20, 19, 19, 25, 36, 54, 72, 69, 87, 46, 32}
-	QueenMobilityEg = [28]int{-77, -66, -56, -72, -31, 15, 52, 79, 105, 131, 140, 148, 157, 158, 164, 173, 178, 187, 195, 198, 202, 192, 189, 177, 186, 186, 182, 175}
+	QueenMobilityMg = [28]int{-21, -18, -28, -57, -38, -19, -16, -13, -9, -7, -2, 2, 5, 10, 12, 13, 13, 12, 12, 12, 19, 29, 48, 68, 69, 98, 52, 35}
+	QueenMobilityEg = [28]int{-77, -66, -56, -73, -22, 30, 72, 100, 124, 151, 158, 166, 175, 176, 181, 190, 194, 203, 210, 212, 216, 205, 202, 188, 195, 190, 190, 181}
 
 	// Rook Mobility mg/eg contains the bonus for rook mobility
-	RookMobilityMg = [15]int{-43, -31, -4, 1, 6, 8, 10, 11, 13, 17, 20, 20, 25, 30, 27}
-	RookMobilityEg = [15]int{-16, -9, 23, 44, 57, 67, 75, 82, 84, 88, 92, 97, 99, 97, 97}
+	RookMobilityMg = [15]int{-43, -33, -6, 0, 5, 7, 8, 9, 12, 16, 19, 20, 25, 30, 28}
+	RookMobilityEg = [15]int{-16, -3, 26, 48, 60, 70, 78, 85, 87, 91, 95, 100, 102, 100, 98}
 
 	// Bishop Mobility mg/eg contains the bonus for bishop mobility
-	BishopMobilityMg = [14]int{-61, -64, -27, -16, -3, 5, 12, 18, 20, 24, 28, 44, 54, 57}
-	BishopMobilityEg = [14]int{-94, -57, -8, 17, 28, 35, 46, 50, 57, 57, 58, 50, 50, 39}
+	BishopMobilityMg = [14]int{-60, -63, -27, -17, -3, 5, 12, 18, 20, 25, 28, 44, 51, 56}
+	BishopMobilityEg = [14]int{-107, -57, -7, 19, 30, 37, 47, 52, 58, 58, 60, 51, 52, 41}
 
 	// KnightMobility mg/eg contains the bonus for knight mobility
-	KnightMobilityMg = [9]int{-114, -32, -7, 3, 15, 18, 30, 41, 54}
-	KnightMobilityEg = [9]int{-58, -22, 7, 30, 41, 54, 56, 59, 53}
+	KnightMobilityMg = [9]int{-123, -32, -7, 3, 15, 18, 30, 41, 54}
+	KnightMobilityEg = [9]int{-64, -23, 8, 31, 42, 56, 58, 61, 56}
 
 	// PassedPawnsBonus mg/eg contains the bonus for passed pawns
-	PassedPawnsBonusMg = [8]int{0, -5, -11, -11, 13, 0, 3, 0}
-	PassedPawnsBonusEg = [8]int{0, 9, 13, 38, 64, 129, 108, 0}
+	PassedPawnsBonusMg = [8]int{0, -5, -12, -12, 13, -2, 8, 0}
+	PassedPawnsBonusEg = [8]int{0, 9, 13, 39, 65, 135, 111, 0}
 
 	// PawnShieldFrontBonus/PawnShieldSideBonus contains the bonus for pawns on the front and side ofthe king file(s)
-	PawnShieldFrontBonus = [4]int{-9, 30, 28, 11}
-	PawnShieldSideBonus  = [4]int{28, 23, 14, 7}
+	PawnShieldFrontBonus = [4]int{0, 31, 30, 9}
+	PawnShieldSideBonus  = [4]int{33, 22, 12, 4}
 
 	// PawnStormFrontPenalty/PawnStormSidePenalty contains the penalty for the enemy pawns on the front and side of king file(s)
-	PawnStormFrontPenalty = [4]int{-11, -23, -5, 1}
-	PawnStormSidePenalty  = [4]int{-4, -4, -16, -3}
+	PawnStormFrontPenalty = [4]int{27, -4, -5, 0}
+	PawnStormSidePenalty  = [4]int{-4, -21, -26, -5}
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -118,6 +121,7 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 	ev.Eval.clear()
 	blocks := ^pos.EmptySquares()
 
+	// TODO: replace with an ev.init() to store this variables somewhere else...
 	enemyPawnsAttacks := [2]Bitboard{
 		pawnAttacks(&pos.Bitboards[BlackPawn], Black),
 		pawnAttacks(&pos.Bitboards[WhitePawn], White),
@@ -234,17 +238,17 @@ func (ev *EvalVector) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 		shielders := pawns[side] & frontMask
 		stormers := pawns[side.Opponent()] & frontMask
 
-		// BUG: Check when Bsf or Bsr scans empty bitboard. Returns 64 or -1
-		// Should be handled properly....
 		shield := NearestFromSide(shielders&Files[file], side)
 		storm := NearestFromSide(stormers&Files[file], side.Opponent())
+		hasShield := shield != 64 && shield != -1
+		hasStorm := storm != 64 && storm != -1
 		shieldRank := shield / 8
 		stormRank := storm / 8
 
 		shieldDist := abs(kingRank - shieldRank)
 		stormDist := abs(kingRank - stormRank)
 
-		if shieldDist < 4 {
+		if hasShield && shieldDist < 4 {
 			if file == kingFile {
 				ev.mgKingSafety[side] += PawnShieldFrontBonus[shieldDist]
 			} else {
@@ -255,11 +259,20 @@ func (ev *EvalVector) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 		// If the pawns are locked (one in front of the other), we skip the storm penalty
 		// since the enemy pawn cannot be pushed nor open the file for attacks
 		// NOTE: Use -1 due to array indexing. Storms count starts from the 1 rank distance, shield can be in the same rank as the king
-		if stormDist > 0 && stormDist < 5 && shieldDist != stormDist-1 {
+		if hasStorm && stormDist > 0 && stormDist < 5 && shieldDist != stormDist-1 {
 			if file == kingFile {
 				ev.mgKingSafety[side] += PawnStormFrontPenalty[stormDist-1]
 			} else {
 				ev.mgKingSafety[side] += PawnStormSidePenalty[stormDist-1]
+			}
+		}
+
+		// Open/SemiOpen files near the king
+		if (pawns[side]|pawns[side.Opponent()])&Files[file] == 0 {
+			if file == kingFile {
+				ev.mgKingSafety[side] += KingOnOpenFilePenalty
+			} else {
+				ev.mgKingSafety[side] += KingNearOpenFilePenalty
 			}
 		}
 	}

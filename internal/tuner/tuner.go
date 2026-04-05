@@ -101,7 +101,7 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 964
+const TuneableParams = 966
 
 // GetEvaluationParams returns the current evaluation params
 func GetEvaluationParams() (params [TuneableParams]float64) {
@@ -166,8 +166,12 @@ func GetEvaluationParams() (params [TuneableParams]float64) {
 	copy(intParams[955:959], engine.PawnStormFrontPenalty[:])
 	copy(intParams[959:963], engine.PawnStormSidePenalty[:])
 
+	// King On open/semi open files
+	intParams[963] = engine.KingOnOpenFilePenalty
+	intParams[964] = engine.KingNearOpenFilePenalty
+
 	// Tempo
-	intParams[963] = engine.TempoBonus
+	intParams[965] = engine.TempoBonus
 
 	// Convert to float
 	for i := range TuneableParams {
@@ -281,8 +285,12 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 	psqt += fmt.Sprintf("PawnStormFrontPenalty: %#v\n", intParams[955:959])
 	psqt += fmt.Sprintf("PawnStormSidePenalty: %#v\n", intParams[959:963])
 
+	// King on/near open/semi open files
+	psqt += fmt.Sprintf("KingOnOpenFilePenalty: %d\n", intParams[963])
+	psqt += fmt.Sprintf("KingNearOpenFilePenalty: %d\n", intParams[964])
+
 	// Tempo
-	psqt += fmt.Sprintf("TempoBonus: %d\n", intParams[963])
+	psqt += fmt.Sprintf("TempoBonus: %d\n", intParams[965])
 
 	return psqt
 }
@@ -378,8 +386,8 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 
 	// Tempo Bonus weight
 	*weights = append(*weights,
-		PositionWeight{paramIndex: 963, weight: int16(pos.Turn.Modifier() * phase)},
-		PositionWeight{paramIndex: 963, weight: int16(pos.Turn.Modifier() * (62 - phase))},
+		PositionWeight{paramIndex: 965, weight: int16(pos.Turn.Modifier() * phase)},
+		PositionWeight{paramIndex: 965, weight: int16(pos.Turn.Modifier() * (62 - phase))},
 	)
 }
 
@@ -686,6 +694,8 @@ func generatePawnShieldAndStormWeights(pos *engine.Position, phase int, weights 
 			stormers := pawns[c.Opponent()] & frontMask
 			shield := engine.NearestFromSide(shielders&engine.Files[file], c)
 			storm := engine.NearestFromSide(stormers&engine.Files[file], c.Opponent())
+			hasShield := shield != 64 && shield != -1
+			hasStorm := storm != 64 && storm != -1
 			shieldRank := shield / 8
 			stormRank := storm / 8
 
@@ -698,7 +708,8 @@ func generatePawnShieldAndStormWeights(pos *engine.Position, phase int, weights 
 				stormDist = -stormDist
 			}
 
-			if shieldDist < 4 {
+			// Shield
+			if hasShield && shieldDist < 4 {
 				if file == kingFile {
 					*weights = append(*weights,
 						PositionWeight{paramIndex: 947 + int16(shieldDist), weight: int16(c.Modifier() * phase)},
@@ -710,7 +721,8 @@ func generatePawnShieldAndStormWeights(pos *engine.Position, phase int, weights 
 				}
 			}
 
-			if stormDist > 0 && stormDist < 5 && shieldDist != stormDist-1 {
+			// Storm
+			if hasStorm && stormDist > 0 && stormDist < 5 && shieldDist != stormDist-1 {
 				if file == kingFile {
 					*weights = append(*weights,
 						PositionWeight{paramIndex: 955 + int16(stormDist-1), weight: int16(c.Modifier() * phase)},
@@ -722,6 +734,18 @@ func generatePawnShieldAndStormWeights(pos *engine.Position, phase int, weights 
 				}
 			}
 
+			// King on open / semi open files
+			if (pawns[c]|pawns[c.Opponent()])&engine.Files[file] == 0 {
+				if file == kingFile {
+					*weights = append(*weights,
+						PositionWeight{paramIndex: 963, weight: int16(c.Modifier() * phase)},
+					)
+				} else {
+					*weights = append(*weights,
+						PositionWeight{paramIndex: 964, weight: int16(c.Modifier() * phase)},
+					)
+				}
+			}
 		}
 	}
 }
