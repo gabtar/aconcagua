@@ -97,10 +97,10 @@ func (c *UciGoCommandStruct) Execute(en *engine.Engine, stdout chan string, para
 	btime := findParam(params, "btime")
 	winc := findParam(params, "winc")
 	binc := findParam(params, "binc")
-
 	movetime := findParam(params, "movetime")
+	movesToGo := findParam(params, "movestogo")
 
-	searchStrategy, clock := engine.TimeStrategy(params, depth, wtime, btime, winc, binc, movetime)
+	searchStrategy, clock := engine.TimeStrategy(params, depth, wtime, btime, winc, binc, movetime, movesToGo)
 	en.Search.TimeControl.Initialize(searchStrategy, int(en.Pos.Turn), en.Pos.FullMoveNumber, clock)
 
 	// Set default depth if not passed
