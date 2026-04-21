@@ -52,7 +52,6 @@ func (tc *TimeControl) Initialize(strategy int, side int, moveNumber int, clock 
 	tc.stop = false
 
 	tc.setupLimits(strategy, side, moveNumber, clock)
-	tc.stopAfter(tc.limits.softLimit)
 }
 
 // setupLimits sets the limits for the search
@@ -68,31 +67,60 @@ func (tc *TimeControl) setupLimits(strategy int, side int, moveNumber int, clock
 			clock.movesToGo = tc.estimatedMovesToGo(moveNumber)
 		}
 
-		safetyFactor := 0.95
-		if timeLeft < 5000 { // On very short time left, use a lower safety factor to avoid losing time
-			safetyFactor = 0.85
-		}
-
-		maxTime := int(timeLeft/float64(clock.movesToGo)*safetyFactor) + int(incr*safetyFactor)
-		soft = maxTime
-		hard = maxTime
+		maxTime := int(timeLeft/float64(clock.movesToGo)) + int(incr)
+		soft, hard = defineLimits(maxTime, moveNumber, int(timeLeft))
 	}
 
 	tc.limits.softLimit = soft
 	tc.limits.hardLimit = hard
 }
 
-// stopAfter stops the search after the given miliseconds
-func (tc *TimeControl) stopAfter(miliseconds int) {
-	if miliseconds == -1 {
-		return
+// defineLimits returns the limits for the search
+func defineLimits(maxTime int, moveNumber int, timeLeft int) (softLimit int, hardLimit int) {
+	if moveNumber >= 40 || timeLeft < 5000 {
+		return maxTime / 2, maxTime
 	}
-	miliseconds = max(miliseconds, 50) // Give a safe margin
+	return maxTime / 2, maxTime * 5
+}
 
-	go func() {
-		time.Sleep(time.Duration(miliseconds) * time.Millisecond)
+// shouldStop returns true if the search should stop
+func (tc *TimeControl) shouldStop() bool {
+	if tc.limits.hardLimit == -1 { // Avoid stop when using Infinite/depth strategy
+		return false
+	}
+
+	// If we reached hard limit, stop inmediately
+	if int(time.Since(tc.startTime).Milliseconds()) >= tc.limits.hardLimit {
 		tc.stop = true
-	}()
+		return true
+	}
+
+	return tc.stop
+}
+
+// shouldStopEarly returns true if the search should stop
+func (tc *TimeControl) shouldStopEarly(stable bool) bool {
+	if tc.shouldStop() {
+		return true
+	}
+
+	if tc.limits.softLimit < 0 {
+		return false // Infinite/depth strategy
+	}
+
+	elapsed := int(time.Since(tc.startTime).Milliseconds())
+	if elapsed >= tc.limits.softLimit && stable {
+		tc.stop = true
+		return true
+	}
+
+	return tc.stop
+}
+
+// extendTime extends the search time by the factor
+func (tc *TimeControl) extendTime(factor float64) {
+	newSoft := int(float64(tc.limits.softLimit) * factor)
+	tc.limits.softLimit = min(newSoft, tc.limits.hardLimit*4/5) // cap at 80%
 }
 
 // TimeStrategy returns the search strategy and the clock for a search
@@ -120,13 +148,13 @@ func TimeStrategy(params []string, depth int, wtime int, btime int, winc int, bi
 // estimatedMovesToGo returns the an approximate moves to go for a given move number
 func (tc *TimeControl) estimatedMovesToGo(moveNumber int) int {
 	if moveNumber <= 20 {
-		return 40 - moveNumber
+		return 60 - moveNumber
 	}
-	if moveNumber <= 40 {
-		return 30 - (moveNumber-20)/2
+	if moveNumber < 40 {
+		return 40 - (moveNumber-20)/3
 	}
 	if moveNumber < 60 {
-		return 20 - (moveNumber-40)/3
+		return 35 - (moveNumber-40)/4
 	}
-	return 15
+	return 30
 }

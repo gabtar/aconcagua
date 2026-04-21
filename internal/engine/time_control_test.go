@@ -19,7 +19,7 @@ func TestCalculateSearchTimeWithTimeLeftStrategy(t *testing.T) {
 	tc.Initialize(TimeLeftStrategy, 1, 1, Clock{wtime: 100, btime: 100, movesToGo: -1})
 	tc.setupLimits(TimeLeftStrategy, 1, 1, Clock{wtime: 100, btime: 100, movesToGo: -1})
 
-	expected := 2
+	expected := int(100/float64(tc.estimatedMovesToGo(0))) + int(0)
 	got := tc.limits.hardLimit
 
 	if expected != got {
@@ -40,13 +40,3 @@ func TestCalculateSearchTimeWithMoveTimeStrategy(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
-
-// func TestEstimatedMovesToGo(t *testing.T) {
-// 	tc := TimeControl{}
-//
-// 	for moveNumb := range 100 {
-// 		fmt.Println("MoveNumber: ", moveNumb, " moves to go: ", tc.estimatedMovesToGo(moveNumb))
-// 	}
-//
-// 	t.Fail()
-// }

@@ -109,8 +109,7 @@ func (c *UciGoCommandStruct) Execute(en *engine.Engine, stdout chan string, para
 	}
 
 	go func() {
-		_, bestMove := en.Search.IterativeDeepening(&en.Pos, depth, stdout)
-		stdout <- "bestmove " + bestMove
+		en.Search.IterativeDeepening(&en.Pos, depth, stdout)
 	}()
 }
 

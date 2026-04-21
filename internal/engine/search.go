@@ -211,6 +211,7 @@ func (cm *CounterMoveTable) get(priorMove Move, side Color) Move {
 // IterativeDeepening performs a progressive deepening search and returns the best move
 func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
 	s.clear()
+	averageScoreDelta := 0
 
 	// Ensure to return a move to the GUI
 	bestMove = setDefaultMove(pos)
@@ -221,20 +222,38 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 		lastScore := bestMoveScore
 		bestMoveScore = s.aspirationSearch(pos, d, lastScore)
 
-		if s.TimeControl.stop {
+		if len(s.pvLine) > 0 {
+			bestMove = s.pvLine[0].String()
+		}
+
+		averageScoreDelta = (bestMoveScore - averageScoreDelta) / d
+
+		// If score drop is too big, we should search more
+		scoreDrop := lastScore - bestMoveScore
+		if scoreDrop > 30 {
+			s.TimeControl.extendTime(1.1)
+		}
+
+		// TODO: watch out what happens with pv best move when search is stopped sudenly. Should also use last iteration best move?
+		if s.TimeControl.stop { // Use last score if was stopped due to ran out of time
 			bestMoveScore = lastScore
 			break
 		}
 
-		depthTime := time.Since(s.TimeControl.iterationStartTime)
+		elapsed := time.Since(s.TimeControl.startTime)
+		nps := int(float64(s.nodes) / time.Since(s.TimeControl.iterationStartTime).Seconds())
 		s.TimeControl.iterationStartTime = time.Now()
-		nps := int(float64(s.nodes) / depthTime.Seconds())
-		stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
+		stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v",
+			d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(),
+			elapsed.Milliseconds(), s.pvLine.String())
 
-		if len(s.pvLine) > 0 {
-			bestMove = s.pvLine[0].String()
+		// Prevent using more time if we have an stable score
+		stable := d >= 8 && averageScoreDelta < 15
+		if s.TimeControl.shouldStopEarly(stable) {
+			break
 		}
 	}
+	stdout <- "bestmove " + bestMove
 
 	return
 }
@@ -271,6 +290,8 @@ func (s *Search) aspirationSearch(pos *Position, depth int, lastScore int) int {
 			alpha = MinInt
 			beta = MaxInt
 		}
+
+		s.pvLine.reset()
 	}
 }
 
@@ -291,7 +312,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	s.nodes++
 	pvLine.reset()
 
-	if s.TimeControl.stop {
+	// Time check
+	if s.TimeControl.shouldStop() {
 		return 0
 	}
 
