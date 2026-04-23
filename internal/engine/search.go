@@ -40,6 +40,7 @@ func init() {
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
+	rootNodeCounts     [MaxLegalMoves]int
 	pvLine             pvLine
 	seldepth           uint8
 	killers            KillersTable
@@ -83,6 +84,9 @@ func (s *Search) reset() {
 	s.nodes = 0
 	s.pvLine.reset()
 	s.stack.clear()
+	for i := range s.rootNodeCounts {
+		s.rootNodeCounts[i] = 0
+	}
 }
 
 // Stop stops the search
@@ -211,7 +215,6 @@ func (cm *CounterMoveTable) get(priorMove Move, side Color) Move {
 // IterativeDeepening performs a progressive deepening search and returns the best move
 func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan string) (bestMoveScore int, bestMove string) {
 	s.clear()
-	averageScoreDelta := 0
 
 	// Ensure to return a move to the GUI
 	bestMove = setDefaultMove(pos)
@@ -219,25 +222,33 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 	for d := 1; d <= maxDepth; d++ {
 		s.reset()
 
-		lastScore := bestMoveScore
+		lastScore, lastMove := bestMoveScore, bestMove
 		bestMoveScore = s.aspirationSearch(pos, d, lastScore)
+		if s.TimeControl.stop { // Always use last iteration values if it was stopped due to ran out of time(hard limit)
+			bestMove = lastMove
+			bestMoveScore = lastScore
+			break
+		}
 
 		if len(s.pvLine) > 0 {
 			bestMove = s.pvLine[0].String()
 		}
 
-		averageScoreDelta = (bestMoveScore - averageScoreDelta) / d
-
-		// If score drop is too big, we should search more
+		// If score drop is too big, we failed low. We should search more
 		scoreDrop := lastScore - bestMoveScore
 		if scoreDrop > 30 {
-			s.TimeControl.extendTime(1.1)
+			s.TimeControl.updateTime(1.2)
 		}
 
-		// TODO: watch out what happens with pv best move when search is stopped sudenly. Should also use last iteration best move?
-		if s.TimeControl.stop { // Use last score if was stopped due to ran out of time
-			bestMoveScore = lastScore
-			break
+		// We use the ratio of root nodes searched of the best move for time management, when its low,
+		// other branches could be better, so we increase time. When its good enough,
+		// we trust we have a good position, so we could stop the search earlier
+		// After depth > 1, due to our move ordering scheme, fist move is always the best one
+		bestBranchFactor := float64(s.rootNodeCounts[0]) / float64(s.nodes)
+		if bestBranchFactor <= 0.5 {
+			s.TimeControl.updateTime(1.3)
+		} else if bestBranchFactor > 0.75 {
+			s.TimeControl.updateTime(0.9)
 		}
 
 		elapsed := time.Since(s.TimeControl.startTime)
@@ -247,9 +258,8 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 			d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(),
 			elapsed.Milliseconds(), s.pvLine.String())
 
-		// Prevent using more time if we have an stable score
-		stable := d >= 8 && averageScoreDelta < 15
-		if s.TimeControl.shouldStopEarly(stable) {
+		// Check if we should stop after this iteration
+		if s.TimeControl.shouldStopSearch() {
 			break
 		}
 	}
@@ -416,6 +426,9 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		pos.MakeMove(&move)
 		s.stack.store(move, ply)
 
+		// Keep track of nodes searched before this move
+		nodesBefore := s.nodes
+
 		extension := 0
 		if isCheck {
 			extension = 1
@@ -436,6 +449,11 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			}
 		}
 		pos.UnmakeMove(&move)
+
+		// Update node count at root
+		if ply == 0 {
+			s.rootNodeCounts[mg.moveNumber] += s.nodes - nodesBefore
+		}
 
 		if newScore >= beta {
 			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, staticEval, move)

@@ -37,9 +37,14 @@ type Clock struct {
 	movesToGo int
 }
 
+// elapsed returns the time elapsed since the start of the search
+func (tc *TimeControl) elapsed() int {
+	return int(time.Since(tc.startTime).Milliseconds())
+}
+
 // timeLeft returns the time left for the side
 func (c *Clock) timeLeft(side Color) (timeLeft float64, increment float64) {
-	if side == 1 {
+	if side == Black {
 		return float64(c.btime), float64(c.binc)
 	}
 	return float64(c.wtime), float64(c.winc)
@@ -77,10 +82,10 @@ func (tc *TimeControl) setupLimits(strategy int, side int, moveNumber int, clock
 
 // defineLimits returns the limits for the search
 func defineLimits(maxTime int, moveNumber int, timeLeft int) (softLimit int, hardLimit int) {
-	if moveNumber >= 40 || timeLeft < 5000 {
+	if moveNumber >= 45 || timeLeft < 5000 {
 		return maxTime / 2, maxTime
 	}
-	return maxTime / 2, maxTime * 5
+	return maxTime / 2, maxTime * 4
 }
 
 // shouldStop returns true if the search should stop
@@ -90,7 +95,7 @@ func (tc *TimeControl) shouldStop() bool {
 	}
 
 	// If we reached hard limit, stop inmediately
-	if int(time.Since(tc.startTime).Milliseconds()) >= tc.limits.hardLimit {
+	if tc.elapsed() >= tc.limits.hardLimit {
 		tc.stop = true
 		return true
 	}
@@ -98,18 +103,17 @@ func (tc *TimeControl) shouldStop() bool {
 	return tc.stop
 }
 
-// shouldStopEarly returns true if the search should stop
-func (tc *TimeControl) shouldStopEarly(stable bool) bool {
+// shouldStopSearch returns whenever the search should stop
+func (tc *TimeControl) shouldStopSearch() bool {
 	if tc.shouldStop() {
 		return true
 	}
 
-	if tc.limits.softLimit < 0 {
+	if tc.limits.hardLimit == -1 {
 		return false // Infinite/depth strategy
 	}
 
-	elapsed := int(time.Since(tc.startTime).Milliseconds())
-	if elapsed >= tc.limits.softLimit && stable {
+	if tc.elapsed() >= tc.limits.softLimit {
 		tc.stop = true
 		return true
 	}
@@ -117,8 +121,8 @@ func (tc *TimeControl) shouldStopEarly(stable bool) bool {
 	return tc.stop
 }
 
-// extendTime extends the search time by the factor
-func (tc *TimeControl) extendTime(factor float64) {
+// updateTime updates the search time by the factor
+func (tc *TimeControl) updateTime(factor float64) {
 	newSoft := int(float64(tc.limits.softLimit) * factor)
 	tc.limits.softLimit = min(newSoft, tc.limits.hardLimit*4/5) // cap at 80%
 }
