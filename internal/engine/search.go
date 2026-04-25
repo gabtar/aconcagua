@@ -9,7 +9,7 @@ import (
 
 // Constants to use in the search
 const (
-	MaxSearchDepth                = 50
+	MaxSearchDepth                = 100
 	MateScore                     = 20000
 	MinInt                        = math.MinInt32
 	MaxInt                        = math.MaxInt32
@@ -243,23 +243,25 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 		// We use the ratio of root nodes searched of the best move for time management, when its low,
 		// other branches could be better, so we increase time. When its good enough,
 		// we trust we have a good position, so we could stop the search earlier
-		// After depth > 1, due to our move ordering scheme, fist move is always the best one
+		// After d > 1, due to our move ordering scheme, fist move will always be the best move/branch
 		bestBranchFactor := float64(s.rootNodeCounts[0]) / float64(s.nodes)
 		if bestBranchFactor <= 0.5 {
 			s.TimeControl.updateTime(1.3)
-		} else if bestBranchFactor > 0.75 {
-			s.TimeControl.updateTime(0.9)
+		} else if bestBranchFactor >= 0.75 {
+			s.TimeControl.updateTime(0.8)
 		}
 
-		elapsed := time.Since(s.TimeControl.startTime)
+		elapsed := s.TimeControl.elapsed()
 		nps := int(float64(s.nodes) / time.Since(s.TimeControl.iterationStartTime).Seconds())
 		s.TimeControl.iterationStartTime = time.Now()
 		stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v",
 			d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(),
-			elapsed.Milliseconds(), s.pvLine.String())
+			elapsed, s.pvLine.String())
 
 		// Check if we should stop after this iteration
-		if s.TimeControl.shouldStopSearch() {
+		// Assume 2.5 as branching factor
+		estimatedNextIterationTime := int((float64(s.nodes) / float64(nps)) * 1000.0 * 2.5)
+		if s.TimeControl.shouldStopSearch(estimatedNextIterationTime) {
 			break
 		}
 	}

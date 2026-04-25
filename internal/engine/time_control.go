@@ -54,6 +54,7 @@ func (c *Clock) timeLeft(side Color) (timeLeft float64, increment float64) {
 func (tc *TimeControl) Initialize(strategy int, side int, moveNumber int, clock Clock) {
 	tc.startTime = time.Now()
 	tc.iterationStartTime = time.Now()
+	tc.strategy = strategy
 	tc.stop = false
 
 	tc.setupLimits(strategy, side, moveNumber, clock)
@@ -73,7 +74,7 @@ func (tc *TimeControl) setupLimits(strategy int, side int, moveNumber int, clock
 		}
 
 		maxTime := int(timeLeft/float64(clock.movesToGo)) + int(incr)
-		soft, hard = defineLimits(maxTime, moveNumber, int(timeLeft))
+		soft, hard = defineLimits(maxTime, int(timeLeft))
 	}
 
 	tc.limits.softLimit = soft
@@ -81,11 +82,13 @@ func (tc *TimeControl) setupLimits(strategy int, side int, moveNumber int, clock
 }
 
 // defineLimits returns the limits for the search
-func defineLimits(maxTime int, moveNumber int, timeLeft int) (softLimit int, hardLimit int) {
-	if moveNumber >= 45 || timeLeft < 5000 {
-		return maxTime / 2, maxTime
+func defineLimits(maxTime int, timeLeft int) (softLimit int, hardLimit int) {
+	if timeLeft < 5000 {
+		return maxTime / 2, min(maxTime, timeLeft)
+	} else if timeLeft < 30000 {
+		return maxTime / 2, min(maxTime*2, timeLeft)
 	}
-	return maxTime / 2, maxTime * 4
+	return maxTime / 2, min(maxTime*4, timeLeft)
 }
 
 // shouldStop returns true if the search should stop
@@ -104,21 +107,17 @@ func (tc *TimeControl) shouldStop() bool {
 }
 
 // shouldStopSearch returns whenever the search should stop
-func (tc *TimeControl) shouldStopSearch() bool {
-	if tc.shouldStop() {
-		return true
-	}
-
-	if tc.limits.hardLimit == -1 {
+func (tc *TimeControl) shouldStopSearch(estimatedNextIterationTime int) bool {
+	if tc.strategy != TimeLeftStrategy {
 		return false // Infinite/depth strategy
 	}
 
-	if tc.elapsed() >= tc.limits.softLimit {
+	if tc.elapsed() >= tc.limits.softLimit || tc.elapsed()+estimatedNextIterationTime >= tc.limits.hardLimit {
 		tc.stop = true
 		return true
 	}
 
-	return tc.stop
+	return tc.shouldStop()
 }
 
 // updateTime updates the search time by the factor
