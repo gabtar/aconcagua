@@ -133,9 +133,8 @@ func (ev *EvalVector) clear() {
 // Evaluate returns the static score of the position
 func (ev *Evaluation) Evaluate(pos *Position) int {
 	ev.Eval.clear()
-	blocks := ^pos.EmptySquares()
 
-	// TODO: replace with an ev.init() to store this variables somewhere else...
+	blocks := ^pos.EmptySquares()
 	enemyPawnsAttacks := [2]Bitboard{
 		pawnAttacks(&pos.Bitboards[BlackPawn], Black),
 		pawnAttacks(&pos.Bitboards[WhitePawn], White),
