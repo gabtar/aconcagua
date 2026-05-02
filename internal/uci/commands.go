@@ -31,6 +31,7 @@ func (c *UciCommandStruct) Execute(en *engine.Engine, stdout chan string, params
 	stdout <- "option name UCI_Chess960 type check default false"
 	stdout <- "option name Hash type spin default 64 min " + strconv.Itoa(MinHashSize) + " max " + strconv.Itoa(MaxHashSize)
 	stdout <- "option name ClearHash type button"
+	stdout <- "option name Overhead type spin default 10 min 0 max 1000"
 	stdout <- "uciok"
 }
 
@@ -97,10 +98,10 @@ func (c *UciGoCommandStruct) Execute(en *engine.Engine, stdout chan string, para
 	btime := findParam(params, "btime")
 	winc := findParam(params, "winc")
 	binc := findParam(params, "binc")
-
 	movetime := findParam(params, "movetime")
+	movesToGo := findParam(params, "movestogo")
 
-	searchStrategy, clock := engine.TimeStrategy(params, depth, wtime, btime, winc, binc, movetime)
+	searchStrategy, clock := engine.TimeStrategy(params, depth, wtime, btime, winc, binc, movetime, movesToGo)
 	en.Search.TimeControl.Initialize(searchStrategy, int(en.Pos.Turn), en.Pos.FullMoveNumber, clock)
 
 	// Set default depth if not passed
@@ -109,8 +110,7 @@ func (c *UciGoCommandStruct) Execute(en *engine.Engine, stdout chan string, para
 	}
 
 	go func() {
-		_, bestMove := en.Search.IterativeDeepening(&en.Pos, depth, stdout)
-		stdout <- "bestmove " + bestMove
+		en.Search.IterativeDeepening(&en.Pos, depth, stdout)
 	}()
 }
 
@@ -146,6 +146,8 @@ func (c *UciSetOptionCommandStruct) Execute(en *engine.Engine, stdout chan strin
 	case "clearhash":
 		en.Search.TranspositionTable.Clear()
 		en.Search.Evaluation.Clear()
+	case "overhead":
+		c.setOverhead(en, stdout, optionValue)
 	default:
 		stdout <- "info string Error: Unknown option name: " + params[1]
 	}
@@ -184,6 +186,17 @@ func (c *UciSetOptionCommandStruct) setHashSize(en *engine.Engine, stdout chan s
 
 	en.Search.TranspositionTable.Resize(sizeInMb)
 	stdout <- "option name Hash value " + value
+}
+
+// setOverhead handles the "setoption name Overhead" command logic
+func (c *UciSetOptionCommandStruct) setOverhead(en *engine.Engine, stdout chan string, value string) {
+	overheadMs, err := strconv.Atoi(value)
+	if err != nil || (overheadMs < 0 || overheadMs > 1000) {
+		return
+	}
+
+	en.Search.TimeControl.Overhead = overheadMs
+	stdout <- "option name Overhead value " + value
 }
 
 // UciStopCommandStruct represents the "stop" command.

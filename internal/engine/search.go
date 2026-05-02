@@ -9,7 +9,7 @@ import (
 
 // Constants to use in the search
 const (
-	MaxSearchDepth                = 50
+	MaxSearchDepth                = 100
 	MateScore                     = 20000
 	MinInt                        = math.MinInt32
 	MaxInt                        = math.MaxInt32
@@ -40,6 +40,7 @@ func init() {
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
+	rootNodeCounts     [MaxLegalMoves]int
 	pvLine             pvLine
 	seldepth           uint8
 	killers            KillersTable
@@ -61,7 +62,7 @@ func NewSearch() *Search {
 		TranspositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
 		counterMovesTable:  CounterMoveTable{},
 		stack:              Stack{},
-		TimeControl:        TimeControl{},
+		TimeControl:        *NewTimeControl(),
 		Evaluation:         *NewEvaluation(DefaultPawnHashTableSizeInMb),
 	}
 }
@@ -83,6 +84,9 @@ func (s *Search) reset() {
 	s.nodes = 0
 	s.pvLine.reset()
 	s.stack.clear()
+	for i := range s.rootNodeCounts {
+		s.rootNodeCounts[i] = 0
+	}
 }
 
 // Stop stops the search
@@ -218,23 +222,50 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 	for d := 1; d <= maxDepth; d++ {
 		s.reset()
 
-		lastScore := bestMoveScore
+		lastScore, lastMove := bestMoveScore, bestMove
 		bestMoveScore = s.aspirationSearch(pos, d, lastScore)
-
-		if s.TimeControl.stop {
+		if s.TimeControl.stop { // Always use last iteration values if it was stopped due to ran out of time(hard limit)
+			bestMove = lastMove
 			bestMoveScore = lastScore
 			break
 		}
 
-		depthTime := time.Since(s.TimeControl.iterationStartTime)
-		s.TimeControl.iterationStartTime = time.Now()
-		nps := int(float64(s.nodes) / depthTime.Seconds())
-		stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v", d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(), depthTime.Milliseconds(), s.pvLine.String())
-
 		if len(s.pvLine) > 0 {
 			bestMove = s.pvLine[0].String()
 		}
+
+		// If score drop is too big, we failed low. We should search more
+		scoreDrop := lastScore - bestMoveScore
+		if scoreDrop > 30 {
+			s.TimeControl.updateTime(1.2)
+		}
+
+		// We use the ratio of root nodes searched of the best move for time management, when its low,
+		// other branches could be better, so we increase time. When its good enough,
+		// we trust we have a good position, so we could stop the search earlier
+		// After d > 1, due to our move ordering scheme, fist move will always be the best move/branch
+		bestBranchFactor := float64(s.rootNodeCounts[0]) / float64(s.nodes)
+		if bestBranchFactor <= 0.5 {
+			s.TimeControl.updateTime(1.3)
+		} else if bestBranchFactor >= 0.75 {
+			s.TimeControl.updateTime(0.8)
+		}
+
+		elapsed := s.TimeControl.elapsed()
+		nps := int(float64(s.nodes) / time.Since(s.TimeControl.iterationStartTime).Seconds())
+		s.TimeControl.iterationStartTime = time.Now()
+		stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v",
+			d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(),
+			elapsed, s.pvLine.String())
+
+		// Check if we should stop after this iteration
+		// Assume 2.5 as branching factor
+		estimatedNextIterationTime := int((float64(s.nodes) / float64(nps)) * 1000.0 * 2.5)
+		if s.TimeControl.shouldStopSearch(estimatedNextIterationTime) {
+			break
+		}
 	}
+	stdout <- "bestmove " + bestMove
 
 	return
 }
@@ -271,6 +302,8 @@ func (s *Search) aspirationSearch(pos *Position, depth int, lastScore int) int {
 			alpha = MinInt
 			beta = MaxInt
 		}
+
+		s.pvLine.reset()
 	}
 }
 
@@ -291,7 +324,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	s.nodes++
 	pvLine.reset()
 
-	if s.TimeControl.stop {
+	// Time check
+	if s.TimeControl.shouldStop() {
 		return 0
 	}
 
@@ -394,6 +428,9 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		pos.MakeMove(&move)
 		s.stack.store(move, ply)
 
+		// Keep track of nodes searched before this move
+		nodesBefore := s.nodes
+
 		extension := 0
 		if isCheck {
 			extension = 1
@@ -414,6 +451,11 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			}
 		}
 		pos.UnmakeMove(&move)
+
+		// Update node count at root
+		if ply == 0 {
+			s.rootNodeCounts[mg.moveNumber] += s.nodes - nodesBefore
+		}
 
 		if newScore >= beta {
 			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, staticEval, move)
