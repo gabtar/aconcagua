@@ -19,6 +19,7 @@ type TimeControl struct {
 	limits             TimeLimits
 	strategy           int
 	stop               bool
+	Overhead           int // Move Overhead time in ms
 }
 
 // TimeLimits stores the soft and hard time limits in miliseconds
@@ -35,6 +36,13 @@ type Clock struct {
 	binc      int
 	moveTime  int
 	movesToGo int
+}
+
+// NewTimeControl returns a pointer to a new TimeControl struct
+func NewTimeControl() *TimeControl {
+	return &TimeControl{
+		Overhead: 10, // Default overhead (10 ms)
+	}
 }
 
 // elapsed returns the time elapsed since the start of the search
@@ -73,7 +81,8 @@ func (tc *TimeControl) setupLimits(strategy int, side int, moveNumber int, clock
 			clock.movesToGo = tc.estimatedMovesToGo(moveNumber)
 		}
 
-		maxTime := int(timeLeft/float64(clock.movesToGo)) + int(incr)
+		maxTime := int(timeLeft/float64(clock.movesToGo)) + int(incr) - tc.Overhead
+		maxTime = max(maxTime, 1) // Ensure at least 1 ms
 		soft, hard = defineLimits(maxTime, int(timeLeft))
 	}
 

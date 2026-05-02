@@ -62,7 +62,7 @@ func NewSearch() *Search {
 		TranspositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
 		counterMovesTable:  CounterMoveTable{},
 		stack:              Stack{},
-		TimeControl:        TimeControl{},
+		TimeControl:        *NewTimeControl(),
 		Evaluation:         *NewEvaluation(DefaultPawnHashTableSizeInMb),
 	}
 }
