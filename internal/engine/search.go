@@ -16,6 +16,7 @@ const (
 	EndgameMaterialThreshold      = 1600
 	ReverseFutitlityPruningMargin = 130
 	AspirationWindowSize          = 25
+	NullMovePruningDepth          = 2
 )
 
 var (
@@ -375,10 +376,11 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	// Null Move Pruning. Gives a free shot to the opponent by passing the turn.
 	// If we still exceed beta in the reduced search, we will trust our position is so good,
 	// that it will also exceed beta if we search all moves.
-	if depth >= 4 && !isCheck && nullMoveAllowed && !pvNode && pos.canNullMove() {
+	if depth >= NullMovePruningDepth && !isCheck && nullMoveAllowed && !pvNode && staticEval >= beta && !pos.kingAndPawnsOnlyEndgame() {
 		ep := pos.makeNullMove()
 		s.stack.store(NoMove, ply)
-		sc := -s.negamax(pos, depth-4, ply+1, -beta, -beta+1, &branchPv, false)
+		R := 4 + depth/3
+		sc := -s.negamax(pos, depth-R, ply+1, -beta, -beta+1, &branchPv, false)
 		pos.unmakeNullMove(ep)
 
 		if sc >= beta {
@@ -506,36 +508,12 @@ func (s *Search) evaluate(pos *Position, ttMove Move, ttEval int) int {
 	return s.Evaluation.Evaluate(pos)
 }
 
-// canNullMove returns if the current position allows a null move pruning
-func (pos *Position) canNullMove() bool {
-	if pos.material(pos.Turn) < EndgameMaterialThreshold {
-		return false
-	}
-
-	if pos.kingAndPawnsOnlyEndgame() {
-		return false
-	}
-
-	return true
-}
-
 // kingAndPawnsOnlyEndgame returns if the position is a king and pawns only endgame
 func (pos *Position) kingAndPawnsOnlyEndgame() bool {
 	whiteKingAndPawns := pos.Bitboards[WhiteKing] | pos.Bitboards[WhitePawn]
 	blackKingAndPawns := pos.Bitboards[BlackKing] | pos.Bitboards[BlackPawn]
 
 	return pos.pieces[White] == whiteKingAndPawns && pos.pieces[Black] == blackKingAndPawns
-}
-
-// material returns the total material of the position for the side passed
-func (pos *Position) material(side Color) int {
-	pieceValue := [6]int{0, 900, 500, 300, 300, 100}
-	material := 0
-
-	for piece, bitboard := range pos.getBitboards(side) {
-		material += pieceValue[pieceRole(piece)] * bitboard.count()
-	}
-	return material
 }
 
 // lrmReductionFactor returns a number to reduce the depth on search based on the conditions passed
