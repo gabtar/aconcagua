@@ -17,6 +17,7 @@ const (
 	ReverseFutitlityPruningMargin = 130
 	AspirationWindowSize          = 25
 	NullMovePruningDepth          = 2
+	MaxHistoryBonus               = 8192
 )
 
 var (
@@ -98,32 +99,44 @@ func (s *Search) Stop() {
 // HistoryMovesTable is a table for holding the history of moves
 type HistoryMovesTable [2][64][64]int
 
-// increment increase the history score of the move passed at depth
-func (hm *HistoryMovesTable) increment(depth int, move *Move, side Color) {
+// update increase the history score of the move using the gravity formula
+func (hm *HistoryMovesTable) update(bonus int, move *Move, side Color) {
 	if move.flag() < capture {
-		hm[side][move.from()][move.to()] += depth * depth
+		clampBonus := max(-MaxHistoryBonus, min(MaxHistoryBonus, bonus))
+		hm[side][move.from()][move.to()] += clampBonus - hm[side][move.from()][move.to()]*abs(clampBonus)/MaxHistoryBonus
 	}
 }
 
 // decrement decrements the score of history moves
-func (hm *HistoryMovesTable) decrement(ml *MoveList, start int, side Color) {
-	for i := range start {
-		mv := ml.moves[ml.length+i]
-		if mv.flag() < capture {
-			hm[side][mv.from()][mv.to()]--
+func (hm *HistoryMovesTable) decrement(ms *movesSearched, cutoffMove *Move, depth int, side Color) {
+	for i := range ms.length {
+		// Ensure to not apply the penalty to the move that produced the cutoff
+		if ms.moves[i] != *cutoffMove {
+			hm.update(-depth*depth, &ms.moves[i], side)
 		}
 	}
 }
 
 // clear clears the history of moves
 func (hm *HistoryMovesTable) clear() {
-	for i := range hm {
-		for j := range hm[i] {
-			for k := range hm[i][j] {
-				hm[i][j][k] = 0
-			}
+	for i := range hm[White] {
+		for j := range hm[White][i] {
+			hm[White][i][j] = 0
+			hm[Black][i][j] = 0
 		}
 	}
+}
+
+// movesSearched is an struct that holds the moves tried on an specific node of the search tree
+type movesSearched struct {
+	moves  [MaxLegalMoves]Move
+	length int
+}
+
+// add adds a move to the movesSearched list
+func (ms *movesSearched) add(move Move) {
+	ms.moves[ms.length] = move
+	ms.length++
 }
 
 // Killer is a list of quiet moves that produces a beta cutoff
@@ -411,10 +424,14 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	cm := s.counterMovesTable.get(s.stack.getPriorMove(ply), pos.Turn)
 	k1, k2 := s.killers.get(ply)
 	mg := NewMoveGenerator(pos, &ttMove, &k1, &k2, &cm, &s.historyMoves)
+	quietsSearched := movesSearched{}
 
 	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
 		branchPv.reset()
 		moveFlag := move.flag()
+		if moveFlag < capture {
+			quietsSearched.add(move)
+		}
 
 		// Late Move Pruning
 		// Prunes quiet moves that are likely not to be good, by assuming we have a good move ordering
@@ -463,9 +480,9 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, staticEval, move)
 			s.killers.store(ply, move)
 			s.counterMovesTable.store(s.stack.getPriorMove(ply), move, pos.Turn)
-			s.historyMoves.increment(depth, &move, pos.Turn)
+			s.historyMoves.update(depth*depth, &move, pos.Turn)
 			// Reduce history score for previous 'quiet' moves that did not produce the cutoff
-			s.historyMoves.decrement(mg.moves, mg.moveNumber, pos.Turn)
+			s.historyMoves.decrement(&quietsSearched, &move, depth, pos.Turn)
 
 			return beta
 		}
