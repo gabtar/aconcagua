@@ -18,6 +18,9 @@ const (
 	AspirationWindowSize          = 25
 	NullMovePruningDepth          = 2
 	MaxHistoryBonus               = 8192
+	SEEPruningDepth               = 8
+	SEECaptureMargin              = 120
+	SEEQuietMargin                = 80
 )
 
 var (
@@ -444,6 +447,12 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			continue
 		}
 
+		// Static Exchange Evaluation Pruning
+		// Prunes bad captures/quiet moves that does not beat a depth dependent threshold
+		if depth <= SEEPruningDepth && mg.stage >= NonCapturesStage && canPruneBySEE(mg, move, depth) {
+			continue
+		}
+
 		pos.MakeMove(&move)
 		s.stack.store(move, ply)
 
@@ -523,6 +532,30 @@ func (s *Search) evaluate(pos *Position, ttMove Move, ttEval int) int {
 		return ttEval
 	}
 	return s.Evaluation.Evaluate(pos)
+}
+
+// canPruneBySEE returns if the move passed can be pruned by SEE
+func canPruneBySEE(mg *MoveGenerator, move Move, depth int) bool {
+	see, threshold := 0, 0
+
+	// For non Captures check see for quiet moves. The piece may move to an attacked square that can be recaptured
+	if mg.stage == NonCapturesStage {
+		see, threshold = mg.pos.see(&move), -depth*SEEQuietMargin
+		// if see < threshold {
+		// 	fmt.Printf("Move: %s, See: %d, threshold: %d\n", move.String(), see, threshold)
+		// 	fmt.Println(mg.pos.String())
+		// }
+	} else {
+		// For captures we use the computed value for see in the move generator, already computed for move ordering
+		// As current move is swapped to the end of the list, we can access directly to the score(the see value)
+		see, threshold = mg.moves.scores[mg.moves.length], -depth*SEECaptureMargin
+		// if see < threshold {
+		// 	fmt.Printf("Move: %s, See: %d, threshold: %d\n", move.String(), see, threshold)
+		// 	fmt.Println(mg.pos.String())
+		// }
+	}
+
+	return see < threshold
 }
 
 // kingAndPawnsOnlyEndgame returns if the position is a king and pawns only endgame
