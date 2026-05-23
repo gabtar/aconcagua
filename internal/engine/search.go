@@ -13,7 +13,6 @@ const (
 	MateScore                     = 20000
 	MinInt                        = math.MinInt32
 	MaxInt                        = math.MaxInt32
-	EndgameMaterialThreshold      = 1600
 	ReverseFutitlityPruningMargin = 130
 	AspirationWindowSize          = 25
 	NullMovePruningDepth          = 2
