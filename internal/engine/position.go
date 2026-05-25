@@ -659,8 +659,6 @@ func (pos *Position) LoadFromFenString(fen string) {
 	pos.FullMoveNumber, _ = strconv.Atoi(elements[5])
 
 	pos.Hash = zobristHashKeys.fullZobristHash(pos)
-	pos.positionHistory.previousPosition[0] = pos.Hash
-	pos.positionHistory.moveCount = 1
 	pos.PawnHash = zobristHashKeys.pawnHash(pos)
 }
 

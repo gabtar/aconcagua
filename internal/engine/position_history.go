@@ -1,5 +1,7 @@
 package engine
 
+import "fmt"
+
 const MaxHistoryMoves = 255
 
 // PositionHistory represents the history of the position and castle rigths
@@ -15,16 +17,22 @@ func (ph *PositionHistory) isRepetition(hash uint64, halfmoveClock int) bool {
 	// Calculate search limit based on halfmove clock
 	// A repetition cannot never occur after a halfmove clock reset
 	lastIrreversibleMove := max(ph.moveCount-halfmoveClock, 0)
+	posHash := ph.previousPosition[ph.moveCount]
+	reps := 0
 
 	// Check all positions back to the last irreversible move
 	// Only check positions with same side to move (every 2 plies)
-	for i := ph.moveCount - 2; i >= lastIrreversibleMove; i -= 2 {
-		if ph.previousPosition[i] == hash {
-			return true
+	for i := ph.moveCount; i >= lastIrreversibleMove; i -= 2 {
+		if ph.previousPosition[i] == posHash {
+			reps++
 		}
 	}
 
-	return false
+	fmt.Println("--- DEBUG INSIDE isRepetition ----")
+	fmt.Println("REPETITIONS COUNTED: ", reps)
+	fmt.Println("HASH PASSED", hash)
+	fmt.Println("----------------------------------")
+	return reps >= 2
 }
 
 // clear clears the position history
