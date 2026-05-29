@@ -386,8 +386,20 @@ func (pos *Position) handleQuietMove(pieceToMove int) {
 
 // handleDoublePawnPush sets en passant target square
 func (pos *Position) handleDoublePawnPush(move Move) {
-	pos.enPassantTarget = pawnPushesTable[pos.Turn.Opponent()][move.to()]
-	pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
+	// NOTE: to correctly detect threefold repetitions we need to ensure that
+	// ep captures are available or not.
+	// The problem is that if ep is available(due to a double pawn push) but not
+	// reachable by an enemy pawn, the position can be a repetition. So avoid
+	// to hash zobrist ep key whenever ep square is not reachable by an enemy pawn
+	if pawnPushesTable[pos.Turn.Opponent()][move.to()] > 0 {
+		pos.enPassantTarget = pawnPushesTable[pos.Turn.Opponent()][move.to()]
+		if potentialEpCapturers(pos, pos.Turn.Opponent()) > 0 {
+			pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
+		} else {
+			pos.enPassantTarget = 0
+		}
+	}
+	pos.halfmoveClock = 0
 }
 
 // handleCapture removes captured piece and resets halfmove clock
@@ -400,7 +412,6 @@ func (pos *Position) handleCapture(move Move, pieceCaptured *int) {
 func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int, pieceCaptured *int) {
 	pos.RemovePiece(*pieceCaptured, bitboardFromIndex(move.to()))
 	*pieceToMove = getPromotedToPiece(flag, pos.Turn)
-
 	pos.halfmoveClock = 0
 }
 
