@@ -94,18 +94,6 @@ func (pos *Position) see(move *Move) int {
 	side := pos.Turn
 	fromSq := bitboardFromIndex(from)
 
-	targetPiece := pos.PieceAt(to)
-	if targetPiece == NoPiece { // should be an ep capture
-		targetPiece = pieceColor(Pawn, side.Opponent())
-	}
-	// Promotions
-	if move.flag() >= knightPromotion {
-		targetPiece = pieceColor(Queen, side.Opponent())
-	}
-
-	targetRole := pieceRole(targetPiece)
-	attackerRole := pieceRole(pos.PieceAt(from))
-
 	diagonalAttackers := pos.Bitboards[WhiteBishop] | pos.Bitboards[BlackBishop] |
 		pos.Bitboards[WhiteQueen] | pos.Bitboards[BlackQueen]
 	orthogonalAttackers := pos.Bitboards[WhiteRook] | pos.Bitboards[BlackRook] |
@@ -114,7 +102,8 @@ func (pos *Position) see(move *Move) int {
 	blockers := ^pos.EmptySquares()
 	attackers := pos.attackersTo(to)
 	alreadyAttacked := Bitboard(0)
-	materialGain[depth] = SEEPieceValues[targetRole]
+	attackerRole := pieceRole(pos.PieceAt(from))
+	materialGain[depth] = getMaterialExchangeValue(pos, move)
 
 	for attackers > 0 {
 		depth++
@@ -186,4 +175,23 @@ func (pos *Position) getLeastValuableAttacker(attackers Bitboard, side Color) (B
 		}
 	}
 	return Bitboard(0), NoPiece
+}
+
+// getMaterialExchangeValue returns the material exchange value for the move passed
+func getMaterialExchangeValue(pos *Position, move *Move) int {
+	targetPiece := pieceRole(pos.PieceAt(move.to()))
+	value := SEEPieceValues[targetPiece]
+	flag := move.flag()
+
+	switch {
+	case flag == epCapture:
+		value = SEEPieceValues[Pawn]
+	case flag >= knightPromotion:
+		promotedTo := pieceRole(getPromotedToPiece(flag, pos.Turn))
+		value = SEEPieceValues[promotedTo] - SEEPieceValues[Pawn]
+	case flag < capture: // quiet moves
+		value = 0
+	}
+
+	return value
 }
