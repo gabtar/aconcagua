@@ -1,6 +1,9 @@
 package engine
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCheckingPieces(t *testing.T) {
 	pos := NewPosition()
@@ -526,5 +529,41 @@ func TestColorModifier(t *testing.T) {
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestThreefoldRepetitions(t *testing.T) {
+	testCases := []struct {
+		fen                   string
+		moves                 string
+		isThreefoldRepetition bool
+	}{
+		// BUG #1: Halfmove clock not reset after double pawn pushes
+		// BUG #2: If ep square is not reachable by enemy pawns, there  no ep avaialbe. So do not hash the zobrist ep square key.
+		// Warning; PV continues after threefold repetition - move a4a5 from Aconcagua DEV
+		// Info; info depth 13 seldepth 21 score cp -60 nodes 22290 nps 3026546 hashfull 5 time 25 pv d7e6 c2d3 e6f7 g2g4 a4a3 d3e4 a3a4 e4d3 a4a5 d3e4 a5a4 e4d3 a4a5 d3d4 a5b5 d4e4
+		// Info; info depth 13 seldepth 21 score cp -60 nodes 22290 nps 3026546 hashfull 5 time 25 pv d7e6 c2d3 e6f7 g2g4 a4a3 d3e4 a3a4 e4d3 a4a5 d3e4 a5a4 (e4d3 - this is the draw by repetition) a4a5 d3d4 a5b5 d4e4
+		// Position; fen r1bqkb1r/pppp1ppp/2n2n2/4P3/4P3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 4
+		// Moves; f6g4 f1e2 f8c5 e1g1 g4e5 b1c3 e5f3 e2f3 e8g8 c3d5 c6e5 c1e3 d7d6 f3e2 c5e3 d5e3 f8e8 f2f4 e5d7 d1d4 d7c5 e4e5 c8d7 a1d1 a7a5 e5d6 c7d6 e2f3 a8a6 e3c4 c5e6 d4d2 d7c6 f4f5 e6g5 f3c6 a6c6 c4d6 d8b6 g1h1 e8d8 d2g5 c6d6 d1d6 b6d6 g5h4 f7f6 h4e4 d6c6 e4c6 b7c6 h1g1 d8d2 f1c1 g8f7 b2b3 f7e7 c1e1 e7d6 e1e6 d6d7 e6e3 d2c2 e3g3 g7g5 f5g6 h7g6 g3g6 c2c1 g1f2 c1c2 f2f1 c2c1 f1e2 c1c2 e2d3 c2a2 h2h4 a2a3 d3c2 a5a4 b3a4 a3a4 h4h5
+		{"r1bqkb1r/pppp1ppp/2n2n2/4P3/4P3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 4", "f6g4 f1e2 f8c5 e1g1 g4e5 b1c3 e5f3 e2f3 e8g8 c3d5 c6e5 c1e3 d7d6 f3e2 c5e3 d5e3 f8e8 f2f4 e5d7 d1d4 d7c5 e4e5 c8d7 a1d1 a7a5 e5d6 c7d6 e2f3 a8a6 e3c4 c5e6 d4d2 d7c6 f4f5 e6g5 f3c6 a6c6 c4d6 d8b6 g1h1 e8d8 d2g5 c6d6 d1d6 b6d6 g5h4 f7f6 h4e4 d6c6 e4c6 b7c6 h1g1 d8d2 f1c1 g8f7 b2b3 f7e7 c1e1 e7d6 e1e6 d6d7 e6e3 d2c2 e3g3 g7g5 f5g6 h7g6 g3g6 c2c1 g1f2 c1c2 f2f1 c2c1 f1e2 c1c2 e2d3 c2a2 h2h4 a2a3 d3c2 a5a4 b3a4 a3a4 h4h5 d7e6 c2d3 e6f7 g2g4 a4a3 d3e4 a3a4 e4d3 a4a5 d3e4 a5a4 e4d3", true},
+		{"r2q1rk1/pp1b1p2/2n1pn1Q/2bp4/8/2PBPN2/PP1N1PPP/R3K2R b KQ - 0 12", "e6e5 h6g5 g8h8 g5h6 h8g8 h6g5 g8h8 g5h6 h8g8", true},
+		{"5k2/6p1/pQ3p1p/1p6/4q3/2P3PK/1P5P/8 b - - 6 36", "e4f5 h3g2 f5e4 g2h3 e4f5 h3h4 f5e4 h4h3", true},
+		{"5k2/6p1/pQ3p1p/1p6/4q3/2P3PK/1P5P/8 b - - 6 36", "e4f5 h3g2 f5e4 g2h3 e4f5 h3h4 f5e4", false},
+		{"2b2rk1/pr5p/2pqp1p1/2p1R3/4R3/P1NP4/1P1Q1PPP/6K1 w - - 3 23", "c3a4 b7b5 a4c3 b5b7 c3a4 b7b5 a4c3 b5b7", true},
+	}
+
+	for _, test := range testCases {
+		pos := NewPosition()
+		pos.LoadFromFenString(test.fen)
+		moves := strings.Split(test.moves, " ")
+		pos.LoadMoves(moves...)
+
+		expected := test.isThreefoldRepetition
+		got := pos.isThreefoldRepetition()
+
+		if got != expected {
+			t.Errorf("Expected: %v got: %v", expected, got)
+		}
+
 	}
 }

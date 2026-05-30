@@ -276,9 +276,37 @@ func (pos *Position) isDraw() bool {
 	// Instead of waiting to get a threefold repetition, Aconcagua assumes
 	// if a position is repeated once, it should be at least a draw. This helps
 	// avoid unecessary search and seems working well.
-	return pos.positionHistory.isRepetition(pos.Hash, pos.halfmoveClock) ||
+	return pos.isThreefoldRepetition() ||
 		pos.halfmoveClock >= 100 ||
 		pos.insuficientMaterial()
+}
+
+// isThreefoldRepetition returns if the current position is a draw by threefold repetition
+func (pos *Position) isThreefoldRepetition() bool {
+	// If we have not enought moves so far, a repetition will never occur
+	if pos.positionHistory.moveCount <= 4 {
+		return false
+	}
+
+	// Calculate search limit based on halfmove clock
+	// A repetition cannot never occur after a halfmove clock reset
+	lastIrreversibleMove := max(pos.positionHistory.moveCount-pos.halfmoveClock, 0)
+	reps := 0
+
+	// Check all positions back to the last irreversible move
+	// Only check positions with same side to move (every 2 plies)
+	for i := pos.positionHistory.moveCount - 2; i >= lastIrreversibleMove; i -= 2 {
+		if pos.positionHistory.previousPosition[i] == pos.Hash {
+			reps++
+		}
+
+		if reps >= 2 {
+			return true
+		}
+	}
+
+	return false
+
 }
 
 // insuficientMaterial returns if the current position is a draw by insuficient material

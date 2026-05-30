@@ -10,39 +10,6 @@ type PositionHistory struct {
 	moveCount            int
 }
 
-// isRepetition returns if the position has been repeated in the current search
-func (ph *PositionHistory) isRepetition(hash uint64, halfmoveClock int) bool {
-	// If we have not enought moves so far, a repetition will never occur
-	if ph.moveCount <= 4 {
-		return false
-	}
-
-	// Calculate search limit based on halfmove clock
-	// A repetition cannot never occur after a halfmove clock reset
-	lastIrreversibleMove := max(ph.moveCount-halfmoveClock, 0)
-	// fmt.Println("--- DEBUG INSIDE isRepetition ----")
-	// fmt.Println("Move count: ", ph.moveCount)
-	// fmt.Println("LastIrreversibleMove: ", lastIrreversibleMove)
-	reps := 0
-
-	// Check all positions back to the last irreversible move
-	// Only check positions with same side to move (every 2 plies)
-	for i := ph.moveCount - 2; i >= lastIrreversibleMove; i -= 2 {
-		if ph.previousPosition[i] == hash {
-			reps++
-		}
-
-		if reps >= 2 {
-			return true
-		}
-	}
-
-	// fmt.Println("REPETITIONS COUNTED: ", reps)
-	// fmt.Println("HASH PASSED", hash)
-	// fmt.Println("----------------------------------")
-	return false
-}
-
 // clear clears the position history
 func (ph *PositionHistory) clear() {
 	for i := range MaxHistoryMoves * 2 {
