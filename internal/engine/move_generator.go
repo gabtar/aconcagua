@@ -273,6 +273,10 @@ func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 
 // potentialEpCapturers returns a bitboard with the potential pawn that can caputure enPassant
 func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
+	if pos.enPassantTarget == 0 {
+		return
+	}
+
 	targetPawnBB := pawnPushesTable[side.Opponent()][Bsf(pos.enPassantTarget)]
 
 	notInHFile := targetPawnBB & ^(targetPawnBB & Files[7])

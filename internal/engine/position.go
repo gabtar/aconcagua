@@ -276,9 +276,37 @@ func (pos *Position) isDraw() bool {
 	// Instead of waiting to get a threefold repetition, Aconcagua assumes
 	// if a position is repeated once, it should be at least a draw. This helps
 	// avoid unecessary search and seems working well.
-	return pos.positionHistory.isRepetition(pos.Hash, pos.halfmoveClock) ||
+	return pos.isThreefoldRepetition() ||
 		pos.halfmoveClock >= 100 ||
 		pos.insuficientMaterial()
+}
+
+// isThreefoldRepetition returns if the current position is a draw by threefold repetition
+func (pos *Position) isThreefoldRepetition() bool {
+	// If we have not enought moves so far, a repetition will never occur
+	if pos.positionHistory.moveCount <= 4 {
+		return false
+	}
+
+	// Calculate search limit based on halfmove clock
+	// A repetition cannot never occur after a halfmove clock reset
+	lastIrreversibleMove := max(pos.positionHistory.moveCount-pos.halfmoveClock, 0)
+	reps := 0
+
+	// Check all positions back to the last irreversible move
+	// Only check positions with same side to move (every 2 plies)
+	for i := pos.positionHistory.moveCount - 2; i >= lastIrreversibleMove; i -= 2 {
+		if pos.positionHistory.previousPosition[i] == pos.Hash {
+			reps++
+		}
+
+		if reps >= 2 {
+			return true
+		}
+	}
+
+	return false
+
 }
 
 // insuficientMaterial returns if the current position is a draw by insuficient material
@@ -386,8 +414,20 @@ func (pos *Position) handleQuietMove(pieceToMove int) {
 
 // handleDoublePawnPush sets en passant target square
 func (pos *Position) handleDoublePawnPush(move Move) {
-	pos.enPassantTarget = pawnPushesTable[pos.Turn.Opponent()][move.to()]
-	pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
+	// NOTE: to correctly detect threefold repetitions we need to ensure that
+	// ep captures are available or not.
+	// The problem is that if ep is available(due to a double pawn push) but not
+	// reachable by an enemy pawn, the position can be a repetition. So avoid
+	// to hash zobrist ep key whenever ep square is not reachable by an enemy pawn
+	if pawnPushesTable[pos.Turn.Opponent()][move.to()] > 0 {
+		pos.enPassantTarget = pawnPushesTable[pos.Turn.Opponent()][move.to()]
+		if potentialEpCapturers(pos, pos.Turn.Opponent()) > 0 {
+			pos.Hash = pos.Hash ^ zobristHashKeys.getEpKey(Bsf(pos.enPassantTarget))
+		} else {
+			pos.enPassantTarget = 0
+		}
+	}
+	pos.halfmoveClock = 0
 }
 
 // handleCapture removes captured piece and resets halfmove clock
@@ -400,7 +440,6 @@ func (pos *Position) handleCapture(move Move, pieceCaptured *int) {
 func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int, pieceCaptured *int) {
 	pos.RemovePiece(*pieceCaptured, bitboardFromIndex(move.to()))
 	*pieceToMove = getPromotedToPiece(flag, pos.Turn)
-
 	pos.halfmoveClock = 0
 }
 
@@ -659,8 +698,6 @@ func (pos *Position) LoadFromFenString(fen string) {
 	pos.FullMoveNumber, _ = strconv.Atoi(elements[5])
 
 	pos.Hash = zobristHashKeys.fullZobristHash(pos)
-	pos.positionHistory.previousPosition[0] = pos.Hash
-	pos.positionHistory.moveCount = 1
 	pos.PawnHash = zobristHashKeys.pawnHash(pos)
 }
 

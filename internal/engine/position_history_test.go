@@ -20,15 +20,3 @@ func TestPop(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", 0, ph.moveCount)
 	}
 }
-
-func TestRepetitionCount(t *testing.T) {
-	ph := NewPositionHistory()
-	halfmoveClock := 2
-	hash := uint64(5)
-	ph.add(positionBefore(0), KQkq, hash)
-	ph.add(positionBefore(0), KQkq, 0)
-
-	if ph.isRepetition(5, halfmoveClock) != true {
-		t.Errorf("Expected: %v, got: %v", 2, ph.isRepetition(5, halfmoveClock))
-	}
-}
