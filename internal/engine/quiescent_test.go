@@ -38,9 +38,8 @@ func TestSee(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("6k1/2p5/3p4/3P4/4N3/B7/8/6K1 w - - 0 1") // Nxd6
 
-	// NOTE: Early termination score. Full see return value is -100
 	expected := -200
-	move := encodeMove(uint16(e4), uint16(c5), capture)
+	move := encodeMove(uint16(e4), uint16(d6), capture)
 	got := pos.see(move)
 
 	if got != expected {
