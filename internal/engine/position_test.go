@@ -43,7 +43,7 @@ func TestPinnedPiece(t *testing.T) {
 	from := bitboardFromCoordinates("c6")
 
 	expected := true
-	got := from&pos.pinnedPieces(Black) > 0
+	got := from&pos.PinnedPieces(Black) > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -56,7 +56,7 @@ func TestPinnedPieceKnightFail(t *testing.T) {
 	from := bitboardFromCoordinates("b8")
 
 	expected := false
-	got := from&pos.pinnedPieces(Black) > 0
+	got := from&pos.PinnedPieces(Black) > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

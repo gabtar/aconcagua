@@ -101,7 +101,7 @@ func (pos *Position) generatePositionData() PositionData {
 	return PositionData{
 		kingPosition:           pos.KingPosition(pos.Turn),
 		checkRestrictedSquares: checkRestrictedSquares,
-		pinnedPieces:           pos.pinnedPieces(pos.Turn),
+		pinnedPieces:           pos.PinnedPieces(pos.Turn),
 		allies:                 pos.pieces[pos.Turn],
 		enemies:                pos.pieces[pos.Turn.Opponent()],
 	}
@@ -211,8 +211,8 @@ func (pos *Position) Check(side Color) bool {
 	return queenAttacks > 0
 }
 
-// pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
-func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
+// PinnedPieces returns a bitboard with the pieces pinned in the position for the side passed
+func (pos *Position) PinnedPieces(side Color) (pinned Bitboard) {
 	king := pos.KingPosition(side)
 	if king == 0 {
 		return

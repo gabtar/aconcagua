@@ -98,7 +98,7 @@ func TestStraightPinnedPieces(t *testing.T) {
 	pos.AddPiece(WhitePawn, e4)
 
 	expected := bitboardFromCoordinates("e4")
-	got := pos.pinnedPieces(White)
+	got := pos.PinnedPieces(White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -114,7 +114,7 @@ func TestDiagonalPinnedPieces(t *testing.T) {
 	pos.AddPiece(WhiteBishop, a4)
 
 	expected := bitboardFromCoordinates("f7", "d7")
-	got := pos.pinnedPieces(Black)
+	got := pos.PinnedPieces(Black)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -129,7 +129,7 @@ func TestDiagonalNoPinnedPieces(t *testing.T) {
 	pos.AddPiece(WhiteBishop, a4)
 
 	expected := Bitboard(0)
-	got := pos.pinnedPieces(Black)
+	got := pos.PinnedPieces(Black)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -141,7 +141,7 @@ func TestPinnedPiecesOnBlack(t *testing.T) {
 	pos.LoadFromFenString("7k/6pn/6P1/3B4/7Q/7p/PPP4R/1K6 b - - 0 1")
 
 	expected := Bitboard(1 << 55) // knight on h7
-	got := pos.pinnedPieces(Black)
+	got := pos.PinnedPieces(Black)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -168,7 +168,7 @@ func TestPinRestrictedSquares(t *testing.T) {
 
 	piece := pos.Bitboards[WhiteBishop]
 	king := pos.KingPosition(White)
-	pinnedPieces := pos.pinnedPieces(White)
+	pinnedPieces := pos.PinnedPieces(White)
 
 	expected := bitboardFromCoordinates("h3", "g4", "f5", "e6", "d7", "c8")
 	got := pinRestrictedSquares(piece, king, pinnedPieces)

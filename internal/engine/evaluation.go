@@ -2,22 +2,22 @@ package engine
 
 const (
 	// Pawn Structure
-	DoubledPawnPenaltyMg  = -4
+	DoubledPawnPenaltyMg  = -5
 	DoubledPawnPenaltyEg  = -15
 	IsolatedPawnPenaltyMg = -10
-	IsolatedPawnPenaltyEg = -11
+	IsolatedPawnPenaltyEg = -12
 	BackwardPawnPenaltyMg = -9
 	BackwardPawnPenaltyEg = -8
 
 	// Material Adjustment
-	BishopPairBonusMg    = 20
-	BishopPairBonusEg    = 71
-	RookOnOpenFileMg     = 38
+	BishopPairBonusMg    = 22
+	BishopPairBonusEg    = 67
+	RookOnOpenFileMg     = 37
 	RookOnSemiOpenFileMg = 21
 
 	KnightOutpostBonusMg = 35
 	KnightOutpostBonusEg = 19
-	BishopOutpostBonusMg = 39
+	BishopOutpostBonusMg = 40
 	BishopOutpostBonusEg = -3
 
 	KnightAttackWeight   = 19
@@ -26,52 +26,57 @@ const (
 	QueenAttackWeight    = 11
 	KingZoneDefenseBonus = 16
 
-	KingOnOpenFilePenalty   = -54
+	KingOnOpenFilePenalty   = -48
 	KingNearOpenFilePenalty = -15
 
 	// Threats
-	MinorAttackedByPawnThreatPenalty  = -52
-	RookAttackedByPawnThreatPenalty   = -52
-	QueenAttackedByPawnThreatPenalty  = -46
+	MinorAttackedByPawnThreatPenalty  = -51
+	RookAttackedByPawnThreatPenalty   = -51
+	QueenAttackedByPawnThreatPenalty  = -45
 	RookAttackedByMinorThreatPenalty  = -38
 	QueenAttackedByMinorThreatPenalty = -45
 
-	SafeQueenCheckThreatBonus  = 13
-	SafeRookCheckThreatBonus   = 12
-	SafeBishopCheckThreatBonus = 15
-	SafeKnightCheckThreatBonus = 13
+	SafeQueenCheckThreatBonus  = 15
+	SafeRookCheckThreatBonus   = 13
+	SafeBishopCheckThreatBonus = 17
+	SafeKnightCheckThreatBonus = 14
 
-	TempoBonus = 25
+	PinnedQueenThreatPenalty  = -62
+	PinnedRookThreatPenalty   = -32
+	PinnedBishopThreatPenalty = -33
+	PinnedKnightThreatPenalty = -39
+
+	TempoBonus = 24
 )
 
 var (
 	// Queen Mobility mg/eg contains the bonus for queen mobility
-	QueenMobilityMg = [28]int{-21, -18, -31, -55, -41, -18, -15, -13, -10, -9, -6, -2, 0, 4, 5, 5, 5, 4, 3, 4, 10, 19, 31, 45, 45, 85, 46, 30}
-	QueenMobilityEg = [28]int{-77, -66, -56, -74, -9, 46, 89, 116, 139, 165, 173, 180, 187, 186, 189, 194, 194, 199, 201, 199, 197, 180, 178, 162, 168, 159, 177, 171}
+	QueenMobilityMg = [28]int{-21, -18, -33, -54, -39, -22, -20, -18, -16, -14, -11, -7, -4, 0, 1, 2, 2, 2, 1, 3, 11, 23, 36, 47, 37, 75, 37, 23}
+	QueenMobilityEg = [28]int{-77, -66, -56, -74, 0, 59, 104, 131, 153, 176, 182, 187, 193, 192, 194, 197, 197, 199, 201, 197, 193, 172, 165, 148, 153, 140, 162, 159}
 
 	// Rook Mobility mg/eg contains the bonus for rook mobility
-	RookMobilityMg = [15]int{-43, -32, -5, 0, 5, 6, 7, 8, 11, 15, 17, 18, 22, 25, 27}
-	RookMobilityEg = [15]int{-17, 2, 28, 51, 63, 73, 80, 86, 88, 90, 93, 96, 96, 94, 90}
+	RookMobilityMg = [15]int{-42, -31, -8, -1, 3, 5, 6, 7, 10, 14, 17, 18, 22, 26, 29}
+	RookMobilityEg = [15]int{-17, 5, 30, 52, 63, 73, 80, 86, 88, 91, 94, 96, 97, 95, 91}
 
 	// Bishop Mobility mg/eg contains the bonus for bishop mobility
-	BishopMobilityMg = [14]int{-58, -62, -28, -18, -6, 1, 8, 13, 14, 18, 22, 38, 48, 56}
-	BishopMobilityEg = [14]int{-124, -57, -4, 20, 31, 38, 47, 52, 58, 58, 59, 49, 49, 36}
+	BishopMobilityMg = [14]int{-53, -62, -29, -19, -6, 1, 7, 12, 14, 18, 22, 38, 44, 56}
+	BishopMobilityEg = [14]int{-130, -55, -3, 22, 32, 39, 48, 53, 58, 58, 59, 50, 50, 37}
 
 	// KnightMobility mg/eg contains the bonus for knight mobility
-	KnightMobilityMg = [9]int{-138, -36, -10, 1, 13, 16, 28, 40, 53}
-	KnightMobilityEg = [9]int{-73, -22, 9, 33, 43, 57, 59, 62, 55}
+	KnightMobilityMg = [9]int{-141, -37, -10, 0, 12, 15, 28, 40, 53}
+	KnightMobilityEg = [9]int{-76, -21, 10, 34, 45, 57, 59, 61, 55}
 
 	// PassedPawnsBonus mg/eg contains the bonus for passed pawns
-	PassedPawnsBonusMg = [8]int{0, -7, -14, -14, 12, -1, 10, 0}
-	PassedPawnsBonusEg = [8]int{0, 9, 13, 40, 67, 138, 115, 0}
+	PassedPawnsBonusMg = [8]int{0, -8, -14, -14, 12, 0, 13, 0}
+	PassedPawnsBonusEg = [8]int{0, 9, 13, 40, 67, 139, 117, 0}
 
 	// PawnShieldFrontBonus/PawnShieldSideBonus contains the bonus for pawns on the front and side ofthe king file(s)
-	PawnShieldFrontBonus = [4]int{0, 25, 22, 3}
-	PawnShieldSideBonus  = [4]int{31, 18, 12, 1}
+	PawnShieldFrontBonus = [4]int{0, 22, 21, 2}
+	PawnShieldSideBonus  = [4]int{27, 16, 11, 1}
 
 	// PawnStormFrontPenalty/PawnStormSidePenalty contains the penalty for the enemy pawns on the front and side of king file(s)
-	PawnStormFrontPenalty = [4]int{92, -5, -5, 0}
-	PawnStormSidePenalty  = [4]int{-4, -20, -26, -5}
+	PawnStormFrontPenalty = [4]int{117, -6, -5, 0}
+	PawnStormSidePenalty  = [4]int{-4, -23, -26, -5}
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -147,6 +152,7 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 		OutpostSquares(pawns[White], pawns[Black], White),
 		OutpostSquares(pawns[Black], pawns[White], Black),
 	}
+	pins := pos.PinnedPieces(White) | pos.PinnedPieces(Black)
 
 	for piece, bb := range pos.Bitboards {
 		color := Color(piece / 6)
@@ -159,13 +165,13 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 			case King:
 				ev.Eval.evaluateKing(sq, pawns, color)
 			case Queen:
-				ev.Eval.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), color)
+				ev.Eval.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), pins, color)
 			case Rook:
-				ev.Eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], pawns, pos.KingPosition(color.Opponent()), color)
+				ev.Eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], pawns, pos.KingPosition(color.Opponent()), pins, color)
 			case Bishop:
-				ev.Eval.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], color, pos)
+				ev.Eval.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], pins, color, pos)
 			case Knight:
-				ev.Eval.evaluateKnight(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], color, pos)
+				ev.Eval.evaluateKnight(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], pins, color, pos)
 			case Pawn:
 				ev.Eval.evaluatePawn(sq, color)
 			}
@@ -297,7 +303,7 @@ func (ev *EvalVector) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 }
 
 // evaluateQueen evaluates the score of a queen
-func (ev *EvalVector) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, side Color) {
+func (ev *EvalVector) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, pins Bitboard, side Color) {
 	piece := pieceColor(Queen, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -319,6 +325,10 @@ func (ev *EvalVector) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks
 		ev.threats[side] += QueenAttackedByPawnThreatPenalty
 	}
 
+	if fromBB&pins > 0 {
+		ev.threats[side] += PinnedQueenThreatPenalty
+	}
+
 	// Safe checks. Squares not defended by enemy pawns
 	// where the queen can move to give check
 	safeQueenChecks := Attacks(piece, enemyKing, blocks) & ^enemyPawnsAttacks & attacks
@@ -330,7 +340,7 @@ func (ev *EvalVector) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks
 }
 
 // evaluateRook evaluates the score of a rook
-func (ev *EvalVector) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, pawns [2]Bitboard, enemyKing Bitboard, side Color) {
+func (ev *EvalVector) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, pawns [2]Bitboard, enemyKing Bitboard, pins Bitboard, side Color) {
 	piece := pieceColor(Rook, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -358,6 +368,10 @@ func (ev *EvalVector) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks 
 		ev.threats[side] += RookAttackedByPawnThreatPenalty
 	}
 
+	if fromBB&pins > 0 {
+		ev.threats[side] += PinnedRookThreatPenalty
+	}
+
 	safeRookChecks := Attacks(piece, enemyKing, blocks) & ^enemyPawnsAttacks & attacks
 	if safeRookChecks > 0 {
 		ev.threats[side] += SafeRookCheckThreatBonus * safeRookChecks.count()
@@ -370,7 +384,7 @@ func (ev *EvalVector) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks 
 }
 
 // evaluateBishop evaluates the score of a bishop
-func (ev *EvalVector) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, side Color, pos *Position) {
+func (ev *EvalVector) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, pins Bitboard, side Color, pos *Position) {
 	piece := pieceColor(Bishop, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -400,6 +414,10 @@ func (ev *EvalVector) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttack
 		ev.threats[side.Opponent()] += RookAttackedByMinorThreatPenalty
 	}
 
+	if fromBB&pins > 0 {
+		ev.threats[side] += PinnedBishopThreatPenalty
+	}
+
 	safeBishopChecks := Attacks(piece, enemyKing, blocks) & ^enemyPawnsAttacks & attacks
 	if safeBishopChecks > 0 {
 		ev.threats[side] += SafeBishopCheckThreatBonus * safeBishopChecks.count()
@@ -412,7 +430,7 @@ func (ev *EvalVector) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttack
 }
 
 // evaluateKnight evaluates the score of a knight
-func (ev *EvalVector) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, side Color, pos *Position) {
+func (ev *EvalVector) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, pins Bitboard, side Color, pos *Position) {
 	piece := pieceColor(Knight, side)
 	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
 	ev.egMaterial[side] += endgamePiecesScore[piece][from]
@@ -440,6 +458,10 @@ func (ev *EvalVector) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttack
 	}
 	if attacks&pos.Bitboards[pieceColor(Rook, side.Opponent())] > 0 {
 		ev.threats[side.Opponent()] += RookAttackedByMinorThreatPenalty
+	}
+
+	if fromBB&pins > 0 {
+		ev.threats[side] += PinnedKnightThreatPenalty
 	}
 
 	safeKnightChecks := Attacks(piece, enemyKing, blocks) & ^enemyPawnsAttacks & attacks
