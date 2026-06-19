@@ -207,8 +207,9 @@ func TestPawnShield(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("8/8/8/8/8/6P1/5PKP/8 w - - 0 1")
 	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+	ev.EvalData.init(pos)
 
-	ev.Eval.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, White)
+	ev.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), White)
 
 	got := ev.Eval.mgKingSafety[White]
 	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0]
@@ -222,8 +223,9 @@ func TestPawnShieldFromBlack(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("8/5pkp/6p1/8/8/8/8/8 w - - 0 1")
 	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+	ev.EvalData.init(pos)
 
-	ev.Eval.evaluateKing(Bsf(pos.Bitboards[BlackKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
+	ev.evaluateKing(Bsf(pos.Bitboards[BlackKing]), Black)
 
 	got := ev.Eval.mgKingSafety[Black]
 	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0]
@@ -237,8 +239,9 @@ func TestPawnStorm(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("8/8/8/5ppp/8/8/8/6K1 w - - 0 1")
 	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+	ev.EvalData.init(pos)
 
-	ev.Eval.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, White)
+	ev.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), White)
 
 	got := ev.Eval.mgKingSafety[White]
 	expected := PawnStormFrontPenalty[3] + 2*PawnStormSidePenalty[3]
@@ -252,8 +255,9 @@ func TestPawnStormPlusShield(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("8/8/5pkp/6p1/6P1/5P1P/8/8 w - - 0 1")
 	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
+	ev.EvalData.init(pos)
 
-	ev.Eval.evaluateKing(Bsf(pos.Bitboards[BlackKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
+	ev.evaluateKing(Bsf(pos.Bitboards[BlackKing]), Black)
 
 	got := ev.Eval.mgKingSafety[Black]
 	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0] + 2*PawnStormSidePenalty[2]

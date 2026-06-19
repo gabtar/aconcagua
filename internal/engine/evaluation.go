@@ -88,6 +88,7 @@ var (
 // Evaluation contains the elements for evaluation of a position
 type Evaluation struct {
 	Eval      EvalVector
+	EvalData  EvalData
 	PawnCache PawnHashTable
 }
 
@@ -106,10 +107,21 @@ type EvalVector struct {
 	phase              int
 }
 
+// EvalData contains positional data about the current position
+type EvalData struct {
+	kings           [2]Bitboard
+	attackedByPawns [2]Bitboard
+	pawns           [2]Bitboard
+	outposts        [2]Bitboard
+	blocks          Bitboard
+	pinned          Bitboard
+}
+
 // NewEvaluation returns a new Evaluation
 func NewEvaluation(size int) *Evaluation {
 	return &Evaluation{
 		Eval:      EvalVector{},
+		EvalData:  EvalData{},
 		PawnCache: *NewPawnHashTable(size),
 	}
 }
@@ -117,6 +129,7 @@ func NewEvaluation(size int) *Evaluation {
 // Clear clears the evaluation
 func (ev *Evaluation) Clear() {
 	ev.Eval.clear()
+	ev.EvalData.clear()
 	ev.PawnCache.clear()
 }
 
@@ -135,24 +148,42 @@ func (ev *EvalVector) clear() {
 	ev.phase = 0
 }
 
-// Evaluate returns the static score of the position
-func (ev *Evaluation) Evaluate(pos *Position) int {
-	ev.Eval.clear()
+// clear clears the EvalData
+func (ed *EvalData) clear() {
+	ed.kings = [2]Bitboard{}
+	ed.attackedByPawns = [2]Bitboard{}
+	ed.pawns = [2]Bitboard{}
+	ed.outposts = [2]Bitboard{}
+	ed.blocks = 0
+	ed.pinned = 0
+}
 
-	blocks := ^pos.EmptySquares()
-	enemyPawnsAttacks := [2]Bitboard{
-		pawnAttacks(&pos.Bitboards[BlackPawn], Black),
-		pawnAttacks(&pos.Bitboards[WhitePawn], White),
+// init initializes the evaluation data
+func (ed *EvalData) init(pos *Position) {
+	ed.kings = [2]Bitboard{
+		pos.KingPosition(White),
+		pos.KingPosition(Black),
 	}
-	pawns := [2]Bitboard{
+	ed.attackedByPawns = [2]Bitboard{
+		pawnAttacks(&pos.Bitboards[WhitePawn], White),
+		pawnAttacks(&pos.Bitboards[BlackPawn], Black),
+	}
+	ed.pawns = [2]Bitboard{
 		pos.Bitboards[WhitePawn],
 		pos.Bitboards[BlackPawn],
 	}
-	outpostSquares := [2]Bitboard{
-		OutpostSquares(pawns[White], pawns[Black], White),
-		OutpostSquares(pawns[Black], pawns[White], Black),
+	ed.outposts = [2]Bitboard{
+		OutpostSquares(ed.pawns[White], ed.pawns[Black], White),
+		OutpostSquares(ed.pawns[Black], ed.pawns[White], Black),
 	}
-	pins := pos.PinnedPieces(White) | pos.PinnedPieces(Black)
+	ed.blocks = ^pos.EmptySquares()
+	ed.pinned = pos.PinnedPieces(White) | pos.PinnedPieces(Black)
+}
+
+// Evaluate returns the static score of the position
+func (ev *Evaluation) Evaluate(pos *Position) int {
+	ev.Eval.clear()
+	ev.EvalData.init(pos)
 
 	for piece, bb := range pos.Bitboards {
 		color := Color(piece / 6)
@@ -163,15 +194,15 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 
 			switch pieceRole(piece) {
 			case King:
-				ev.Eval.evaluateKing(sq, pawns, color)
+				ev.evaluateKing(sq, color)
 			case Queen:
-				ev.Eval.evaluateQueen(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), pins, color)
+				ev.evaluateQueen(sq, color)
 			case Rook:
-				ev.Eval.evaluateRook(sq, blocks, enemyPawnsAttacks[color], pawns, pos.KingPosition(color.Opponent()), pins, color)
+				ev.evaluateRook(sq, color)
 			case Bishop:
-				ev.Eval.evaluateBishop(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], pins, color, pos)
+				ev.evaluateBishop(sq, color, pos)
 			case Knight:
-				ev.Eval.evaluateKnight(sq, blocks, enemyPawnsAttacks[color], pos.KingPosition(color.Opponent()), outpostSquares[color], pins, color, pos)
+				ev.evaluateKnight(sq, color, pos)
 			case Pawn:
 				ev.Eval.evaluatePawn(sq, color)
 			}
@@ -192,12 +223,12 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 	// Safety
 	// Apply King Safety Penalties to opponent only if there are at least 2 attackers and one of the pieces is a queen
 	if ev.Eval.kingAttackersCount[White] >= 2 && pos.Bitboards[pieceColor(Queen, White)] > 0 {
-		zoneDefense := KingZone[Black][Bsf(pos.KingPosition(Black))] & enemyPawnsAttacks[White]
+		zoneDefense := KingZone[Black][Bsf(pos.KingPosition(Black))] & ev.EvalData.attackedByPawns[Black]
 		ev.Eval.mgKingSafety[Black] += -ev.Eval.kingAttacksWeight[White] + KingZoneDefenseBonus*zoneDefense.count()
 	}
 
 	if ev.Eval.kingAttackersCount[Black] >= 2 && pos.Bitboards[pieceColor(Queen, Black)] > 0 {
-		zoneDefense := KingZone[White][Bsf(pos.KingPosition(White))] & enemyPawnsAttacks[Black]
+		zoneDefense := KingZone[White][Bsf(pos.KingPosition(White))] & ev.EvalData.attackedByPawns[White]
 		ev.Eval.mgKingSafety[White] += -ev.Eval.kingAttacksWeight[Black] + KingZoneDefenseBonus*zoneDefense.count()
 	}
 
@@ -210,8 +241,8 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 		ev.Eval.mgPawnStrucutre[pos.Turn] = mgSc
 		ev.Eval.egPawnStructure[pos.Turn] = egSc
 	} else {
-		ev.Eval.evaluatePawnStructure(pos, enemyPawnsAttacks[White], White)
-		ev.Eval.evaluatePawnStructure(pos, enemyPawnsAttacks[Black], Black)
+		ev.Eval.evaluatePawnStructure(pos, ev.EvalData.attackedByPawns[Black], White)
+		ev.Eval.evaluatePawnStructure(pos, ev.EvalData.attackedByPawns[White], Black)
 
 		// Store always from White's perspective
 		mgScWhite := ev.Eval.mgPawnStrucutre[White] - ev.Eval.mgPawnStrucutre[Black]
@@ -242,22 +273,18 @@ func (ev *EvalVector) score(side Color) int {
 }
 
 // evaluateKing evaluates the score of a king
-func (ev *EvalVector) evaluateKing(from int, pawns [2]Bitboard, side Color) {
+func (ev *Evaluation) evaluateKing(from int, side Color) {
 	piece := pieceColor(King, side)
-
-	direction := North
-	if side == Black {
-		direction = South
-	}
+	direction := [2]int{North, South}
 
 	// Pawn Shield / Storm
 	kingFile, kingRank := from%8, from/8
 	for file := max(0, kingFile-1); file <= min(7, kingFile+1); file++ {
 		from := kingRank*8 + file
-		frontMask := RayAttacks[direction][from] | bitboardFromIndex(from)
+		frontMask := RayAttacks[direction[side]][from] | bitboardFromIndex(from)
 
-		shielders := pawns[side] & frontMask
-		stormers := pawns[side.Opponent()] & frontMask
+		shielders := ev.EvalData.pawns[side] & frontMask
+		stormers := ev.EvalData.pawns[side.Opponent()] & frontMask
 
 		shield := NearestFromSide(shielders&Files[file], side)
 		storm := NearestFromSide(stormers&Files[file], side.Opponent())
@@ -271,9 +298,9 @@ func (ev *EvalVector) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 
 		if hasShield && shieldDist < 4 {
 			if file == kingFile {
-				ev.mgKingSafety[side] += PawnShieldFrontBonus[shieldDist]
+				ev.Eval.mgKingSafety[side] += PawnShieldFrontBonus[shieldDist]
 			} else {
-				ev.mgKingSafety[side] += PawnShieldSideBonus[shieldDist]
+				ev.Eval.mgKingSafety[side] += PawnShieldSideBonus[shieldDist]
 			}
 		}
 
@@ -282,197 +309,201 @@ func (ev *EvalVector) evaluateKing(from int, pawns [2]Bitboard, side Color) {
 		// NOTE: Use -1 due to array indexing. Storms count starts from the 1 rank distance, shield can be in the same rank as the king
 		if hasStorm && stormDist > 0 && stormDist < 5 && shieldDist != stormDist-1 {
 			if file == kingFile {
-				ev.mgKingSafety[side] += PawnStormFrontPenalty[stormDist-1]
+				ev.Eval.mgKingSafety[side] += PawnStormFrontPenalty[stormDist-1]
 			} else {
-				ev.mgKingSafety[side] += PawnStormSidePenalty[stormDist-1]
+				ev.Eval.mgKingSafety[side] += PawnStormSidePenalty[stormDist-1]
 			}
 		}
 
 		// Open/SemiOpen files near the king
-		if (pawns[side]|pawns[side.Opponent()])&Files[file] == 0 {
+		if (ev.EvalData.pawns[side]|ev.EvalData.pawns[side.Opponent()])&Files[file] == 0 {
 			if file == kingFile {
-				ev.mgKingSafety[side] += KingOnOpenFilePenalty
+				ev.Eval.mgKingSafety[side] += KingOnOpenFilePenalty
 			} else {
-				ev.mgKingSafety[side] += KingNearOpenFilePenalty
+				ev.Eval.mgKingSafety[side] += KingNearOpenFilePenalty
 			}
 		}
 	}
 
-	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
-	ev.egMaterial[side] += endgamePiecesScore[piece][from]
+	ev.Eval.mgMaterial[side] += middlegamePiecesScore[piece][from]
+	ev.Eval.egMaterial[side] += endgamePiecesScore[piece][from]
 }
 
 // evaluateQueen evaluates the score of a queen
-func (ev *EvalVector) evaluateQueen(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, pins Bitboard, side Color) {
+func (ev *Evaluation) evaluateQueen(from int, side Color) {
 	piece := pieceColor(Queen, side)
-	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
-	ev.egMaterial[side] += endgamePiecesScore[piece][from]
+	opponent := side.Opponent()
+	ev.Eval.mgMaterial[side] += middlegamePiecesScore[piece][from]
+	ev.Eval.egMaterial[side] += endgamePiecesScore[piece][from]
 
 	fromBB := bitboardFromIndex(from)
-	attacks := Attacks(piece, fromBB, blocks)
-	squares := (attacks & ^enemyPawnsAttacks).count()
+	attacks := Attacks(piece, fromBB, ev.EvalData.blocks)
+	squares := (attacks & ^ev.EvalData.attackedByPawns[opponent]).count()
 
-	enemyKingZone := KingZone[side.Opponent()][Bsf(enemyKing)]
+	enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
 	if attacks&enemyKingZone != 0 {
-		ev.kingAttackersCount[side]++
-		ev.kingAttacksWeight[side] += QueenAttackWeight * (attacks & enemyKingZone).count()
+		ev.Eval.kingAttackersCount[side]++
+		ev.Eval.kingAttacksWeight[side] += QueenAttackWeight * (attacks & enemyKingZone).count()
 	}
 
-	ev.mgMobility[side] += QueenMobilityMg[squares]
-	ev.egMobility[side] += QueenMobilityEg[squares]
+	ev.Eval.mgMobility[side] += QueenMobilityMg[squares]
+	ev.Eval.egMobility[side] += QueenMobilityEg[squares]
 
-	if enemyPawnsAttacks&fromBB > 0 {
-		ev.threats[side] += QueenAttackedByPawnThreatPenalty
+	if ev.EvalData.attackedByPawns[opponent]&fromBB > 0 {
+		ev.Eval.threats[side] += QueenAttackedByPawnThreatPenalty
 	}
 
-	if fromBB&pins > 0 {
-		ev.threats[side] += PinnedQueenThreatPenalty
+	if fromBB&ev.EvalData.pinned > 0 {
+		ev.Eval.threats[side] += PinnedQueenThreatPenalty
 	}
 
 	// Safe checks. Squares not defended by enemy pawns
 	// where the queen can move to give check
-	safeQueenChecks := Attacks(piece, enemyKing, blocks) & ^enemyPawnsAttacks & attacks
+	safeQueenChecks := Attacks(piece, ev.EvalData.kings[opponent], ev.EvalData.blocks) & ^ev.EvalData.attackedByPawns[opponent] & attacks
 	if safeQueenChecks > 0 {
-		ev.threats[side] += SafeQueenCheckThreatBonus * safeQueenChecks.count()
+		ev.Eval.threats[side] += SafeQueenCheckThreatBonus * safeQueenChecks.count()
 	}
 
-	ev.phase += 9
+	ev.Eval.phase += 9
 }
 
 // evaluateRook evaluates the score of a rook
-func (ev *EvalVector) evaluateRook(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, pawns [2]Bitboard, enemyKing Bitboard, pins Bitboard, side Color) {
+func (ev *Evaluation) evaluateRook(from int, side Color) {
 	piece := pieceColor(Rook, side)
-	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
-	ev.egMaterial[side] += endgamePiecesScore[piece][from]
+	opponent := side.Opponent()
+	ev.Eval.mgMaterial[side] += middlegamePiecesScore[piece][from]
+	ev.Eval.egMaterial[side] += endgamePiecesScore[piece][from]
 
 	file := from % 8
-	if (pawns[White]|pawns[Black])&Files[file] == 0 {
-		ev.mgMaterial[side] += RookOnOpenFileMg
+	if (ev.EvalData.pawns[White]|ev.EvalData.pawns[Black])&Files[file] == 0 {
+		ev.Eval.mgMaterial[side] += RookOnOpenFileMg
 	}
 
-	if pawns[side]&Files[file] == 0 && pawns[side.Opponent()]&Files[file] > 0 {
-		ev.mgMaterial[side] += RookOnSemiOpenFileMg
+	if ev.EvalData.pawns[side]&Files[file] == 0 && ev.EvalData.pawns[opponent]&Files[file] > 0 {
+		ev.Eval.mgMaterial[side] += RookOnSemiOpenFileMg
 	}
 
 	fromBB := bitboardFromIndex(from)
-	attacks := Attacks(piece, fromBB, blocks)
-	squares := (attacks & ^enemyPawnsAttacks).count()
+	attacks := Attacks(piece, fromBB, ev.EvalData.blocks)
+	squares := (attacks & ^ev.EvalData.attackedByPawns[opponent]).count()
 
-	enemyKingZone := KingZone[side.Opponent()][Bsf(enemyKing)]
+	enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
 	if attacks&enemyKingZone != 0 {
-		ev.kingAttackersCount[side]++
-		ev.kingAttacksWeight[side] += RookAttackWeight * (attacks & enemyKingZone).count()
+		ev.Eval.kingAttackersCount[side]++
+		ev.Eval.kingAttacksWeight[side] += RookAttackWeight * (attacks & enemyKingZone).count()
 	}
 
-	if enemyPawnsAttacks&fromBB > 0 {
-		ev.threats[side] += RookAttackedByPawnThreatPenalty
+	if ev.EvalData.attackedByPawns[opponent]&fromBB > 0 {
+		ev.Eval.threats[side] += RookAttackedByPawnThreatPenalty
 	}
 
-	if fromBB&pins > 0 {
-		ev.threats[side] += PinnedRookThreatPenalty
+	if fromBB&ev.EvalData.pinned > 0 {
+		ev.Eval.threats[side] += PinnedRookThreatPenalty
 	}
 
-	safeRookChecks := Attacks(piece, enemyKing, blocks) & ^enemyPawnsAttacks & attacks
+	safeRookChecks := Attacks(piece, ev.EvalData.kings[opponent], ev.EvalData.blocks) & ^ev.EvalData.attackedByPawns[opponent] & attacks
 	if safeRookChecks > 0 {
-		ev.threats[side] += SafeRookCheckThreatBonus * safeRookChecks.count()
+		ev.Eval.threats[side] += SafeRookCheckThreatBonus * safeRookChecks.count()
 	}
 
-	ev.mgMobility[side] += RookMobilityMg[squares]
-	ev.egMobility[side] += RookMobilityEg[squares]
+	ev.Eval.mgMobility[side] += RookMobilityMg[squares]
+	ev.Eval.egMobility[side] += RookMobilityEg[squares]
 
-	ev.phase += 5
+	ev.Eval.phase += 5
 }
 
 // evaluateBishop evaluates the score of a bishop
-func (ev *EvalVector) evaluateBishop(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, pins Bitboard, side Color, pos *Position) {
+func (ev *Evaluation) evaluateBishop(from int, side Color, pos *Position) {
 	piece := pieceColor(Bishop, side)
-	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
-	ev.egMaterial[side] += endgamePiecesScore[piece][from]
+	opponent := side.Opponent()
+	ev.Eval.mgMaterial[side] += middlegamePiecesScore[piece][from]
+	ev.Eval.egMaterial[side] += endgamePiecesScore[piece][from]
 
-	if outpostMask&bitboardFromIndex(from) > 0 {
-		ev.mgMaterial[side] += BishopOutpostBonusMg
-		ev.egMaterial[side] += BishopOutpostBonusEg
+	if ev.EvalData.outposts[side]&bitboardFromIndex(from) > 0 {
+		ev.Eval.mgMaterial[side] += BishopOutpostBonusMg
+		ev.Eval.egMaterial[side] += BishopOutpostBonusEg
 	}
 
 	fromBB := bitboardFromIndex(from)
-	attacks := Attacks(piece, fromBB, blocks)
-	squares := (attacks & ^enemyPawnsAttacks).count()
+	attacks := Attacks(piece, fromBB, ev.EvalData.blocks)
+	squares := (attacks & ^ev.EvalData.attackedByPawns[opponent]).count()
 
-	enemyKingZone := KingZone[side.Opponent()][Bsf(enemyKing)]
+	enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
 	if attacks&enemyKingZone != 0 {
-		ev.kingAttackersCount[side]++
-		ev.kingAttacksWeight[side] += BishopAttackWeight * (attacks & enemyKingZone).count()
+		ev.Eval.kingAttackersCount[side]++
+		ev.Eval.kingAttacksWeight[side] += BishopAttackWeight * (attacks & enemyKingZone).count()
 	}
 
-	if enemyPawnsAttacks&fromBB > 0 {
-		ev.threats[side] += MinorAttackedByPawnThreatPenalty
+	if ev.EvalData.attackedByPawns[opponent]&fromBB > 0 {
+		ev.Eval.threats[side] += MinorAttackedByPawnThreatPenalty
 	}
 	if attacks&pos.Bitboards[pieceColor(Queen, side.Opponent())] > 0 {
-		ev.threats[side.Opponent()] += QueenAttackedByMinorThreatPenalty
+		ev.Eval.threats[side.Opponent()] += QueenAttackedByMinorThreatPenalty
 	}
 	if attacks&pos.Bitboards[pieceColor(Rook, side.Opponent())] > 0 {
-		ev.threats[side.Opponent()] += RookAttackedByMinorThreatPenalty
+		ev.Eval.threats[side.Opponent()] += RookAttackedByMinorThreatPenalty
 	}
 
-	if fromBB&pins > 0 {
-		ev.threats[side] += PinnedBishopThreatPenalty
+	if fromBB&ev.EvalData.pinned > 0 {
+		ev.Eval.threats[side] += PinnedBishopThreatPenalty
 	}
 
-	safeBishopChecks := Attacks(piece, enemyKing, blocks) & ^enemyPawnsAttacks & attacks
+	safeBishopChecks := Attacks(piece, ev.EvalData.kings[opponent], ev.EvalData.blocks) & ^ev.EvalData.attackedByPawns[opponent] & attacks
 	if safeBishopChecks > 0 {
-		ev.threats[side] += SafeBishopCheckThreatBonus * safeBishopChecks.count()
+		ev.Eval.threats[side] += SafeBishopCheckThreatBonus * safeBishopChecks.count()
 	}
 
-	ev.mgMobility[side] += BishopMobilityMg[squares]
-	ev.egMobility[side] += BishopMobilityEg[squares]
+	ev.Eval.mgMobility[side] += BishopMobilityMg[squares]
+	ev.Eval.egMobility[side] += BishopMobilityEg[squares]
 
-	ev.phase += 3
+	ev.Eval.phase += 3
 }
 
 // evaluateKnight evaluates the score of a knight
-func (ev *EvalVector) evaluateKnight(from int, blocks Bitboard, enemyPawnsAttacks Bitboard, enemyKing Bitboard, outpostMask Bitboard, pins Bitboard, side Color, pos *Position) {
+func (ev *Evaluation) evaluateKnight(from int, side Color, pos *Position) {
 	piece := pieceColor(Knight, side)
-	ev.mgMaterial[side] += middlegamePiecesScore[piece][from]
-	ev.egMaterial[side] += endgamePiecesScore[piece][from]
+	opponent := side.Opponent()
+	ev.Eval.mgMaterial[side] += middlegamePiecesScore[piece][from]
+	ev.Eval.egMaterial[side] += endgamePiecesScore[piece][from]
 
-	if outpostMask&bitboardFromIndex(from) > 0 {
-		ev.mgMaterial[side] += KnightOutpostBonusMg
-		ev.egMaterial[side] += KnightOutpostBonusEg
+	if ev.EvalData.outposts[side]&bitboardFromIndex(from) > 0 {
+		ev.Eval.mgMaterial[side] += KnightOutpostBonusMg
+		ev.Eval.egMaterial[side] += KnightOutpostBonusEg
 	}
 
 	fromBB := bitboardFromIndex(from)
-	attacks := Attacks(piece, fromBB, blocks)
-	squares := (attacks & ^enemyPawnsAttacks).count()
+	attacks := Attacks(piece, fromBB, ev.EvalData.blocks)
+	squares := (attacks & ^ev.EvalData.attackedByPawns[opponent]).count()
 
-	enemyKingZone := KingZone[side.Opponent()][Bsf(enemyKing)]
+	enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
 	if attacks&enemyKingZone != 0 {
-		ev.kingAttackersCount[side]++
-		ev.kingAttacksWeight[side] += KnightAttackWeight * (attacks & enemyKingZone).count()
+		ev.Eval.kingAttackersCount[side]++
+		ev.Eval.kingAttacksWeight[side] += KnightAttackWeight * (attacks & enemyKingZone).count()
 	}
 
-	if enemyPawnsAttacks&fromBB > 0 {
-		ev.threats[side] += MinorAttackedByPawnThreatPenalty
+	if ev.EvalData.attackedByPawns[opponent]&fromBB > 0 {
+		ev.Eval.threats[side] += MinorAttackedByPawnThreatPenalty
 	}
-	if attacks&pos.Bitboards[pieceColor(Queen, side.Opponent())] > 0 {
-		ev.threats[side.Opponent()] += QueenAttackedByMinorThreatPenalty
+	if attacks&pos.Bitboards[pieceColor(Queen, opponent)] > 0 {
+		ev.Eval.threats[side.Opponent()] += QueenAttackedByMinorThreatPenalty
 	}
-	if attacks&pos.Bitboards[pieceColor(Rook, side.Opponent())] > 0 {
-		ev.threats[side.Opponent()] += RookAttackedByMinorThreatPenalty
-	}
-
-	if fromBB&pins > 0 {
-		ev.threats[side] += PinnedKnightThreatPenalty
+	if attacks&pos.Bitboards[pieceColor(Rook, opponent)] > 0 {
+		ev.Eval.threats[side.Opponent()] += RookAttackedByMinorThreatPenalty
 	}
 
-	safeKnightChecks := Attacks(piece, enemyKing, blocks) & ^enemyPawnsAttacks & attacks
+	if fromBB&ev.EvalData.pinned > 0 {
+		ev.Eval.threats[side] += PinnedKnightThreatPenalty
+	}
+
+	safeKnightChecks := Attacks(piece, ev.EvalData.kings[opponent], ev.EvalData.blocks) & ^ev.EvalData.attackedByPawns[opponent] & attacks
 	if safeKnightChecks > 0 {
-		ev.threats[side] += SafeKnightCheckThreatBonus * safeKnightChecks.count()
+		ev.Eval.threats[side] += SafeKnightCheckThreatBonus * safeKnightChecks.count()
 	}
 
-	ev.mgMobility[side] += KnightMobilityMg[squares]
-	ev.egMobility[side] += KnightMobilityEg[squares]
+	ev.Eval.mgMobility[side] += KnightMobilityMg[squares]
+	ev.Eval.egMobility[side] += KnightMobilityEg[squares]
 
-	ev.phase += 3
+	ev.Eval.phase += 3
 }
 
 // evaluatePawn evaluates the score of a pawn
