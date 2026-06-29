@@ -13,7 +13,7 @@ const (
 	MateScore                     = 20000
 	MinInt                        = math.MinInt32
 	MaxInt                        = math.MaxInt32
-	ReverseFutitlityPruningMargin = 130
+	ReverseFutitlityPruningMargin = 115
 	AspirationWindowSize          = 25
 	NullMovePruningDepth          = 2
 	MaxHistoryBonus               = 8192
@@ -173,7 +173,8 @@ func (kt *KillersTable) get(ply int) (Move, Move) {
 
 // Stack contains the history of moves played in the current branch of the search
 type Stack struct {
-	moves [MaxSearchDepth * 2]Move
+	moves      [MaxSearchDepth * 2]Move
+	staticEval [MaxSearchDepth * 2]int
 }
 
 // store stores the move in the stack at the given ply
@@ -379,10 +380,18 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	flag := FlagAlpha
 	branchPv := NewPvLine(depth)
 	staticEval := s.evaluate(pos, ttMove, ttEval)
+	s.stack.staticEval[ply] = staticEval
+
+	// Improving. When we are getting a better position than 2ply before(same side to move), we can
+	// use this flag to be more aggresive in some pruning or other search techniques
+	improving := 0
+	if ply >= 2 && !isCheck && staticEval >= s.stack.staticEval[ply-2] {
+		improving = 1
+	}
 
 	// Reverse Futility Pruning / Static Null Move pruning
-	if depth <= 4 && !isCheck && !pvNode {
-		margin := ReverseFutitlityPruningMargin * depth
+	if depth <= 8 && !isCheck && !pvNode {
+		margin := ReverseFutitlityPruningMargin*depth - improving*65
 		if staticEval-margin >= beta {
 			return beta
 		}
