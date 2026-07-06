@@ -24,9 +24,9 @@ const (
 
 var (
 	// LateMovePruningMoveNumber contains the move number to start pruning for each depth
-	LateMovePruningMoveNumber = [2][7]int{
-		{0, 2, 6, 12, 15, 18, 22},
-		{0, 5, 10, 15, 20, 24, 28},
+	LateMovePruningMoveNumber = [2][9]int{
+		{0, 3, 6, 9, 12, 15, 18, 21, 24},
+		{0, 5, 10, 15, 20, 25, 30, 35, 40},
 	}
 
 	// FutilityPruningMargin contains the margin for futility pruning for each depth
@@ -449,7 +449,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		// Late Move Pruning
 		// Prunes quiet moves that are likely not to be good, by assuming we have a good move ordering
-		if depth <= 6 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[improving][depth] && !isCheck && !pvNode {
+		if depth <= 8 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[improving][depth] && !isCheck && !pvNode {
 			continue
 		}
 
