@@ -72,12 +72,12 @@ func genPushPromotions(pos *Position, side Color, ml *MoveList, pd *PositionData
 	posiblesPromotions := pawns & promoFromRank[side]
 
 	for posiblesPromotions > 0 {
-		from := posiblesPromotions.NextBit()
-		moves := pawnMoves(&from, pd, pos.Turn)
-		to := pawnPushesTable[pos.Turn][Bsf(from)]
+		fromBB := posiblesPromotions.NextBit()
+		toBB := pawnPushesTable[pos.Turn][Bsf(fromBB)]
+		moves := pawnMoves(&fromBB, pd, pos.Turn)
 
-		if moves&to > 0 {
-			genPawnPromotions(&from, &to, ml, false)
+		if moves&toBB > 0 {
+			genPawnPromotions(Bsf(fromBB), Bsf(toBB), ml, false)
 		}
 	}
 }

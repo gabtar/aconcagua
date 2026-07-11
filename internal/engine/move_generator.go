@@ -176,19 +176,20 @@ func (pos *Position) generateNoisy(ml *MoveList, pd *PositionData) {
 	for piece, bb := range bitboards {
 		for bb > 0 {
 			pieceBB := bb.NextBit()
+			from := Bsf(pieceBB)
 			switch piece {
 			case King:
-				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&nonKingOpponents, ml, pd)
+				genMovesFromTargets(from, kingMoves(&pieceBB, pos, pos.Turn)&nonKingOpponents, ml, pd)
 			case Queen:
-				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&nonKingOpponents, ml, pd)
+				genMovesFromTargets(from, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&nonKingOpponents, ml, pd)
 			case Rook:
-				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&nonKingOpponents, ml, pd)
+				genMovesFromTargets(from, rookMoves(&pieceBB, pd)&nonKingOpponents, ml, pd)
 			case Bishop:
-				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&nonKingOpponents, ml, pd)
+				genMovesFromTargets(from, bishopMoves(&pieceBB, pd)&nonKingOpponents, ml, pd)
 			case Knight:
-				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&nonKingOpponents, ml, pd)
+				genMovesFromTargets(from, knightMoves(&pieceBB, pd)&nonKingOpponents, ml, pd)
 			case Pawn:
-				genPawnCapturesMoves(&pieceBB, nonKingOpponents, pos.Turn, ml, pd)
+				genPawnCapturesMoves(from, nonKingOpponents, pos.Turn, ml, pd)
 			}
 		}
 	}
@@ -199,24 +200,32 @@ func (pos *Position) generateNoisy(ml *MoveList, pd *PositionData) {
 // generateQuiets generates all non captures in the position and stores them in the move list
 func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 	bitboards := pos.getBitboards(pos.Turn)
+	promoFromRank := [2]Bitboard{Ranks[6], Ranks[1]}
 
 	for piece, bb := range bitboards {
+
+		// Exclude normal promotions
+		if piece == Pawn {
+			bb &^= promoFromRank[pos.Turn]
+		}
+
 		for bb > 0 {
 			pieceBB := bb.NextBit()
+			from := Bsf(pieceBB)
 			switch piece {
 			case King:
-				genMovesFromTargets(&pieceBB, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, pd)
+				genMovesFromTargets(from, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, pd)
 				genCastleMoves(pos, ml)
 			case Queen:
-				genMovesFromTargets(&pieceBB, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&^pd.enemies, ml, pd)
+				genMovesFromTargets(from, (rookMoves(&pieceBB, pd)|bishopMoves(&pieceBB, pd))&^pd.enemies, ml, pd)
 			case Rook:
-				genMovesFromTargets(&pieceBB, rookMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+				genMovesFromTargets(from, rookMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 			case Bishop:
-				genMovesFromTargets(&pieceBB, bishopMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+				genMovesFromTargets(from, bishopMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 			case Knight:
-				genMovesFromTargets(&pieceBB, knightMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
+				genMovesFromTargets(from, knightMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 			case Pawn:
-				genPawnMovesFromTarget(&pieceBB, pawnMoves(&pieceBB, pd, pos.Turn)&^pd.enemies, pos.Turn, ml, pd)
+				genPawnMovesFromTarget(from, pawnMoves(&pieceBB, pd, pos.Turn)&^pd.enemies, ml)
 			}
 		}
 	}
@@ -298,14 +307,14 @@ func lastRank(side Color) (rank Bitboard) {
 }
 
 // genMovesFromTargets generates the moves from the square passed to the targets passed in a MoveList
-func genMovesFromTargets(from *Bitboard, targets Bitboard, ml *MoveList, pd *PositionData) {
+func genMovesFromTargets(from int, targets Bitboard, ml *MoveList, pd *PositionData) {
 	for targets > 0 {
 		toSquare := targets.NextBit()
 		flag := quiet
 		if toSquare&pd.enemies > 0 {
 			flag = capture
 		}
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), uint16(flag)))
+		ml.add(*encodeMove(uint16(from), uint16(Bsf(toSquare)), uint16(flag)))
 	}
 }
 
@@ -328,52 +337,50 @@ func genCastleMoves(pos *Position, ml *MoveList) {
 }
 
 // genPawnPromotions generates the pawn promotions in the move list
-func genPawnPromotions(from *Bitboard, to *Bitboard, ml *MoveList, isCapture bool) {
+func genPawnPromotions(from int, to int, ml *MoveList, isCapture bool) {
 	if isCapture {
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), knightCapturePromotion))
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), bishopCapturePromotion))
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), rookCapturePromotion))
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), queenCapturePromotion))
+		ml.add(*encodeMove(uint16(from), uint16(to), knightCapturePromotion))
+		ml.add(*encodeMove(uint16(from), uint16(to), bishopCapturePromotion))
+		ml.add(*encodeMove(uint16(from), uint16(to), rookCapturePromotion))
+		ml.add(*encodeMove(uint16(from), uint16(to), queenCapturePromotion))
 	} else {
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), knightPromotion))
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), bishopPromotion))
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), rookPromotion))
-		ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(*to)), queenPromotion))
+		ml.add(*encodeMove(uint16(from), uint16(to), knightPromotion))
+		ml.add(*encodeMove(uint16(from), uint16(to), bishopPromotion))
+		ml.add(*encodeMove(uint16(from), uint16(to), rookPromotion))
+		ml.add(*encodeMove(uint16(from), uint16(to), queenPromotion))
 	}
 }
 
 // genPawnMovesFromTarget generates the pawn moves in the move list
-func genPawnMovesFromTarget(from *Bitboard, targets Bitboard, side Color, ml *MoveList, pd *PositionData) {
-	promoFromRank := [2]Bitboard{Ranks[6], Ranks[1]}
-	if *from&promoFromRank[side] > 0 {
-		return
-	}
-
+func genPawnMovesFromTarget(from int, targets Bitboard, ml *MoveList) {
 	for targets > 0 {
-		toSquare := targets.NextBit()
+		toBB := targets.NextBit()
+		toSquare := Bsf(toBB)
 
 		switch {
-		case Bsf(toSquare)-Bsf(*from) == 16 || Bsf(*from)-Bsf(toSquare) == 16: // Double Push
-			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), doublePawnPush))
+		case abs(toSquare-from) == 16: // Double Push
+			ml.add(*encodeMove(uint16(from), uint16(toSquare), doublePawnPush))
 		default: // Quiet
-			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), quiet))
+			ml.add(*encodeMove(uint16(from), uint16(toSquare), quiet))
 		}
 	}
 }
 
 // genPawnCapturesMoves generates the pawn captures in the move list
-func genPawnCapturesMoves(from *Bitboard, opponents Bitboard, side Color, ml *MoveList, pd *PositionData) {
-	toSquares := pawnMoves(from, pd, side) & opponents
+func genPawnCapturesMoves(from int, opponents Bitboard, side Color, ml *MoveList, pd *PositionData) {
+	fromBB := bitboardFromIndex(from)
+	toSquares := pawnMoves(&fromBB, pd, side) & opponents
 
 	for toSquares > 0 {
-		toSquare := toSquares.NextBit()
-		isPromotion := lastRank(side) & toSquare
+		toBB := toSquares.NextBit()
+		to := Bsf(toBB)
+		isPromotion := lastRank(side) & toBB
 
 		switch {
-		case isPromotion > 0 && opponents&toSquare > 0: // Promo Capture
-			genPawnPromotions(from, &toSquare, ml, true)
+		case isPromotion > 0 && opponents&toBB > 0: // Promo Capture
+			genPawnPromotions(from, to, ml, true)
 		default: // Capture
-			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), capture))
+			ml.add(*encodeMove(uint16(from), uint16(to), capture))
 		}
 	}
 }

@@ -359,7 +359,7 @@ func TestGenKingMoves(t *testing.T) {
 	pd := pos.generatePositionData()
 
 	expected := 5 // Castles moves are treated separately
-	genMovesFromTargets(&kingBB, kingMoves(&kingBB, pos, White), ml, &pd)
+	genMovesFromTargets(e1, kingMoves(&kingBB, pos, White), ml, &pd)
 	got := ml.length
 
 	if got != expected {
@@ -532,7 +532,7 @@ func TestGenTargetMovesForRook(t *testing.T) {
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
 
-	genMovesFromTargets(&rookBB, rookMoves(&rookBB, &pd), ml, &pd)
+	genMovesFromTargets(a8, rookMoves(&rookBB, &pd), ml, &pd)
 	expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
 
 	expected := len(expectedSquares)
@@ -668,7 +668,7 @@ func TestGenTargetMovesForBishop(t *testing.T) {
 	expectedSquares := []string{"h7", "h5", "f7"}
 
 	expected := len(expectedSquares)
-	genMovesFromTargets(&bishopBB, bishopMoves(&bishopBB, &pd), ml, &pd)
+	genMovesFromTargets(g6, bishopMoves(&bishopBB, &pd), ml, &pd)
 	got := ml.length
 
 	if got != expected {
@@ -754,7 +754,7 @@ func TestGenTargetMovesForKnight(t *testing.T) {
 	ml := NewMoveList()
 
 	expected := []Move{*encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
-	genMovesFromTargets(&knightBB, knightMoves(&knightBB, &pd), ml, &pd)
+	genMovesFromTargets(b1, knightMoves(&knightBB, &pd), ml, &pd)
 	got := ml.moves
 
 	if got[0] != expected[0] {
@@ -923,7 +923,7 @@ func TestPawnsMoves(t *testing.T) {
 	ml := NewMoveList()
 
 	expected := 2
-	genPawnMovesFromTarget(&pawnBB, pawnMoves(&pawnBB, &pd, White), White, ml, &pd)
+	genPawnMovesFromTarget(e2, pawnMoves(&pawnBB, &pd, White), ml)
 	got := ml.length
 
 	if got != expected {
