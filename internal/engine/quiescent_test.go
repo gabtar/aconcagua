@@ -99,3 +99,16 @@ func TestSeeFive(t *testing.T) {
 		t.Errorf("Expected: %v, got: %v", expected, got)
 	}
 }
+
+func TestSeePushPromotions(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/7P/8/1k2b1P1/6K1/p7/1p6/8 w - - 0 1")
+
+	expected := -100
+	move := encodeMove(uint16(h7), uint16(h8), queenPromotion)
+	got := pos.see(move)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}

@@ -101,6 +101,9 @@ func (pos *Position) see(move *Move) int {
 	alreadyAttacked := Bitboard(0)
 	attackerRole := pieceRole(pos.PieceAt(from))
 	materialGain[depth] = getMaterialExchangeValue(pos, move)
+	if move.flag() >= knightPromotion {
+		attackerRole = pieceRole(getPromotedToPiece(move.flag(), pos.Turn))
+	}
 
 	for attackers > 0 {
 		depth++
@@ -177,7 +180,7 @@ func (pos *Position) getLeastValuableAttacker(attackers Bitboard, side Color) (B
 // getMaterialExchangeValue returns the material exchange value for the move passed
 func getMaterialExchangeValue(pos *Position, move *Move) int {
 	targetPiece := pieceRole(pos.PieceAt(move.to()))
-	value := SEEPieceValues[targetPiece]
+	value := 0
 	flag := move.flag()
 
 	switch {
@@ -186,8 +189,11 @@ func getMaterialExchangeValue(pos *Position, move *Move) int {
 	case flag >= knightPromotion:
 		promotedTo := pieceRole(getPromotedToPiece(flag, pos.Turn))
 		value = SEEPieceValues[promotedTo] - SEEPieceValues[Pawn]
-	case flag < capture: // quiet moves
-		value = 0
+		if flag >= knightCapturePromotion {
+			value += SEEPieceValues[targetPiece]
+		}
+	case flag == capture:
+		value = SEEPieceValues[targetPiece]
 	}
 
 	return value
