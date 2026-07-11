@@ -331,8 +331,8 @@ func (s *Search) aspirationSearch(pos *Position, depth int, lastScore int) int {
 func setDefaultMove(pos *Position) string {
 	pd := pos.generatePositionData()
 	ml := NewMoveList()
-	pos.generateCaptures(ml, &pd)
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateNoisy(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 	if ml.length > 0 {
 		return ml.moves[0].String()
 	}
@@ -449,7 +449,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		// Late Move Pruning
 		// Prunes quiet moves that are likely not to be good, by assuming we have a good move ordering
-		if depth <= 8 && mg.stage == NonCapturesStage && mg.moveNumber > LateMovePruningMoveNumber[improving][depth] && !isCheck && !pvNode {
+		if depth <= 8 && mg.stage == QuietStage && mg.moveNumber > LateMovePruningMoveNumber[improving][depth] && !isCheck && !pvNode {
 			continue
 		}
 
@@ -460,7 +460,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		// Static Exchange Evaluation Pruning
 		// Prunes bad captures/quiet moves that does not beat a depth dependent threshold
-		if depth <= SEEPruningDepth && mg.stage >= NonCapturesStage && canPruneBySEE(mg, move, depth) {
+		if depth <= SEEPruningDepth && mg.stage >= QuietStage && canPruneBySEE(mg, move, depth) {
 			continue
 		}
 
@@ -550,7 +550,7 @@ func canPruneBySEE(mg *MoveGenerator, move Move, depth int) bool {
 	see, threshold := 0, 0
 
 	// For non Captures check see for quiet moves. The piece may move to an attacked square that can be recaptured
-	if mg.stage == NonCapturesStage {
+	if mg.stage == QuietStage {
 		see, threshold = mg.pos.see(&move), -depth*SEEQuietMargin
 	} else {
 		// For captures we use the computed value for see in the move generator, already computed for move ordering
@@ -587,7 +587,7 @@ func lmrReductionFactor(depth, moveNumber, stage, moveFlag int, isCheck, pvNode 
 	}
 
 	// Reduce less on Killers and counter moves
-	if stage < NonCapturesStage && stage > CapturesStage {
+	if stage < QuietStage && stage > NoisyStage {
 		reduction--
 	}
 

@@ -711,8 +711,8 @@ func (pos *Position) LoadMoves(moves ...string) {
 	for _, move := range moves {
 		ml := NewMoveList()
 		pd := pos.generatePositionData()
-		pos.generateCaptures(ml, &pd)
-		pos.generateNonCaptures(ml, &pd)
+		pos.generateNoisy(ml, &pd)
+		pos.generateQuiets(ml, &pd)
 
 		for i := range ml.length {
 			if ml.moves[i].String() == move {

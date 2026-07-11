@@ -69,8 +69,8 @@ func TestLegalMovesOnAPositionWithPromotion(t *testing.T) {
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(ml, &pd)
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateNoisy(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 
 	expected := 28
 	got := ml.length
@@ -86,8 +86,8 @@ func TestLegalMovesOnAPositionIllegalLongCastle(t *testing.T) {
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(ml, &pd)
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateNoisy(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 
 	expected := 18
 	got := ml.length
@@ -103,8 +103,8 @@ func TestLegalMovesOnAPositionWithDoubleEnPassantCaptures(t *testing.T) {
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(ml, &pd)
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateNoisy(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 
 	expected := 19
 	got := ml.length
@@ -120,8 +120,8 @@ func TestLegalMovesOnMultiplePinsWithCheck(t *testing.T) {
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(ml, &pd)
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateNoisy(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 
 	expected := 5
 	got := ml.length
@@ -137,8 +137,8 @@ func TestLegalMovesOnMultiplePinsWithCheckTwo(t *testing.T) {
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(ml, &pd)
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateNoisy(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 
 	expected := 4 // 3 of king 1 block of the knight
 	got := ml.length

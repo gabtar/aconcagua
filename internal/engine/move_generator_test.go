@@ -75,7 +75,7 @@ func TestMoveGeneratorGetsAllMoves(t *testing.T) {
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 	killers := Killer{ml.moves[0], ml.moves[5]}
 	cm := ml.moves[3]
 
@@ -934,12 +934,11 @@ func TestPawnsMoves(t *testing.T) {
 func TestPawnsMovesPromo(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
-	pawnBB := bitboardFromCoordinates("h7")
 	pd := pos.generatePositionData()
 	ml := NewMoveList()
 
 	expected := 4
-	genPawnMovesFromTarget(&pawnBB, pawnMoves(&pawnBB, &pd, White), White, ml, &pd)
+	genPushPromotions(pos, pos.Turn, ml, &pd)
 	got := ml.length
 
 	if got != expected {

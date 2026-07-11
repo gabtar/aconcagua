@@ -3,13 +3,13 @@ package engine
 // MoveGenerator stages
 const (
 	HashMoveStage = iota
-	GenerateCapturesStage
-	CapturesStage
+	GenerateNoisyStage
+	NoisyStage
 	FirstKillerStage
 	SecondKillerStage
 	CounterMoveStage
-	GenerateNonCapturesStage
-	NonCapturesStage
+	GenerateQuietStage
+	QuietStage
 	BadCapturesStage
 	EndStage
 )
@@ -47,18 +47,18 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 	mg.moveNumber++
 	switch mg.stage {
 	case HashMoveStage:
-		mg.stage = GenerateCapturesStage
+		mg.stage = GenerateNoisyStage
 		if *mg.hashMove != NoMove {
 			return *mg.hashMove
 		}
 		fallthrough
-	case GenerateCapturesStage:
-		mg.stage = CapturesStage
+	case GenerateNoisyStage:
+		mg.stage = NoisyStage
 		mg.pd = mg.pos.generatePositionData()
-		mg.pos.generateCaptures(mg.moves, &mg.pd)
+		mg.pos.generateNoisy(mg.moves, &mg.pd)
 		mg.moves.scoreCaptures(mg.pos)
 		fallthrough
-	case CapturesStage:
+	case NoisyStage:
 		move = mg.nextGoodCapture()
 		// Reset counter move, to avoid repeating if it was picked here
 		if move == *mg.cm {
@@ -86,18 +86,18 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 		}
 		fallthrough
 	case CounterMoveStage:
-		mg.stage = GenerateNonCapturesStage
+		mg.stage = GenerateQuietStage
 		move = *mg.cm
 		if move != NoMove && move != *mg.hashMove && move != *mg.killer1 && move != *mg.killer2 && mg.isLegal(move) {
 			return move
 		}
 		fallthrough
-	case GenerateNonCapturesStage:
-		mg.stage = NonCapturesStage
-		mg.pos.generateNonCaptures(mg.moves, &mg.pd)
+	case GenerateQuietStage:
+		mg.stage = QuietStage
+		mg.pos.generateQuiets(mg.moves, &mg.pd)
 		mg.moves.scoreNonCaptures(mg.historyMoves, mg.pos.Turn, mg.badCapLength)
 		fallthrough
-	case NonCapturesStage:
+	case QuietStage:
 		move = mg.nextNonCapture()
 		if move != NoMove {
 			return move
@@ -166,8 +166,8 @@ func (mg *MoveGenerator) nextBadCapture() (move Move) {
 	}
 }
 
-// generateCaptures generates all captures in the position and stores them in the move list
-func (pos *Position) generateCaptures(ml *MoveList, pd *PositionData) {
+// generateNoisy generates all captures in the position and stores them in the move list
+func (pos *Position) generateNoisy(ml *MoveList, pd *PositionData) {
 	bitboards := pos.getBitboards(pos.Turn)
 
 	// Generate only 'legal' captures, not allowing to capture a king
@@ -192,11 +192,12 @@ func (pos *Position) generateCaptures(ml *MoveList, pd *PositionData) {
 			}
 		}
 	}
+	genPushPromotions(pos, pos.Turn, ml, pd)
 	genEnPassantCaptures(pos, pos.Turn, ml, pd)
 }
 
-// generateNonCaptures generates all non captures in the position and stores them in the move list
-func (pos *Position) generateNonCaptures(ml *MoveList, pd *PositionData) {
+// generateQuiets generates all non captures in the position and stores them in the move list
+func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 	bitboards := pos.getBitboards(pos.Turn)
 
 	for piece, bb := range bitboards {
@@ -343,17 +344,15 @@ func genPawnPromotions(from *Bitboard, to *Bitboard, ml *MoveList, isCapture boo
 
 // genPawnMovesFromTarget generates the pawn moves in the move list
 func genPawnMovesFromTarget(from *Bitboard, targets Bitboard, side Color, ml *MoveList, pd *PositionData) {
+	promoFromRank := [2]Bitboard{Ranks[6], Ranks[1]}
+	if *from&promoFromRank[side] > 0 {
+		return
+	}
+
 	for targets > 0 {
 		toSquare := targets.NextBit()
-		isPromotion := lastRank(side) & toSquare
 
 		switch {
-		case isPromotion > 0 && pd.enemies&toSquare > 0: // Promo Capture
-			genPawnPromotions(from, &toSquare, ml, true)
-		case isPromotion > 0: // Promotion
-			genPawnPromotions(from, &toSquare, ml, false)
-		case pd.enemies&toSquare > 0: // Capture
-			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), capture))
 		case Bsf(toSquare)-Bsf(*from) == 16 || Bsf(*from)-Bsf(toSquare) == 16: // Double Push
 			ml.add(*encodeMove(uint16(Bsf(*from)), uint16(Bsf(toSquare)), doublePawnPush))
 		default: // Quiet

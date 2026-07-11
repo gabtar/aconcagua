@@ -34,8 +34,7 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(ml, &pd)
-	genQueenPromotions(pos, pos.Turn, ml, &pd)
+	pos.generateNoisy(ml, &pd)
 
 	flag := FlagAlpha
 	newScore := MinInt
@@ -66,21 +65,19 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 	return alpha
 }
 
-// genQueenPromotions generates the queen promotions in the move list
-func genQueenPromotions(pos *Position, side Color, ml *MoveList, pd *PositionData) {
+// genPushPromotions generates the normal push promotions
+func genPushPromotions(pos *Position, side Color, ml *MoveList, pd *PositionData) {
 	pawns := pos.Bitboards[pieceColor(Pawn, side)]
 	promoFromRank := [2]Bitboard{Ranks[6], Ranks[1]}
-	posiblesPromotions := pawns & promoFromRank[side] & ^pd.enemies
+	posiblesPromotions := pawns & promoFromRank[side]
 
 	for posiblesPromotions > 0 {
 		from := posiblesPromotions.NextBit()
-		targets := pawnMoves(&from, pd, side)
-		to := from << 8
-		if side == Black {
-			to = from >> 8
-		}
-		if targets&to > 0 {
-			ml.add(*encodeMove(uint16(Bsf(from)), uint16(Bsf(to)), queenPromotion))
+		moves := pawnMoves(&from, pd, pos.Turn)
+		to := pawnPushesTable[pos.Turn][Bsf(from)]
+
+		if moves&to > 0 {
+			genPawnPromotions(&from, &to, ml, false)
 		}
 	}
 }

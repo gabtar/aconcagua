@@ -7,15 +7,15 @@ func (pos *Position) Perft(depth int) (nodes uint64) {
 	if depth == 1 {
 		ml := NewMoveList()
 		pd := pos.generatePositionData()
-		pos.generateCaptures(ml, &pd)
-		pos.generateNonCaptures(ml, &pd)
+		pos.generateNoisy(ml, &pd)
+		pos.generateQuiets(ml, &pd)
 		return uint64(ml.length)
 	}
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(ml, &pd)
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateNoisy(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 
 	for i := range ml.length {
 		pos.MakeMove(&ml.moves[i])
@@ -32,8 +32,8 @@ func (pos *Position) Divide(depth int) (divide string) {
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateCaptures(ml, &pd)
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateNoisy(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 
 	for i := range ml.length {
 		pos.MakeMove(&ml.moves[i])
