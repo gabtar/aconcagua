@@ -65,23 +65,6 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 	return alpha
 }
 
-// genPushPromotions generates the normal push promotions
-func genPushPromotions(pos *Position, side Color, ml *MoveList, pd *PositionData) {
-	pawns := pos.Bitboards[pieceColor(Pawn, side)]
-	promoFromRank := [2]Bitboard{Ranks[6], Ranks[1]}
-	posiblesPromotions := pawns & promoFromRank[side]
-
-	for posiblesPromotions > 0 {
-		fromBB := posiblesPromotions.NextBit()
-		toBB := pawnPushesTable[pos.Turn][Bsf(fromBB)]
-		moves := pawnMoves(&fromBB, pd, pos.Turn)
-
-		if moves&toBB > 0 {
-			genPawnPromotions(Bsf(fromBB), Bsf(toBB), ml, false)
-		}
-	}
-}
-
 // see implements an static exchange evaluation on the square passed
 // based on Ethereal staticExchangeEvaluation code: https://github.com/AndyGrant/Ethereal/blob/master/src/search.c#L929C5-L929C29
 func (pos *Position) see(move *Move) int {

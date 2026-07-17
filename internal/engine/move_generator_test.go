@@ -931,21 +931,6 @@ func TestPawnsMoves(t *testing.T) {
 	}
 }
 
-func TestPawnsMovesPromo(t *testing.T) {
-	pos := NewPosition()
-	pos.LoadFromFenString("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
-	pd := pos.generatePositionData()
-	ml := NewMoveList()
-
-	expected := 4
-	genPushPromotions(pos, pos.Turn, ml, &pd)
-	got := ml.length
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
 func TestGenEpPawnCaptures(t *testing.T) {
 	ml := NewMoveList()
 

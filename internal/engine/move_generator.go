@@ -193,22 +193,14 @@ func (pos *Position) generateNoisy(ml *MoveList, pd *PositionData) {
 			}
 		}
 	}
-	genPushPromotions(pos, pos.Turn, ml, pd)
 	genEnPassantCaptures(pos, pos.Turn, ml, pd)
 }
 
 // generateQuiets generates all non captures in the position and stores them in the move list
 func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 	bitboards := pos.getBitboards(pos.Turn)
-	promoFromRank := [2]Bitboard{Ranks[6], Ranks[1]}
 
 	for piece, bb := range bitboards {
-
-		// Exclude normal promotions
-		if piece == Pawn {
-			bb &^= promoFromRank[pos.Turn]
-		}
-
 		for bb > 0 {
 			pieceBB := bb.NextBit()
 			from := Bsf(pieceBB)
@@ -225,7 +217,7 @@ func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 			case Knight:
 				genMovesFromTargets(from, knightMoves(&pieceBB, pd)&^pd.enemies, ml, pd)
 			case Pawn:
-				genPawnMovesFromTarget(from, pawnMoves(&pieceBB, pd, pos.Turn)&^pd.enemies, ml)
+				genPawnMovesFromTarget(from, pawnQuietMoves(&pieceBB, pd, pos.Turn), ml)
 			}
 		}
 	}
@@ -277,6 +269,36 @@ func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 	}
 
 	moves = (posibleCaptures | pushes) & pd.checkRestrictedSquares &
+		pinRestrictedSquares(*p, pd.kingPosition, pd.pinnedPieces)
+	return
+}
+
+// PromotionRankForSide contains the rank a pawn can promote for each side
+var PromotionRankForSide = [2]Bitboard{Ranks[6], Ranks[1]}
+
+// PromoFinal contains the rank for each side where a Pawn is promoted
+var PromoFinal = [2]Bitboard{Ranks[7], Ranks[0]}
+
+// pawnNoisyMoves returns a bitboard with the squares a pawn can legaly capture or promote
+func pawnNoisyMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
+	posibleCaptures := pawnAttacks(p, side) & pd.enemies
+	if *p&PromotionRankForSide[side] > 0 {
+		posibleCaptures |= pawnPushesTable[side][Bsf(*p)] & ^(pd.allies | pd.enemies)
+	}
+	moves = posibleCaptures & pd.checkRestrictedSquares &
+		pinRestrictedSquares(*p, pd.kingPosition, pd.pinnedPieces)
+	return
+}
+
+// pawnQuietMoves returns a bitboard with the squares a pawn can legaly push (not including push promotions)
+func pawnQuietMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
+	emptySquares := ^(pd.allies | pd.enemies)
+	pushes := pawnPushesTable[side][Bsf(*p)] & emptySquares &^ PromoFinal[side]
+	if pushes > 0 {
+		pushes |= pawnDoublePushesTable[side][Bsf(*p)] & emptySquares
+	}
+
+	moves = pushes & pd.checkRestrictedSquares &
 		pinRestrictedSquares(*p, pd.kingPosition, pd.pinnedPieces)
 	return
 }
@@ -369,7 +391,7 @@ func genPawnMovesFromTarget(from int, targets Bitboard, ml *MoveList) {
 // genPawnCapturesMoves generates the pawn captures in the move list
 func genPawnCapturesMoves(from int, opponents Bitboard, side Color, ml *MoveList, pd *PositionData) {
 	fromBB := bitboardFromIndex(from)
-	toSquares := pawnMoves(&fromBB, pd, side) & opponents
+	toSquares := pawnNoisyMoves(&fromBB, pd, side)
 
 	for toSquares > 0 {
 		toBB := toSquares.NextBit()
@@ -379,6 +401,8 @@ func genPawnCapturesMoves(from int, opponents Bitboard, side Color, ml *MoveList
 		switch {
 		case isPromotion > 0 && opponents&toBB > 0: // Promo Capture
 			genPawnPromotions(from, to, ml, true)
+		case isPromotion > 0:
+			genPawnPromotions(from, to, ml, false)
 		default: // Capture
 			ml.add(*encodeMove(uint16(from), uint16(to), capture))
 		}
