@@ -475,7 +475,7 @@ func checkRestrictedSquares(king Bitboard, checkingSliders Bitboard, checkingNon
 	// If there is only one sliding piece giving check, we can either block
 	// along the ray or directly capture the checker to avoid the check
 	if checkingPieces == checkingSliders && checkingPieces.count() == 1 {
-		return getRayPath(&checkingPieces, &king) | checkingPieces
+		return squaresBetween[Bsf(checkingPieces)][Bsf(king)] | checkingPieces
 	}
 
 	// If only 1 piece checking next to the king, we can only capture the checker

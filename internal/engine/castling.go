@@ -222,10 +222,10 @@ func (pos *Position) canCastle(side Color, castleFlag int) bool {
 	kingBB := bitboardFromIndex(pos.castling.kingsStartSquare[side])
 
 	kingToSq := bitboardFromIndex(pos.castling.kingsEndSquare[side][castleFlag-kingsideCastle])
-	kingFromToPath := getRayPath(&kingBB, &kingToSq) | kingToSq
+	kingFromToPath := squaresBetween[pos.castling.kingsStartSquare[side]][pos.castling.kingsEndSquare[side][castleFlag-kingsideCastle]] | kingToSq
 
 	rookEndBB := bitboardFromIndex(pos.castling.rooksEndSquare[side][castleFlag-kingsideCastle])
-	rookFromToPath := getRayPath(&rookBB, &rookEndBB) | rookEndBB
+	rookFromToPath := squaresBetween[pos.castling.rooksStartSquare[side][castleFlag-kingsideCastle]][pos.castling.rooksEndSquare[side][castleFlag-kingsideCastle]] | rookEndBB
 
 	emptySquares := pos.EmptySquares() | kingBB | rookBB // NOTE: Avoid king and rook, so are not taken into account when calculating whenever the path is clear for castle
 	kingPathClear := (emptySquares & kingFromToPath) == kingFromToPath

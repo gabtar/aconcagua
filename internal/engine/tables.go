@@ -19,8 +19,10 @@ const (
 func init() {
 	generatePiecesScoreTables()
 
+	initBitboards()
 	directions = generateDirections()
 	RayAttacks = generateRayAttacks()
+	squaresBetween = generateSquaresBetween()
 	knightAttacksTable = generateKnightAttacksTable()
 	kingAttacksTable = generateKingAttacksTable()
 	pawnPushesTable = generatePawnPushesTable()
@@ -61,6 +63,9 @@ var directions [64][64]uint64
 
 // RayAttacks is a precalculated table that contains the rays on each direction for each square
 var RayAttacks [8][64]Bitboard
+
+// squaresBetween is a precalculated table that contains a bitboard with the squares between 2 squares in any of the 8 direction
+var squaresBetween [64][64]Bitboard
 
 // knightAttacksTable is a precalculated table that contains the squares that a knight can attack
 var knightAttacksTable [64]Bitboard
@@ -307,6 +312,18 @@ func generateKingZone() (kingZone [2][64]Bitboard) {
 		fromDown := from >> 8
 		kingZone[Black][sq] |= pawnAttacks(&fromDown, Black)
 		kingZone[Black][sq] |= from >> 16
+	}
+	return
+}
+
+func generateSquaresBetween() (squaresBetween [64][64]Bitboard) {
+	for from := range 64 {
+		for to := range 64 {
+			fromBB := bitboardFromIndex(from)
+			toBB := bitboardFromIndex(to)
+
+			squaresBetween[from][to] = getRayPath(&fromBB, &toBB)
+		}
 	}
 	return
 }

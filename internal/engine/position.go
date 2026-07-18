@@ -232,7 +232,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 		rookAttacks(Bsf(king), pos.pieces[opponent])&rooks
 	for possiblePinners > 0 {
 		attacker := possiblePinners.NextBit()
-		kingToOpponentPath := getRayPath(&attacker, &king)
+		kingToOpponentPath := squaresBetween[Bsf(attacker)][Bsf(king)]
 		piecesBetween := kingToOpponentPath & pos.pieces[side]
 		if piecesBetween.count() == 1 {
 			pinned |= piecesBetween
