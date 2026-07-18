@@ -197,18 +197,15 @@ func (pos *Position) Check(side Color) bool {
 		return true
 	}
 
-	bishopAttacks := bishopAttacks(kingSq, blocks) & pos.Bitboards[pieceColor(Bishop, side.Opponent())]
+	bishopAttacks := bishopAttacks(kingSq, blocks) &
+		(pos.Bitboards[pieceColor(Bishop, side.Opponent())] | pos.Bitboards[pieceColor(Queen, side.Opponent())])
 	if bishopAttacks > 0 {
 		return true
 	}
 
-	rookAttacks := rookAttacks(kingSq, blocks) & pos.Bitboards[pieceColor(Rook, side.Opponent())]
-	if rookAttacks > 0 {
-		return true
-	}
-
-	queenAttacks := Attacks(Queen, kingBB, blocks) & pos.Bitboards[pieceColor(Queen, side.Opponent())]
-	return queenAttacks > 0
+	rookAttacks := rookAttacks(kingSq, blocks) &
+		(pos.Bitboards[pieceColor(Rook, side.Opponent())] | pos.Bitboards[pieceColor(Queen, side.Opponent())])
+	return rookAttacks > 0
 }
 
 // pinnedPieces returns a bitboard with the pieces pinned in the position for the side passed

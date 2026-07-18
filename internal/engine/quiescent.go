@@ -142,9 +142,8 @@ func (pos *Position) attackersTo(to int) (attackers Bitboard) {
 	return pawnAttacks(&toSq, White)&pos.Bitboards[BlackPawn] |
 		pawnAttacks(&toSq, Black)&pos.Bitboards[WhitePawn] |
 		knightAttacksTable[to]&knights |
-		bishopAttacks(to, blocks)&bishops |
-		rookAttacks(to, blocks)&rooks |
-		Attacks(Queen, toSq, blocks)&queens |
+		bishopAttacks(to, blocks)&(bishops|queens) |
+		rookAttacks(to, blocks)&(rooks|queens) |
 		kingAttacksTable[to]&kings
 }
 
