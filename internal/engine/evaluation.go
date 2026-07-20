@@ -134,7 +134,7 @@ func (ev *EvalVector) clear() {
 func (ev *Evaluation) Evaluate(pos *Position) int {
 	ev.Eval.clear()
 
-	blocks := ^pos.EmptySquares()
+	blocks := pos.pieces[All]
 	enemyPawnsAttacks := [2]Bitboard{
 		pawnAttacks(&pos.Bitboards[BlackPawn], Black),
 		pawnAttacks(&pos.Bitboards[WhitePawn], White),

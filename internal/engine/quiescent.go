@@ -131,7 +131,7 @@ func (pos *Position) see(move *Move) int {
 // Using the square attacked by algorithm - https://www.chessprogramming.org/Square_Attacked_By#Attacks_to_a_Square
 func (pos *Position) attackersTo(to int) (attackers Bitboard) {
 	toSq := Bitboard(1 << to)
-	blocks := ^pos.EmptySquares()
+	blocks := pos.pieces[All]
 
 	knights := pos.Bitboards[WhiteKnight] | pos.Bitboards[BlackKnight]
 	bishops := pos.Bitboards[WhiteBishop] | pos.Bitboards[BlackBishop]
@@ -149,9 +149,8 @@ func (pos *Position) attackersTo(to int) (attackers Bitboard) {
 
 // getLeastValuableAttacker returns the least valuable attacker from the attackers bitboard
 func (pos *Position) getLeastValuableAttacker(attackers Bitboard, side Color) (Bitboard, int) {
-	bitboards := pos.getBitboards(side)
 	for piece := Pawn; piece >= King; piece-- {
-		attackingPieces := bitboards[piece] & attackers
+		attackingPieces := pos.Bitboards[pieceColor(piece, side)] & attackers
 		if attackingPieces > 0 {
 			return attackingPieces.NextBit(), piece
 		}

@@ -30,6 +30,7 @@ const (
 	// Colors
 	White = 0
 	Black = 1
+	All   = 2
 
 	// Squares
 	a8, b8, c8, d8, e8, f8, g8, h8 = 56, 57, 58, 59, 60, 61, 62, 63
@@ -73,7 +74,7 @@ func (c *Color) Modifier() int {
 type Position struct {
 	// Bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
 	Bitboards       [12]Bitboard
-	pieces          [2]Bitboard // black and white pieces 'map' on the board
+	pieces          [3]Bitboard // black and white pieces 'map' on the board
 	Turn            Color
 	Hash            uint64
 	PawnHash        uint64
@@ -109,16 +110,24 @@ func (pos *Position) generatePositionData() PositionData {
 
 // PieceAt returns a Piece at the given square coordinate in the Position or NoPiece
 func (pos *Position) PieceAt(square int) (piece int) {
-	bitboardSquare := bitboardFromIndex(square)
-
-	for index, bitboard := range pos.Bitboards {
-		if bitboard&bitboardSquare > 0 {
-			piece = index
-			return
-		}
+	bb := bitboardFromIndex(square)
+	if bb&pos.pieces[All] == 0 {
+		return NoPiece
 	}
 
-	piece = NoPiece
+	if bb&pos.pieces[White] > 0 {
+		for piece := WhiteKing; piece < BlackKing; piece++ {
+			if bb&pos.Bitboards[piece] > 0 {
+				return piece
+			}
+		}
+	} else {
+		for piece := BlackKing; piece < NoPiece; piece++ {
+			if bb&pos.Bitboards[piece] > 0 {
+				return piece
+			}
+		}
+	}
 	return
 }
 
@@ -128,36 +137,19 @@ func (pos *Position) AddPiece(piece int, square int) {
 		return
 	}
 
-	bitboardSquare := bitboardFromIndex(square)
-	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(bitboardSquare))
+	bb := bitboardFromIndex(square)
+	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, square)
 	if pieceRole(piece) == Pawn {
-		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(bitboardSquare))
+		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, square)
 	}
-	pos.Bitboards[piece] |= bitboardSquare
-	pos.pieces[int(piece/6)] |= bitboardSquare
+	pos.Bitboards[piece] |= bb
+	pos.pieces[int(piece/6)] |= bb
+	pos.pieces[All] |= bb
 }
 
 // EmptySquares returns a Bitboard with the empty squares of the position
 func (pos *Position) EmptySquares() (emptySquares Bitboard) {
-	return ^pos.pieces[White] ^ pos.pieces[Black]
-}
-
-// AttackedSquares returns a bitboard with all squares attacked by the passed side
-func (pos *Position) AttackedSquares(side Color) (attackedSquares Bitboard) {
-	bitboards := pos.getBitboards(side)
-
-	for p, bb := range bitboards[0:5] {
-		piece := pieceColor(p, side)
-		sq := bb.NextBit()
-
-		for sq > 0 {
-			attackedSquares |= Attacks(piece, sq, ^pos.EmptySquares())
-			sq = bb.NextBit()
-		}
-	}
-	attackedSquares |= pawnAttacks(&bitboards[5], side)
-
-	return
+	return ^pos.pieces[All]
 }
 
 // CheckingPieces returns two Bitboards, one with all the checking pieces and one with only the checking sliders pieces
@@ -185,7 +177,7 @@ func (pos *Position) Check(side Color) bool {
 		return false
 	}
 	kingSq := Bsf(kingBB)
-	blocks := ^pos.EmptySquares()
+	blocks := pos.pieces[All]
 
 	pawnAttacks := pawnAttacks(&kingBB, side) & pos.Bitboards[pieceColor(Pawn, side.Opponent())]
 	if pawnAttacks > 0 {
@@ -246,26 +238,19 @@ func (pos *Position) KingPosition(side Color) (king Bitboard) {
 }
 
 // RemovePiece removes a piece from the position
-func (pos *Position) RemovePiece(piece int, sq Bitboard) {
+func (pos *Position) RemovePiece(piece int, square int) {
 	if piece == NoPiece {
 		return
 	}
+	bb := bitboardFromIndex(square)
 
-	pos.Bitboards[piece] &= ^sq
-	pos.pieces[piece/6] &= ^sq
-	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(sq))
+	pos.Bitboards[piece] &= ^bb
+	pos.pieces[piece/6] &= ^bb
+	pos.pieces[All] &= ^bb
+	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, square)
 	if pieceRole(piece) == Pawn {
-		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, Bsf(sq))
+		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, square)
 	}
-}
-
-func (pos *Position) getBitboards(side Color) (bitboards []Bitboard) {
-	if side == White {
-		bitboards = pos.Bitboards[WhiteKing:BlackKing]
-	} else {
-		bitboards = pos.Bitboards[BlackKing:NoPiece]
-	}
-	return
 }
 
 // isDraw returns if the current position is a draw by repetition, 50 move rule or insuficient material
@@ -347,7 +332,7 @@ func (pos *Position) MakeMove(move *Move) {
 	)
 
 	pos.updateCastleRights(pos.castling.updateCastleRights(move.from(), move.to()))
-	pos.RemovePiece(pieceToMove, bitboardFromIndex(move.from()))
+	pos.RemovePiece(pieceToMove, move.from())
 
 	pos.updateMoveState()
 	pos.handleSpecialMoveTypes(move, &pieceToMove, &pieceCaptured)
@@ -429,21 +414,21 @@ func (pos *Position) handleDoublePawnPush(move Move) {
 
 // handleCapture removes captured piece and resets halfmove clock
 func (pos *Position) handleCapture(move Move, pieceCaptured *int) {
-	pos.RemovePiece(*pieceCaptured, bitboardFromIndex(move.to()))
+	pos.RemovePiece(*pieceCaptured, move.to())
 	pos.halfmoveClock = 0
 }
 
 // handlePromotion processes pawn promotion
 func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int, pieceCaptured *int) {
-	pos.RemovePiece(*pieceCaptured, bitboardFromIndex(move.to()))
+	pos.RemovePiece(*pieceCaptured, move.to())
 	*pieceToMove = getPromotedToPiece(flag, pos.Turn)
 	pos.halfmoveClock = 0
 }
 
 // handleEnPassantCapture removes the captured pawn in en passant
 func (pos *Position) handleEnPassantCapture(move Move) {
-	removePieceBB := pawnPushesTable[pos.Turn.Opponent()][move.to()]
-	pos.RemovePiece(pieceColor(Pawn, pos.Turn.Opponent()), removePieceBB)
+	removeSquare := Bsf(pawnPushesTable[pos.Turn.Opponent()][move.to()])
+	pos.RemovePiece(pieceColor(Pawn, pos.Turn.Opponent()), removeSquare)
 	pos.halfmoveClock = 0
 }
 
@@ -489,7 +474,7 @@ func (pos *Position) UnmakeMove(move *Move) {
 	if move.flag() >= knightPromotion {
 		pieceToRemove = getPromotedToPiece(move.flag(), pos.Turn.Opponent())
 	}
-	pos.RemovePiece(pieceToRemove, bitboardFromIndex(toSq))
+	pos.RemovePiece(pieceToRemove, toSq)
 
 	if pos.Turn == White {
 		pos.FullMoveNumber--
@@ -541,7 +526,7 @@ func (pos *Position) updateRookPositionOnCaslte(castle int, makeMove bool) {
 		rookToMove = pieceColor(Rook, pos.Turn.Opponent())
 	}
 
-	pos.RemovePiece(rookToMove, bitboardFromIndex(rookFrom))
+	pos.RemovePiece(rookToMove, rookFrom)
 	pos.AddPiece(rookToMove, rookTo)
 }
 
@@ -658,7 +643,7 @@ func (pos *Position) LoadFromFenString(fen string) {
 	}
 
 	pos.Bitboards = [12]Bitboard{}
-	pos.pieces = [2]Bitboard{}
+	pos.pieces = [3]Bitboard{}
 	pos.positionHistory.clear()
 	pos.positionHistory.previousPosition = [MaxHistoryMoves * 2]uint64{}
 
@@ -673,6 +658,7 @@ func (pos *Position) LoadFromFenString(fen string) {
 			case "k", "q", "r", "b", "n", "p", "K", "Q", "R", "B", "N", "P":
 				pos.Bitboards[pieceReference[piece]] |= (0b1 << currentSquare)
 				pos.pieces[pieceReference[piece]/6] |= (0b1 << currentSquare)
+				pos.pieces[All] |= (0b1 << currentSquare)
 				currentSquare++
 			default:
 				currentSquare += int(piece[0]) - 48 // Updates square number

@@ -168,16 +168,15 @@ func (mg *MoveGenerator) nextBadCapture() (move Move) {
 
 // generateNoisy generates all captures in the position and stores them in the move list
 func (pos *Position) generateNoisy(ml *MoveList, pd *PositionData) {
-	bitboards := pos.getBitboards(pos.Turn)
-
 	// Generate only 'legal' captures, not allowing to capture a king
 	nonKingOpponents := pd.enemies &^ pos.KingPosition(pos.Turn.Opponent())
-
-	for piece, bb := range bitboards {
-		for bb > 0 {
-			pieceBB := bb.NextBit()
+	start := BlackKing * int(pos.Turn)
+	for piece := start; piece < start+6; piece++ {
+		pieces := pos.Bitboards[piece]
+		for pieces > 0 {
+			pieceBB := pieces.NextBit()
 			from := Bsf(pieceBB)
-			switch piece {
+			switch pieceRole(piece) {
 			case King:
 				genMovesFromTargets(from, kingMoves(&pieceBB, pos, pos.Turn)&nonKingOpponents, ml, pd)
 			case Queen:
@@ -198,13 +197,13 @@ func (pos *Position) generateNoisy(ml *MoveList, pd *PositionData) {
 
 // generateQuiets generates all non captures in the position and stores them in the move list
 func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
-	bitboards := pos.getBitboards(pos.Turn)
-
-	for piece, bb := range bitboards {
-		for bb > 0 {
-			pieceBB := bb.NextBit()
+	start := BlackKing * int(pos.Turn)
+	for piece := start; piece < start+6; piece++ {
+		pieces := pos.Bitboards[piece]
+		for pieces > 0 {
+			pieceBB := pieces.NextBit()
 			from := Bsf(pieceBB)
-			switch piece {
+			switch pieceRole(piece) {
 			case King:
 				genMovesFromTargets(from, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, pd)
 				genCastleMoves(pos, ml)
@@ -225,11 +224,16 @@ func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 
 // kingMoves returns a bitboard with the legal moves of the king from the bitboard passed
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
-	pos.RemovePiece(pieceColor(King, side), *k)
-	attackedSquares := pos.AttackedSquares(side.Opponent()) // to check attacks rays (behind) the king he is actually blocking
-	pos.AddPiece(pieceColor(King, side), Bsf(*k))
-
-	moves = kingAttacksTable[Bsf(*k)] & ^attackedSquares & ^pos.pieces[side]
+	kingSq := Bsf(*k)
+	posiblesMoves := kingAttacksTable[Bsf(*k)] & ^pos.pieces[side]
+	pos.RemovePiece(pieceColor(King, side), kingSq)
+	for posiblesMoves > 0 {
+		next := posiblesMoves.NextBit()
+		if pos.attackersTo(Bsf(next))&pos.pieces[side.Opponent()] == 0 {
+			moves |= next
+		}
+	}
+	pos.AddPiece(pieceColor(King, side), kingSq)
 	return
 }
 
