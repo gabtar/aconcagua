@@ -22,13 +22,14 @@ type MoveGenerator struct {
 	pd                         PositionData
 	hashMove, killer1, killer2 *Move
 	cm                         *Move
-	historyMoves               *HistoryMovesTable
+	quietHistory               *QuietHistoryTable
+	noisyHistory               *NoisyHistoryTable
 	moves                      *MoveList
 	badCapLength               int // To track the number of bad captures
 }
 
 // NewMoveGenerator returns a new move generator
-func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, cm *Move, historyMoves *HistoryMovesTable) *MoveGenerator {
+func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, cm *Move, quietHistory *QuietHistoryTable, noisyHistory *NoisyHistoryTable) *MoveGenerator {
 	return &MoveGenerator{
 		stage:        HashMoveStage,
 		pos:          pos,
@@ -37,7 +38,8 @@ func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Mov
 		killer2:      killer2,
 		cm:           cm,
 		moveNumber:   -1, // NOTE: initialize with -1 to make the first move selected to have moveNumber = 0
-		historyMoves: historyMoves,
+		quietHistory: quietHistory,
+		noisyHistory: noisyHistory,
 		moves:        NewMoveList(),
 	}
 }
@@ -56,7 +58,7 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 		mg.stage = NoisyStage
 		mg.pd = mg.pos.generatePositionData()
 		mg.pos.generateNoisy(mg.moves, &mg.pd)
-		mg.moves.scoreCaptures(mg.pos)
+		mg.moves.scoreNoisy(mg.pos, mg.noisyHistory)
 		fallthrough
 	case NoisyStage:
 		move = mg.nextGoodCapture()
@@ -95,7 +97,7 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 	case GenerateQuietStage:
 		mg.stage = QuietStage
 		mg.pos.generateQuiets(mg.moves, &mg.pd)
-		mg.moves.scoreNonCaptures(mg.historyMoves, mg.pos.Turn, mg.badCapLength)
+		mg.moves.scoreQuiets(mg.quietHistory, mg.pos.Turn, mg.badCapLength)
 		fallthrough
 	case QuietStage:
 		move = mg.nextNonCapture()
@@ -124,7 +126,14 @@ func (mg *MoveGenerator) nextGoodCapture() (move Move) {
 		if idx < 0 || mg.moves.scores[idx] < 0 {
 			return NoMove
 		}
+
 		move = mg.moves.moves[idx]
+		see := mg.pos.see(&move)
+		mg.moves.scores[idx] = see
+		if see < 0 {
+			continue
+		}
+
 		mg.moves.swap(idx)
 
 		if move != *mg.hashMove {

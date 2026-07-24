@@ -20,17 +20,29 @@ func (ml *MoveList) add(move Move) {
 	ml.length++
 }
 
-// scoreCaptures scores the captures moves by static exchange evaluation
-func (ml *MoveList) scoreCaptures(pos *Position) {
+// mvvScore is the score to use for move ordering for each victim type piece
+var mvvScore = [6]int{0, 3200, 1800, 1000, 1000, 300} // King, Queen, Rook, Bishop, Knight, Pawn
+
+// scoreNoisy scores the captures/promotion moves for move ordering
+func (ml *MoveList) scoreNoisy(pos *Position, nh *NoisyHistoryTable) {
 	for i := 0; i < ml.length; i++ {
-		ml.scores[i] = pos.see(&ml.moves[i])
+		attacker := pieceRole(pos.PieceAt(ml.moves[i].from()))
+		victim := pos.getCapturedPiece(&ml.moves[i])
+		victimIdx := pieceRole(victim)
+		mvv := 0
+		if victim == NoPiece { // quiet promotion
+			victimIdx = 6 + ml.moves[i].flag() - knightPromotion
+		} else {
+			mvv = mvvScore[pieceRole(victim)]
+		}
+		ml.scores[i] = MaxHistoryBonus + mvv + nh[attacker][victimIdx][ml.moves[i].to()]
 	}
 }
 
-// scoreNonCaptures scores the non captures moves by history score
-func (ml *MoveList) scoreNonCaptures(ht *HistoryMovesTable, side Color, startIndex int) {
+// scoreQuiets scores the non captures moves by history score
+func (ml *MoveList) scoreQuiets(qh *QuietHistoryTable, side Color, startIndex int) {
 	for i := startIndex; i < ml.length; i++ {
-		ml.scores[i] = ht[side][ml.moves[i].from()][ml.moves[i].to()]
+		ml.scores[i] = qh[side][ml.moves[i].from()][ml.moves[i].to()]
 	}
 }
 

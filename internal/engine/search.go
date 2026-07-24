@@ -51,7 +51,8 @@ type Search struct {
 	pvLine             pvLine
 	seldepth           uint8
 	killers            KillersTable
-	historyMoves       HistoryMovesTable
+	quietHistory       QuietHistoryTable
+	noisyHistory       NoisyHistoryTable
 	TranspositionTable TranspositionTable
 	counterMovesTable  CounterMoveTable
 	stack              Stack
@@ -65,7 +66,8 @@ func NewSearch() *Search {
 		nodes:              0,
 		pvLine:             NewPvLine(MaxSearchDepth),
 		killers:            KillersTable{},
-		historyMoves:       HistoryMovesTable{},
+		quietHistory:       QuietHistoryTable{},
+		noisyHistory:       NoisyHistoryTable{},
 		TranspositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
 		counterMovesTable:  CounterMoveTable{},
 		stack:              Stack{},
@@ -78,7 +80,8 @@ func NewSearch() *Search {
 func (s *Search) clear() {
 	s.nodes = 0
 	s.killers.clear()
-	s.historyMoves.clear()
+	s.quietHistory.clear()
+	s.noisyHistory.clear()
 	s.counterMovesTable.clear()
 	s.stack.clear()
 	s.TranspositionTable.newSearch()
@@ -101,33 +104,71 @@ func (s *Search) Stop() {
 	s.TimeControl.stop = true
 }
 
-// HistoryMovesTable is a table for holding the history of moves
-type HistoryMovesTable [2][64][64]int
+// QuietHistoryTable is a table for holding the history of moves
+type QuietHistoryTable [2][64][64]int
 
 // update increase the history score of the move using the gravity formula
-func (hm *HistoryMovesTable) update(bonus int, move *Move, side Color) {
+func (qht *QuietHistoryTable) update(bonus int, move *Move, side Color) {
 	if move.flag() < capture {
 		clampBonus := max(-MaxHistoryBonus, min(MaxHistoryBonus, bonus))
-		hm[side][move.from()][move.to()] += clampBonus - hm[side][move.from()][move.to()]*abs(clampBonus)/MaxHistoryBonus
+		qht[side][move.from()][move.to()] += clampBonus - qht[side][move.from()][move.to()]*abs(clampBonus)/MaxHistoryBonus
 	}
 }
 
 // decrement decrements the score of history moves
-func (hm *HistoryMovesTable) decrement(ms *movesSearched, cutoffMove *Move, depth int, side Color) {
+func (qht *QuietHistoryTable) decrement(ms *movesSearched, cutoffMove *Move, depth int, side Color) {
 	for i := range ms.length {
 		// Ensure to not apply the penalty to the move that produced the cutoff
 		if ms.moves[i] != *cutoffMove {
-			hm.update(-depth*depth, &ms.moves[i], side)
+			qht.update(-depth*depth, &ms.moves[i], side)
 		}
 	}
 }
 
 // clear clears the history of moves
-func (hm *HistoryMovesTable) clear() {
-	for i := range hm[White] {
-		for j := range hm[White][i] {
-			hm[White][i][j] = 0
-			hm[Black][i][j] = 0
+func (qht *QuietHistoryTable) clear() {
+	for i := range qht[White] {
+		for j := range qht[White][i] {
+			qht[White][i][j] = 0
+			qht[Black][i][j] = 0
+		}
+	}
+}
+
+// NoisyHistoryTable is a table that stores score of previous captures searched indexed by attacker / victim type or promo type / to square
+type NoisyHistoryTable [6][10][64]int
+
+// update updates the score of the move passed in the NoisyHistoryTable
+func (nht *NoisyHistoryTable) update(bonus int, move *Move, pos *Position) {
+	if move.flag() >= capture {
+		attacker := pieceRole(pos.PieceAt(move.from()))
+		victim := pos.getCapturedPiece(move)
+		victimIdx := pieceRole(victim)
+		if victim == NoPiece { // Simple Promotion Slot. NoPiece + (0-3) depending on move flag/promotion type
+			victimIdx = 6 + move.flag() - knightPromotion
+		}
+
+		clampBonus := max(-MaxHistoryBonus, min(MaxHistoryBonus, bonus))
+		nht[attacker][victimIdx][move.to()] += clampBonus - nht[attacker][victimIdx][move.to()]*abs(clampBonus)/MaxHistoryBonus
+	}
+}
+
+// decrement reduces the score of the moves passed in the NoisyHistoryTable
+func (nht *NoisyHistoryTable) decrement(ms *movesSearched, cutoffMove *Move, depth int, pos *Position) {
+	for i := range ms.length {
+		if ms.moves[i] != *cutoffMove {
+			nht.update(-depth*depth, &ms.moves[i], pos)
+		}
+	}
+}
+
+// clear clears all scores in the NoisyHistoryTable
+func (nht *NoisyHistoryTable) clear() {
+	for i := range nht {
+		for j := range nht[i] {
+			for k := range nht[i][j] {
+				nht[i][j][k] = 0
+			}
 		}
 	}
 }
@@ -437,15 +478,13 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	bestMove := NoMove
 	cm := s.counterMovesTable.get(s.stack.getPriorMove(ply), pos.Turn)
 	k1, k2 := s.killers.get(ply)
-	mg := NewMoveGenerator(pos, &ttMove, &k1, &k2, &cm, &s.historyMoves)
+	mg := NewMoveGenerator(pos, &ttMove, &k1, &k2, &cm, &s.quietHistory, &s.noisyHistory)
 	quietsSearched := movesSearched{}
+	capturesSearched := movesSearched{}
 
 	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
 		branchPv.reset()
 		moveFlag := move.flag()
-		if moveFlag < capture {
-			quietsSearched.add(move)
-		}
 
 		// Late Move Pruning
 		// Prunes quiet moves that are likely not to be good, by assuming we have a good move ordering
@@ -462,6 +501,12 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		// Prunes bad captures/quiet moves that does not beat a depth dependent threshold
 		if depth <= SEEPruningDepth && mg.stage >= QuietStage && canPruneBySEE(mg, move, depth) {
 			continue
+		}
+
+		if moveFlag < capture {
+			quietsSearched.add(move)
+		} else {
+			capturesSearched.add(move)
 		}
 
 		pos.MakeMove(&move)
@@ -500,9 +545,12 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, staticEval, move)
 			s.killers.store(ply, move)
 			s.counterMovesTable.store(s.stack.getPriorMove(ply), move, pos.Turn)
-			s.historyMoves.update(depth*depth, &move, pos.Turn)
+			s.quietHistory.update(depth*depth, &move, pos.Turn)
 			// Reduce history score for previous 'quiet' moves that did not produce the cutoff
-			s.historyMoves.decrement(&quietsSearched, &move, depth, pos.Turn)
+			s.quietHistory.decrement(&quietsSearched, &move, depth, pos.Turn)
+
+			s.noisyHistory.update(depth*depth, &move, pos)
+			s.noisyHistory.decrement(&capturesSearched, &move, depth, pos)
 
 			return beta
 		}
