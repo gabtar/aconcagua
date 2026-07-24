@@ -21,7 +21,7 @@ func (ml *MoveList) add(move Move) {
 }
 
 // mvvScore is the score to use for move ordering for each victim type piece
-var mvvScore = [6]int{0, 3200, 1800, 1000, 1000, 300} // King, Queen, Rook, Bishop, Knight, Pawn
+var mvvScore = [6]int{0, 4000, 2100, 1000, 1000, 340} // King, Queen, Rook, Bishop, Knight, Pawn
 
 // scoreNoisy scores the captures/promotion moves for move ordering
 func (ml *MoveList) scoreNoisy(pos *Position, nh *NoisyHistoryTable) {

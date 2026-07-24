@@ -26,10 +26,11 @@ type MoveGenerator struct {
 	noisyHistory               *NoisyHistoryTable
 	moves                      *MoveList
 	badCapLength               int // To track the number of bad captures
+	skipQuiets                 bool
 }
 
 // NewMoveGenerator returns a new move generator
-func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, cm *Move, quietHistory *QuietHistoryTable, noisyHistory *NoisyHistoryTable) *MoveGenerator {
+func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Move, cm *Move, quietHistory *QuietHistoryTable, noisyHistory *NoisyHistoryTable, skipQuiets bool) *MoveGenerator {
 	return &MoveGenerator{
 		stage:        HashMoveStage,
 		pos:          pos,
@@ -40,6 +41,7 @@ func NewMoveGenerator(pos *Position, hashMove *Move, killer1 *Move, killer2 *Mov
 		moveNumber:   -1, // NOTE: initialize with -1 to make the first move selected to have moveNumber = 0
 		quietHistory: quietHistory,
 		noisyHistory: noisyHistory,
+		skipQuiets:   skipQuiets,
 		moves:        NewMoveList(),
 	}
 }
@@ -96,8 +98,10 @@ func (mg *MoveGenerator) nextMove() (move Move) {
 		fallthrough
 	case GenerateQuietStage:
 		mg.stage = QuietStage
-		mg.pos.generateQuiets(mg.moves, &mg.pd)
-		mg.moves.scoreQuiets(mg.quietHistory, mg.pos.Turn, mg.badCapLength)
+		if !mg.skipQuiets {
+			mg.pos.generateQuiets(mg.moves, &mg.pd)
+			mg.moves.scoreQuiets(mg.quietHistory, mg.pos.Turn, mg.badCapLength)
+		}
 		fallthrough
 	case QuietStage:
 		move = mg.nextNonCapture()
@@ -286,16 +290,16 @@ func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 	return
 }
 
-// PromotionRankForSide contains the rank a pawn can promote for each side
-var PromotionRankForSide = [2]Bitboard{Ranks[6], Ranks[1]}
+// PromotionStartRankForSide contains the rank a pawn can promote for each side
+var PromotionStartRankForSide = [2]Bitboard{Ranks[6], Ranks[1]}
 
-// PromoFinal contains the rank for each side where a Pawn is promoted
-var PromoFinal = [2]Bitboard{Ranks[7], Ranks[0]}
+// PromotionEndRankForSide contains the rank for each side where a Pawn is promoted
+var PromotionEndRankForSide = [2]Bitboard{Ranks[7], Ranks[0]}
 
 // pawnNoisyMoves returns a bitboard with the squares a pawn can legaly capture or promote
 func pawnNoisyMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 	posibleCaptures := pawnAttacks(p, side) & pd.enemies
-	if *p&PromotionRankForSide[side] > 0 {
+	if *p&PromotionStartRankForSide[side] > 0 {
 		posibleCaptures |= pawnPushesTable[side][Bsf(*p)] & ^(pd.allies | pd.enemies)
 	}
 	moves = posibleCaptures & pd.checkRestrictedSquares &
@@ -306,7 +310,7 @@ func pawnNoisyMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) 
 // pawnQuietMoves returns a bitboard with the squares a pawn can legaly push (not including push promotions)
 func pawnQuietMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 	emptySquares := ^(pd.allies | pd.enemies)
-	pushes := pawnPushesTable[side][Bsf(*p)] & emptySquares &^ PromoFinal[side]
+	pushes := pawnPushesTable[side][Bsf(*p)] & emptySquares &^ PromotionEndRankForSide[side]
 	if pushes > 0 {
 		pushes |= pawnDoublePushesTable[side][Bsf(*p)] & emptySquares
 	}
@@ -328,16 +332,6 @@ func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 	notInAFile := targetPawnBB & ^(targetPawnBB & Files[0])
 
 	epCaptures |= pos.Bitboards[pieceColor(Pawn, side)] & (notInAFile>>1 | notInHFile<<1)
-	return
-}
-
-// lastRank returns the rank of the last rank for the side passed
-func lastRank(side Color) (rank Bitboard) {
-	if side == White {
-		rank = Ranks[7]
-	} else {
-		rank = Ranks[0]
-	}
 	return
 }
 
@@ -409,7 +403,7 @@ func genPawnCapturesMoves(from int, opponents Bitboard, side Color, ml *MoveList
 	for toSquares > 0 {
 		toBB := toSquares.NextBit()
 		to := Bsf(toBB)
-		isPromotion := lastRank(side) & toBB
+		isPromotion := PromotionEndRankForSide[side] & toBB
 
 		switch {
 		case isPromotion > 0 && opponents&toBB > 0: // Promo Capture
@@ -582,7 +576,7 @@ func (mg *MoveGenerator) isLegal(move Move) bool {
 		return false
 	}
 
-	isPromotion := lastRank(side)&toBB > 0 && pieceToMove == Pawn
+	isPromotion := PromotionEndRankForSide[side]&toBB > 0 && pieceToMove == Pawn
 	if isPromotion {
 		if flag < knightPromotion {
 			return false

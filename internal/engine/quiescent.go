@@ -32,31 +32,31 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 		alpha = staticEval
 	}
 
-	ml := NewMoveList()
-	pd := pos.generatePositionData()
-	pos.generateNoisy(ml, &pd)
+	noMove := NoMove
+	mg := NewMoveGenerator(pos, &ttMove, &noMove, &noMove, &noMove, &s.quietHistory, &s.noisyHistory, true)
 
 	flag := FlagAlpha
 	newScore := MinInt
 	bestMove := NoMove
 
-	for i := range ml.length {
-		see := pos.see(&ml.moves[i])
-		if see < 0 {
+	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
+
+		// See Pruning. Use already computed see value in move generator
+		if mg.moves.scores[mg.moves.length] < 0 {
 			continue
 		}
 
-		pos.MakeMove(&ml.moves[i])
+		pos.MakeMove(&move)
 		newScore = -Quiescent(pos, s, -beta, -alpha, ply+1)
-		pos.UnmakeMove(&ml.moves[i])
+		pos.UnmakeMove(&move)
 
 		if newScore >= beta {
-			s.TranspositionTable.store(pos.Hash, 0, ply, FlagBeta, beta, staticEval, ml.moves[i])
+			s.TranspositionTable.store(pos.Hash, 0, ply, FlagBeta, beta, staticEval, move)
 			return beta
 		}
 		if newScore > alpha {
 			flag = FlagExact
-			bestMove = ml.moves[i]
+			bestMove = move
 			alpha = newScore
 		}
 	}

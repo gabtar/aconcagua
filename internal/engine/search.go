@@ -478,7 +478,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	bestMove := NoMove
 	cm := s.counterMovesTable.get(s.stack.getPriorMove(ply), pos.Turn)
 	k1, k2 := s.killers.get(ply)
-	mg := NewMoveGenerator(pos, &ttMove, &k1, &k2, &cm, &s.quietHistory, &s.noisyHistory)
+	mg := NewMoveGenerator(pos, &ttMove, &k1, &k2, &cm, &s.quietHistory, &s.noisyHistory, false)
 	quietsSearched := movesSearched{}
 	capturesSearched := movesSearched{}
 

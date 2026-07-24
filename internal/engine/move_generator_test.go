@@ -7,7 +7,7 @@ func TestMoveGeneratorHasNextMove(t *testing.T) {
 	hashMove := encodeMove(0, 0, quiet)
 	killers := Killer{NoMove, NoMove}
 	cm := NoMove
-	mg := NewMoveGenerator(pos, hashMove, &killers[0], &killers[1], &cm, &QuietHistoryTable{}, &NoisyHistoryTable{})
+	mg := NewMoveGenerator(pos, hashMove, &killers[0], &killers[1], &cm, &QuietHistoryTable{}, &NoisyHistoryTable{}, false)
 
 	got := mg.nextMove()
 
@@ -21,7 +21,7 @@ func TestMoveGeneratorNotHasNextMove(t *testing.T) {
 	hashMove := NoMove
 	killers := Killer{NoMove, NoMove}
 	cm := NoMove
-	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &QuietHistoryTable{}, &NoisyHistoryTable{})
+	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &QuietHistoryTable{}, &NoisyHistoryTable{}, false)
 	mg.stage = EndStage
 
 	expected := NoMove
@@ -36,7 +36,7 @@ func TestMoveGeneratorCreatesCaptures(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	cm := NoMove
-	mg := NewMoveGenerator(pos, nil, nil, nil, &cm, nil, &NoisyHistoryTable{})
+	mg := NewMoveGenerator(pos, nil, nil, nil, &cm, nil, &NoisyHistoryTable{}, true)
 	move := NoMove
 	mg.hashMove = &move
 
@@ -52,7 +52,7 @@ func TestMoveGeneratorCreatesNonCaptures(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	noMove := NoMove
-	mg := NewMoveGenerator(pos, &noMove, &noMove, &noMove, &noMove, &QuietHistoryTable{}, &NoisyHistoryTable{})
+	mg := NewMoveGenerator(pos, &noMove, &noMove, &noMove, &noMove, &QuietHistoryTable{}, &NoisyHistoryTable{}, false)
 	mg.stage = FirstKillerStage // NOTE: Non captures are generated in killers stage to validate legaliy of killers
 	move := NoMove
 	mg.hashMove = &move
@@ -79,7 +79,7 @@ func TestMoveGeneratorGetsAllMoves(t *testing.T) {
 	killers := Killer{ml.moves[0], ml.moves[5]}
 	cm := ml.moves[3]
 
-	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &QuietHistoryTable{}, &NoisyHistoryTable{})
+	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &QuietHistoryTable{}, &NoisyHistoryTable{}, false)
 	for mg.nextMove() != NoMove {
 	}
 
