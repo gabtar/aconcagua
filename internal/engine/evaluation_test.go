@@ -67,7 +67,7 @@ func TestPawnIsBackward(t *testing.T) {
 	pos.LoadFromFenString("1k6/2p5/3p4/3P4/8/8/8/3K4 w - - 0 1")
 
 	expected := true
-	got := BackwardPawns(pos.Bitboards[BlackPawn], pawnAttacks(&pos.Bitboards[WhitePawn], White), Black)&pos.Bitboards[BlackPawn] > 0
+	got := BackwardPawns(pos.Pieces[BlackPawn], pawnAttacks(&pos.Pieces[WhitePawn], White), Black)&pos.Pieces[BlackPawn] > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -79,7 +79,7 @@ func TestPawnIsNotBackward(t *testing.T) {
 	pos.LoadFromFenString("1k6/2p5/3p4/3PP3/8/8/8/3K4 w - - 0 1")
 
 	expected := false
-	got := BackwardPawns(pos.Bitboards[WhitePawn], pawnAttacks(&pos.Bitboards[BlackPawn], Black), White)&pos.Bitboards[WhitePawn] > 0
+	got := BackwardPawns(pos.Pieces[WhitePawn], pawnAttacks(&pos.Pieces[BlackPawn], Black), White)&pos.Pieces[WhitePawn] > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -91,7 +91,7 @@ func TestBackwardPawnsForWhite(t *testing.T) {
 	pos.LoadFromFenString("8/5p2/6p1/p1p3P1/P1P4P/1P6/8/8 w - - 0 1")
 
 	expected := true
-	got := BackwardPawns(pos.Bitboards[WhitePawn], pawnAttacks(&pos.Bitboards[BlackPawn], Black), White)&pos.Bitboards[WhitePawn] > 0
+	got := BackwardPawns(pos.Pieces[WhitePawn], pawnAttacks(&pos.Pieces[BlackPawn], Black), White)&pos.Pieces[WhitePawn] > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -104,7 +104,7 @@ func TestPawnIsNotPassed(t *testing.T) {
 	pawnBB := bitboardFromCoordinates("e5")
 
 	expected := false
-	got := PassedPawns(pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn], White)&pawnBB > 0
+	got := PassedPawns(pos.Pieces[WhitePawn], pos.Pieces[BlackPawn], White)&pawnBB > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -117,7 +117,7 @@ func TestPawnIsPassed(t *testing.T) {
 	pawnBB := bitboardFromCoordinates("e6")
 
 	expected := true
-	got := PassedPawns(pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn], White)&pawnBB > 0
+	got := PassedPawns(pos.Pieces[WhitePawn], pos.Pieces[BlackPawn], White)&pawnBB > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -130,7 +130,7 @@ func TestPassedPawnOn7thRank(t *testing.T) {
 	pawnBB := bitboardFromCoordinates("h7")
 
 	expected := true
-	got := PassedPawns(pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn], White)&pawnBB > 0
+	got := PassedPawns(pos.Pieces[WhitePawn], pos.Pieces[BlackPawn], White)&pawnBB > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -144,7 +144,7 @@ func TestBlackPawnIsNotPassed(t *testing.T) {
 	pawnBB := bitboardFromCoordinates("c7")
 
 	expected := false
-	got := PassedPawns(pos.Bitboards[BlackPawn], pos.Bitboards[WhitePawn], Black)&pawnBB > 0
+	got := PassedPawns(pos.Pieces[BlackPawn], pos.Pieces[WhitePawn], Black)&pawnBB > 0
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -160,7 +160,7 @@ func TestPawnStructureEvaluation(t *testing.T) {
 	// 1 backward pawns f file
 
 	ev := EvalVector{}
-	ev.evaluatePawnStructure(pos, pawnAttacks(&pos.Bitboards[BlackPawn], Black), White)
+	ev.evaluatePawnStructure(pos, pawnAttacks(&pos.Pieces[BlackPawn], Black), White)
 
 	expected := DoubledPawnPenaltyEg + 2*IsolatedPawnPenaltyEg + 1*BackwardPawnPenaltyEg + PassedPawnsBonusEg[6]
 	got := ev.egPawnStructure[White]
@@ -175,7 +175,7 @@ func TestOutpostSquares(t *testing.T) {
 	pos.LoadFromFenString("4r1k1/5ppp/p2p4/3Nb3/2P5/6P1/5P1P/4R1K1 w - - 0 1") // d5 is an outpost
 
 	expected := bitboardFromIndex(d5)
-	got := OutpostSquares(pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn], White)
+	got := OutpostSquares(pos.Pieces[WhitePawn], pos.Pieces[BlackPawn], White)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -208,7 +208,7 @@ func TestPawnShield(t *testing.T) {
 	pos.LoadFromFenString("8/8/8/8/8/6P1/5PKP/8 w - - 0 1")
 	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
 
-	ev.Eval.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, White)
+	ev.Eval.evaluateKing(Bsf(pos.Pieces[WhiteKing]), [2]Bitboard{pos.Pieces[WhitePawn], pos.Pieces[BlackPawn]}, White)
 
 	got := ev.Eval.mgKingSafety[White]
 	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0]
@@ -223,7 +223,7 @@ func TestPawnShieldFromBlack(t *testing.T) {
 	pos.LoadFromFenString("8/5pkp/6p1/8/8/8/8/8 w - - 0 1")
 	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
 
-	ev.Eval.evaluateKing(Bsf(pos.Bitboards[BlackKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
+	ev.Eval.evaluateKing(Bsf(pos.Pieces[BlackKing]), [2]Bitboard{pos.Pieces[WhitePawn], pos.Pieces[BlackPawn]}, Black)
 
 	got := ev.Eval.mgKingSafety[Black]
 	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0]
@@ -238,7 +238,7 @@ func TestPawnStorm(t *testing.T) {
 	pos.LoadFromFenString("8/8/8/5ppp/8/8/8/6K1 w - - 0 1")
 	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
 
-	ev.Eval.evaluateKing(Bsf(pos.Bitboards[WhiteKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, White)
+	ev.Eval.evaluateKing(Bsf(pos.Pieces[WhiteKing]), [2]Bitboard{pos.Pieces[WhitePawn], pos.Pieces[BlackPawn]}, White)
 
 	got := ev.Eval.mgKingSafety[White]
 	expected := PawnStormFrontPenalty[3] + 2*PawnStormSidePenalty[3]
@@ -253,7 +253,7 @@ func TestPawnStormPlusShield(t *testing.T) {
 	pos.LoadFromFenString("8/8/5pkp/6p1/6P1/5P1P/8/8 w - - 0 1")
 	ev := NewEvaluation(DefaultPawnHashTableSizeInMb)
 
-	ev.Eval.evaluateKing(Bsf(pos.Bitboards[BlackKing]), [2]Bitboard{pos.Bitboards[WhitePawn], pos.Bitboards[BlackPawn]}, Black)
+	ev.Eval.evaluateKing(Bsf(pos.Pieces[BlackKing]), [2]Bitboard{pos.Pieces[WhitePawn], pos.Pieces[BlackPawn]}, Black)
 
 	got := ev.Eval.mgKingSafety[Black]
 	expected := PawnShieldFrontBonus[1] + 2*PawnShieldSideBonus[0] + 2*PawnStormSidePenalty[2]

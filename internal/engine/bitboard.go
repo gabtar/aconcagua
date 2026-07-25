@@ -80,14 +80,14 @@ func bitboardFromCoordinates(coordinates ...string) (bitboard Bitboard) {
 	return
 }
 
-// bitboardFromIndex is a factory that returns a bitboard from an index square
-func bitboardFromIndex(index int) (bitboard Bitboard) {
+// bitboardFromIndex is a factory that returns a bitboard from an square index
+func bitboardFromIndex(sq int) (bitboard Bitboard) {
 	// NOTE: Since bitscan cannot be used with empty sets i use this guard clause to
 	// ensure returning a valid bitboard for the engine
-	if index > 63 || index < 0 {
+	if sq > 63 || sq < 0 {
 		bitboard = Bitboard(0)
 	} else {
-		bitboard = Bitboard(0b1 << index)
+		bitboard = Bitboards[sq]
 	}
 	return
 }
@@ -95,4 +95,14 @@ func bitboardFromIndex(index int) (bitboard Bitboard) {
 // squareToString returns a string representation of a square
 func squareToString(square int) string {
 	return fmt.Sprintf("%c%d", square%8+1+96, (square/8)+1)
+}
+
+// Bitboards is a precalculated array with bitboards for each square
+var Bitboards [64]Bitboard
+
+// initBitboards initializes the Bitboards array for each square
+func initBitboards() {
+	for sq := range 64 {
+		Bitboards[sq] = Bitboard(0b1 << sq)
+	}
 }

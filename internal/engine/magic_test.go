@@ -34,7 +34,7 @@ func TestRookAttacksWithBlockers(t *testing.T) {
 		"b4", "d4", "e4", "f4", "g4", "h4"}
 
 	expected := bitboardFromCoordinates(expectedSquares...)
-	got := rooksAttacksWithBlockers(26, pos.pieces[White])
+	got := rooksAttacksWithBlockers(26, pos.Sides[White])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -61,7 +61,7 @@ func TestRookAttacksSquares(t *testing.T) {
 	expectedSquares := []string{"h8", "g8", "e8", "f7", "f6"}
 
 	expected := bitboardFromCoordinates(expectedSquares...)
-	got := rookAttacks(Bsf(bitboardFromCoordinates("f8")), pos.pieces[White]|pos.pieces[Black])
+	got := rookAttacks(Bsf(bitboardFromCoordinates("f8")), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -77,9 +77,71 @@ func TestBishopAttacksSquares(t *testing.T) {
 	expectedSquares := []string{"a3", "b4", "a7", "b6", "d6", "e7", "f8", "d4"}
 
 	expected := bitboardFromCoordinates(expectedSquares...)
-	got := bishopAttacks(Bsf(bitboardFromCoordinates("c5")), pos.pieces[White]|pos.pieces[Black])
+	got := bishopAttacks(Bsf(bitboardFromCoordinates("c5")), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestFindMagicNumberForRook(t *testing.T) {
+	sq := 0 // a1
+	magic := findMagicNumber(sq, 1)
+	mask := rookMask(sq)
+
+	maskConfigs := 1 << mask.count()
+	posibleConfigurations := make([]Bitboard, maskConfigs)
+	attacksConfigurations := make([]Bitboard, maskConfigs)
+	magicAttacks := make([]Bitboard, maskConfigs)
+	used := make([]bool, maskConfigs)
+
+	// Generate all posible configurations for the blockers
+	for i := range maskConfigs {
+		posibleConfigurations[i] = generateBlockConfiguration(i, mask)
+		attacksConfigurations[i] = rooksAttacksWithBlockers(sq, posibleConfigurations[i])
+	}
+
+	for i, config := range posibleConfigurations {
+		index := (magic * config) >> (64 - mask.count())
+
+		if used[index] {
+			// check colision
+			if attacksConfigurations[i] != magicAttacks[index] {
+				t.Errorf("Collision found at index %d", index)
+			}
+		} else {
+			used[index] = true
+			magicAttacks[index] = attacksConfigurations[i]
+		}
+	}
+}
+
+func TestFindMagicNumberForBishop(t *testing.T) {
+	sq := 28 // e4
+	magic := findMagicNumber(sq, 0)
+	mask := bishopMask(sq)
+
+	maskConfigs := 1 << mask.count()
+	posibleConfigurations := make([]Bitboard, maskConfigs)
+	attacksConfigurations := make([]Bitboard, maskConfigs)
+	magicAttacks := make([]Bitboard, maskConfigs)
+	used := make([]bool, maskConfigs)
+
+	for i := range maskConfigs {
+		posibleConfigurations[i] = generateBlockConfiguration(i, mask)
+		attacksConfigurations[i] = bishopAttacksWithBlockers(sq, posibleConfigurations[i])
+	}
+
+	for i, config := range posibleConfigurations {
+		index := (magic * config) >> (64 - mask.count())
+
+		if used[index] {
+			if attacksConfigurations[i] != magicAttacks[index] {
+				t.Errorf("Collision found at index %d", index)
+			}
+		} else {
+			used[index] = true
+			magicAttacks[index] = attacksConfigurations[i]
+		}
 	}
 }
