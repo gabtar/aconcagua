@@ -74,12 +74,12 @@ func (pos *Position) see(move *Move) int {
 	side := pos.Turn
 	fromSq := bitboardFromIndex(from)
 
-	diagonalAttackers := pos.Bitboards[WhiteBishop] | pos.Bitboards[BlackBishop] |
-		pos.Bitboards[WhiteQueen] | pos.Bitboards[BlackQueen]
-	orthogonalAttackers := pos.Bitboards[WhiteRook] | pos.Bitboards[BlackRook] |
-		pos.Bitboards[WhiteQueen] | pos.Bitboards[BlackQueen]
+	diagonalAttackers := pos.Pieces[WhiteBishop] | pos.Pieces[BlackBishop] |
+		pos.Pieces[WhiteQueen] | pos.Pieces[BlackQueen]
+	orthogonalAttackers := pos.Pieces[WhiteRook] | pos.Pieces[BlackRook] |
+		pos.Pieces[WhiteQueen] | pos.Pieces[BlackQueen]
 
-	blockers := ^pos.EmptySquares()
+	blockers := pos.Sides[All]
 	attackers := pos.attackersTo(to)
 	alreadyAttacked := Bitboard(0)
 	attackerRole := pieceRole(pos.PieceAt(from))
@@ -131,16 +131,16 @@ func (pos *Position) see(move *Move) int {
 // Using the square attacked by algorithm - https://www.chessprogramming.org/Square_Attacked_By#Attacks_to_a_Square
 func (pos *Position) attackersTo(to int) (attackers Bitboard) {
 	toSq := Bitboard(1 << to)
-	blocks := pos.pieces[All]
+	blocks := pos.Sides[All]
 
-	knights := pos.Bitboards[WhiteKnight] | pos.Bitboards[BlackKnight]
-	bishops := pos.Bitboards[WhiteBishop] | pos.Bitboards[BlackBishop]
-	rooks := pos.Bitboards[WhiteRook] | pos.Bitboards[BlackRook]
-	queens := pos.Bitboards[WhiteQueen] | pos.Bitboards[BlackQueen]
-	kings := pos.Bitboards[WhiteKing] | pos.Bitboards[BlackKing]
+	knights := pos.Pieces[WhiteKnight] | pos.Pieces[BlackKnight]
+	bishops := pos.Pieces[WhiteBishop] | pos.Pieces[BlackBishop]
+	rooks := pos.Pieces[WhiteRook] | pos.Pieces[BlackRook]
+	queens := pos.Pieces[WhiteQueen] | pos.Pieces[BlackQueen]
+	kings := pos.Pieces[WhiteKing] | pos.Pieces[BlackKing]
 
-	return pawnAttacks(&toSq, White)&pos.Bitboards[BlackPawn] |
-		pawnAttacks(&toSq, Black)&pos.Bitboards[WhitePawn] |
+	return pawnAttacks(&toSq, White)&pos.Pieces[BlackPawn] |
+		pawnAttacks(&toSq, Black)&pos.Pieces[WhitePawn] |
 		knightAttacksTable[to]&knights |
 		bishopAttacks(to, blocks)&(bishops|queens) |
 		rookAttacks(to, blocks)&(rooks|queens) |
@@ -150,7 +150,7 @@ func (pos *Position) attackersTo(to int) (attackers Bitboard) {
 // getLeastValuableAttacker returns the least valuable attacker from the attackers bitboard
 func (pos *Position) getLeastValuableAttacker(attackers Bitboard, side Color) (Bitboard, int) {
 	for piece := Pawn; piece >= King; piece-- {
-		attackingPieces := pos.Bitboards[pieceColor(piece, side)] & attackers
+		attackingPieces := pos.Pieces[pieceColor(piece, side)] & attackers
 		if attackingPieces > 0 {
 			return attackingPieces.NextBit(), piece
 		}

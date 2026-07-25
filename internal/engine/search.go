@@ -480,7 +480,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	k1, k2 := s.killers.get(ply)
 	mg := NewMoveGenerator(pos, &ttMove, &k1, &k2, &cm, &s.quietHistory, &s.noisyHistory, false)
 	quietsSearched := movesSearched{}
-	capturesSearched := movesSearched{}
+	noisySearched := movesSearched{}
 
 	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
 		branchPv.reset()
@@ -506,7 +506,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		if moveFlag < capture {
 			quietsSearched.add(move)
 		} else {
-			capturesSearched.add(move)
+			noisySearched.add(move)
 		}
 
 		pos.MakeMove(&move)
@@ -550,7 +550,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			s.quietHistory.decrement(&quietsSearched, &move, depth, pos.Turn)
 
 			s.noisyHistory.update(depth*depth, &move, pos)
-			s.noisyHistory.decrement(&capturesSearched, &move, depth, pos)
+			s.noisyHistory.decrement(&noisySearched, &move, depth, pos)
 
 			return beta
 		}
@@ -611,10 +611,10 @@ func canPruneBySEE(mg *MoveGenerator, move Move, depth int) bool {
 
 // kingAndPawnsOnlyEndgame returns if the position is a king and pawns only endgame
 func (pos *Position) kingAndPawnsOnlyEndgame() bool {
-	whiteKingAndPawns := pos.Bitboards[WhiteKing] | pos.Bitboards[WhitePawn]
-	blackKingAndPawns := pos.Bitboards[BlackKing] | pos.Bitboards[BlackPawn]
+	whiteKingAndPawns := pos.Pieces[WhiteKing] | pos.Pieces[WhitePawn]
+	blackKingAndPawns := pos.Pieces[BlackKing] | pos.Pieces[BlackPawn]
 
-	return pos.pieces[White] == whiteKingAndPawns && pos.pieces[Black] == blackKingAndPawns
+	return pos.Sides[White] == whiteKingAndPawns && pos.Sides[Black] == blackKingAndPawns
 }
 
 // lrmReductionFactor returns a number to reduce the depth on search based on the conditions passed

@@ -33,7 +33,7 @@ func init() {
 
 // fullZorbistHash calculates the hash of a given position
 func (hk *HashKeys) fullZobristHash(pos *Position) (hash uint64) {
-	for pieceType, bb := range pos.Bitboards {
+	for pieceType, bb := range pos.Pieces {
 		for bb > 0 {
 			sqNumber := Bsf(bb)
 			hash = hash ^ zobristHashKeys.piecesSquaresKey[64*pieceType+sqNumber]
@@ -78,8 +78,8 @@ func (hk *HashKeys) getEpKey(sqNumber int) uint64 {
 
 // pawnHash returns the zobrist key for the pawns structure of the position
 func (hk *HashKeys) pawnHash(pos *Position) (hash uint64) {
-	whitePawns := pos.Bitboards[WhitePawn]
-	blackPawns := pos.Bitboards[BlackPawn]
+	whitePawns := pos.Pieces[WhitePawn]
+	blackPawns := pos.Pieces[BlackPawn]
 
 	for whitePawns > 0 {
 		sqNumber := Bsf(whitePawns)

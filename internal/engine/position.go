@@ -72,9 +72,8 @@ func (c *Color) Modifier() int {
 
 // Position contains all information about a chess position
 type Position struct {
-	// Bitboards piece order -> King, Queen, Rook, Bishop, Knight, Pawn (first white, second black)
-	Bitboards       [12]Bitboard
-	pieces          [3]Bitboard // black and white pieces 'map' on the board
+	Pieces          [12]Bitboard // order -> WKing, WQueen, WRook, WBishop, WKnight, WPawn, BKing, BQueen, BRook, BBishop, BKnight, BPawn
+	Sides           [3]Bitboard  // black, white and all pieces 'map' on the board
 	Turn            Color
 	Hash            uint64
 	PawnHash        uint64
@@ -103,27 +102,27 @@ func (pos *Position) generatePositionData() PositionData {
 		kingPosition:           pos.KingPosition(pos.Turn),
 		checkRestrictedSquares: checkRestrictedSquares,
 		pinnedPieces:           pos.pinnedPieces(pos.Turn),
-		allies:                 pos.pieces[pos.Turn],
-		enemies:                pos.pieces[pos.Turn.Opponent()],
+		allies:                 pos.Sides[pos.Turn],
+		enemies:                pos.Sides[pos.Turn.Opponent()],
 	}
 }
 
 // PieceAt returns a Piece at the given square coordinate in the Position or NoPiece
 func (pos *Position) PieceAt(square int) (piece int) {
 	bb := bitboardFromIndex(square)
-	if bb&pos.pieces[All] == 0 {
+	if bb&pos.Sides[All] == 0 {
 		return NoPiece
 	}
 
-	if bb&pos.pieces[White] > 0 {
+	if bb&pos.Sides[White] > 0 {
 		for piece := WhiteKing; piece < BlackKing; piece++ {
-			if bb&pos.Bitboards[piece] > 0 {
+			if bb&pos.Pieces[piece] > 0 {
 				return piece
 			}
 		}
 	} else {
 		for piece := BlackKing; piece < NoPiece; piece++ {
-			if bb&pos.Bitboards[piece] > 0 {
+			if bb&pos.Pieces[piece] > 0 {
 				return piece
 			}
 		}
@@ -142,14 +141,14 @@ func (pos *Position) AddPiece(piece int, square int) {
 	if pieceRole(piece) == Pawn {
 		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, square)
 	}
-	pos.Bitboards[piece] |= bb
-	pos.pieces[int(piece/6)] |= bb
-	pos.pieces[All] |= bb
+	pos.Pieces[piece] |= bb
+	pos.Sides[int(piece/6)] |= bb
+	pos.Sides[All] |= bb
 }
 
 // EmptySquares returns a Bitboard with the empty squares of the position
 func (pos *Position) EmptySquares() (emptySquares Bitboard) {
-	return ^pos.pieces[All]
+	return ^pos.Sides[All]
 }
 
 // CheckingPieces returns two Bitboards, one with all the checking pieces and one with only the checking sliders pieces
@@ -158,14 +157,14 @@ func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checki
 		return
 	}
 	kingSq := pos.KingPosition(side)
-	attackers := pos.attackersTo(Bsf(kingSq)) & pos.pieces[side.Opponent()]
+	attackers := pos.attackersTo(Bsf(kingSq)) & pos.Sides[side.Opponent()]
 	if attackers == 0 {
 		return
 	}
 
-	sliders := pos.Bitboards[pieceColor(Queen, side.Opponent())] |
-		pos.Bitboards[pieceColor(Rook, side.Opponent())] |
-		pos.Bitboards[pieceColor(Bishop, side.Opponent())]
+	sliders := pos.Pieces[pieceColor(Queen, side.Opponent())] |
+		pos.Pieces[pieceColor(Rook, side.Opponent())] |
+		pos.Pieces[pieceColor(Bishop, side.Opponent())]
 
 	return attackers, attackers & sliders
 }
@@ -177,26 +176,26 @@ func (pos *Position) Check(side Color) bool {
 		return false
 	}
 	kingSq := Bsf(kingBB)
-	blocks := pos.pieces[All]
+	blocks := pos.Sides[All]
 
-	pawnAttacks := pawnAttacks(&kingBB, side) & pos.Bitboards[pieceColor(Pawn, side.Opponent())]
+	pawnAttacks := pawnAttacks(&kingBB, side) & pos.Pieces[pieceColor(Pawn, side.Opponent())]
 	if pawnAttacks > 0 {
 		return true
 	}
 
-	knightAttacks := knightAttacksTable[kingSq] & pos.Bitboards[pieceColor(Knight, side.Opponent())]
+	knightAttacks := knightAttacksTable[kingSq] & pos.Pieces[pieceColor(Knight, side.Opponent())]
 	if knightAttacks > 0 {
 		return true
 	}
 
 	bishopAttacks := bishopAttacks(kingSq, blocks) &
-		(pos.Bitboards[pieceColor(Bishop, side.Opponent())] | pos.Bitboards[pieceColor(Queen, side.Opponent())])
+		(pos.Pieces[pieceColor(Bishop, side.Opponent())] | pos.Pieces[pieceColor(Queen, side.Opponent())])
 	if bishopAttacks > 0 {
 		return true
 	}
 
 	rookAttacks := rookAttacks(kingSq, blocks) &
-		(pos.Bitboards[pieceColor(Rook, side.Opponent())] | pos.Bitboards[pieceColor(Queen, side.Opponent())])
+		(pos.Pieces[pieceColor(Rook, side.Opponent())] | pos.Pieces[pieceColor(Queen, side.Opponent())])
 	return rookAttacks > 0
 }
 
@@ -208,8 +207,8 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 	}
 
 	opponent := side.Opponent()
-	bishops := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Bishop, opponent)]
-	rooks := pos.Bitboards[pieceColor(Queen, opponent)] | pos.Bitboards[pieceColor(Rook, opponent)]
+	bishops := pos.Pieces[pieceColor(Queen, opponent)] | pos.Pieces[pieceColor(Bishop, opponent)]
+	rooks := pos.Pieces[pieceColor(Queen, opponent)] | pos.Pieces[pieceColor(Rook, opponent)]
 	if rooks|bishops == 0 {
 		return
 	}
@@ -217,12 +216,12 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 	// We use the square attacked by algorithm in special way. If any of the opponent sliders can attack
 	// our king when we remove our pieces, and if its only one of our pieces between them the attacker
 	// and our king, then the piece is pinned
-	possiblePinners := bishopAttacks(Bsf(king), pos.pieces[opponent])&bishops |
-		rookAttacks(Bsf(king), pos.pieces[opponent])&rooks
+	possiblePinners := bishopAttacks(Bsf(king), pos.Sides[opponent])&bishops |
+		rookAttacks(Bsf(king), pos.Sides[opponent])&rooks
 	for possiblePinners > 0 {
 		attacker := possiblePinners.NextBit()
 		kingToOpponentPath := squaresBetween[Bsf(attacker)][Bsf(king)]
-		piecesBetween := kingToOpponentPath & pos.pieces[side]
+		piecesBetween := kingToOpponentPath & pos.Sides[side]
 		if piecesBetween.count() == 1 {
 			pinned |= piecesBetween
 		}
@@ -233,7 +232,7 @@ func (pos *Position) pinnedPieces(side Color) (pinned Bitboard) {
 
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
-	king = pos.Bitboards[pieceColor(King, side)]
+	king = pos.Pieces[pieceColor(King, side)]
 	return
 }
 
@@ -244,9 +243,9 @@ func (pos *Position) RemovePiece(piece int, square int) {
 	}
 	bb := bitboardFromIndex(square)
 
-	pos.Bitboards[piece] &= ^bb
-	pos.pieces[piece/6] &= ^bb
-	pos.pieces[All] &= ^bb
+	pos.Pieces[piece] &= ^bb
+	pos.Sides[piece/6] &= ^bb
+	pos.Sides[All] &= ^bb
 	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, square)
 	if pieceRole(piece) == Pawn {
 		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, square)
@@ -293,22 +292,22 @@ func (pos *Position) isThreefoldRepetition() bool {
 
 // insuficientMaterial returns if the current position is a draw by insuficient material
 func (pos *Position) insuficientMaterial() bool {
-	if pos.Bitboards[WhitePawn] > 0 || pos.Bitboards[BlackPawn] > 0 {
+	if pos.Pieces[WhitePawn] > 0 || pos.Pieces[BlackPawn] > 0 {
 		return false
 	}
-	if pos.Bitboards[WhiteQueen] > 0 || pos.Bitboards[BlackQueen] > 0 {
+	if pos.Pieces[WhiteQueen] > 0 || pos.Pieces[BlackQueen] > 0 {
 		return false
 	}
-	if pos.Bitboards[WhiteRook] > 0 || pos.Bitboards[BlackRook] > 0 {
+	if pos.Pieces[WhiteRook] > 0 || pos.Pieces[BlackRook] > 0 {
 		return false
 	}
-	if pos.Bitboards[WhiteBishop].count() > 1 || pos.Bitboards[BlackBishop].count() > 1 {
+	if pos.Pieces[WhiteBishop].count() > 1 || pos.Pieces[BlackBishop].count() > 1 {
 		return false
 	}
-	if pos.Bitboards[WhiteKnight].count() > 1 || pos.Bitboards[BlackKnight].count() > 1 {
+	if pos.Pieces[WhiteKnight].count() > 1 || pos.Pieces[BlackKnight].count() > 1 {
 		return false
 	}
-	if pos.Bitboards[WhiteBishop].count() == pos.Bitboards[BlackBishop].count() && pos.Bitboards[WhiteBishop] > 0 {
+	if pos.Pieces[WhiteBishop].count() == pos.Pieces[BlackBishop].count() && pos.Pieces[WhiteBishop] > 0 {
 		return false
 	}
 
@@ -625,7 +624,7 @@ func (pos *Position) String() string {
 func toRuneArray(pos *Position) [64]rune {
 	squares := [64]rune{}
 	pieceSymbol := [12]rune{'K', 'Q', 'R', 'B', 'N', 'P', 'k', 'q', 'r', 'b', 'n', 'p'}
-	for pieceType, bitboard := range pos.Bitboards {
+	for pieceType, bitboard := range pos.Pieces {
 		for i := range len(squares) {
 			if bitboard&(0b1<<i) > 0 {
 				squares[i] = pieceSymbol[pieceType]
@@ -642,8 +641,8 @@ func (pos *Position) LoadFromFenString(fen string) {
 		"K": WhiteKing, "Q": WhiteQueen, "R": WhiteRook, "B": WhiteBishop, "N": WhiteKnight, "P": WhitePawn,
 	}
 
-	pos.Bitboards = [12]Bitboard{}
-	pos.pieces = [3]Bitboard{}
+	pos.Pieces = [12]Bitboard{}
+	pos.Sides = [3]Bitboard{}
 	pos.positionHistory.clear()
 	pos.positionHistory.previousPosition = [MaxHistoryMoves * 2]uint64{}
 
@@ -656,9 +655,9 @@ func (pos *Position) LoadFromFenString(fen string) {
 		for piece := range strings.SplitSeq(rank, "") {
 			switch piece {
 			case "k", "q", "r", "b", "n", "p", "K", "Q", "R", "B", "N", "P":
-				pos.Bitboards[pieceReference[piece]] |= (0b1 << currentSquare)
-				pos.pieces[pieceReference[piece]/6] |= (0b1 << currentSquare)
-				pos.pieces[All] |= (0b1 << currentSquare)
+				pos.Pieces[pieceReference[piece]] |= (0b1 << currentSquare)
+				pos.Sides[pieceReference[piece]/6] |= (0b1 << currentSquare)
+				pos.Sides[All] |= (0b1 << currentSquare)
 				currentSquare++
 			default:
 				currentSquare += int(piece[0]) - 48 // Updates square number

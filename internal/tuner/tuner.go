@@ -419,7 +419,7 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 
 // generatePieceScoreWeights returns the weights of the pieces socre in the board
 func generatePieceScoreWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
-	for piece, bb := range pos.Bitboards {
+	for piece, bb := range pos.Pieces {
 		side := engine.Color(piece / 6)
 		for bb > 0 {
 			sq := engine.Bsf(bb.NextBit())
@@ -447,11 +447,11 @@ func generateMobilityWeights(pos *engine.Position, phase int, weights *[]Positio
 
 	blocks := ^pos.EmptySquares()
 	enemyPawnsAttacks := [2]engine.Bitboard{
-		engine.Attacks(engine.BlackPawn, pos.Bitboards[engine.BlackPawn], blocks),
-		engine.Attacks(engine.WhitePawn, pos.Bitboards[engine.WhitePawn], blocks),
+		engine.Attacks(engine.BlackPawn, pos.Pieces[engine.BlackPawn], blocks),
+		engine.Attacks(engine.WhitePawn, pos.Pieces[engine.WhitePawn], blocks),
 	}
-	whiteBB := pos.Bitboards[1:5]
-	blackBB := pos.Bitboards[7:11]
+	whiteBB := pos.Pieces[1:5]
+	blackBB := pos.Pieces[7:11]
 
 	// NOTE: Need to make a new slice, otherwise we will mutate the Bitboards array in Position struct
 	bitboards := make([]engine.Bitboard, 0, 8)
@@ -479,7 +479,7 @@ func generateMobilityWeights(pos *engine.Position, phase int, weights *[]Positio
 					)
 				}
 
-				enemyRooks := pos.Bitboards[engine.Rook+int(side.Opponent())*6]
+				enemyRooks := pos.Pieces[engine.Rook+int(side.Opponent())*6]
 				if attacks&enemyRooks > 0 {
 					*weights = append(*weights,
 						PositionWeight{paramIndex: 968, weight: int16(int(side) * phase)},
@@ -487,7 +487,7 @@ func generateMobilityWeights(pos *engine.Position, phase int, weights *[]Positio
 					)
 				}
 
-				enemyQueens := pos.Bitboards[engine.Queen+int(side.Opponent())*6]
+				enemyQueens := pos.Pieces[engine.Queen+int(side.Opponent())*6]
 				if attacks&enemyQueens > 0 {
 					*weights = append(*weights,
 						PositionWeight{paramIndex: 969, weight: int16(int(side) * phase)},
@@ -577,11 +577,11 @@ func generateIsolatedPawnsWeights(pos *engine.Position, phase int, weights *[]Po
 
 // generateBackwardsPawnsWeights returns the position weights of the backwards pawns
 func generateBackwardsPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
-	whitePawnsAttacks := engine.Attacks(engine.WhitePawn, pos.Bitboards[engine.WhitePawn], pos.EmptySquares())
-	blackPawnsAttacks := engine.Attacks(engine.BlackPawn, pos.Bitboards[engine.BlackPawn], pos.EmptySquares())
+	whitePawnsAttacks := engine.Attacks(engine.WhitePawn, pos.Pieces[engine.WhitePawn], pos.EmptySquares())
+	blackPawnsAttacks := engine.Attacks(engine.BlackPawn, pos.Pieces[engine.BlackPawn], pos.EmptySquares())
 
-	wBackwards := bits.OnesCount64(uint64(engine.BackwardPawns(pos.Bitboards[engine.WhitePawn], blackPawnsAttacks, engine.White)))
-	bBackwards := bits.OnesCount64(uint64(engine.BackwardPawns(pos.Bitboards[engine.BlackPawn], whitePawnsAttacks, engine.Black)))
+	wBackwards := bits.OnesCount64(uint64(engine.BackwardPawns(pos.Pieces[engine.WhitePawn], blackPawnsAttacks, engine.White)))
+	bBackwards := bits.OnesCount64(uint64(engine.BackwardPawns(pos.Pieces[engine.BlackPawn], whitePawnsAttacks, engine.Black)))
 
 	*weights = append(*weights,
 		PositionWeight{paramIndex: 916, weight: int16(wBackwards * phase)},
@@ -593,8 +593,8 @@ func generateBackwardsPawnsWeights(pos *engine.Position, phase int, weights *[]P
 
 // generatePassedPawnsWeights returns the position weights of the passed pawns
 func generatePassedPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
-	wPassedPawns := engine.PassedPawns(pos.Bitboards[engine.WhitePawn], pos.Bitboards[engine.BlackPawn], engine.White)
-	bPassedPawns := engine.PassedPawns(pos.Bitboards[engine.BlackPawn], pos.Bitboards[engine.WhitePawn], engine.Black)
+	wPassedPawns := engine.PassedPawns(pos.Pieces[engine.WhitePawn], pos.Pieces[engine.BlackPawn], engine.White)
+	bPassedPawns := engine.PassedPawns(pos.Pieces[engine.BlackPawn], pos.Pieces[engine.WhitePawn], engine.Black)
 
 	for wPassedPawns > 0 {
 		fromBB := wPassedPawns.NextBit()
@@ -622,14 +622,14 @@ func generatePassedPawnsWeights(pos *engine.Position, phase int, weights *[]Posi
 // generateMaterialAdjustmentsWeights returns the position weights of the material adjustments
 func generateMaterialAdjustmentsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	// Bishop pairs bonuses
-	whiteBishopCount := bits.OnesCount64(uint64(pos.Bitboards[engine.WhiteBishop]))
+	whiteBishopCount := bits.OnesCount64(uint64(pos.Pieces[engine.WhiteBishop]))
 	if whiteBishopCount >= 2 {
 		*weights = append(*weights,
 			PositionWeight{paramIndex: 934, weight: int16(phase)},
 			PositionWeight{paramIndex: 935, weight: int16(62 - phase)},
 		)
 	}
-	blackBishopCount := bits.OnesCount64(uint64(pos.Bitboards[engine.BlackBishop]))
+	blackBishopCount := bits.OnesCount64(uint64(pos.Pieces[engine.BlackBishop]))
 	if blackBishopCount >= 2 {
 		*weights = append(*weights,
 			PositionWeight{paramIndex: 934, weight: int16(-phase)},
@@ -646,10 +646,10 @@ func generateMaterialAdjustmentsWeights(pos *engine.Position, phase int, weights
 
 // generateRookOnOpenFileWeights returns the position weights of the rook on open file
 func generateRookOnOpenFileWeights(pos *engine.Position, phase int, weights *[]PositionWeight, side engine.Color) {
-	alliedPawns := pos.Bitboards[engine.Pawn+int(side)*6]
-	enemyPawns := pos.Bitboards[engine.Pawn+int(side.Opponent())*6]
+	alliedPawns := pos.Pieces[engine.Pawn+int(side)*6]
+	enemyPawns := pos.Pieces[engine.Pawn+int(side.Opponent())*6]
 
-	rooks := pos.Bitboards[engine.Rook+int(side)*6]
+	rooks := pos.Pieces[engine.Rook+int(side)*6]
 
 	for rooks > 0 {
 		fromBB := rooks.NextBit()
@@ -671,12 +671,12 @@ func generateRookOnOpenFileWeights(pos *engine.Position, phase int, weights *[]P
 // generateOutpostWeights returns the position weights of the outpost
 func generateOutpostWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	outpostSquares := [2]engine.Bitboard{
-		engine.OutpostSquares(pos.Bitboards[engine.WhitePawn], pos.Bitboards[engine.BlackPawn], engine.White),
-		engine.OutpostSquares(pos.Bitboards[engine.BlackPawn], pos.Bitboards[engine.WhitePawn], engine.Black),
+		engine.OutpostSquares(pos.Pieces[engine.WhitePawn], pos.Pieces[engine.BlackPawn], engine.White),
+		engine.OutpostSquares(pos.Pieces[engine.BlackPawn], pos.Pieces[engine.WhitePawn], engine.Black),
 	}
 
 	// Knights Outposts
-	wKnights := pos.Bitboards[engine.WhiteKnight]
+	wKnights := pos.Pieces[engine.WhiteKnight]
 	for wKnights > 0 {
 		fromBB := wKnights.NextBit()
 
@@ -688,7 +688,7 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 		}
 	}
 
-	bKnights := pos.Bitboards[engine.BlackKnight]
+	bKnights := pos.Pieces[engine.BlackKnight]
 	for bKnights > 0 {
 		fromBB := bKnights.NextBit()
 
@@ -701,7 +701,7 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 	}
 
 	// Bishops Outpost
-	wBishops := pos.Bitboards[engine.WhiteBishop]
+	wBishops := pos.Pieces[engine.WhiteBishop]
 	for wBishops > 0 {
 		fromBB := wBishops.NextBit()
 
@@ -713,7 +713,7 @@ func generateOutpostWeights(pos *engine.Position, phase int, weights *[]Position
 		}
 	}
 
-	bBishops := pos.Bitboards[engine.BlackBishop]
+	bBishops := pos.Pieces[engine.BlackBishop]
 	for bBishops > 0 {
 		fromBB := bBishops.NextBit()
 
@@ -740,13 +740,13 @@ func generateSafetyAttacksWeights(pos *engine.Position, phase int, weights *[]Po
 		c := engine.Color(color)
 		enemyKing := pos.KingPosition(c.Opponent())
 		kingZone := engine.KingZone[c.Opponent()][engine.Bsf(enemyKing)]
-		enemyPawns := pos.Bitboards[engine.Pawn+int(c.Opponent())*6]
+		enemyPawns := pos.Pieces[engine.Pawn+int(c.Opponent())*6]
 		defendedZone := engine.Attacks(engine.Pawn+int(c.Opponent())*6, enemyPawns, blocks)
 		tempWeights := []PositionWeight{}
 		attackersCount := 0
 
 		for piece := engine.Queen; piece <= engine.Knight; piece++ {
-			pieceBB := pos.Bitboards[piece+int(c)*6]
+			pieceBB := pos.Pieces[piece+int(c)*6]
 			for pieceBB > 0 {
 				fromBB := pieceBB.NextBit()
 				attacks := engine.Attacks(piece+int(c)*6, fromBB, blocks)
@@ -761,7 +761,7 @@ func generateSafetyAttacksWeights(pos *engine.Position, phase int, weights *[]Po
 		}
 
 		// Safety is only applied if there are at least 2 attackers
-		if attackersCount >= 2 && pos.Bitboards[engine.Queen+int(c)*6] > 0 {
+		if attackersCount >= 2 && pos.Pieces[engine.Queen+int(c)*6] > 0 {
 			*weights = append(*weights, tempWeights...)
 
 			zoneDefense := kingZone & defendedZone
@@ -776,8 +776,8 @@ func generateSafetyAttacksWeights(pos *engine.Position, phase int, weights *[]Po
 // generatePawnShieldAndStormWeights returns the position weights of the pawn shield and storm
 func generatePawnShieldAndStormWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	pawns := [2]engine.Bitboard{
-		pos.Bitboards[engine.WhitePawn],
-		pos.Bitboards[engine.BlackPawn],
+		pos.Pieces[engine.WhitePawn],
+		pos.Pieces[engine.BlackPawn],
 	}
 
 	for color := engine.White; color <= engine.Black; color++ {
@@ -855,7 +855,7 @@ func generatePawnShieldAndStormWeights(pos *engine.Position, phase int, weights 
 // getMiddleGamePhase returns the value of the middle game phase of a position
 func getMiddleGamePhase(pos *engine.Position) (mgPhase int) {
 	phaseInc := [6]int{0, 9, 5, 3, 3, 0}
-	for p, bb := range pos.Bitboards {
+	for p, bb := range pos.Pieces {
 		for bb > 0 {
 			bb.NextBit()
 			mgPhase += phaseInc[p%6]

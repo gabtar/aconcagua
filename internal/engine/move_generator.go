@@ -185,7 +185,7 @@ func (pos *Position) generateNoisy(ml *MoveList, pd *PositionData) {
 	nonKingOpponents := pd.enemies &^ pos.KingPosition(pos.Turn.Opponent())
 	start := BlackKing * int(pos.Turn)
 	for piece := start; piece < start+6; piece++ {
-		pieces := pos.Bitboards[piece]
+		pieces := pos.Pieces[piece]
 		for pieces > 0 {
 			pieceBB := pieces.NextBit()
 			from := Bsf(pieceBB)
@@ -212,7 +212,7 @@ func (pos *Position) generateNoisy(ml *MoveList, pd *PositionData) {
 func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 	start := BlackKing * int(pos.Turn)
 	for piece := start; piece < start+6; piece++ {
-		pieces := pos.Bitboards[piece]
+		pieces := pos.Pieces[piece]
 		for pieces > 0 {
 			pieceBB := pieces.NextBit()
 			from := Bsf(pieceBB)
@@ -238,11 +238,11 @@ func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 // kingMoves returns a bitboard with the legal moves of the king from the bitboard passed
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	kingSq := Bsf(*k)
-	posiblesMoves := kingAttacksTable[Bsf(*k)] & ^pos.pieces[side]
+	posiblesMoves := kingAttacksTable[Bsf(*k)] & ^pos.Sides[side]
 	pos.RemovePiece(pieceColor(King, side), kingSq)
 	for posiblesMoves > 0 {
 		next := posiblesMoves.NextBit()
-		if pos.attackersTo(Bsf(next))&pos.pieces[side.Opponent()] == 0 {
+		if pos.attackersTo(Bsf(next))&pos.Sides[side.Opponent()] == 0 {
 			moves |= next
 		}
 	}
@@ -331,7 +331,7 @@ func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 	notInHFile := targetPawnBB & ^(targetPawnBB & Files[7])
 	notInAFile := targetPawnBB & ^(targetPawnBB & Files[0])
 
-	epCaptures |= pos.Bitboards[pieceColor(Pawn, side)] & (notInAFile>>1 | notInHFile<<1)
+	epCaptures |= pos.Pieces[pieceColor(Pawn, side)] & (notInAFile>>1 | notInHFile<<1)
 	return
 }
 
@@ -458,8 +458,8 @@ func isEnPassantHorizontalPinned(pos *Position, capturerBB Bitboard, capturedPaw
 
 		// Check attacks if we remove both pawns
 		kingRankAttacks := rookAttacks(kingSq, blockers) & Ranks[kingRank]
-		opponentRooksQueens := pos.Bitboards[pieceColor(Rook, side.Opponent())] |
-			pos.Bitboards[pieceColor(Queen, side.Opponent())]
+		opponentRooksQueens := pos.Pieces[pieceColor(Rook, side.Opponent())] |
+			pos.Pieces[pieceColor(Queen, side.Opponent())]
 
 		// If king results attacked, then its pinned, not legal
 		if (kingRankAttacks & opponentRooksQueens) != 0 {

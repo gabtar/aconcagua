@@ -15,4 +15,7 @@ func main() {
 	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/lichess-big3-resolved.book", 7000000)
 	// params := tuner.GetEvaluationParams()
 	// tuner.AdamTuner(params, &dataset, tuner.ScalingFactor, 300)
+
+	// Find fixed magic numbers
+	// engine.GenerateMagicNumbersForRooksAndBishops()
 }

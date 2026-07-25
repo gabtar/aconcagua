@@ -151,7 +151,7 @@ func TestPinnedPiecesOnBlack(t *testing.T) {
 func TestCheckRestrictedSquares(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("8/8/8/8/1k4PP/1bp1r2K/8/5N2 w - - 0 1")
-	checkingSliders := pos.Bitboards[BlackRook] // Black Rook on e3
+	checkingSliders := pos.Pieces[BlackRook] // Black Rook on e3
 	checkingNonSliders := Bitboard(0)
 
 	expected := bitboardFromCoordinates("e3", "f3", "g3")
@@ -166,7 +166,7 @@ func TestPinRestrictedSquares(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("2br2k1/5pp1/5p2/R4BP1/5PKP/8/8/8 w - - 0 1") // bishop on f5 is pinned can only move along the h3-c8 diagonal
 
-	piece := pos.Bitboards[WhiteBishop]
+	piece := pos.Pieces[WhiteBishop]
 	king := pos.KingPosition(White)
 	pinnedPieces := pos.pinnedPieces(White)
 
@@ -393,7 +393,7 @@ func TestRookAttacksOnEmptyBoard(t *testing.T) {
 
 	expected := bitboardFromCoordinates("e1", "e2", "e3", "e5", "e6", "e7", "e8",
 		"a4", "b4", "c4", "d4", "f4", "g4", "h4")
-	got := rookAttacks(Bsf(rookBB), pos.pieces[White]|pos.pieces[Black])
+	got := rookAttacks(Bsf(rookBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -408,7 +408,7 @@ func TestRookAttacksWithBlockedSquares(t *testing.T) {
 
 	expected := bitboardFromCoordinates("e1", "e2", "e3", "e5", "e6", "e7", "e8",
 		"c4", "d4", "f4", "g4", "h4")
-	got := rookAttacks(Bsf(rookBB), pos.pieces[White]|pos.pieces[Black])
+	got := rookAttacks(Bsf(rookBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -425,7 +425,7 @@ func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
 	rookBB := bitboardFromCoordinates("b3")
 
 	expected := bitboardFromCoordinates("b4", "b2", "a3", "c3")
-	got := rookAttacks(Bsf(rookBB), pos.pieces[White]|pos.pieces[Black])
+	got := rookAttacks(Bsf(rookBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -551,7 +551,7 @@ func TestBishopAttacksOnEmptyBoard(t *testing.T) {
 	bishopBB := bitboardFromCoordinates("h1")
 
 	expected := bitboardFromCoordinates("g2", "f3", "e4", "d5", "c6", "b7", "a8")
-	got := bishopAttacks(Bsf(bishopBB), pos.pieces[White]|pos.pieces[Black])
+	got := bishopAttacks(Bsf(bishopBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -565,7 +565,7 @@ func TestBishopAttacksWithBlockedSquares(t *testing.T) {
 	bishopBB := bitboardFromCoordinates("e3")
 
 	expected := bitboardFromCoordinates("f2", "g1", "d4", "c5", "b6", "a7", "f4", "g5", "d2", "c1")
-	got := bishopAttacks(Bsf(bishopBB), pos.pieces[White]|pos.pieces[Black])
+	got := bishopAttacks(Bsf(bishopBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

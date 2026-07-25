@@ -241,7 +241,7 @@ func (pos *Position) canCastle(side Color, castleFlag int) bool {
 	kingPassingSquares := kingFromToPath | kingToSq | kingBB
 	for kingPassingSquares > 0 {
 		sq := Bsf(kingPassingSquares.NextBit())
-		if pos.attackersTo(sq)&pos.pieces[side.Opponent()] > 0 {
+		if pos.attackersTo(sq)&pos.Sides[side.Opponent()] > 0 {
 			return false
 		}
 	}
