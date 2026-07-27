@@ -9,7 +9,7 @@ func TestAttackers(t *testing.T) {
 	pos.LoadFromFenString("6k1/2p5/3p4/3P4/4N3/B7/8/6K1 w - - 0 1")
 
 	expected := 2
-	got := (pos.attackersTo(d6) & pos.pieces[White]).count()
+	got := (pos.attackersTo(d6) & pos.Sides[White]).count()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -93,6 +93,19 @@ func TestSeeFive(t *testing.T) {
 
 	expected := -800
 	move := encodeMove(uint16(b3), uint16(b6), capture)
+	got := pos.see(move)
+
+	if got != expected {
+		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestSeePushPromotions(t *testing.T) {
+	pos := NewPosition()
+	pos.LoadFromFenString("8/7P/8/1k2b1P1/6K1/p7/1p6/8 w - - 0 1")
+
+	expected := -100
+	move := encodeMove(uint16(h7), uint16(h8), queenPromotion)
 	got := pos.see(move)
 
 	if got != expected {

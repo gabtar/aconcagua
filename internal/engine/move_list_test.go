@@ -18,26 +18,6 @@ func TestListOfMovesAddMove(t *testing.T) {
 	}
 }
 
-func TestListOfMovesScoreCaptures(t *testing.T) {
-	lm := MoveList{}
-
-	pos := NewPosition()
-	pos.LoadFromFenString("4k3/8/3r1p2/4P3/4K3/8/8/8 w - - 0 1")
-	m1 := encodeMove(36, 43, capture) // Pawn takes rook. Best move
-	m2 := encodeMove(36, 45, capture) // Pawn takes pawn
-	lm.add(*m1)
-	lm.add(*m2)
-
-	score1 := pos.see(encodeMove(36, 43, capture))
-	score2 := pos.see(encodeMove(36, 45, capture))
-
-	lm.scoreCaptures(pos)
-
-	if lm.scores[0] != score1 || lm.scores[1] != score2 {
-		t.Errorf("Expected: %v, got: %v", []int{score1, score2}, lm.scores)
-	}
-}
-
 func TestListOfMovesScoreNonCaptures(t *testing.T) {
 	lm := MoveList{}
 
@@ -51,11 +31,11 @@ func TestListOfMovesScoreNonCaptures(t *testing.T) {
 	lm.add(*m2)
 	lm.add(*m3)
 
-	hm := HistoryMovesTable{}
+	hm := QuietHistoryTable{}
 	hm[White][18][26] = 10
 	hm[White][42][50] = 100 // Pawn advance to 7 rank is historically better
 
-	lm.scoreNonCaptures(&hm, White, 1) // starts from non capture moves
+	lm.scoreQuiets(&hm, White, 1) // starts from non capture moves
 
 	if lm.scores[1] != 10 || lm.scores[2] != 100 {
 		t.Errorf("Expected: %v, got: %v", []int{0, 10, 100}, lm.scores)
@@ -72,7 +52,7 @@ func TestListOfMovesGetBestMoveIndex(t *testing.T) {
 	lm.add(*m1)
 	lm.add(*m2)
 
-	lm.scoreCaptures(pos)
+	lm.scoreNoisy(pos, &NoisyHistoryTable{})
 
 	expected := 1
 	got := lm.getBestIndex(0)

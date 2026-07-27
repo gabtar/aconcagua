@@ -118,7 +118,7 @@ func PolyglotHashFromPosition(pos *Position) (key uint64) {
 	// references Aconcagua internal Position piece representation to Polyglot piece representation
 	polyglotPieceIndexReference := [12]int{11, 9, 7, 5, 3, 1, 10, 8, 6, 4, 2, 0}
 
-	for pieceType, bb := range pos.Bitboards {
+	for pieceType, bb := range pos.Pieces {
 		for bb > 0 {
 			sqNumber := Bsf(bb)
 			index := 64*polyglotPieceIndexReference[pieceType] + sqNumber

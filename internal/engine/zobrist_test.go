@@ -29,8 +29,8 @@ func TestZobristIncrementalUpdateOnMakeMove(t *testing.T) {
 
 			ml := NewMoveList()
 			pd := pos.generatePositionData()
-			pos.generateCaptures(ml, &pd)
-			pos.generateNonCaptures(ml, &pd)
+			pos.generateNoisy(ml, &pd)
+			pos.generateQuiets(ml, &pd)
 
 			for moveNumber := range ml.moves {
 				if ml.moves[moveNumber].String() == tc.move {
@@ -85,8 +85,8 @@ func TestZobristIncrementalUpdateOnUnmakeMove(t *testing.T) {
 			for move := range strings.SplitSeq(tc.move, " ") {
 				ml := NewMoveList()
 				pd := pos.generatePositionData()
-				pos.generateCaptures(ml, &pd)
-				pos.generateNonCaptures(ml, &pd)
+				pos.generateNoisy(ml, &pd)
+				pos.generateQuiets(ml, &pd)
 
 				for moveNumber := range ml.moves {
 					if ml.moves[moveNumber].String() == move {

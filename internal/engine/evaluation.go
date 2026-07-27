@@ -165,18 +165,18 @@ func (ed *EvalData) init(pos *Position) {
 		pos.KingPosition(Black),
 	}
 	ed.attackedByPawns = [2]Bitboard{
-		pawnAttacks(&pos.Bitboards[WhitePawn], White),
-		pawnAttacks(&pos.Bitboards[BlackPawn], Black),
+		pawnAttacks(&pos.Pieces[WhitePawn], White),
+		pawnAttacks(&pos.Pieces[BlackPawn], Black),
 	}
 	ed.pawns = [2]Bitboard{
-		pos.Bitboards[WhitePawn],
-		pos.Bitboards[BlackPawn],
+		pos.Pieces[WhitePawn],
+		pos.Pieces[BlackPawn],
 	}
 	ed.outposts = [2]Bitboard{
 		OutpostSquares(ed.pawns[White], ed.pawns[Black], White),
 		OutpostSquares(ed.pawns[Black], ed.pawns[White], Black),
 	}
-	ed.blocks = ^pos.EmptySquares()
+	ed.blocks = pos.Sides[All]
 	ed.pinned = pos.PinnedPieces(White) | pos.PinnedPieces(Black)
 }
 
@@ -185,7 +185,7 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 	ev.Eval.clear()
 	ev.EvalData.init(pos)
 
-	for piece, bb := range pos.Bitboards {
+	for piece, bb := range pos.Pieces {
 		color := Color(piece / 6)
 
 		for bb > 0 {
@@ -210,24 +210,24 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 	}
 
 	// Bishop pair bonus
-	if pos.Bitboards[WhiteBishop].count() >= 2 {
+	if pos.Pieces[WhiteBishop].count() >= 2 {
 		ev.Eval.mgMaterial[White] += BishopPairBonusMg
 		ev.Eval.egMaterial[White] += BishopPairBonusEg
 	}
 
-	if pos.Bitboards[BlackBishop].count() >= 2 {
+	if pos.Pieces[BlackBishop].count() >= 2 {
 		ev.Eval.mgMaterial[Black] += BishopPairBonusMg
 		ev.Eval.egMaterial[Black] += BishopPairBonusEg
 	}
 
 	// Safety
 	// Apply King Safety Penalties to opponent only if there are at least 2 attackers and one of the pieces is a queen
-	if ev.Eval.kingAttackersCount[White] >= 2 && pos.Bitboards[pieceColor(Queen, White)] > 0 {
+	if ev.Eval.kingAttackersCount[White] >= 2 && pos.Pieces[pieceColor(Queen, White)] > 0 {
 		zoneDefense := KingZone[Black][Bsf(pos.KingPosition(Black))] & ev.EvalData.attackedByPawns[Black]
 		ev.Eval.mgKingSafety[Black] += -ev.Eval.kingAttacksWeight[White] + KingZoneDefenseBonus*zoneDefense.count()
 	}
 
-	if ev.Eval.kingAttackersCount[Black] >= 2 && pos.Bitboards[pieceColor(Queen, Black)] > 0 {
+	if ev.Eval.kingAttackersCount[Black] >= 2 && pos.Pieces[pieceColor(Queen, Black)] > 0 {
 		zoneDefense := KingZone[White][Bsf(pos.KingPosition(White))] & ev.EvalData.attackedByPawns[White]
 		ev.Eval.mgKingSafety[White] += -ev.Eval.kingAttacksWeight[Black] + KingZoneDefenseBonus*zoneDefense.count()
 	}
@@ -437,10 +437,10 @@ func (ev *Evaluation) evaluateBishop(from int, side Color, pos *Position) {
 	if ev.EvalData.attackedByPawns[opponent]&fromBB > 0 {
 		ev.Eval.threats[side] += MinorAttackedByPawnThreatPenalty
 	}
-	if attacks&pos.Bitboards[pieceColor(Queen, side.Opponent())] > 0 {
+	if attacks&pos.Pieces[pieceColor(Queen, side.Opponent())] > 0 {
 		ev.Eval.threats[side.Opponent()] += QueenAttackedByMinorThreatPenalty
 	}
-	if attacks&pos.Bitboards[pieceColor(Rook, side.Opponent())] > 0 {
+	if attacks&pos.Pieces[pieceColor(Rook, side.Opponent())] > 0 {
 		ev.Eval.threats[side.Opponent()] += RookAttackedByMinorThreatPenalty
 	}
 
@@ -484,10 +484,10 @@ func (ev *Evaluation) evaluateKnight(from int, side Color, pos *Position) {
 	if ev.EvalData.attackedByPawns[opponent]&fromBB > 0 {
 		ev.Eval.threats[side] += MinorAttackedByPawnThreatPenalty
 	}
-	if attacks&pos.Bitboards[pieceColor(Queen, opponent)] > 0 {
+	if attacks&pos.Pieces[pieceColor(Queen, side.Opponent())] > 0 {
 		ev.Eval.threats[side.Opponent()] += QueenAttackedByMinorThreatPenalty
 	}
-	if attacks&pos.Bitboards[pieceColor(Rook, opponent)] > 0 {
+	if attacks&pos.Pieces[pieceColor(Rook, side.Opponent())] > 0 {
 		ev.Eval.threats[side.Opponent()] += RookAttackedByMinorThreatPenalty
 	}
 
@@ -541,12 +541,12 @@ func (ev *EvalVector) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bit
 	ev.mgPawnStrucutre[side] += isolatedPawns.count() * IsolatedPawnPenaltyMg
 	ev.egPawnStructure[side] += isolatedPawns.count() * IsolatedPawnPenaltyEg
 
-	pawns := pos.Bitboards[pieceColor(Pawn, side)]
+	pawns := pos.Pieces[pieceColor(Pawn, side)]
 	backwardPawns := BackwardPawns(pawns, enemyPawnsAttacks, side)
 	ev.mgPawnStrucutre[side] += backwardPawns.count() * BackwardPawnPenaltyMg
 	ev.egPawnStructure[side] += backwardPawns.count() * BackwardPawnPenaltyEg
 
-	passedPawns := PassedPawns(pawns, pos.Bitboards[pieceColor(Pawn, side.Opponent())], side)
+	passedPawns := PassedPawns(pawns, pos.Pieces[pieceColor(Pawn, side.Opponent())], side)
 	for passedPawns > 0 {
 		fromBB := passedPawns.NextBit()
 		sq := Bsf(fromBB)
@@ -563,7 +563,7 @@ func (ev *EvalVector) evaluatePawnStructure(pos *Position, enemyPawnsAttacks Bit
 // DoubledPawns returns a bitboard with the files with more than 1 pawn
 func DoubledPawns(pos *Position, side Color) Bitboard {
 	doubledPawns := Bitboard(0)
-	pawns := pos.Bitboards[pieceColor(Pawn, side)]
+	pawns := pos.Pieces[pieceColor(Pawn, side)]
 
 	for file := range 8 {
 		pawnsInFile := pawns & Files[file]
@@ -578,7 +578,7 @@ func DoubledPawns(pos *Position, side Color) Bitboard {
 // IsolatedPawns a bitboard with the isolated pawns for the side
 func IsolatedPawns(pos *Position, side Color) Bitboard {
 	isolatedPawns := Bitboard(0)
-	pawns := pos.Bitboards[pieceColor(Pawn, side)]
+	pawns := pos.Pieces[pieceColor(Pawn, side)]
 
 	for file := range 8 {
 		if isolatedAdjacentFilesMask[file]&pawns == 0 {

@@ -9,14 +9,14 @@ func queenAttacks(q *Bitboard, blocks Bitboard) (attacks Bitboard) {
 // rookAttacks returns a bitboard with the attack mask of a rook from the square passed taking into account the blockers
 func rookAttacks(square int, blocks Bitboard) Bitboard {
 	blocks &= rooksMaskTable[square]
-	magicIndex := (blocks * rookMagics[square]) >> (64 - rooksMaskTable[square].count())
+	magicIndex := (blocks * rookMagics[square]) >> RookMagicShift
 	return rookAttacksTable[square][magicIndex]
 }
 
 // bishopAttacks returns a bitboard with the attack mask of a bishop from the square passed taking into account the blockers
 func bishopAttacks(square int, blocks Bitboard) Bitboard {
 	blocks &= bishopMaskTable[square]
-	magicIndex := (blocks * bishopMagics[square]) >> (64 - bishopMaskTable[square].count())
+	magicIndex := (blocks * bishopMagics[square]) >> BishopMagicShift
 	return bishopAttacksTable[square][magicIndex]
 }
 

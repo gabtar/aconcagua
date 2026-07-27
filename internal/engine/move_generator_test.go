@@ -7,7 +7,7 @@ func TestMoveGeneratorHasNextMove(t *testing.T) {
 	hashMove := encodeMove(0, 0, quiet)
 	killers := Killer{NoMove, NoMove}
 	cm := NoMove
-	mg := NewMoveGenerator(pos, hashMove, &killers[0], &killers[1], &cm, &HistoryMovesTable{})
+	mg := NewMoveGenerator(pos, hashMove, &killers[0], &killers[1], &cm, &QuietHistoryTable{}, &NoisyHistoryTable{}, false)
 
 	got := mg.nextMove()
 
@@ -21,7 +21,7 @@ func TestMoveGeneratorNotHasNextMove(t *testing.T) {
 	hashMove := NoMove
 	killers := Killer{NoMove, NoMove}
 	cm := NoMove
-	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &HistoryMovesTable{})
+	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &QuietHistoryTable{}, &NoisyHistoryTable{}, false)
 	mg.stage = EndStage
 
 	expected := NoMove
@@ -36,11 +36,11 @@ func TestMoveGeneratorCreatesCaptures(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	cm := NoMove
-	mg := NewMoveGenerator(pos, nil, nil, nil, &cm, nil)
+	mg := NewMoveGenerator(pos, nil, nil, nil, &cm, nil, &NoisyHistoryTable{}, true)
 	move := NoMove
 	mg.hashMove = &move
 
-	expected := *encodeMove(36, 43, capture) // Best capture. Pawn takes rook
+	expected := *encodeMove(d3, d6, capture) // Best capture by mvv
 	got := mg.nextMove()
 
 	if got != expected {
@@ -52,7 +52,7 @@ func TestMoveGeneratorCreatesNonCaptures(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("1b4k1/5pp1/3r3p/4P3/5PN1/3RK3/8/8 w - - 0 1") // Only 3 captures
 	noMove := NoMove
-	mg := NewMoveGenerator(pos, &noMove, &noMove, &noMove, &noMove, &HistoryMovesTable{})
+	mg := NewMoveGenerator(pos, &noMove, &noMove, &noMove, &noMove, &QuietHistoryTable{}, &NoisyHistoryTable{}, false)
 	mg.stage = FirstKillerStage // NOTE: Non captures are generated in killers stage to validate legaliy of killers
 	move := NoMove
 	mg.hashMove = &move
@@ -75,11 +75,11 @@ func TestMoveGeneratorGetsAllMoves(t *testing.T) {
 
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
-	pos.generateNonCaptures(ml, &pd)
+	pos.generateQuiets(ml, &pd)
 	killers := Killer{ml.moves[0], ml.moves[5]}
 	cm := ml.moves[3]
 
-	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &HistoryMovesTable{})
+	mg := NewMoveGenerator(pos, &hashMove, &killers[0], &killers[1], &cm, &QuietHistoryTable{}, &NoisyHistoryTable{}, false)
 	for mg.nextMove() != NoMove {
 	}
 
@@ -151,7 +151,7 @@ func TestPinnedPiecesOnBlack(t *testing.T) {
 func TestCheckRestrictedSquares(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("8/8/8/8/1k4PP/1bp1r2K/8/5N2 w - - 0 1")
-	checkingSliders := pos.Bitboards[BlackRook] // Black Rook on e3
+	checkingSliders := pos.Pieces[BlackRook] // Black Rook on e3
 	checkingNonSliders := Bitboard(0)
 
 	expected := bitboardFromCoordinates("e3", "f3", "g3")
@@ -166,7 +166,7 @@ func TestPinRestrictedSquares(t *testing.T) {
 	pos := NewPosition()
 	pos.LoadFromFenString("2br2k1/5pp1/5p2/R4BP1/5PKP/8/8/8 w - - 0 1") // bishop on f5 is pinned can only move along the h3-c8 diagonal
 
-	piece := pos.Bitboards[WhiteBishop]
+	piece := pos.Pieces[WhiteBishop]
 	king := pos.KingPosition(White)
 	pinnedPieces := pos.PinnedPieces(White)
 
@@ -359,7 +359,7 @@ func TestGenKingMoves(t *testing.T) {
 	pd := pos.generatePositionData()
 
 	expected := 5 // Castles moves are treated separately
-	genMovesFromTargets(&kingBB, kingMoves(&kingBB, pos, White), ml, &pd)
+	genMovesFromTargets(e1, kingMoves(&kingBB, pos, White), ml, &pd)
 	got := ml.length
 
 	if got != expected {
@@ -393,7 +393,7 @@ func TestRookAttacksOnEmptyBoard(t *testing.T) {
 
 	expected := bitboardFromCoordinates("e1", "e2", "e3", "e5", "e6", "e7", "e8",
 		"a4", "b4", "c4", "d4", "f4", "g4", "h4")
-	got := rookAttacks(Bsf(rookBB), pos.pieces[White]|pos.pieces[Black])
+	got := rookAttacks(Bsf(rookBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -408,7 +408,7 @@ func TestRookAttacksWithBlockedSquares(t *testing.T) {
 
 	expected := bitboardFromCoordinates("e1", "e2", "e3", "e5", "e6", "e7", "e8",
 		"c4", "d4", "f4", "g4", "h4")
-	got := rookAttacks(Bsf(rookBB), pos.pieces[White]|pos.pieces[Black])
+	got := rookAttacks(Bsf(rookBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -425,7 +425,7 @@ func TestRookAttacksWithAllSquaresBlocked(t *testing.T) {
 	rookBB := bitboardFromCoordinates("b3")
 
 	expected := bitboardFromCoordinates("b4", "b2", "a3", "c3")
-	got := rookAttacks(Bsf(rookBB), pos.pieces[White]|pos.pieces[Black])
+	got := rookAttacks(Bsf(rookBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -532,7 +532,7 @@ func TestGenTargetMovesForRook(t *testing.T) {
 	ml := NewMoveList()
 	pd := pos.generatePositionData()
 
-	genMovesFromTargets(&rookBB, rookMoves(&rookBB, &pd), ml, &pd)
+	genMovesFromTargets(a8, rookMoves(&rookBB, &pd), ml, &pd)
 	expectedSquares := []string{"a7", "a6", "a5", "a4", "b8", "c8"}
 
 	expected := len(expectedSquares)
@@ -551,7 +551,7 @@ func TestBishopAttacksOnEmptyBoard(t *testing.T) {
 	bishopBB := bitboardFromCoordinates("h1")
 
 	expected := bitboardFromCoordinates("g2", "f3", "e4", "d5", "c6", "b7", "a8")
-	got := bishopAttacks(Bsf(bishopBB), pos.pieces[White]|pos.pieces[Black])
+	got := bishopAttacks(Bsf(bishopBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -565,7 +565,7 @@ func TestBishopAttacksWithBlockedSquares(t *testing.T) {
 	bishopBB := bitboardFromCoordinates("e3")
 
 	expected := bitboardFromCoordinates("f2", "g1", "d4", "c5", "b6", "a7", "f4", "g5", "d2", "c1")
-	got := bishopAttacks(Bsf(bishopBB), pos.pieces[White]|pos.pieces[Black])
+	got := bishopAttacks(Bsf(bishopBB), pos.Sides[White]|pos.Sides[Black])
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
@@ -668,7 +668,7 @@ func TestGenTargetMovesForBishop(t *testing.T) {
 	expectedSquares := []string{"h7", "h5", "f7"}
 
 	expected := len(expectedSquares)
-	genMovesFromTargets(&bishopBB, bishopMoves(&bishopBB, &pd), ml, &pd)
+	genMovesFromTargets(g6, bishopMoves(&bishopBB, &pd), ml, &pd)
 	got := ml.length
 
 	if got != expected {
@@ -754,7 +754,7 @@ func TestGenTargetMovesForKnight(t *testing.T) {
 	ml := NewMoveList()
 
 	expected := []Move{*encodeMove(1, 18, capture)} // The Knight can only capture the bishop. "a3" and "d2" are blocked by the rook, so it cannot move there
-	genMovesFromTargets(&knightBB, knightMoves(&knightBB, &pd), ml, &pd)
+	genMovesFromTargets(b1, knightMoves(&knightBB, &pd), ml, &pd)
 	got := ml.moves
 
 	if got[0] != expected[0] {
@@ -923,23 +923,7 @@ func TestPawnsMoves(t *testing.T) {
 	ml := NewMoveList()
 
 	expected := 2
-	genPawnMovesFromTarget(&pawnBB, pawnMoves(&pawnBB, &pd, White), White, ml, &pd)
-	got := ml.length
-
-	if got != expected {
-		t.Errorf("Expected: %v, got: %v", expected, got)
-	}
-}
-
-func TestPawnsMovesPromo(t *testing.T) {
-	pos := NewPosition()
-	pos.LoadFromFenString("8/7P/2k5/8/8/8/8/4K3 w - - 0 1")
-	pawnBB := bitboardFromCoordinates("h7")
-	pd := pos.generatePositionData()
-	ml := NewMoveList()
-
-	expected := 4
-	genPawnMovesFromTarget(&pawnBB, pawnMoves(&pawnBB, &pd, White), White, ml, &pd)
+	genPawnMovesFromTarget(e2, pawnMoves(&pawnBB, &pd, White), ml)
 	got := ml.length
 
 	if got != expected {

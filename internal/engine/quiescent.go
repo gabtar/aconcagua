@@ -32,57 +32,37 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 		alpha = staticEval
 	}
 
-	ml := NewMoveList()
-	pd := pos.generatePositionData()
-	pos.generateCaptures(ml, &pd)
-	genQueenPromotions(pos, pos.Turn, ml, &pd)
+	noMove := NoMove
+	mg := NewMoveGenerator(pos, &ttMove, &noMove, &noMove, &noMove, &s.quietHistory, &s.noisyHistory, true)
 
 	flag := FlagAlpha
 	newScore := MinInt
 	bestMove := NoMove
 
-	for i := range ml.length {
-		see := pos.see(&ml.moves[i])
-		if see < 0 {
+	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
+
+		// See Pruning. Use already computed see value in move generator
+		if mg.moves.scores[mg.moves.length] < 0 {
 			continue
 		}
 
-		pos.MakeMove(&ml.moves[i])
+		pos.MakeMove(&move)
 		newScore = -Quiescent(pos, s, -beta, -alpha, ply+1)
-		pos.UnmakeMove(&ml.moves[i])
+		pos.UnmakeMove(&move)
 
 		if newScore >= beta {
-			s.TranspositionTable.store(pos.Hash, 0, ply, FlagBeta, beta, staticEval, ml.moves[i])
+			s.TranspositionTable.store(pos.Hash, 0, ply, FlagBeta, beta, staticEval, move)
 			return beta
 		}
 		if newScore > alpha {
 			flag = FlagExact
-			bestMove = ml.moves[i]
+			bestMove = move
 			alpha = newScore
 		}
 	}
 
 	s.TranspositionTable.store(pos.Hash, 0, ply, flag, alpha, staticEval, bestMove)
 	return alpha
-}
-
-// genQueenPromotions generates the queen promotions in the move list
-func genQueenPromotions(pos *Position, side Color, ml *MoveList, pd *PositionData) {
-	pawns := pos.Bitboards[pieceColor(Pawn, side)]
-	promoFromRank := [2]Bitboard{Ranks[6], Ranks[1]}
-	posiblesPromotions := pawns & promoFromRank[side] & ^pd.enemies
-
-	for posiblesPromotions > 0 {
-		from := posiblesPromotions.NextBit()
-		targets := pawnMoves(&from, pd, side)
-		to := from << 8
-		if side == Black {
-			to = from >> 8
-		}
-		if targets&to > 0 {
-			ml.add(*encodeMove(uint16(Bsf(from)), uint16(Bsf(to)), queenPromotion))
-		}
-	}
 }
 
 // see implements an static exchange evaluation on the square passed
@@ -94,16 +74,19 @@ func (pos *Position) see(move *Move) int {
 	side := pos.Turn
 	fromSq := bitboardFromIndex(from)
 
-	diagonalAttackers := pos.Bitboards[WhiteBishop] | pos.Bitboards[BlackBishop] |
-		pos.Bitboards[WhiteQueen] | pos.Bitboards[BlackQueen]
-	orthogonalAttackers := pos.Bitboards[WhiteRook] | pos.Bitboards[BlackRook] |
-		pos.Bitboards[WhiteQueen] | pos.Bitboards[BlackQueen]
+	diagonalAttackers := pos.Pieces[WhiteBishop] | pos.Pieces[BlackBishop] |
+		pos.Pieces[WhiteQueen] | pos.Pieces[BlackQueen]
+	orthogonalAttackers := pos.Pieces[WhiteRook] | pos.Pieces[BlackRook] |
+		pos.Pieces[WhiteQueen] | pos.Pieces[BlackQueen]
 
-	blockers := ^pos.EmptySquares()
+	blockers := pos.Sides[All]
 	attackers := pos.attackersTo(to)
 	alreadyAttacked := Bitboard(0)
 	attackerRole := pieceRole(pos.PieceAt(from))
 	materialGain[depth] = getMaterialExchangeValue(pos, move)
+	if move.flag() >= knightPromotion {
+		attackerRole = pieceRole(getPromotedToPiece(move.flag(), pos.Turn))
+	}
 
 	for attackers > 0 {
 		depth++
@@ -148,28 +131,26 @@ func (pos *Position) see(move *Move) int {
 // Using the square attacked by algorithm - https://www.chessprogramming.org/Square_Attacked_By#Attacks_to_a_Square
 func (pos *Position) attackersTo(to int) (attackers Bitboard) {
 	toSq := Bitboard(1 << to)
-	blocks := ^pos.EmptySquares()
+	blocks := pos.Sides[All]
 
-	knights := pos.Bitboards[WhiteKnight] | pos.Bitboards[BlackKnight]
-	bishops := pos.Bitboards[WhiteBishop] | pos.Bitboards[BlackBishop]
-	rooks := pos.Bitboards[WhiteRook] | pos.Bitboards[BlackRook]
-	queens := pos.Bitboards[WhiteQueen] | pos.Bitboards[BlackQueen]
-	kings := pos.Bitboards[WhiteKing] | pos.Bitboards[BlackKing]
+	knights := pos.Pieces[WhiteKnight] | pos.Pieces[BlackKnight]
+	bishops := pos.Pieces[WhiteBishop] | pos.Pieces[BlackBishop]
+	rooks := pos.Pieces[WhiteRook] | pos.Pieces[BlackRook]
+	queens := pos.Pieces[WhiteQueen] | pos.Pieces[BlackQueen]
+	kings := pos.Pieces[WhiteKing] | pos.Pieces[BlackKing]
 
-	return pawnAttacks(&toSq, White)&pos.Bitboards[BlackPawn] |
-		pawnAttacks(&toSq, Black)&pos.Bitboards[WhitePawn] |
+	return pawnAttacks(&toSq, White)&pos.Pieces[BlackPawn] |
+		pawnAttacks(&toSq, Black)&pos.Pieces[WhitePawn] |
 		knightAttacksTable[to]&knights |
-		bishopAttacks(to, blocks)&bishops |
-		rookAttacks(to, blocks)&rooks |
-		Attacks(Queen, toSq, blocks)&queens |
+		bishopAttacks(to, blocks)&(bishops|queens) |
+		rookAttacks(to, blocks)&(rooks|queens) |
 		kingAttacksTable[to]&kings
 }
 
 // getLeastValuableAttacker returns the least valuable attacker from the attackers bitboard
 func (pos *Position) getLeastValuableAttacker(attackers Bitboard, side Color) (Bitboard, int) {
-	bitboards := pos.getBitboards(side)
 	for piece := Pawn; piece >= King; piece-- {
-		attackingPieces := bitboards[piece] & attackers
+		attackingPieces := pos.Pieces[pieceColor(piece, side)] & attackers
 		if attackingPieces > 0 {
 			return attackingPieces.NextBit(), piece
 		}
@@ -180,7 +161,7 @@ func (pos *Position) getLeastValuableAttacker(attackers Bitboard, side Color) (B
 // getMaterialExchangeValue returns the material exchange value for the move passed
 func getMaterialExchangeValue(pos *Position, move *Move) int {
 	targetPiece := pieceRole(pos.PieceAt(move.to()))
-	value := SEEPieceValues[targetPiece]
+	value := 0
 	flag := move.flag()
 
 	switch {
@@ -189,8 +170,11 @@ func getMaterialExchangeValue(pos *Position, move *Move) int {
 	case flag >= knightPromotion:
 		promotedTo := pieceRole(getPromotedToPiece(flag, pos.Turn))
 		value = SEEPieceValues[promotedTo] - SEEPieceValues[Pawn]
-	case flag < capture: // quiet moves
-		value = 0
+		if flag >= knightCapturePromotion {
+			value += SEEPieceValues[targetPiece]
+		}
+	case flag == capture:
+		value = SEEPieceValues[targetPiece]
 	}
 
 	return value
