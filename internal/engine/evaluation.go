@@ -165,17 +165,12 @@ func (ed *EvalData) clear() {
 	ed.pinned = 0
 }
 
-// init initializes the evaluation data
-func (ed *EvalData) init(pos *Position) {
-	ed.kings = [2]Bitboard{
-		pos.KingPosition(White),
-		pos.KingPosition(Black),
-	}
-	ed.attackedByPawns = [2]Bitboard{
-		pawnAttacks(&pos.Pieces[WhitePawn], White),
+	blocks := pos.Sides[All]
+	enemyPawnsAttacks := [2]Bitboard{
 		pawnAttacks(&pos.Pieces[BlackPawn], Black),
+		pawnAttacks(&pos.Pieces[WhitePawn], White),
 	}
-	ed.pawns = [2]Bitboard{
+	pawns := [2]Bitboard{
 		pos.Pieces[WhitePawn],
 		pos.Pieces[BlackPawn],
 	}
