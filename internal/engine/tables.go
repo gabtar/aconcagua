@@ -13,6 +13,13 @@ const (
 	West
 	NorthWest
 	Invalid
+
+	// AllSquares contains the bitboard mask for all squares in the board
+	AllSquares Bitboard = 0xFFFFFFFFFFFFFFFF
+
+	// notAFile/notHFile contains a bitboard mask without the A and H file
+	notAFile Bitboard = 0xfefefefefefefefe
+	notHFile Bitboard = 0x7f7f7f7f7f7f7f7f
 )
 
 // init initializes various tables for usage within the engine
@@ -54,9 +61,6 @@ var Ranks [8]Bitboard = [8]Bitboard{
 	0x00000000000000FF << 48,
 	0x00000000000000FF << 56,
 }
-
-// AllSquares contains the bitboard mask for all squares in the board
-const AllSquares Bitboard = 0xFFFFFFFFFFFFFFFF
 
 // directions is a table that contains the compass directions between 2 squares in the board
 var directions [64][64]uint64

@@ -544,14 +544,16 @@ func (ev *EvalVector) evaluatePawn(from int, side Color) {
 func OutpostSquares(alliedPawns Bitboard, enemyPawns Bitboard, side Color) Bitboard {
 	outpostRanks := OutpostsRanks[side]
 
-	enemyAttacksFrontSpans := Bitboard(0)
-	for enemyPawns > 0 {
-		pawn := enemyPawns.NextBit()
-		enemyAttacksFrontSpans |= attacksFrontSpans[side.Opponent()][Bsf(pawn)]
+	frontSpans := Bitboard(0)
+	if side == White {
+		frontSpans = ((fillDown(enemyPawns)&notAFile)>>1 | (fillDown(enemyPawns)&notHFile)<<1) >> 8
+	} else {
+		frontSpans = ((fillUp(enemyPawns)&notAFile)>>1 | (fillUp(enemyPawns)&notHFile)<<1) << 8
 	}
+
 	protectedByPawns := pawnAttacks(&alliedPawns, side)
 
-	return ^enemyAttacksFrontSpans & protectedByPawns & outpostRanks
+	return ^frontSpans & protectedByPawns & outpostRanks
 }
 
 // evaluatePawnStructure evaluates the pawn structure for the side in the position passed
@@ -614,40 +616,29 @@ func IsolatedPawns(pos *Position, side Color) Bitboard {
 // BackwardPawns returns a bitboard with the pawns that are backwards
 // A backward pawn is a pawn that is not member of own front-attackspans but controlled by a sentry (definition from CPW)
 func BackwardPawns(pawns Bitboard, enemyPawnsAttacks Bitboard, side Color) Bitboard {
-	stops := pawns << 8
-	if side == Black {
-		stops = pawns >> 8
-	}
-
-	attackFrontSpans := Bitboard(0)
-	for pawns > 0 {
-		pawn := pawns.NextBit()
-		attackFrontSpans |= attacksFrontSpans[side][Bsf(pawn)]
-	}
-
 	if side == White {
-		return (stops & enemyPawnsAttacks & ^attackFrontSpans) >> 8
+		stops := pawns << 8
+		frontSpans := (fillUp(stops)&notAFile)>>1 | (fillUp(stops)&notHFile)<<1
+		return (stops & enemyPawnsAttacks & ^frontSpans) >> 8
 	} else {
-		return (stops & enemyPawnsAttacks & ^attackFrontSpans) << 8
+		stops := pawns >> 8
+		frontSpans := (fillDown(stops)&notAFile)>>1 | (fillDown(stops)&notHFile)<<1
+		return (stops & enemyPawnsAttacks & ^frontSpans) << 8
 	}
 }
 
 // PassedPawns returns a bitboard with the passed pawns for the side
 // A passed pawn is a pawn whose path to promotion is not blocke nor attacked by the enemy pawns
 func PassedPawns(alliedPawns Bitboard, enemyPawns Bitboard, side Color) (passedPawns Bitboard) {
-	direction := North
-	if side == Black {
-		direction = South
+	fileSpan, adjacentSpans := Bitboard(0), Bitboard(0)
+	if side == White {
+		fileSpan = fillDown(enemyPawns)
+		adjacentSpans = fillDown(enemyPawns >> 8)
+	} else {
+		fileSpan = fillUp(enemyPawns)
+		adjacentSpans = fillUp(enemyPawns << 8)
 	}
 
-	for alliedPawns > 0 {
-		pawn := alliedPawns.NextBit()
-		frontAndAdjacentSquares := attacksFrontSpans[side][Bsf(pawn)] | RayAttacks[direction][Bsf(pawn)]
-
-		if frontAndAdjacentSquares&enemyPawns == 0 {
-			passedPawns |= pawn
-		}
-	}
-
-	return
+	blockedOrAttacked := fileSpan | (adjacentSpans&notAFile)>>1 | (adjacentSpans&notHFile)<<1
+	return alliedPawns &^ blockedOrAttacked
 }

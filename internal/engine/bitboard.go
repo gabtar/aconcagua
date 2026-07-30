@@ -106,3 +106,19 @@ func initBitboards() {
 		Bitboards[sq] = Bitboard(0b1 << sq)
 	}
 }
+
+// fillUp flood a bitboard toward rank 8
+func fillUp(b Bitboard) Bitboard {
+	b |= b << 8
+	b |= b << 16
+	b |= b << 32
+	return b
+}
+
+// fillDown flood a bitboard toward rank 1
+func fillDown(b Bitboard) Bitboard {
+	b |= b >> 8
+	b |= b >> 16
+	b |= b >> 32
+	return b
+}

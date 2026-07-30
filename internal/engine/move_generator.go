@@ -328,10 +328,8 @@ func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 
 	targetPawnBB := pawnPushesTable[side.Opponent()][Bsf(pos.enPassantTarget)]
 
-	notInHFile := targetPawnBB & ^(targetPawnBB & Files[7])
-	notInAFile := targetPawnBB & ^(targetPawnBB & Files[0])
-
-	epCaptures |= pos.Pieces[pieceColor(Pawn, side)] & (notInAFile>>1 | notInHFile<<1)
+	epCaptures |= pos.Pieces[pieceColor(Pawn, side)] &
+		((targetPawnBB&notAFile)>>1 | (targetPawnBB&notHFile)<<1)
 	return
 }
 
