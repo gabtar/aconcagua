@@ -601,28 +601,66 @@ func generateMobilityWeights(pos *engine.Position, phase int, weights *[]Positio
 
 // generateDoubledPawnsWeights returns the position weights of the doubled pawns
 func generateDoubledPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
-	wDoubled := bits.OnesCount64(uint64(engine.DoubledPawns(pos, engine.White)))
-	bDoubled := bits.OnesCount64(uint64(engine.DoubledPawns(pos, engine.Black)))
+	wPawns := pos.Pieces[engine.WhitePawn]
+	pawnEval := wPawns
+	for pawnEval > 0 {
+		fromBB := pawnEval.NextBit()
+		from := engine.Bsf(fromBB)
+		file := from % 8
+		pawnsInFile := wPawns & engine.Files[file]
+		if bits.OnesCount64(uint64(pawnsInFile)) > 1 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: 912, weight: int16(phase)},
+				PositionWeight{paramIndex: 913, weight: int16((62 - phase))},
+			)
+		}
+	}
 
-	*weights = append(*weights,
-		PositionWeight{paramIndex: 912, weight: int16(wDoubled * phase)},
-		PositionWeight{paramIndex: 913, weight: int16(wDoubled * (62 - phase))},
-		PositionWeight{paramIndex: 912, weight: int16(-bDoubled * phase)},
-		PositionWeight{paramIndex: 913, weight: int16(-bDoubled * (62 - phase))},
-	)
+	bPawns := pos.Pieces[engine.BlackPawn]
+	pawnEval = bPawns
+	for pawnEval > 0 {
+		fromBB := pawnEval.NextBit()
+		from := engine.Bsf(fromBB)
+		file := from % 8
+		pawnsInFile := bPawns & engine.Files[file]
+		if bits.OnesCount64(uint64(pawnsInFile)) > 1 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: 912, weight: int16(-phase)},
+				PositionWeight{paramIndex: 913, weight: int16(-(62 - phase))},
+			)
+		}
+	}
 }
 
 // generateIsolatedPawnsWeights returns the position weights of the isolated pawns
 func generateIsolatedPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
-	wIsolated := bits.OnesCount64(uint64(engine.IsolatedPawns(pos, engine.White)))
-	bIsolated := bits.OnesCount64(uint64(engine.IsolatedPawns(pos, engine.Black)))
+	wPawns := pos.Pieces[engine.WhitePawn]
+	pawnEval := wPawns
+	for pawnEval > 0 {
+		fromBB := pawnEval.NextBit()
+		from := engine.Bsf(fromBB)
+		file := from % 8
+		if engine.IsolatedAdjacentFilesMask[file]&wPawns == 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: 914, weight: int16(phase)},
+				PositionWeight{paramIndex: 915, weight: int16((62 - phase))},
+			)
+		}
+	}
 
-	*weights = append(*weights,
-		PositionWeight{paramIndex: 914, weight: int16(wIsolated * phase)},
-		PositionWeight{paramIndex: 915, weight: int16(wIsolated * (62 - phase))},
-		PositionWeight{paramIndex: 914, weight: int16(-bIsolated * phase)},
-		PositionWeight{paramIndex: 915, weight: int16(-bIsolated * (62 - phase))},
-	)
+	bPawns := pos.Pieces[engine.BlackPawn]
+	pawnEval = bPawns
+	for pawnEval > 0 {
+		fromBB := pawnEval.NextBit()
+		from := engine.Bsf(fromBB)
+		file := from % 8
+		if engine.IsolatedAdjacentFilesMask[file]&bPawns == 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: 914, weight: int16(-phase)},
+				PositionWeight{paramIndex: 915, weight: int16(-(62 - phase))},
+			)
+		}
+	}
 }
 
 // generateBackwardsPawnsWeights returns the position weights of the backwards pawns
