@@ -2,23 +2,27 @@ package engine
 
 const (
 	// Pawn Structure
-	DoubledPawnPenaltyMg  = -2
-	DoubledPawnPenaltyEg  = -8
-	IsolatedPawnPenaltyMg = -10
-	IsolatedPawnPenaltyEg = -12
-	BackwardPawnPenaltyMg = -9
-	BackwardPawnPenaltyEg = -8
+	DoubledPawnPenaltyMg  = 1
+	DoubledPawnPenaltyEg  = -7
+	IsolatedPawnPenaltyMg = -1
+	IsolatedPawnPenaltyEg = -4
+	BackwardPawnPenaltyMg = -4
+	BackwardPawnPenaltyEg = -5
+	DefendedPawnBonusMg   = 10
+	DefendedPawnBonusEg   = 7
+	ConnectedPawnBonusMg  = 5
+	ConnectedPawnBonusEg  = 4
 
 	// Material Adjustment
 	BishopPairBonusMg    = 22
 	BishopPairBonusEg    = 66
-	RookOnOpenFileMg     = 37
-	RookOnSemiOpenFileMg = 21
+	RookOnOpenFileMg     = 36
+	RookOnSemiOpenFileMg = 20
 
 	KnightOutpostBonusMg = 35
 	KnightOutpostBonusEg = 19
-	BishopOutpostBonusMg = 40
-	BishopOutpostBonusEg = -3
+	BishopOutpostBonusMg = 41
+	BishopOutpostBonusEg = -2
 
 	KnightAttackWeight   = 19
 	BishopAttackWeight   = 15
@@ -26,27 +30,27 @@ const (
 	QueenAttackWeight    = 11
 	KingZoneDefenseBonus = 16
 
-	KingOnOpenFilePenalty   = -47
-	KingNearOpenFilePenalty = -15
+	KingOnOpenFilePenalty   = -49
+	KingNearOpenFilePenalty = -16
 
 	// Threats
-	MinorAttackedByPawnThreatPenalty  = -51
-	RookAttackedByPawnThreatPenalty   = -51
-	QueenAttackedByPawnThreatPenalty  = -45
+	MinorAttackedByPawnThreatPenalty  = -53
+	RookAttackedByPawnThreatPenalty   = -53
+	QueenAttackedByPawnThreatPenalty  = -47
 	RookAttackedByMinorThreatPenalty  = -38
 	QueenAttackedByMinorThreatPenalty = -45
 
 	SafeQueenCheckThreatBonus  = 15
-	SafeRookCheckThreatBonus   = 13
+	SafeRookCheckThreatBonus   = 12
 	SafeBishopCheckThreatBonus = 17
 	SafeKnightCheckThreatBonus = 14
 
-	PinnedQueenThreatPenaltyMg  = -75
-	PinnedRookThreatPenaltyMg   = -59
+	PinnedQueenThreatPenaltyMg  = -76
+	PinnedRookThreatPenaltyMg   = -60
 	PinnedBishopThreatPenaltyMg = -9
-	PinnedKnightThreatPenaltyMg = -32
+	PinnedKnightThreatPenaltyMg = -33
 
-	PinnedQueenThreatPenaltyEg  = -47
+	PinnedQueenThreatPenaltyEg  = -48
 	PinnedRookThreatPenaltyEg   = -3
 	PinnedBishopThreatPenaltyEg = -65
 	PinnedKnightThreatPenaltyEg = -53
@@ -56,32 +60,32 @@ const (
 
 var (
 	// Queen Mobility mg/eg contains the bonus for queen mobility
-	QueenMobilityMg = [28]int{-21, -18, -36, -52, -44, -28, -25, -22, -19, -17, -14, -10, -7, -2, -1, 0, 0, 0, 0, 2, 10, 23, 40, 58, 45, 81, 26, 11}
-	QueenMobilityEg = [28]int{-77, -66, -56, -74, 16, 81, 120, 141, 159, 181, 187, 192, 197, 195, 197, 200, 199, 201, 202, 198, 193, 171, 160, 137, 143, 120, 140, 138}
+	QueenMobilityMg = [28]int{-21, -18, -37, -51, -45, -27, -24, -22, -19, -17, -14, -10, -7, -3, -1, 0, 0, 0, 1, 3, 11, 25, 41, 61, 48, 86, 25, 8}
+	QueenMobilityEg = [28]int{-77, -66, -56, -74, 21, 86, 122, 143, 161, 183, 188, 192, 198, 196, 197, 200, 199, 201, 202, 197, 192, 170, 160, 136, 141, 117, 136, 132}
 
 	// Rook Mobility mg/eg contains the bonus for rook mobility
-	RookMobilityMg = [15]int{-41, -31, -8, -2, 2, 4, 5, 6, 9, 13, 16, 17, 21, 25, 29}
-	RookMobilityEg = [15]int{-17, 7, 30, 51, 63, 73, 80, 86, 88, 90, 94, 96, 97, 95, 91}
+	RookMobilityMg = [15]int{-40, -29, -9, -2, 2, 4, 5, 6, 9, 13, 16, 18, 21, 27, 32}
+	RookMobilityEg = [15]int{-17, 9, 30, 51, 64, 73, 80, 86, 88, 91, 94, 96, 97, 95, 91}
 
 	// Bishop Mobility mg/eg contains the bonus for bishop mobility
-	BishopMobilityMg = [14]int{-51, -63, -29, -19, -7, 1, 7, 12, 13, 18, 21, 37, 43, 55}
-	BishopMobilityEg = [14]int{-140, -56, -3, 21, 32, 39, 48, 53, 58, 58, 59, 50, 50, 37}
+	BishopMobilityMg = [14]int{-43, -56, -27, -17, -7, 0, 6, 12, 13, 19, 22, 40, 44, 56}
+	BishopMobilityEg = [14]int{-140, -54, -2, 22, 33, 39, 48, 53, 58, 58, 59, 49, 50, 37}
 
 	// KnightMobility mg/eg contains the bonus for knight mobility
-	KnightMobilityMg = [9]int{-143, -38, -11, 0, 12, 15, 27, 39, 53}
-	KnightMobilityEg = [9]int{-80, -21, 9, 33, 44, 57, 58, 61, 54}
+	KnightMobilityMg = [9]int{-142, -36, -10, 0, 12, 15, 27, 38, 53}
+	KnightMobilityEg = [9]int{-80, -22, 9, 33, 44, 57, 58, 60, 54}
 
 	// PassedPawnsBonus mg/eg contains the bonus for passed pawns
-	PassedPawnsBonusMg = [8]int{0, -8, -14, -14, 12, 0, 15, 0}
-	PassedPawnsBonusEg = [8]int{0, 9, 13, 40, 68, 139, 118, 0}
+	PassedPawnsBonusMg = [8]int{0, -4, -9, -10, 14, -1, 15, 0}
+	PassedPawnsBonusEg = [8]int{0, 12, 17, 44, 71, 140, 118, 0}
 
 	// PawnShieldFrontBonus/PawnShieldSideBonus contains the bonus for pawns on the front and side ofthe king file(s)
-	PawnShieldFrontBonus = [4]int{0, 23, 21, 3}
-	PawnShieldSideBonus  = [4]int{28, 16, 11, 1}
+	PawnShieldFrontBonus = [4]int{0, 23, 17, 2}
+	PawnShieldSideBonus  = [4]int{21, 15, 7, 0}
 
 	// PawnStormFrontPenalty/PawnStormSidePenalty contains the penalty for the enemy pawns on the front and side of king file(s)
-	PawnStormFrontPenalty = [4]int{137, -4, -4, 0}
-	PawnStormSidePenalty  = [4]int{-4, -23, -26, -5}
+	PawnStormFrontPenalty = [4]int{136, -7, -5, -1}
+	PawnStormSidePenalty  = [4]int{-4, -24, -26, -5}
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -192,23 +196,12 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 	ev.Eval.clear()
 	ev.EvalData.init(pos)
 
-	// TODO: move this check inside evaluatePawns function ???
-	mgSc, egSc, hasPawnCache := ev.PawnCache.probe(pos.PawnHash, pos.Turn)
-	if hasPawnCache {
-		ev.Eval.mgPawnStrucutre[pos.Turn] = mgSc
-		ev.Eval.egPawnStructure[pos.Turn] = egSc
-	} else {
-		ev.evaluatePawns(pos.Pieces[WhitePawn], White)
-		ev.evaluatePawns(pos.Pieces[BlackPawn], Black)
-
-		// Store always from White's perspective
-		mgScWhite := ev.Eval.mgPawnStrucutre[White] - ev.Eval.mgPawnStrucutre[Black]
-		egScWhite := ev.Eval.egPawnStructure[White] - ev.Eval.egPawnStructure[Black]
-		ev.PawnCache.store(pos.PawnHash, mgScWhite, egScWhite)
-	}
+	ev.evaluatePawns(pos)
 
 	for piece, bb := range pos.Pieces {
 		color := Color(piece / 6)
+
+		// Skip pawns
 		if pieceRole(piece) == Pawn {
 			continue
 		}
@@ -228,8 +221,6 @@ func (ev *Evaluation) Evaluate(pos *Position) int {
 				ev.evaluateBishop(sq, color, pos)
 			case Knight:
 				ev.evaluateKnight(sq, color, pos)
-				// case Pawn:
-				// ev.evaluatePawn(sq, bb, color)
 			}
 		}
 	}
@@ -533,57 +524,83 @@ func (ev *Evaluation) evaluateKnight(from int, side Color, pos *Position) {
 	ev.Eval.phase += 3
 }
 
-// evaluatePawn evaluates the score of a pawn
-func (ev *Evaluation) evaluatePawns(pawns Bitboard, side Color) {
-	opponent := side.Opponent()
-	piece := pieceColor(Pawn, side)
-	sidePawns := pawns
+// evaluatePawn evaluates the score of the pawn structure of the position
+func (ev *Evaluation) evaluatePawns(pos *Position) {
 
-	backwardPawns := BackwardPawns(ev.EvalData.pawns[side], ev.EvalData.attackedByPawns[opponent], side)
-	passedPawns := PassedPawns(ev.EvalData.pawns[side], ev.EvalData.pawns[opponent], side)
+	// Check Pawn Cache
+	mgSc, egSc, hasPawnCache := ev.PawnCache.probe(pos.PawnHash, pos.Turn)
+	if hasPawnCache {
+		ev.Eval.mgPawnStrucutre[pos.Turn] = mgSc
+		ev.Eval.egPawnStructure[pos.Turn] = egSc
+		return
+	}
 
-	// Evaluate each pawn
-	for sidePawns > 0 {
-		fromBB := sidePawns.NextBit()
-		from := Bsf(fromBB)
-		file := from % 8
+	for side := Color(White); side <= Black; side++ {
+		piece := pieceColor(Pawn, side)
+		pawns := pos.Pieces[piece]
+		opponent := side.Opponent()
+		sidePawns := pawns
 
-		ev.Eval.mgPawnStrucutre[side] += middlegamePiecesScore[piece][from]
-		ev.Eval.egPawnStructure[side] += endgamePiecesScore[piece][from]
+		backwardPawns := BackwardPawns(ev.EvalData.pawns[side], ev.EvalData.attackedByPawns[opponent], side)
+		passedPawns := PassedPawns(ev.EvalData.pawns[side], ev.EvalData.pawns[opponent], side)
 
-		// Doubled. A pawn is doubled when another pawn is in the same file
-		pawnsInFile := pawns & Files[file]
-		if pawnsInFile.count() > 1 {
-			ev.Eval.mgPawnStrucutre[side] += DoubledPawnPenaltyMg
-			ev.Eval.egPawnStructure[side] += DoubledPawnPenaltyEg
-		}
+		for sidePawns > 0 {
+			fromBB := sidePawns.NextBit()
+			from := Bsf(fromBB)
+			file := from % 8
 
-		// Isolated. A pawn is isolated when the adjacent files have no allied pawns
-		if IsolatedAdjacentFilesMask[file]&pawns == 0 {
-			ev.Eval.mgPawnStrucutre[side] += IsolatedPawnPenaltyMg
-			ev.Eval.egPawnStructure[side] += IsolatedPawnPenaltyEg
-		}
+			ev.Eval.mgPawnStrucutre[side] += middlegamePiecesScore[piece][from]
+			ev.Eval.egPawnStructure[side] += endgamePiecesScore[piece][from]
 
-		// Backward. A pawn that cannot be safely advanced, because it will be captured by enemy pawns
-		if backwardPawns&fromBB > 0 {
-			ev.Eval.mgPawnStrucutre[side] += BackwardPawnPenaltyMg
-			ev.Eval.egPawnStructure[side] += BackwardPawnPenaltyEg
-		}
-
-		// Passed. A pawn whose path to promotion is not blocked nor attacked by enemy pawns
-		if passedPawns&fromBB > 0 {
-			rank := from / 8
-			if side == Black {
-				rank = 7 - rank
+			// Doubled. A pawn is doubled when another pawn is in the same file
+			pawnsInFile := pawns & Files[file]
+			if pawnsInFile.count() > 1 {
+				ev.Eval.mgPawnStrucutre[side] += DoubledPawnPenaltyMg
+				ev.Eval.egPawnStructure[side] += DoubledPawnPenaltyEg
 			}
-			ev.Eval.mgPawnStrucutre[side] += PassedPawnsBonusMg[rank]
-			ev.Eval.egPawnStructure[side] += PassedPawnsBonusEg[rank]
+
+			// Isolated. A pawn is isolated when the adjacent files have no allied pawns
+			if IsolatedAdjacentFilesMask[file]&pawns == 0 {
+				ev.Eval.mgPawnStrucutre[side] += IsolatedPawnPenaltyMg
+				ev.Eval.egPawnStructure[side] += IsolatedPawnPenaltyEg
+			}
+
+			// Backward. A pawn that cannot be safely advanced, because it will be captured by enemy pawns
+			backward := backwardPawns&fromBB > 0
+			if backward {
+				ev.Eval.mgPawnStrucutre[side] += BackwardPawnPenaltyMg
+				ev.Eval.egPawnStructure[side] += BackwardPawnPenaltyEg
+			}
+
+			// Passed. A pawn whose path to promotion is not blocked nor attacked by enemy pawns
+			if passedPawns&fromBB > 0 {
+				rank := from / 8
+				if side == Black {
+					rank = 7 - rank
+				}
+				ev.Eval.mgPawnStrucutre[side] += PassedPawnsBonusMg[rank]
+				ev.Eval.egPawnStructure[side] += PassedPawnsBonusEg[rank]
+			}
+
+			// Defended pawn. A pawn that is defended by the same side pawns
+			defenders := (pawnAttacks(&fromBB, opponent) & pawns).count()
+			if defenders > 0 {
+				ev.Eval.mgPawnStrucutre[side] += DefendedPawnBonusMg * defenders
+				ev.Eval.egPawnStructure[side] += DefendedPawnBonusEg * defenders
+			}
+
+			// Connected Pawn. A pawn that has allies at adjacent files, and its not backward
+			connected := (IsolatedAdjacentFilesMask[file] & pawns).count()
+			if !backward && connected > 0 {
+				ev.Eval.mgPawnStrucutre[side] += ConnectedPawnBonusMg * connected
+				ev.Eval.egPawnStructure[side] += ConnectedPawnBonusEg * connected
+			}
 		}
 
-		// TODO: Defended pawn. A pawn that is defended by the same side pawns
-
-		// TODO: Connected Pawn. A pawn that has allies at adjacent files, and its not backward
-
+		// Store pawn score on cache, always from White's perspective
+		mgScWhite := ev.Eval.mgPawnStrucutre[White] - ev.Eval.mgPawnStrucutre[Black]
+		egScWhite := ev.Eval.egPawnStructure[White] - ev.Eval.egPawnStructure[Black]
+		ev.PawnCache.store(pos.PawnHash, mgScWhite, egScWhite)
 	}
 
 }

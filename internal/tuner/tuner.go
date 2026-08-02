@@ -101,7 +101,7 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 983
+const TuneableParams = 987
 
 // GetEvaluationParams returns the current evaluation params
 func GetEvaluationParams() (params [TuneableParams]float64) {
@@ -197,6 +197,12 @@ func GetEvaluationParams() (params [TuneableParams]float64) {
 	// Tempo
 	intParams[982] = engine.TempoBonus
 
+	// Connected + Defended Pawns params. TODO: move up later
+	intParams[983] = engine.DefendedPawnBonusMg
+	intParams[984] = engine.DefendedPawnBonusEg
+	intParams[985] = engine.ConnectedPawnBonusMg
+	intParams[986] = engine.ConnectedPawnBonusEg
+
 	// Convert to float
 	for i := range TuneableParams {
 		params[i] = float64(intParams[i])
@@ -278,6 +284,10 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 	psqt += fmt.Sprintf("IsolatedPawnPenaltyEg: %d\n", intParams[915])
 	psqt += fmt.Sprintf("BackwardPawnPenaltyMg: %d\n", intParams[916])
 	psqt += fmt.Sprintf("BackwardPawnPenaltyEg: %d\n", intParams[917])
+	psqt += fmt.Sprintf("DefendedPawnBonusMg: %d\n", intParams[983])
+	psqt += fmt.Sprintf("DefendedPawnBonusEg: %d\n", intParams[984])
+	psqt += fmt.Sprintf("ConnectedPawnBonusMg: %d\n", intParams[985])
+	psqt += fmt.Sprintf("ConnectedPawnBonusEg: %d\n", intParams[986])
 
 	// Passed Pawns
 	psqt += fmt.Sprintf("PassedPawnsPenaltyMg: %#v\n", intParams[918:926])
@@ -428,6 +438,8 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 	generateIsolatedPawnsWeights(pos, phase, weights)
 	generateBackwardsPawnsWeights(pos, phase, weights)
 	generatePassedPawnsWeights(pos, phase, weights)
+	generateDefendedPawnsWeights(pos, phase, weights)
+	generateConnectedPawnsWeights(pos, phase, weights)
 	generateMaterialAdjustmentsWeights(pos, phase, weights)
 	generateKingSafetyWeights(pos, phase, weights)
 
@@ -704,6 +716,73 @@ func generatePassedPawnsWeights(pos *engine.Position, phase int, weights *[]Posi
 			PositionWeight{paramIndex: int16(918 + rank), weight: int16(-phase)},
 			PositionWeight{paramIndex: int16(926 + rank), weight: int16(-(62 - phase))},
 		)
+	}
+}
+
+// generateDefendedPawnsWeights generates the position weights of defended pawns
+func generateDefendedPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	pawns := pos.Pieces[engine.WhitePawn]
+	pawnEval := pawns
+	for pawnEval > 0 {
+		fromBB := pawnEval.NextBit()
+		defenders := (engine.Attacks(engine.BlackPawn, fromBB, pos.Pieces[engine.All]) & pawns)
+		totalDefenders := bits.OnesCount64(uint64(defenders))
+		if totalDefenders > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(983), weight: int16(totalDefenders * phase)},
+				PositionWeight{paramIndex: int16(984), weight: int16(totalDefenders * (62 - phase))},
+			)
+		}
+	}
+
+	pawns = pos.Pieces[engine.BlackPawn]
+	pawnEval = pawns
+	for pawnEval > 0 {
+		fromBB := pawnEval.NextBit()
+		defenders := (engine.Attacks(engine.WhitePawn, fromBB, pos.Pieces[engine.All]) & pawns)
+		totalDefenders := bits.OnesCount64(uint64(defenders))
+		if totalDefenders > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(983), weight: int16(-totalDefenders * phase)},
+				PositionWeight{paramIndex: int16(984), weight: int16(-totalDefenders * (62 - phase))},
+			)
+		}
+	}
+}
+
+func generateConnectedPawnsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	pawns := pos.Pieces[engine.WhitePawn]
+	pawnEval := pawns
+	enemyPawnsAttacks := engine.Attacks(engine.BlackPawn, pos.Pieces[engine.BlackPawn], pos.Pieces[engine.All])
+	backwardsPawns := engine.BackwardPawns(pos.Pieces[engine.WhitePawn], enemyPawnsAttacks, engine.White)
+	for pawnEval > 0 {
+		fromBB := pawnEval.NextBit()
+		file := engine.Bsf(fromBB) % 8
+		connected := bits.OnesCount64(uint64(engine.IsolatedAdjacentFilesMask[file] & pawns))
+		backward := fromBB&backwardsPawns > 0
+		if !backward && connected > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(985), weight: int16(connected * phase)},
+				PositionWeight{paramIndex: int16(986), weight: int16(connected * (62 - phase))},
+			)
+		}
+	}
+
+	pawns = pos.Pieces[engine.BlackPawn]
+	pawnEval = pawns
+	enemyPawnsAttacks = engine.Attacks(engine.WhitePawn, pos.Pieces[engine.WhitePawn], pos.Pieces[engine.All])
+	backwardsPawns = engine.BackwardPawns(pos.Pieces[engine.BlackPawn], enemyPawnsAttacks, engine.Black)
+	for pawnEval > 0 {
+		fromBB := pawnEval.NextBit()
+		file := engine.Bsf(fromBB) % 8
+		connected := bits.OnesCount64(uint64(engine.IsolatedAdjacentFilesMask[file] & pawns))
+		backward := fromBB&backwardsPawns > 0
+		if !backward && connected > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(985), weight: int16(-connected * phase)},
+				PositionWeight{paramIndex: int16(986), weight: int16(-connected * (62 - phase))},
+			)
+		}
 	}
 }
 
