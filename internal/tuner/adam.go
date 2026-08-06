@@ -27,6 +27,9 @@ func NewAdamOptimizer(numParams int, lr float64) *AdamOptimizer {
 	}
 }
 
+// gradients is a global variable to calculate the gradients during the tuning
+var gradients = [TuneableParams]float64{}
+
 // Update updates the parameters
 func (adam *AdamOptimizer) Update(params *[TuneableParams]float64, gradients *[]float64) {
 	adam.t++
@@ -43,10 +46,13 @@ func (adam *AdamOptimizer) Update(params *[TuneableParams]float64, gradients *[]
 }
 
 // ComputeGradients computes the gradients of the loss with respect to the parameters
-func ComputeGradients(entry *DatasetEntry, params [TuneableParams]float64, K float64) []float64 {
-	gradients := make([]float64, len(params))
+func ComputeGradients(entry *DatasetEntry, params [TuneableParams]float64, K float64) [TuneableParams]float64 {
+	// clear gradients
+	for i := range len(gradients) {
+		gradients[i] = 0.0
+	}
 
-	eval := evaluatePosition(params, entry.Weights)
+	eval := evaluatePosition(&params, &entry.Weights)
 	predicted := 1.0 / (1.0 + math.Exp(-K*eval))
 	actual := entry.Result
 
@@ -81,7 +87,7 @@ func AdamTuner(params [TuneableParams]float64, dataset *[]DatasetEntry, K float6
 				totalGradients[i] += gradients[i]
 			}
 
-			eval := evaluatePosition(params, (*dataset)[i].Weights)
+			eval := evaluatePosition(&params, &(*dataset)[i].Weights)
 			predicted := 1.0 / (1.0 + math.Exp(-K*eval))
 			error := predicted - (*dataset)[i].Result
 			totalLoss += error * error

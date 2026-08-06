@@ -2,41 +2,41 @@ package engine
 
 const (
 	// Pawn Structure
-	DoubledPawnPenaltyMg  = 1
-	DoubledPawnPenaltyEg  = -7
+	DoubledPawnPenaltyMg  = 2
+	DoubledPawnPenaltyEg  = -8
 	IsolatedPawnPenaltyMg = -1
 	IsolatedPawnPenaltyEg = -4
-	BackwardPawnPenaltyMg = -4
-	BackwardPawnPenaltyEg = -5
+	BackwardPawnPenaltyMg = -2
+	BackwardPawnPenaltyEg = -6
 	DefendedPawnBonusMg   = 10
 	DefendedPawnBonusEg   = 7
-	ConnectedPawnBonusMg  = 5
+	ConnectedPawnBonusMg  = 7
 	ConnectedPawnBonusEg  = 4
 
 	// Material Adjustment
-	BishopPairBonusMg    = 22
-	BishopPairBonusEg    = 66
-	RookOnOpenFileMg     = 36
-	RookOnSemiOpenFileMg = 20
+	BishopPairBonusMg    = 24
+	BishopPairBonusEg    = 64
+	RookOnOpenFileMg     = 37
+	RookOnSemiOpenFileMg = 21
 
-	KnightOutpostBonusMg = 35
+	KnightOutpostBonusMg = 36
 	KnightOutpostBonusEg = 19
 	BishopOutpostBonusMg = 41
 	BishopOutpostBonusEg = -2
 
-	KnightAttackWeight   = 19
-	BishopAttackWeight   = 15
-	RookAttackWeight     = 20
-	QueenAttackWeight    = 11
-	KingZoneDefenseBonus = 16
+	KnightAttackWeight   = 20
+	BishopAttackWeight   = 16
+	RookAttackWeight     = 21
+	QueenAttackWeight    = 12
+	KingZoneDefenseBonus = 17
 
 	KingOnOpenFilePenalty   = -49
 	KingNearOpenFilePenalty = -16
 
 	// Threats
-	MinorAttackedByPawnThreatPenalty  = -53
-	RookAttackedByPawnThreatPenalty   = -53
-	QueenAttackedByPawnThreatPenalty  = -47
+	MinorAttackedByPawnThreatPenalty  = -55
+	RookAttackedByPawnThreatPenalty   = -52
+	QueenAttackedByPawnThreatPenalty  = -50
 	RookAttackedByMinorThreatPenalty  = -38
 	QueenAttackedByMinorThreatPenalty = -45
 
@@ -45,47 +45,47 @@ const (
 	SafeBishopCheckThreatBonus = 17
 	SafeKnightCheckThreatBonus = 14
 
-	PinnedQueenThreatPenaltyMg  = -76
-	PinnedRookThreatPenaltyMg   = -60
-	PinnedBishopThreatPenaltyMg = -9
-	PinnedKnightThreatPenaltyMg = -33
+	PinnedQueenThreatPenaltyMg  = -77
+	PinnedRookThreatPenaltyMg   = -59
+	PinnedBishopThreatPenaltyMg = -5
+	PinnedKnightThreatPenaltyMg = -30
 
 	PinnedQueenThreatPenaltyEg  = -48
-	PinnedRookThreatPenaltyEg   = -3
-	PinnedBishopThreatPenaltyEg = -65
-	PinnedKnightThreatPenaltyEg = -53
+	PinnedRookThreatPenaltyEg   = -7
+	PinnedBishopThreatPenaltyEg = -70
+	PinnedKnightThreatPenaltyEg = -57
 
-	TempoBonus = 24
+	TempoBonus = 25
 )
 
 var (
 	// Queen Mobility mg/eg contains the bonus for queen mobility
-	QueenMobilityMg = [28]int{-21, -18, -37, -51, -45, -27, -24, -22, -19, -17, -14, -10, -7, -3, -1, 0, 0, 0, 1, 3, 11, 25, 41, 61, 48, 86, 25, 8}
-	QueenMobilityEg = [28]int{-77, -66, -56, -74, 21, 86, 122, 143, 161, 183, 188, 192, 198, 196, 197, 200, 199, 201, 202, 197, 192, 170, 160, 136, 141, 117, 136, 132}
+	QueenMobilityMg = [28]int{-21, -18, -38, -50, -45, -27, -23, -19, -17, -15, -12, -8, -5, -1, 0, 0, 2, 1, 2, 5, 13, 27, 42, 64, 51, 91, 25, 6}
+	QueenMobilityEg = [28]int{-77, -66, -56, -74, 26, 90, 124, 139, 158, 179, 184, 191, 197, 196, 197, 201, 199, 202, 202, 197, 193, 173, 162, 138, 141, 112, 133, 127}
 
 	// Rook Mobility mg/eg contains the bonus for rook mobility
-	RookMobilityMg = [15]int{-40, -29, -9, -2, 2, 4, 5, 6, 9, 13, 16, 18, 21, 27, 32}
-	RookMobilityEg = [15]int{-17, 9, 30, 51, 64, 73, 80, 86, 88, 91, 94, 96, 97, 95, 91}
+	RookMobilityMg = [15]int{-39, -28, -7, -1, 2, 4, 6, 7, 10, 15, 18, 20, 24, 30, 38}
+	RookMobilityEg = [15]int{-17, 11, 24, 50, 64, 73, 81, 86, 88, 90, 93, 95, 96, 94, 88}
 
 	// Bishop Mobility mg/eg contains the bonus for bishop mobility
-	BishopMobilityMg = [14]int{-43, -56, -27, -17, -7, 0, 6, 12, 13, 19, 22, 40, 44, 56}
-	BishopMobilityEg = [14]int{-140, -54, -2, 22, 33, 39, 48, 53, 58, 58, 59, 49, 50, 37}
+	BishopMobilityMg = [14]int{-36, -55, -28, -16, -5, 2, 8, 14, 15, 21, 24, 43, 43, 59}
+	BishopMobilityEg = [14]int{-139, -53, 0, 22, 32, 38, 47, 51, 56, 56, 56, 47, 50, 36}
 
 	// KnightMobility mg/eg contains the bonus for knight mobility
-	KnightMobilityMg = [9]int{-142, -36, -10, 0, 12, 15, 27, 38, 53}
-	KnightMobilityEg = [9]int{-80, -22, 9, 33, 44, 57, 58, 60, 54}
+	KnightMobilityMg = [9]int{-140, -31, -9, 3, 15, 18, 30, 41, 56}
+	KnightMobilityEg = [9]int{-80, -26, 9, 32, 43, 55, 56, 58, 51}
 
 	// PassedPawnsBonus mg/eg contains the bonus for passed pawns
-	PassedPawnsBonusMg = [8]int{0, -4, -9, -10, 14, -1, 15, 0}
-	PassedPawnsBonusEg = [8]int{0, 12, 17, 44, 71, 140, 118, 0}
+	PassedPawnsBonusMg = [8]int{0, 0, -6, -8, 16, 0, 14, 0}
+	PassedPawnsBonusEg = [8]int{0, 10, 15, 42, 70, 141, 123, 0}
 
 	// PawnShieldFrontBonus/PawnShieldSideBonus contains the bonus for pawns on the front and side ofthe king file(s)
-	PawnShieldFrontBonus = [4]int{0, 23, 17, 2}
+	PawnShieldFrontBonus = [4]int{0, 21, 16, 2}
 	PawnShieldSideBonus  = [4]int{21, 15, 7, 0}
 
 	// PawnStormFrontPenalty/PawnStormSidePenalty contains the penalty for the enemy pawns on the front and side of king file(s)
-	PawnStormFrontPenalty = [4]int{136, -7, -5, -1}
-	PawnStormSidePenalty  = [4]int{-4, -24, -26, -5}
+	PawnStormFrontPenalty = [4]int{137, -9, -6, -2}
+	PawnStormSidePenalty  = [4]int{-13, -22, -27, -6}
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
