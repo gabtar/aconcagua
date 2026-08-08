@@ -22,13 +22,10 @@ func bishopAttacks(square int, blocks Bitboard) Bitboard {
 
 // pawnAttacks returns a bitboard with the squares the pawn attacks from the position passed
 func pawnAttacks(p *Bitboard, side Color) (attacks Bitboard) {
-	notInHFile := *p & ^(*p & Files[7])
-	notInAFile := *p & ^(*p & Files[0])
-
 	if side == White {
-		attacks = notInAFile<<7 | notInHFile<<9
+		attacks = (*p&notAFile)<<7 | (*p&notHFile)<<9
 	} else {
-		attacks = notInAFile>>9 | notInHFile>>7
+		attacks = (*p&notAFile)>>9 | (*p&notHFile)>>7
 	}
 	return
 }

@@ -48,7 +48,7 @@ func TestEvaluation(t *testing.T) {
 			phase := getMiddleGamePhase(pos)
 			generatePositionWeights(pos, phase, &weights)
 
-			got := int(evaluatePosition(params, weights))
+			got := int(evaluatePosition(&params, &weights))
 
 			// Always return evaluation from white's perspective
 			if pos.Turn == engine.Black {
