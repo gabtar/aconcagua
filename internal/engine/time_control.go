@@ -24,8 +24,9 @@ type TimeControl struct {
 
 // TimeLimits stores the soft and hard time limits in miliseconds
 type TimeLimits struct {
-	softLimit int // Optimal time
-	hardLimit int // Max time allowed
+	softLimit   int // Optimal time
+	hardLimit   int // Max time allowed
+	minimalTime int // Never search less than this threshold
 }
 
 // Clock is the struct to store the white and black time, and increments
@@ -88,6 +89,7 @@ func (tc *TimeControl) setupLimits(strategy int, side int, moveNumber int, clock
 
 	tc.limits.softLimit = soft
 	tc.limits.hardLimit = hard
+	tc.limits.minimalTime = soft / 2
 }
 
 // defineLimits returns the limits for the search
@@ -131,7 +133,7 @@ func (tc *TimeControl) shouldStopSearch(estimatedNextIterationTime int) bool {
 
 // updateTime updates the search time by the factor
 func (tc *TimeControl) updateTime(factor float64) {
-	newSoft := int(float64(tc.limits.softLimit) * factor)
+	newSoft := max(tc.limits.minimalTime, int(float64(tc.limits.softLimit)*factor))
 	tc.limits.softLimit = min(newSoft, tc.limits.hardLimit*4/5) // cap at 80%
 }
 
