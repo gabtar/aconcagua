@@ -94,6 +94,7 @@ func (s *Search) reset() {
 	s.nodes = 0
 	s.pvLine.reset()
 	s.stack.clear()
+	s.TimeControl.iterationStartTime = time.Now()
 	for i := range s.rootNodeCounts {
 		s.rootNodeCounts[i] = 0
 	}
@@ -285,14 +286,21 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 
 		lastScore, lastMove := bestMoveScore, bestMove
 		bestMoveScore = s.aspirationSearch(pos, d, lastScore)
-		if s.TimeControl.stop { // Always use last iteration values if it was stopped due to ran out of time(hard limit)
+		nps := int(float64(s.nodes) / time.Since(s.TimeControl.iterationStartTime).Seconds())
+
+		// Always use last iteration values if it was stopped due to ran out of time
+		if !s.TimeControl.stop {
+			if len(s.pvLine) > 0 {
+				bestMove = s.pvLine[0].String()
+			}
+			elapsed := s.TimeControl.elapsed()
+			stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v",
+				d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(),
+				elapsed, s.pvLine.String())
+		} else {
 			bestMove = lastMove
 			bestMoveScore = lastScore
 			break
-		}
-
-		if len(s.pvLine) > 0 {
-			bestMove = s.pvLine[0].String()
 		}
 
 		// If score drop is too big, we failed low. We should search more
@@ -311,13 +319,6 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 		} else if bestBranchFactor >= 0.75 {
 			s.TimeControl.updateTime(0.8)
 		}
-
-		elapsed := s.TimeControl.elapsed()
-		nps := int(float64(s.nodes) / time.Since(s.TimeControl.iterationStartTime).Seconds())
-		s.TimeControl.iterationStartTime = time.Now()
-		stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v",
-			d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(),
-			elapsed, s.pvLine.String())
 
 		// Check if we should stop after this iteration
 		// Assume 2.5 as branching factor

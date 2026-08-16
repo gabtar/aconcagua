@@ -104,6 +104,10 @@ func defineLimits(maxTime int, timeLeft int) (softLimit int, hardLimit int) {
 
 // shouldStop returns true if the search should stop
 func (tc *TimeControl) shouldStop() bool {
+	if tc.stop {
+		return true
+	}
+
 	if tc.limits.hardLimit == -1 { // Avoid stop when using Infinite/depth strategy
 		return false
 	}
@@ -128,7 +132,7 @@ func (tc *TimeControl) shouldStopSearch(estimatedNextIterationTime int) bool {
 		return true
 	}
 
-	return tc.shouldStop()
+	return tc.stop
 }
 
 // updateTime updates the search time by the factor
