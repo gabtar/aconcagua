@@ -5,7 +5,7 @@ type pvLine []Move
 
 // NewPvLine returns a new principal variation line with the capacity passed allocated
 func NewPvLine(capacity int) pvLine {
-	return make(pvLine, 0, capacity)
+	return make(pvLine, 0, max(0, capacity))
 }
 
 // insert inserts a move at the beginning of the pvLine
