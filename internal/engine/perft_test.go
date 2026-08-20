@@ -38,6 +38,7 @@ func TestStandardPerft(t *testing.T) {
 		{"Perft 21", "K1k5/8/P7/8/8/8/8/8 w - - 0 1", 6, 2217},
 		{"Perft 22", "8/k1P5/8/1K6/8/8/8/8 w - - 0 1", 7, 567584},
 		{"Perft 23", "8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1", 4, 23527},
+		{"Perft 24", "8/b2k4/8/2pP4/8/4K3/8/8 w - c6 0 1", 1, 8},
 	}
 
 	for _, tc := range testCases {

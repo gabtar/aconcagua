@@ -423,49 +423,41 @@ func genEnPassantCaptures(pos *Position, side Color, ml *MoveList, pd *PositionD
 	// Determine the target pawn location
 	capturedPawnBB := pawnPushesTable[side.Opponent()][Bsf(pos.enPassantTarget)]
 
-	// If we're in check, it will be legal only if we can block the check or capture the checker
-	if pd.checkRestrictedSquares != AllSquares {
-		if (pos.enPassantTarget&pd.checkRestrictedSquares) == 0 &&
-			(capturedPawnBB&pd.checkRestrictedSquares) == 0 {
-			return
-		}
-	}
-
 	capturers := potentialEpCapturers(pos, side) & ^pd.pinnedPieces
 	for capturers > 0 {
-		fromBB := capturers.NextBit()
+		capturerBB := capturers.NextBit()
 
-		// Check for horizontal pin (both pawns on same rank as king)
-		if isEnPassantHorizontalPinned(pos, fromBB, capturedPawnBB, side, pd) {
+		// Validate that the capture does not produce a discovered check
+		if isEnPassantDiscoveredCheck(pos, capturerBB, capturedPawnBB, side) {
 			continue
 		}
 
-		ml.add(*encodeMove(uint16(Bsf(fromBB)), uint16(Bsf(pos.enPassantTarget)), epCapture))
+		ml.add(*encodeMove(uint16(Bsf(capturerBB)), uint16(Bsf(pos.enPassantTarget)), epCapture))
 	}
 }
 
-// isEnPassantHorizontalPinned checks for horizontal pins in en passant captures
-func isEnPassantHorizontalPinned(pos *Position, capturerBB Bitboard, capturedPawnBB Bitboard, side Color, pd *PositionData) bool {
-	capturerRank, capturedRank := Bsf(capturerBB)/8, Bsf(capturedPawnBB)/8
-	kingSq := Bsf(pd.kingPosition)
-	kingRank := kingSq / 8
-
-	// For horizontal ep pin king and both pawns must be on the same rank
-	if capturerRank == kingRank && capturedRank == kingRank {
-		blockers := (pd.allies | pd.enemies) &^ capturerBB &^ capturedPawnBB
-
-		// Check attacks if we remove both pawns
-		kingRankAttacks := rookAttacks(kingSq, blockers) & Ranks[kingRank]
-		opponentRooksQueens := pos.Pieces[pieceColor(Rook, side.Opponent())] |
-			pos.Pieces[pieceColor(Queen, side.Opponent())]
-
-		// If king results attacked, then its pinned, not legal
-		if (kingRankAttacks & opponentRooksQueens) != 0 {
-			return true
-		}
+// isEnPassantDiscoveredCheck validates if the en passant capture produces a discovered check
+func isEnPassantDiscoveredCheck(pos *Position, capturerBB, capturedPawnBB Bitboard, side Color) bool {
+	if pos.enPassantTarget == 0 {
+		return false
 	}
 
-	return false
+	// Check for posible discovered check by moving the pawns
+	alliedPawn := pieceColor(Pawn, side)
+	enemyPawn := pieceColor(Pawn, side.Opponent())
+	alliedPawnSq := Bsf(capturerBB)
+	enemyPawnSq := Bsf(capturedPawnBB)
+	epSq := Bsf(pos.enPassantTarget)
+
+	pos.RemovePiece(alliedPawn, alliedPawnSq)
+	pos.AddPiece(alliedPawn, epSq)
+	pos.RemovePiece(enemyPawn, enemyPawnSq)
+	discoveredCheck := pos.attackersTo(Bsf(pos.KingPosition(pos.Turn)))&pos.Sides[pos.Turn.Opponent()] > 0
+	pos.AddPiece(alliedPawn, alliedPawnSq)
+	pos.RemovePiece(alliedPawn, epSq)
+	pos.AddPiece(enemyPawn, enemyPawnSq)
+
+	return discoveredCheck
 }
 
 // checkRestrictedSquares returns a bitboard with the squares that are allowed to move when in check
@@ -519,9 +511,17 @@ func (mg *MoveGenerator) isLegal(move Move) bool {
 	// Illegal if we one of our pieces is on the to square
 	// Illegal if quiet moves and there is an enemy piece on the to square
 	// Illegal if its a caputre and not enemy piece on the to square
+	// Illegal if captures the enemy king
+	// Double pawn push is only valid for pawns
+	// Single pawn push are only valid when pushes are 1 square forward only
+	// Promotions are only valid for pawns
 	if fromBB&mg.pd.allies == 0 || toBB&mg.pd.allies != 0 ||
 		(flag == quiet && toBB&mg.pd.enemies > 0) ||
-		(flag == capture && toBB&mg.pd.enemies == 0) {
+		(flag == capture && toBB&mg.pd.enemies == 0) ||
+		(toBB&mg.pos.KingPosition(side.Opponent()) > 0) ||
+		(flag == doublePawnPush && pieceToMove != Pawn) ||
+		(pieceToMove == Pawn && flag == quiet && abs(to-from) != 8) ||
+		(flag >= knightPromotion && pieceToMove != Pawn) {
 		return false
 	}
 
@@ -530,48 +530,25 @@ func (mg *MoveGenerator) isLegal(move Move) bool {
 		return mg.pos.canCastle(side, flag)
 	}
 
-	// Double pawn push is only valid for pawns
-	if flag == doublePawnPush && pieceToMove != Pawn {
-		return false
-	}
-
-	// Single pawn push are only valid when pushes are 1 square forward only
-	if pieceToMove == Pawn && flag == quiet && abs(to-from) == 16 {
-		return false
-	}
-
 	// Ep captures are only valid, if ep square is set and the potential capturer is on the to square
 	if flag == epCapture {
-		if pieceToMove != Pawn || mg.pos.enPassantTarget == 0 {
+		if pieceToMove != Pawn || mg.pos.enPassantTarget == 0 || mg.pos.enPassantTarget != toBB {
 			return false
 		}
 
-		capturedPawnBB := pawnPushesTable[side][from]
+		capturedPawnBB := pawnPushesTable[side.Opponent()][Bsf(mg.pos.enPassantTarget)]
 
 		if fromBB&mg.pd.pinnedPieces > 0 {
 			return false
 		}
 
-		if mg.pos.enPassantTarget == toBB && potentialEpCapturers(mg.pos, side)&fromBB > 0 {
-
-			if mg.pd.checkRestrictedSquares != AllSquares {
-				if (mg.pos.enPassantTarget&mg.pd.checkRestrictedSquares) == 0 &&
-					(capturedPawnBB&mg.pd.checkRestrictedSquares) == 0 {
-					return false
-				}
-			}
-
-			if isEnPassantHorizontalPinned(mg.pos, fromBB, capturedPawnBB, side, &mg.pd) {
+		if potentialEpCapturers(mg.pos, side)&fromBB > 0 {
+			if isEnPassantDiscoveredCheck(mg.pos, fromBB, capturedPawnBB, side) {
 				return false
 			}
 		}
 
 		return true
-	}
-
-	// Promotions
-	if flag >= knightPromotion && pieceToMove != Pawn {
-		return false
 	}
 
 	isPromotion := PromotionEndRankForSide[side]&toBB > 0 && pieceToMove == Pawn
