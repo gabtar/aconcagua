@@ -500,7 +500,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		// Static Exchange Evaluation Pruning
 		// Prunes bad captures/quiet moves that does not beat a depth dependent threshold
-		if depth <= SEEPruningDepth && mg.stage >= QuietStage && canPruneBySEE(mg, move, depth) {
+		if !rootNode && depth <= SEEPruningDepth && mg.stage >= QuietStage && canPruneBySEE(mg, move, depth) {
 			continue
 		}
 
