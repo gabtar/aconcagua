@@ -1,6 +1,6 @@
 package engine
 
-const MaxHistoryMoves = 255
+const MaxHistoryMoves = 512
 
 // PositionHistory represents the history of the position and castle rigths
 type PositionHistory struct {

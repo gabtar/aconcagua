@@ -969,12 +969,42 @@ func TestIsEnPassnatHorizontalPinned(t *testing.T) {
 	pos.LoadFromFenString("8/6bb/8/8/R1pP2k1/4P3/P7/K7 b - d3 0 1")
 	capturerBB := bitboardFromIndex(c4)
 	capturedBB := bitboardFromIndex(d4)
-	pd := pos.generatePositionData()
 
 	expected := true
-	got := isEnPassantHorizontalPinned(pos, capturerBB, capturedBB, Black, &pd)
+	got := isEnPassantDiscoveredCheck(pos, capturerBB, capturedBB, Black)
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)
+	}
+}
+
+func TestIsLegal(t *testing.T) {
+	testCases := []struct {
+		name    string
+		fen     string
+		move    Move
+		isLegal bool
+	}{
+		{"Pawn Push", StartingFenString, *encodeMove(e2, e4, doublePawnPush), true},
+		{"Capture enemy King", "8/8/3k4/3p4/1b2pP2/4B3/8/4K3 b - - 0 1", *encodeMove(b4, e1, capture), false}, // The position is illegal itself, since its already in check.
+		{"Illegal en passant capture", "8/b2k4/8/2pP4/8/4K3/8/8 w - c6 0 1", *encodeMove(d5, c6, epCapture), false},
+		{"Illegal en passant capture", "2r5/3k4/8/2pP4/8/8/2K5/8 w - c6 0 1", *encodeMove(d5, c6, epCapture), true},
+	}
+
+	for _, tc := range testCases {
+		pos := NewPosition()
+		t.Run(tc.name, func(t *testing.T) {
+			pos.LoadFromFenString(tc.fen)
+			mg := NewMoveGenerator(pos, nil, nil, nil, nil, nil, nil, false)
+
+			expected := tc.isLegal
+			mg.pd = pos.generatePositionData()
+			got := mg.isLegal(tc.move)
+
+			if got != expected {
+				t.Errorf("Expected: %v, got: %v", expected, got)
+			}
+
+		})
 	}
 }
