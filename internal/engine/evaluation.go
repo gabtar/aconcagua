@@ -191,68 +191,96 @@ func (ed *EvalData) init(pos *Position) {
 	ed.pinned = pos.PinnedPieces(White) | pos.PinnedPieces(Black)
 }
 
+func GetEvalPhase(pos *Position) int {
+	return (pos.Pieces[WhiteQueen]|pos.Pieces[BlackQueen]).count()*4 +
+		(pos.Pieces[WhiteRook]|pos.Pieces[BlackRook]).count()*2 +
+		(pos.Pieces[WhiteBishop] | pos.Pieces[BlackBishop]).count() +
+		(pos.Pieces[WhiteKnight] | pos.Pieces[BlackKnight]).count()
+}
+
 // Evaluate returns the static score of the position
-func (ev *Evaluation) Evaluate(pos *Position) int {
-	ev.Eval.clear()
-	ev.EvalData.init(pos)
+func (ev *Evaluation) Evaluate(pos *Position) (score int) {
+	// Basic Psqt + material value
+	mg, eg, phase := 0, 0, 0
 
-	ev.evaluatePawns(pos)
-
-	for piece, bb := range pos.Pieces {
-		color := Color(piece / 6)
-
-		// Skip pawns
-		if pieceRole(piece) == Pawn {
-			continue
-		}
-
-		for bb > 0 {
-			bb := bb.NextBit()
-			sq := Bsf(bb)
-
-			switch pieceRole(piece) {
-			case King:
-				ev.evaluateKing(sq, color)
-			case Queen:
-				ev.evaluateQueen(sq, color)
-			case Rook:
-				ev.evaluateRook(sq, color)
-			case Bishop:
-				ev.evaluateBishop(sq, color, pos)
-			case Knight:
-				ev.evaluateKnight(sq, color, pos)
-			}
+	for piece, pieces := range pos.Pieces {
+		for pieces > 0 {
+			side := Color(piece / 6)
+			nextPiece := pieces.NextBit()
+			from := Bsf(nextPiece)
+			mg += side.Modifier() * middlegamePiecesScore[piece][from]
+			eg += side.Modifier() * endgamePiecesScore[piece][from]
 		}
 	}
-
-	// Bishop pair bonus
-	if pos.Pieces[WhiteBishop].count() >= 2 {
-		ev.Eval.mgMaterial[White] += BishopPairBonusMg
-		ev.Eval.egMaterial[White] += BishopPairBonusEg
+	phase = GetEvalPhase(pos)
+	mgPhase := min(phase, 24)
+	egPhase := 24 - phase
+	score = (mg*mgPhase + eg*egPhase) / 24
+	if pos.Turn == Black {
+		score = -score
 	}
+	return
 
-	if pos.Pieces[BlackBishop].count() >= 2 {
-		ev.Eval.mgMaterial[Black] += BishopPairBonusMg
-		ev.Eval.egMaterial[Black] += BishopPairBonusEg
-	}
-
-	// Safety
-	// Apply King Safety Penalties to opponent only if there are at least 2 attackers and one of the pieces is a queen
-	if ev.Eval.kingAttackersCount[White] >= 2 && pos.Pieces[pieceColor(Queen, White)] > 0 {
-		zoneDefense := KingZone[Black][Bsf(pos.KingPosition(Black))] & ev.EvalData.attackedByPawns[Black]
-		ev.Eval.mgKingSafety[Black] += -ev.Eval.kingAttacksWeight[White] + KingZoneDefenseBonus*zoneDefense.count()
-	}
-
-	if ev.Eval.kingAttackersCount[Black] >= 2 && pos.Pieces[pieceColor(Queen, Black)] > 0 {
-		zoneDefense := KingZone[White][Bsf(pos.KingPosition(White))] & ev.EvalData.attackedByPawns[White]
-		ev.Eval.mgKingSafety[White] += -ev.Eval.kingAttacksWeight[Black] + KingZoneDefenseBonus*zoneDefense.count()
-	}
-
-	// TempoBonus
-	ev.Eval.mgMaterial[pos.Turn] += TempoBonus
-	ev.Eval.egMaterial[pos.Turn] += TempoBonus
-
-	return ev.Eval.score(pos.Turn)
+	// ev.Eval.clear()
+	// ev.EvalData.init(pos)
+	//
+	// ev.evaluatePawns(pos)
+	//
+	// for piece, bb := range pos.Pieces {
+	// 	color := Color(piece / 6)
+	//
+	// 	// Skip pawns
+	// 	if pieceRole(piece) == Pawn {
+	// 		continue
+	// 	}
+	//
+	// 	for bb > 0 {
+	// 		bb := bb.NextBit()
+	// 		sq := Bsf(bb)
+	//
+	// 		switch pieceRole(piece) {
+	// 		case King:
+	// 			ev.evaluateKing(sq, color)
+	// 		case Queen:
+	// 			ev.evaluateQueen(sq, color)
+	// 		case Rook:
+	// 			ev.evaluateRook(sq, color)
+	// 		case Bishop:
+	// 			ev.evaluateBishop(sq, color, pos)
+	// 		case Knight:
+	// 			ev.evaluateKnight(sq, color, pos)
+	// 		}
+	// 	}
+	// }
+	//
+	// // Bishop pair bonus
+	// if pos.Pieces[WhiteBishop].count() >= 2 {
+	// 	ev.Eval.mgMaterial[White] += BishopPairBonusMg
+	// 	ev.Eval.egMaterial[White] += BishopPairBonusEg
+	// }
+	//
+	// if pos.Pieces[BlackBishop].count() >= 2 {
+	// 	ev.Eval.mgMaterial[Black] += BishopPairBonusMg
+	// 	ev.Eval.egMaterial[Black] += BishopPairBonusEg
+	// }
+	//
+	// // Safety
+	// // Apply King Safety Penalties to opponent only if there are at least 2 attackers and one of the pieces is a queen
+	// if ev.Eval.kingAttackersCount[White] >= 2 && pos.Pieces[pieceColor(Queen, White)] > 0 {
+	// 	zoneDefense := KingZone[Black][Bsf(pos.KingPosition(Black))] & ev.EvalData.attackedByPawns[Black]
+	// 	ev.Eval.mgKingSafety[Black] += -ev.Eval.kingAttacksWeight[White] + KingZoneDefenseBonus*zoneDefense.count()
+	// }
+	//
+	// if ev.Eval.kingAttackersCount[Black] >= 2 && pos.Pieces[pieceColor(Queen, Black)] > 0 {
+	// 	zoneDefense := KingZone[White][Bsf(pos.KingPosition(White))] & ev.EvalData.attackedByPawns[White]
+	// 	ev.Eval.mgKingSafety[White] += -ev.Eval.kingAttacksWeight[Black] + KingZoneDefenseBonus*zoneDefense.count()
+	// }
+	//
+	// // TempoBonus
+	// ev.Eval.mgMaterial[pos.Turn] += TempoBonus
+	// ev.Eval.egMaterial[pos.Turn] += TempoBonus
+	//
+	// return ev.Eval.score(pos.Turn)
 }
 
 // score returns the score relative to the side

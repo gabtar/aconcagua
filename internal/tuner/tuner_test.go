@@ -45,7 +45,7 @@ func TestEvaluation(t *testing.T) {
 			staticEval := ev.Evaluate(pos)
 			params := GetEvaluationParams()
 			weights := make([]PositionWeight, 0, 200)
-			phase := getMiddleGamePhase(pos)
+			phase := engine.GetEvalPhase(pos)
 			generatePositionWeights(pos, phase, &weights)
 
 			got := int(evaluatePosition(&params, &weights))

@@ -15,7 +15,7 @@ func main() {
 	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/lichess-big3-resolved.book", 7000000)
 	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/trainingdata.epd", 7878653) // Lichess + zurichess combined
 	// params := tuner.GetEvaluationParams()
-	// tuner.AdamTuner(params, &dataset, tuner.ScalingFactor, 300)
+	// tuner.AdamTuner(params, &dataset, tuner.ScalingFactor, 100)
 
 	// Find fixed magic numbers
 	// engine.GenerateMagicNumbersForRooksAndBishops()

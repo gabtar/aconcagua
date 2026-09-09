@@ -78,7 +78,7 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 
 		fen := parts[0]
 		pos.LoadFromFenString(fen)
-		phase := getMiddleGamePhase(pos)
+		phase := engine.GetEvalPhase(pos)
 		result := resultString[parts[1]]
 
 		generatePositionWeights(pos, phase, &dataset[count].Weights)
@@ -424,23 +424,23 @@ func evaluatePosition(params *[TuneableParams]float64, weights *[]PositionWeight
 
 		eval += (*params)[idx] * float64(weight)
 	}
-	evaluation = eval / 62
+	evaluation = eval / 24
 	return
 }
 
 // generatePositionWeights returns all the position weights of a position
 func generatePositionWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	generatePieceScoreWeights(pos, phase, weights)
-	generateMobilityWeights(pos, phase, weights)
-	generatePawnsStructureWeights(pos, phase, weights)
-	generateMaterialAdjustmentsWeights(pos, phase, weights)
-	generateKingSafetyWeights(pos, phase, weights)
+	// generateMobilityWeights(pos, phase, weights)
+	// generatePawnsStructureWeights(pos, phase, weights)
+	// generateMaterialAdjustmentsWeights(pos, phase, weights)
+	// generateKingSafetyWeights(pos, phase, weights)
 
 	// Tempo Bonus weight
-	*weights = append(*weights,
-		PositionWeight{paramIndex: 986, weight: int16(pos.Turn.Modifier() * phase)},
-		PositionWeight{paramIndex: 986, weight: int16(pos.Turn.Modifier() * (62 - phase))},
-	)
+	// *weights = append(*weights,
+	// 	PositionWeight{paramIndex: 986, weight: int16(pos.Turn.Modifier() * phase)},
+	// 	PositionWeight{paramIndex: 986, weight: int16(pos.Turn.Modifier() * (62 - phase))},
+	// )
 }
 
 // generatePieceScoreWeights returns the weights of the pieces socre in the board
@@ -454,10 +454,10 @@ func generatePieceScoreWeights(pos *engine.Position, phase int, weights *[]Posit
 			}
 
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(768 + piece%6), weight: int16(side.Modifier() * phase)},
-				PositionWeight{paramIndex: int16(768 + piece%6 + 6), weight: int16(side.Modifier() * (62 - phase))},
-				PositionWeight{paramIndex: int16((piece%6)*64 + sq), weight: int16(side.Modifier() * phase)},
-				PositionWeight{paramIndex: int16(384 + (piece%6)*64 + sq), weight: int16(side.Modifier() * (62 - phase))},
+				PositionWeight{paramIndex: int16(768 + piece%6), weight: int16(side.Modifier() * min(phase, 24))},
+				PositionWeight{paramIndex: int16(768 + piece%6 + 6), weight: int16(side.Modifier() * (24 - phase))},
+				PositionWeight{paramIndex: int16((piece%6)*64 + sq), weight: int16(side.Modifier() * min(phase, 24))},
+				PositionWeight{paramIndex: int16(384 + (piece%6)*64 + sq), weight: int16(side.Modifier() * (24 - phase))},
 			)
 		}
 	}
@@ -913,19 +913,6 @@ func generatePawnShieldAndStormWeights(pos *engine.Position, phase int, weights 
 			}
 		}
 	}
-}
-
-// getMiddleGamePhase returns the value of the middle game phase of a position
-func getMiddleGamePhase(pos *engine.Position) (mgPhase int) {
-	phaseInc := [6]int{0, 9, 5, 3, 3, 0}
-	for p, bb := range pos.Pieces {
-		for bb > 0 {
-			bb.NextBit()
-			mgPhase += phaseInc[p%6]
-		}
-	}
-	mgPhase = min(mgPhase, 62)
-	return
 }
 
 // FindOptimalScalingFactor returns the scaling factor that minimizes the mean square error
