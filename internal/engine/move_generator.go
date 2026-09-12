@@ -189,7 +189,7 @@ func (pos *Position) generateNoisy(ml *MoveList, pd *PositionData) {
 		for pieces > 0 {
 			pieceBB := pieces.NextBit()
 			from := Bsf(pieceBB)
-			switch pieceRole(piece) {
+			switch RoleOf(piece) {
 			case King:
 				genMovesFromTargets(from, kingMoves(&pieceBB, pos, pos.Turn)&nonKingOpponents, ml, pd)
 			case Queen:
@@ -216,7 +216,7 @@ func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 		for pieces > 0 {
 			pieceBB := pieces.NextBit()
 			from := Bsf(pieceBB)
-			switch pieceRole(piece) {
+			switch RoleOf(piece) {
 			case King:
 				genMovesFromTargets(from, kingMoves(&pieceBB, pos, pos.Turn)&^pd.enemies, ml, pd)
 				genCastleMoves(pos, ml)
@@ -239,14 +239,14 @@ func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	kingSq := Bsf(*k)
 	posiblesMoves := kingAttacksTable[Bsf(*k)] & ^pos.Sides[side]
-	pos.RemovePiece(pieceColor(King, side), kingSq)
+	pos.RemovePiece(PieceOf(King, side), kingSq)
 	for posiblesMoves > 0 {
 		next := posiblesMoves.NextBit()
 		if pos.attackersTo(Bsf(next))&pos.Sides[side.Opponent()] == 0 {
 			moves |= next
 		}
 	}
-	pos.AddPiece(pieceColor(King, side), kingSq)
+	pos.AddPiece(PieceOf(King, side), kingSq)
 	return
 }
 
@@ -328,7 +328,7 @@ func potentialEpCapturers(pos *Position, side Color) (epCaptures Bitboard) {
 
 	targetPawnBB := pawnPushesTable[side.Opponent()][Bsf(pos.enPassantTarget)]
 
-	epCaptures |= pos.Pieces[pieceColor(Pawn, side)] &
+	epCaptures |= pos.Pieces[PieceOf(Pawn, side)] &
 		((targetPawnBB&notAFile)>>1 | (targetPawnBB&notHFile)<<1)
 	return
 }
@@ -443,8 +443,8 @@ func isEnPassantDiscoveredCheck(pos *Position, capturerBB, capturedPawnBB Bitboa
 	}
 
 	// Check for posible discovered check by moving the pawns
-	alliedPawn := pieceColor(Pawn, side)
-	enemyPawn := pieceColor(Pawn, side.Opponent())
+	alliedPawn := PieceOf(Pawn, side)
+	enemyPawn := PieceOf(Pawn, side.Opponent())
 	alliedPawnSq := Bsf(capturerBB)
 	enemyPawnSq := Bsf(capturedPawnBB)
 	epSq := Bsf(pos.enPassantTarget)
@@ -471,13 +471,13 @@ func checkRestrictedSquares(king Bitboard, checkingSliders Bitboard, checkingNon
 
 	// If there is only one sliding piece giving check, we can either block
 	// along the ray or directly capture the checker to avoid the check
-	if checkingPieces == checkingSliders && checkingPieces.count() == 1 {
+	if checkingPieces == checkingSliders && checkingPieces.Count() == 1 {
 		return squaresBetween[Bsf(checkingPieces)][Bsf(king)] | checkingPieces
 	}
 
 	// If only 1 piece checking next to the king, we can only capture the checker
 	// to evade the check
-	if checkingPieces.count() == 1 {
+	if checkingPieces.Count() == 1 {
 		return checkingPieces
 	}
 
@@ -504,7 +504,7 @@ func (mg *MoveGenerator) isLegal(move Move) bool {
 	fromBB := bitboardFromIndex(from)
 	toBB := bitboardFromIndex(to)
 	flag := move.flag()
-	pieceToMove := pieceRole(mg.pos.PieceAt(from))
+	pieceToMove := RoleOf(mg.pos.PieceAt(from))
 
 	// Quick validations
 	// Illegal if we don't have a piece on the from square

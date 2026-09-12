@@ -46,13 +46,18 @@ const (
 	StartingFenString = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 )
 
-// pieceRole returns the role/type of the piece passed
-func pieceRole(piece int) int {
+// RoleOf returns the role/type of the piece passed
+func RoleOf(piece int) int {
 	return piece % 6
 }
 
-// piece returns the piece of the role and color passed
-func pieceColor(role int, color Color) int {
+// SideOf returns the Color of the piece passed
+func SideOf(piece int) Color {
+	return Color(piece / 6)
+}
+
+// PieceOf returns the piece of the role and color passed
+func PieceOf(role int, color Color) int {
 	return role + int(color)*6
 }
 
@@ -138,7 +143,7 @@ func (pos *Position) AddPiece(piece int, square int) {
 
 	bb := bitboardFromIndex(square)
 	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, square)
-	if pieceRole(piece) == Pawn {
+	if RoleOf(piece) == Pawn {
 		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, square)
 	}
 	pos.Pieces[piece] |= bb
@@ -162,9 +167,9 @@ func (pos *Position) CheckingPieces(side Color) (checkingPieces Bitboard, checki
 		return
 	}
 
-	sliders := pos.Pieces[pieceColor(Queen, side.Opponent())] |
-		pos.Pieces[pieceColor(Rook, side.Opponent())] |
-		pos.Pieces[pieceColor(Bishop, side.Opponent())]
+	sliders := pos.Pieces[PieceOf(Queen, side.Opponent())] |
+		pos.Pieces[PieceOf(Rook, side.Opponent())] |
+		pos.Pieces[PieceOf(Bishop, side.Opponent())]
 
 	return attackers, attackers & sliders
 }
@@ -178,24 +183,24 @@ func (pos *Position) Check(side Color) bool {
 	kingSq := Bsf(kingBB)
 	blocks := pos.Sides[All]
 
-	pawnAttacks := pawnAttacks(&kingBB, side) & pos.Pieces[pieceColor(Pawn, side.Opponent())]
+	pawnAttacks := pawnAttacks(&kingBB, side) & pos.Pieces[PieceOf(Pawn, side.Opponent())]
 	if pawnAttacks > 0 {
 		return true
 	}
 
-	knightAttacks := knightAttacksTable[kingSq] & pos.Pieces[pieceColor(Knight, side.Opponent())]
+	knightAttacks := knightAttacksTable[kingSq] & pos.Pieces[PieceOf(Knight, side.Opponent())]
 	if knightAttacks > 0 {
 		return true
 	}
 
 	bishopAttacks := bishopAttacks(kingSq, blocks) &
-		(pos.Pieces[pieceColor(Bishop, side.Opponent())] | pos.Pieces[pieceColor(Queen, side.Opponent())])
+		(pos.Pieces[PieceOf(Bishop, side.Opponent())] | pos.Pieces[PieceOf(Queen, side.Opponent())])
 	if bishopAttacks > 0 {
 		return true
 	}
 
 	rookAttacks := rookAttacks(kingSq, blocks) &
-		(pos.Pieces[pieceColor(Rook, side.Opponent())] | pos.Pieces[pieceColor(Queen, side.Opponent())])
+		(pos.Pieces[PieceOf(Rook, side.Opponent())] | pos.Pieces[PieceOf(Queen, side.Opponent())])
 	return rookAttacks > 0
 }
 
@@ -207,8 +212,8 @@ func (pos *Position) PinnedPieces(side Color) (pinned Bitboard) {
 	}
 
 	opponent := side.Opponent()
-	bishops := pos.Pieces[pieceColor(Queen, opponent)] | pos.Pieces[pieceColor(Bishop, opponent)]
-	rooks := pos.Pieces[pieceColor(Queen, opponent)] | pos.Pieces[pieceColor(Rook, opponent)]
+	bishops := pos.Pieces[PieceOf(Queen, opponent)] | pos.Pieces[PieceOf(Bishop, opponent)]
+	rooks := pos.Pieces[PieceOf(Queen, opponent)] | pos.Pieces[PieceOf(Rook, opponent)]
 	if rooks|bishops == 0 {
 		return
 	}
@@ -222,7 +227,7 @@ func (pos *Position) PinnedPieces(side Color) (pinned Bitboard) {
 		attacker := possiblePinners.NextBit()
 		kingToOpponentPath := squaresBetween[Bsf(attacker)][Bsf(king)]
 		piecesBetween := kingToOpponentPath & pos.Sides[side]
-		if piecesBetween.count() == 1 {
+		if piecesBetween.Count() == 1 {
 			pinned |= piecesBetween
 		}
 	}
@@ -232,7 +237,7 @@ func (pos *Position) PinnedPieces(side Color) (pinned Bitboard) {
 
 // KingPosition returns the bitboard of the passed side king
 func (pos *Position) KingPosition(side Color) (king Bitboard) {
-	king = pos.Pieces[pieceColor(King, side)]
+	king = pos.Pieces[PieceOf(King, side)]
 	return
 }
 
@@ -247,7 +252,7 @@ func (pos *Position) RemovePiece(piece int, square int) {
 	pos.Sides[piece/6] &= ^bb
 	pos.Sides[All] &= ^bb
 	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, square)
-	if pieceRole(piece) == Pawn {
+	if RoleOf(piece) == Pawn {
 		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, square)
 	}
 }
@@ -301,13 +306,13 @@ func (pos *Position) insuficientMaterial() bool {
 	if pos.Pieces[WhiteRook] > 0 || pos.Pieces[BlackRook] > 0 {
 		return false
 	}
-	if pos.Pieces[WhiteBishop].count() > 1 || pos.Pieces[BlackBishop].count() > 1 {
+	if pos.Pieces[WhiteBishop].Count() > 1 || pos.Pieces[BlackBishop].Count() > 1 {
 		return false
 	}
-	if pos.Pieces[WhiteKnight].count() > 1 || pos.Pieces[BlackKnight].count() > 1 {
+	if pos.Pieces[WhiteKnight].Count() > 1 || pos.Pieces[BlackKnight].Count() > 1 {
 		return false
 	}
-	if pos.Pieces[WhiteBishop].count() == pos.Pieces[BlackBishop].count() && pos.Pieces[WhiteBishop] > 0 {
+	if pos.Pieces[WhiteBishop].Count() == pos.Pieces[BlackBishop].Count() && pos.Pieces[WhiteBishop] > 0 {
 		return false
 	}
 
@@ -427,7 +432,7 @@ func (pos *Position) handlePromotion(move Move, flag int, pieceToMove *int, piec
 // handleEnPassantCapture removes the captured pawn in en passant
 func (pos *Position) handleEnPassantCapture(move Move) {
 	removeSquare := Bsf(pawnPushesTable[pos.Turn.Opponent()][move.to()])
-	pos.RemovePiece(pieceColor(Pawn, pos.Turn.Opponent()), removeSquare)
+	pos.RemovePiece(PieceOf(Pawn, pos.Turn.Opponent()), removeSquare)
 	pos.halfmoveClock = 0
 }
 
@@ -435,13 +440,13 @@ func (pos *Position) handleEnPassantCapture(move Move) {
 func getPromotedToPiece(flag int, side Color) (piece int) {
 	switch flag {
 	case knightPromotion, knightCapturePromotion:
-		return pieceColor(Knight, side)
+		return PieceOf(Knight, side)
 	case bishopPromotion, bishopCapturePromotion:
-		return pieceColor(Bishop, side)
+		return PieceOf(Bishop, side)
 	case rookPromotion, rookCapturePromotion:
-		return pieceColor(Rook, side)
+		return PieceOf(Rook, side)
 	case queenCapturePromotion, queenPromotion:
-		return pieceColor(Queen, side)
+		return PieceOf(Queen, side)
 	}
 	return NoPiece
 }
@@ -449,7 +454,7 @@ func getPromotedToPiece(flag int, side Color) (piece int) {
 // getCapturedPiece determines the piece captured in the move
 func (pos *Position) getCapturedPiece(move *Move) int {
 	if move.flag() == epCapture {
-		return pieceColor(Pawn, pos.Turn.Opponent())
+		return PieceOf(Pawn, pos.Turn.Opponent())
 	}
 	pieceCaptured := pos.PieceAt(move.to())
 	return pieceCaptured
@@ -501,7 +506,7 @@ func (pos *Position) UnmakeMove(move *Move) {
 		pos.updateRookPositionOnCaslte(flag, false)
 	case epCapture:
 		restoreSq := move.to() + 8*pos.Turn.Modifier()
-		pos.AddPiece(pieceColor(Pawn, pos.Turn), restoreSq)
+		pos.AddPiece(PieceOf(Pawn, pos.Turn), restoreSq)
 	}
 
 	pos.toggleSide()
@@ -518,11 +523,11 @@ func (pos *Position) updateRookPositionOnCaslte(castle int, makeMove bool) {
 	castleType := castle - kingsideCastle
 	rookFrom := pos.castling.rooksStartSquare[pos.Turn][castleType]
 	rookTo := pos.castling.rooksEndSquare[pos.Turn][castleType]
-	rookToMove := pieceColor(Rook, pos.Turn)
+	rookToMove := PieceOf(Rook, pos.Turn)
 	if !makeMove {
 		rookFrom = pos.castling.rooksEndSquare[pos.Turn.Opponent()][castleType]
 		rookTo = pos.castling.rooksStartSquare[pos.Turn.Opponent()][castleType]
-		rookToMove = pieceColor(Rook, pos.Turn.Opponent())
+		rookToMove = PieceOf(Rook, pos.Turn.Opponent())
 	}
 
 	pos.RemovePiece(rookToMove, rookFrom)

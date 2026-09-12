@@ -12,8 +12,6 @@ import (
 	"github.com/gabtar/aconcagua/internal/engine"
 )
 
-// const ScalingFactor = 0.0084 // Best Scaling factor found for zurichess training dataset
-
 // ScalingFactor is the scaling factor for the training dataset
 const ScalingFactor = 0.008000000000000007 // lichess-big3-resolved
 
@@ -94,23 +92,56 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 987
+const TuneableParams = 912
 
-// GetEvaluationParams returns the current evaluation params
+// GetEvaluationParams returns a flat array with the current evaluation params
 func GetEvaluationParams() (params [TuneableParams]float64) {
 	intParams := [TuneableParams]int{}
 
-	// Psqt params
-	for piece := range 6 {
-		copy(intParams[piece*64:(piece+1)*64], engine.MiddlegamePSQT[piece][0:64])
-		copy(intParams[(piece+6)*64:(piece+7)*64], engine.EndgamePSQT[piece][0:64])
+	// Psqt params. Flat original Psqt array into a single array
+	// The internal order of the psqt coefficients inside the flat array is:
+	// KingMg(0-63), KingEg(64-127), QueenMg(127-191), ....
+	for p, psqt := range engine.Psqt {
+		for sq, score := range psqt {
+			mgIndex := 64*2*p + sq
+			egIndex := 64*(2*p+1) + sq
+			intParams[mgIndex], intParams[egIndex] = score.Get()
+		}
 	}
 
-	// Piece values params
-	copy(intParams[768:774], engine.MiddlegamePieceValue[:])
-	copy(intParams[774:780], engine.EndgamePieceValue[:])
+	// Pieces Values. Indexes goes from 768-7779
+	for p, score := range engine.PieceValues {
+		mgIndex := 768 + p*2
+		egIndex := mgIndex + 1
+		intParams[mgIndex], intParams[egIndex] = score.Get()
+	}
 
-	// Convert to float
+	// Mobility. Index range 780-911
+	// Queen. 780-835
+	for i, sc := range engine.QueenMobility {
+		mobIndex := 780 + 2*i
+		intParams[mobIndex], intParams[mobIndex+1] = sc.Get()
+	}
+
+	// Rook. 836-865
+	for i, sc := range engine.RookMobility {
+		mobIndex := 836 + 2*i
+		intParams[mobIndex], intParams[mobIndex+1] = sc.Get()
+	}
+
+	// Bishop. 866-893
+	for i, sc := range engine.BishopMobility {
+		mobIndex := 866 + 2*i
+		intParams[mobIndex], intParams[mobIndex+1] = sc.Get()
+	}
+
+	// Knight. 894-911
+	for i, sc := range engine.KnightMobility {
+		mobIndex := 894 + 2*i
+		intParams[mobIndex], intParams[mobIndex+1] = sc.Get()
+	}
+
+	// Convert to float params
 	for i := range TuneableParams {
 		params[i] = float64(intParams[i])
 	}
@@ -144,35 +175,63 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		intParams[i] = int(bestParams[i])
 	}
 
+	// Psqt
 	piece := []string{"King", "Queen", "Rook", "Bishop", "Knight", "Pawn"}
-	psqt = "MiddlegamePSQT: \n"
-	for i := range 6 {
-		psqt += fmt.Sprintf("// %s\n", piece[i])
-		psqt += "{\n"
-		for j := range 8 {
-			for k := range 8 {
-				psqt += fmt.Sprintf("%d, ", intParams[i*64+j*8+k])
+	psqt = "// Pieces Square Tables\n"
+	psqt += "var Psqt = [6][64]Score{\n"
+	for p := range 6 {
+		psqt += fmt.Sprintf("  // %s\n  {\n", piece[p])
+		for rank := range 8 {
+			psqt += "    "
+			for file := range 8 {
+				sq := 8*rank + file
+				mgIndex := 64*2*p + sq
+				egIndex := 64*(2*p+1) + sq
+				psqt += fmt.Sprintf("S(%d, %d), ", intParams[mgIndex], intParams[egIndex])
 			}
+			psqt = psqt[:len(psqt)-1] // remove last space " "
 			psqt += "\n"
 		}
-		psqt += "},\n"
+		psqt += "  },\n"
 	}
-	psqt += "EndgamePSQT: \n"
-	for i := range 6 {
-		psqt += fmt.Sprintf("// %s\n", piece[i])
-		psqt += "{\n"
-		for j := range 8 {
-			for k := range 8 {
-				psqt += fmt.Sprintf("%d, ", intParams[(i+6)*64+j*8+k])
-			}
-			psqt += "\n"
-		}
-		psqt += "},\n"
-	}
+	psqt += "}\n\n"
 
 	// Pieces Values
-	psqt += fmt.Sprintf("MiddlegamePieceValue:  %#v\n", intParams[768:774])
-	psqt += fmt.Sprintf("EndgamePieceValue:  %#v\n", intParams[774:780])
+	psqt += "// Pieces Values\n"
+	psqt += "var PiecesValues = [6]Score{"
+	for p := range 6 {
+		mgIndex := 768 + p*2
+		egIndex := mgIndex + 1
+		psqt += fmt.Sprintf("S(%d, %d), ", intParams[mgIndex], intParams[egIndex])
+	}
+	psqt = psqt[:len(psqt)-2] // remove last ", "
+	psqt += "}\n\n"
+
+	// Mobility
+	mobility := []struct {
+		name     string
+		size     int
+		startIdx int
+	}{
+		{"QueenMobility", 28, 780},
+		{"RookMobility", 15, 836},
+		{"BishopMobility", 14, 866},
+		{"KnightMobility", 9, 894},
+	}
+	psqt += "// Mobility Arrays\n"
+	for _, m := range mobility {
+		psqt += fmt.Sprintf("%s = [%d]Score{\n  ", m.name, m.size)
+		for i := range m.size {
+			mgIndex := m.startIdx + 2*i
+			egIndex := mgIndex + 1
+			psqt += fmt.Sprintf("S(%d, %d), ", intParams[mgIndex], intParams[egIndex])
+			if (i+1)%6 == 0 && i != m.size-1 {
+				psqt += "\n  "
+			}
+		}
+		psqt = psqt[:len(psqt)-2] // remove last ", "
+		psqt += "\n}\n\n"
+	}
 
 	return psqt
 }
@@ -261,26 +320,68 @@ func evaluatePosition(params *[TuneableParams]float64, weights *[]PositionWeight
 // generatePositionWeights returns all the position weights of a position
 func generatePositionWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	generatePieceScoreWeights(pos, phase, weights)
+	generateMobilityWeights(pos, phase, weights)
 }
 
-// generatePieceScoreWeights returns the weights of the pieces socre in the board
+// generatePieceScoreWeights generates the weights of the pieces socre in the position
 func generatePieceScoreWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	mgPhase := min(phase, engine.MaxPhaseValue)
 	egPhase := engine.MaxPhaseValue - phase
 
 	for piece, bb := range pos.Pieces {
-		side := engine.Color(piece / 6)
+		side := engine.SideOf(piece)
 		for bb > 0 {
 			sq := engine.Bsf(bb.NextBit())
-			if side.Modifier() == 1 {
+			if side == engine.White {
 				sq = sq ^ 56 // white pieces uses mirror square index in psqt
 			}
+			role := engine.RoleOf(piece)
+			mgPsqtIndex := int16(64*2*role + sq)
+			egPsqtIndex := int16(64*(2*role+1) + sq)
 
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(768 + piece%6), weight: int16(side.Modifier() * mgPhase)},
-				PositionWeight{paramIndex: int16(768 + piece%6 + 6), weight: int16(side.Modifier() * egPhase)},
-				PositionWeight{paramIndex: int16((piece%6)*64 + sq), weight: int16(side.Modifier() * mgPhase)},
-				PositionWeight{paramIndex: int16(384 + (piece%6)*64 + sq), weight: int16(side.Modifier() * egPhase)},
+				// Piece Value
+				PositionWeight{paramIndex: int16(768 + 2*role), weight: int16(side.Modifier() * mgPhase)},
+				PositionWeight{paramIndex: int16(768 + 2*role + 1), weight: int16(side.Modifier() * egPhase)},
+				// Psqt
+				PositionWeight{paramIndex: mgPsqtIndex, weight: int16(side.Modifier() * mgPhase)},
+				PositionWeight{paramIndex: egPsqtIndex, weight: int16(side.Modifier() * egPhase)},
+			)
+		}
+	}
+}
+
+// generateMobilityWeights generates the mobility weights of the position
+func generateMobilityWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	mgPhase := min(phase, engine.MaxPhaseValue)
+	egPhase := engine.MaxPhaseValue - phase
+	startIndex := [4]int16{780, 836, 866, 894}
+	pieces := [4]engine.Bitboard{
+		pos.Pieces[engine.WhiteQueen] | pos.Pieces[engine.BlackQueen],
+		pos.Pieces[engine.WhiteRook] | pos.Pieces[engine.BlackRook],
+		pos.Pieces[engine.WhiteBishop] | pos.Pieces[engine.BlackBishop],
+		pos.Pieces[engine.WhiteKnight] | pos.Pieces[engine.BlackKnight],
+	}
+	roles := [4]int{engine.Queen, engine.Rook, engine.Bishop, engine.Knight}
+	attackedByPawns := [2]engine.Bitboard{
+		engine.Attacks(engine.WhitePawn, pos.Pieces[engine.WhitePawn], pos.Sides[engine.All]),
+		engine.Attacks(engine.BlackPawn, pos.Pieces[engine.BlackPawn], pos.Sides[engine.All]),
+	}
+
+	for p, bb := range pieces {
+		for bb > 0 {
+			nextPiece := bb.NextBit()
+			side := engine.Color(engine.White)
+			if nextPiece&pos.Sides[engine.Black] > 0 {
+				side = engine.Black
+			}
+			safeSquares := (engine.Attacks(engine.PieceOf(roles[p], side), nextPiece, pos.Sides[engine.All]) & ^attackedByPawns[side.Opponent()]).Count()
+			mgIdx := startIndex[p] + 2*int16(safeSquares)
+			egIdx := mgIdx + 1
+
+			*weights = append(*weights,
+				PositionWeight{paramIndex: mgIdx, weight: int16(side.Modifier() * mgPhase)},
+				PositionWeight{paramIndex: egIdx, weight: int16(side.Modifier() * egPhase)},
 			)
 		}
 	}

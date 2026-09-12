@@ -32,8 +32,8 @@ func reverseArray(arr []string) []string {
 	return arr
 }
 
-// count returns the number of non zero bits in a bitboard
-func (b Bitboard) count() int {
+// Count returns the number of non zero bits in a bitboard
+func (b Bitboard) Count() int {
 	return bits.OnesCount64(uint64(b))
 }
 

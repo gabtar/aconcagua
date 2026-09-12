@@ -89,7 +89,7 @@ func TestFindMagicNumberForRook(t *testing.T) {
 	magic := findMagicNumber(sq, 1)
 	mask := rookMask(sq)
 
-	maskConfigs := 1 << mask.count()
+	maskConfigs := 1 << mask.Count()
 	posibleConfigurations := make([]Bitboard, maskConfigs)
 	attacksConfigurations := make([]Bitboard, maskConfigs)
 	magicAttacks := make([]Bitboard, maskConfigs)
@@ -102,7 +102,7 @@ func TestFindMagicNumberForRook(t *testing.T) {
 	}
 
 	for i, config := range posibleConfigurations {
-		index := (magic * config) >> (64 - mask.count())
+		index := (magic * config) >> (64 - mask.Count())
 
 		if used[index] {
 			// check colision
@@ -121,7 +121,7 @@ func TestFindMagicNumberForBishop(t *testing.T) {
 	magic := findMagicNumber(sq, 0)
 	mask := bishopMask(sq)
 
-	maskConfigs := 1 << mask.count()
+	maskConfigs := 1 << mask.Count()
 	posibleConfigurations := make([]Bitboard, maskConfigs)
 	attacksConfigurations := make([]Bitboard, maskConfigs)
 	magicAttacks := make([]Bitboard, maskConfigs)
@@ -133,7 +133,7 @@ func TestFindMagicNumberForBishop(t *testing.T) {
 	}
 
 	for i, config := range posibleConfigurations {
-		index := (magic * config) >> (64 - mask.count())
+		index := (magic * config) >> (64 - mask.Count())
 
 		if used[index] {
 			if attacksConfigurations[i] != magicAttacks[index] {

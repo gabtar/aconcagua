@@ -13,7 +13,7 @@ func TestCheckingPieces(t *testing.T) {
 
 	expected := 1
 	checkingPieces, _ := pos.CheckingPieces(White)
-	got := checkingPieces.count()
+	got := checkingPieces.Count()
 
 	if expected != got {
 		t.Errorf("Expected: %v, got: %v", expected, got)

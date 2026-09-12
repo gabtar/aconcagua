@@ -28,8 +28,8 @@ func init() {
 	for sq := range 64 {
 		bishopMask := bishopMaskTable[sq]
 		rookMask := rooksMaskTable[sq]
-		bishopMaskCount := bishopMask.count()
-		rookMaskCount := rookMask.count()
+		bishopMaskCount := bishopMask.Count()
+		rookMaskCount := rookMask.Count()
 		bishopBlocksIndices := 1 << bishopMaskCount
 		rookBlocksIndices := 1 << rookMaskCount
 
@@ -52,7 +52,7 @@ func init() {
 // generateBlockConfiguration creates an blocks bitboard based on an index and mask
 func generateBlockConfiguration(index int, mask Bitboard) Bitboard {
 	var blocks Bitboard
-	bitCount := mask.count()
+	bitCount := mask.Count()
 
 	for i := range bitCount {
 		bitPos := Bsf(mask)
@@ -216,7 +216,7 @@ func findMagicNumber(square int, isRook int) (magic Bitboard) {
 		attackMask = rookMask(square)
 	}
 
-	maskTotalBits := attackMask.count()
+	maskTotalBits := attackMask.Count()
 	blockersConfigurations := 1 << maskTotalBits
 
 	attacksPatterns := make([]Bitboard, blockersConfigurations)
