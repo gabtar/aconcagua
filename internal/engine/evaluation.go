@@ -58,6 +58,7 @@ type Evaluation struct {
 
 // EvalData contains positional data about the current position
 type EvalData struct {
+	attackedByPawns [2]Bitboard
 }
 
 // NewEvaluation returns a new Evaluation
@@ -76,10 +77,14 @@ func (ev *Evaluation) Clear() {
 
 // clear clears the EvalData
 func (ed *EvalData) clear() {
+	ed.attackedByPawns = [2]Bitboard{0, 0}
 }
 
 // init initializes the evaluation data
 func (ed *EvalData) init(pos *Position) {
+	ed.clear()
+	ed.attackedByPawns[White] = pawnAttacks(&pos.Pieces[WhitePawn], White)
+	ed.attackedByPawns[Black] = pawnAttacks(&pos.Pieces[BlackPawn], Black)
 }
 
 // GetEvalPhase returns the mg phase value of the position depending on the remaining material on it
@@ -92,62 +97,15 @@ func GetEvalPhase(pos *Position) int {
 
 // Evaluate returns the static score of the position
 func (ev *Evaluation) Evaluate(pos *Position) (score int) {
-	var sc Score
+	ev.EvalData.init(pos)
+	sc := S(0, 0)
 
-	attackedByPawns := [2]Bitboard{
-		pawnAttacks(&pos.Pieces[WhitePawn], White),
-		pawnAttacks(&pos.Pieces[BlackPawn], Black),
-	}
-
-	for piece, pieces := range pos.Pieces {
-		role := RoleOf(piece)
-		for pieces > 0 {
-			side := SideOf(piece)
-			nextPiece := pieces.NextBit()
-			from := Bsf(nextPiece)
-			if side == White {
-				from = from ^ 56
-			}
-
-			// Mobility. TODO: refactor this later. Just for testing new eval
-			if role >= Queen && role <= Knight {
-				attacks := Attacks(piece, nextPiece, pos.Sides[All])
-				safeSquares := (attacks & ^attackedByPawns[side.Opponent()]).Count()
-				switch role {
-				case Queen:
-					if side == White {
-						sc += QueenMobility[safeSquares]
-					} else {
-						sc -= QueenMobility[safeSquares]
-					}
-				case Rook:
-					if side == White {
-						sc += RookMobility[safeSquares]
-					} else {
-						sc -= RookMobility[safeSquares]
-					}
-				case Bishop:
-					if side == White {
-						sc += BishopMobility[safeSquares]
-					} else {
-						sc -= BishopMobility[safeSquares]
-					}
-				case Knight:
-					if side == White {
-						sc += KnightMobility[safeSquares]
-					} else {
-						sc -= KnightMobility[safeSquares]
-					}
-				}
-			}
-
-			if side == White {
-				sc += PieceSquaresScores[role][from]
-			} else {
-				sc -= PieceSquaresScores[role][from]
-			}
-		}
-	}
+	sc += ev.evaluateKings(pos, White) - ev.evaluateKings(pos, Black)
+	sc += ev.evaluateQueens(pos, White) - ev.evaluateQueens(pos, Black)
+	sc += ev.evaluateRooks(pos, White) - ev.evaluateRooks(pos, Black)
+	sc += ev.evaluateBishops(pos, White) - ev.evaluateBishops(pos, Black)
+	sc += ev.evaluateKnights(pos, White) - ev.evaluateKnights(pos, Black)
+	sc += ev.evaluatePawns(pos, White) - ev.evaluatePawns(pos, Black)
 
 	phase := GetEvalPhase(pos)
 	mgPhase := min(phase, MaxPhaseValue)
@@ -158,4 +116,91 @@ func (ev *Evaluation) Evaluate(pos *Position) (score int) {
 		score = -score
 	}
 	return
+}
+
+// evaluateKings returns the score of the Kings in the position for the side passed
+func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
+	king := pos.Pieces[PieceOf(King, side)]
+	sq := squareRelativeToSide(Bsf(king), side)
+	sc += PieceSquaresScores[King][sq]
+	return sc
+}
+
+// evaluateQueens returns the score of the Queens in the position for the side passed
+func (ev *Evaluation) evaluateQueens(pos *Position, side Color) (sc Score) {
+	queens := pos.Pieces[PieceOf(Queen, side)]
+	for queens > 0 {
+		nextQueen := queens.NextBit()
+		sq := squareRelativeToSide(Bsf(nextQueen), side)
+		sc += PieceSquaresScores[Queen][sq]
+
+		attacks := Attacks(Queen, nextQueen, pos.Sides[All])
+		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
+		sc += QueenMobility[safeSquares]
+	}
+	return sc
+}
+
+// evaluateRooks returns the socre of the Rooks in the position for the side passed
+func (ev *Evaluation) evaluateRooks(pos *Position, side Color) (sc Score) {
+	rooks := pos.Pieces[PieceOf(Rook, side)]
+	for rooks > 0 {
+		nextRook := rooks.NextBit()
+		sq := squareRelativeToSide(Bsf(nextRook), side)
+		sc += PieceSquaresScores[Rook][sq]
+
+		attacks := Attacks(Rook, nextRook, pos.Sides[All])
+		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
+		sc += RookMobility[safeSquares]
+	}
+	return sc
+}
+
+// evaluateBishops returns the score of the Bishops in the position for the side passed
+func (ev *Evaluation) evaluateBishops(pos *Position, side Color) (sc Score) {
+	bishops := pos.Pieces[PieceOf(Bishop, side)]
+	for bishops > 0 {
+		nextBishop := bishops.NextBit()
+		sq := squareRelativeToSide(Bsf(nextBishop), side)
+		sc += PieceSquaresScores[Bishop][sq]
+
+		attacks := Attacks(Bishop, nextBishop, pos.Sides[All])
+		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
+		sc += BishopMobility[safeSquares]
+	}
+	return sc
+}
+
+// evaluateKnights returns the score of the Knights in the position for the side passed
+func (ev *Evaluation) evaluateKnights(pos *Position, side Color) (sc Score) {
+	knights := pos.Pieces[PieceOf(Knight, side)]
+	for knights > 0 {
+		nextKnight := knights.NextBit()
+		sq := squareRelativeToSide(Bsf(nextKnight), side)
+		sc += PieceSquaresScores[Knight][sq]
+
+		attacks := Attacks(Knight, nextKnight, pos.Sides[All])
+		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
+		sc += KnightMobility[safeSquares]
+	}
+	return sc
+}
+
+// evaluatePawns returns the score of the Pawns in the position for the side passed
+func (ev *Evaluation) evaluatePawns(pos *Position, side Color) (sc Score) {
+	pawns := pos.Pieces[PieceOf(Pawn, side)]
+	for pawns > 0 {
+		nextPawn := pawns.NextBit()
+		sq := squareRelativeToSide(Bsf(nextPawn), side)
+		sc += PieceSquaresScores[Pawn][sq]
+	}
+	return sc
+}
+
+// squareRelativeToSide returns the square number from the point of view of the side passed
+func squareRelativeToSide(sq int, side Color) int {
+	if side == White {
+		return sq ^ 56
+	}
+	return sq
 }
