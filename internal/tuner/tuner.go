@@ -92,7 +92,7 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 912
+const TuneableParams = 928
 
 // GetEvaluationParams returns a flat array with the current evaluation params
 func GetEvaluationParams() (params [TuneableParams]float64) {
@@ -110,7 +110,7 @@ func GetEvaluationParams() (params [TuneableParams]float64) {
 	}
 
 	// Pieces Values. Indexes goes from 768-7779
-	for p, score := range engine.PieceValues {
+	for p, score := range engine.PiecesValues {
 		mgIndex := 768 + p*2
 		egIndex := mgIndex + 1
 		intParams[mgIndex], intParams[egIndex] = score.Get()
@@ -141,10 +141,21 @@ func GetEvaluationParams() (params [TuneableParams]float64) {
 		intParams[mobIndex], intParams[mobIndex+1] = sc.Get()
 	}
 
+	// Material adjustment params. 912-927
+	intParams[912], intParams[913] = engine.BishopPairBonus.Get()
+	intParams[914], intParams[915] = engine.RookOnOpenFileBonus.Get()
+	intParams[916], intParams[917] = engine.RookOnSemiOpenFileBonus.Get()
+	intParams[918], intParams[919] = engine.RookOnSeventhRankBonus.Get()
+	intParams[920], intParams[921] = engine.QueenOnSeventhRankBonus.Get()
+	intParams[922], intParams[923] = engine.KnightOutpostBonus.Get()
+	intParams[924], intParams[925] = engine.ConnectedKnightBonus.Get()
+	intParams[926], intParams[927] = engine.BishopOutpostBonus.Get()
+
 	// Convert to float params
 	for i := range TuneableParams {
 		params[i] = float64(intParams[i])
 	}
+
 	return
 }
 
@@ -229,8 +240,27 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 				psqt += "\n  "
 			}
 		}
-		psqt = psqt[:len(psqt)-2] // remove last ", "
+		psqt = psqt[:len(psqt)-1] // remove last " "
 		psqt += "\n}\n\n"
+	}
+
+	// Material Adjustments
+	adjustments := []struct {
+		name     string
+		startIdx int
+	}{
+		{"BishopPairBonus", 912},
+		{"RookOnOpenFileBonus", 914},
+		{"RookOnSemiOpenFileBonus", 916},
+		{"RookOnSeventhRankBonus", 918},
+		{"QueenOnSeventhRankBonus", 920},
+		{"KnightOutpostBonus", 922},
+		{"ConnectedKnightBonus", 924},
+		{"BishopOutpostBonus", 926},
+	}
+	psqt += "// Material Adjustments\n"
+	for _, a := range adjustments {
+		psqt += fmt.Sprintf("%-24s= S(%d, %d)\n", a.name, intParams[a.startIdx], intParams[a.startIdx+1])
 	}
 
 	return psqt
@@ -321,6 +351,7 @@ func evaluatePosition(params *[TuneableParams]float64, weights *[]PositionWeight
 func generatePositionWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
 	generatePieceScoreWeights(pos, phase, weights)
 	generateMobilityWeights(pos, phase, weights)
+	generateMaterialAdjustmentWeights(pos, phase, weights)
 }
 
 // generatePieceScoreWeights generates the weights of the pieces socre in the position
@@ -383,6 +414,124 @@ func generateMobilityWeights(pos *engine.Position, phase int, weights *[]Positio
 				PositionWeight{paramIndex: mgIdx, weight: int16(side.Modifier() * mgPhase)},
 				PositionWeight{paramIndex: egIdx, weight: int16(side.Modifier() * egPhase)},
 			)
+		}
+	}
+}
+
+// generateMaterialAdjustmentWeights generates the PositionWeights for material adjustments params in the position
+func generateMaterialAdjustmentWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	mgPhase := min(phase, engine.MaxPhaseValue)
+	egPhase := engine.MaxPhaseValue - phase
+
+	// Bishop Pair Bonus
+	for side := engine.Color(engine.White); side <= engine.Black; side++ {
+		if pos.Pieces[engine.PieceOf(engine.Bishop, side)].Count() >= 2 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: 912, weight: int16(side.Modifier() * mgPhase)},
+				PositionWeight{paramIndex: 913, weight: int16(side.Modifier() * egPhase)},
+			)
+		}
+	}
+
+	// Rooks on open files / seventh rank / queens on seventh rank
+	// Outposts / Connected Knights
+	for side := engine.Color(engine.White); side <= engine.Black; side++ {
+		opponent := side.Opponent()
+		pawns := [2]engine.Bitboard{
+			pos.Pieces[engine.WhitePawn],
+			pos.Pieces[engine.BlackPawn],
+		}
+		outposts := [2]engine.Bitboard{
+			engine.OutpostSquares(pawns[engine.White], pawns[engine.Black], engine.White),
+			engine.OutpostSquares(pawns[engine.Black], pawns[engine.White], engine.Black),
+		}
+
+		rooks := pos.Pieces[engine.PieceOf(engine.Rook, side)]
+		enemyKing := pos.Pieces[engine.PieceOf(engine.King, opponent)]
+		for rooks > 0 {
+			nextRook := rooks.NextBit()
+			from := engine.Bsf(nextRook)
+			file := from % 8
+			rank := from / 8
+			if side == engine.White {
+				rank = 7 - rank
+			}
+			// Open files
+			if (pawns[side]|pawns[opponent])&engine.Files[file] == 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: 914, weight: int16(side.Modifier() * mgPhase)},
+					PositionWeight{paramIndex: 915, weight: int16(side.Modifier() * egPhase)},
+				)
+			} else if pawns[side]&engine.Files[file] == 0 && pawns[opponent]&engine.Files[file] > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: 916, weight: int16(side.Modifier() * mgPhase)},
+					PositionWeight{paramIndex: 917, weight: int16(side.Modifier() * egPhase)},
+				)
+			}
+			// Seventh rank
+			relativeKingRank := engine.Bsf(enemyKing) / 8
+			if side == engine.White {
+				relativeKingRank = 7 - relativeKingRank
+			}
+			if relativeKingRank == 7 && rank == 6 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: 918, weight: int16(side.Modifier() * mgPhase)},
+					PositionWeight{paramIndex: 919, weight: int16(side.Modifier() * egPhase)},
+				)
+			}
+		}
+
+		// Queen on seventh
+		queens := pos.Pieces[engine.PieceOf(engine.Queen, side)]
+		for queens > 0 {
+			nextQueen := queens.NextBit()
+			rank := engine.Bsf(nextQueen) / 8
+			if side == engine.White {
+				rank = 7 - rank
+			}
+			relativeKingRank := engine.Bsf(enemyKing) / 8
+			if side == engine.White {
+				relativeKingRank = 7 - relativeKingRank
+			}
+
+			if relativeKingRank == 7 && rank == 6 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: 920, weight: int16(side.Modifier() * mgPhase)},
+					PositionWeight{paramIndex: 921, weight: int16(side.Modifier() * egPhase)},
+				)
+			}
+		}
+
+		// Knights Outposts / Connected knights
+		knights := pos.Pieces[engine.PieceOf(engine.Knight, side)]
+		for knights > 0 {
+			nextKnight := knights.NextBit()
+			if nextKnight&outposts[side] > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: 922, weight: int16(side.Modifier() * mgPhase)},
+					PositionWeight{paramIndex: 923, weight: int16(side.Modifier() * egPhase)},
+				)
+			}
+
+			knightAttacks := engine.Attacks(engine.PieceOf(engine.Knight, side), nextKnight, pos.Sides[engine.All])
+			if knightAttacks&pos.Pieces[engine.PieceOf(engine.Knight, side)] > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: 924, weight: int16(side.Modifier() * mgPhase)},
+					PositionWeight{paramIndex: 925, weight: int16(side.Modifier() * egPhase)},
+				)
+			}
+		}
+
+		// Bishop outposts
+		bishops := pos.Pieces[engine.PieceOf(engine.Bishop, side)]
+		for bishops > 0 {
+			nextBishop := bishops.NextBit()
+			if nextBishop&outposts[side] > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: 926, weight: int16(side.Modifier() * mgPhase)},
+					PositionWeight{paramIndex: 927, weight: int16(side.Modifier() * egPhase)},
+				)
+			}
 		}
 	}
 }

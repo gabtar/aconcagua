@@ -8,25 +8,41 @@ const (
 var (
 	// Mobility arrays based on the number of squares a piece can attack
 	QueenMobility = [28]Score{
-		S(-21, -77), S(-18, -66), S(-38, -56), S(-50, -74), S(-47, 25), S(-29, 87),
-		S(-26, 119), S(-21, 132), S(-19, 150), S(-16, 171), S(-12, 176), S(-8, 182),
-		S(-5, 190), S(0, 190), S(1, 192), S(4, 198), S(5, 199), S(5, 207),
-		S(7, 207), S(11, 204), S(23, 200), S(40, 181), S(60, 175), S(60, 148),
-		S(94, 147), S(34, 122), S(17, 125), S(8, 130),
+		S(-21, -77), S(-18, -66), S(-38, -56), S(-50, -74), S(-52, 23), S(-37, 83),
+		S(-34, 113), S(-27, 124), S(-23, 140), S(-19, 162), S(-14, 167), S(-9, 173),
+		S(-4, 181), S(1, 180), S(3, 184), S(6, 192), S(7, 193), S(7, 202),
+		S(8, 205), S(11, 205), S(21, 204), S(37, 188), S(58, 180), S(71, 160),
+		S(98, 154), S(46, 134), S(22, 132), S(10, 134),
 	}
 	RookMobility = [15]Score{
-		S(-39, -17), S(-29, 8), S(-3, 27), S(-4, 46), S(-4, 57), S(-2, 65),
-		S(0, 73), S(3, 79), S(8, 81), S(17, 85), S(26, 88), S(30, 95),
-		S(34, 100), S(39, 98), S(45, 95),
+		S(-39, -17), S(-30, 4), S(-14, 28), S(-8, 46), S(-2, 58), S(1, 66),
+		S(4, 72), S(7, 79), S(11, 80), S(17, 83), S(22, 87), S(26, 89),
+		S(31, 91), S(37, 89), S(37, 88),
 	}
 	BishopMobility = [14]Score{
-		S(-30, -136), S(-50, -48), S(-22, 4), S(-11, 30), S(0, 35), S(8, 40),
-		S(15, 49), S(21, 52), S(23, 55), S(28, 54), S(31, 53), S(43, 46),
-		S(45, 46), S(59, 33),
+		S(-30, -134), S(-62, -55), S(-34, -7), S(-20, 17), S(-6, 27), S(3, 35),
+		S(10, 45), S(17, 49), S(21, 55), S(26, 55), S(31, 56), S(46, 50),
+		S(51, 51), S(62, 39),
 	}
 	KnightMobility = [9]Score{
-		S(-137, -177), S(-22, -19), S(-1, 15), S(9, 38), S(13, 43), S(12, 49),
-		S(24, 52), S(34, 52), S(47, 45),
+		S(-133, -173), S(-24, -18), S(-6, 10), S(4, 32), S(15, 39), S(17, 47),
+		S(29, 50), S(41, 51), S(53, 47),
+	}
+
+	// Material Adjustment
+	BishopPairBonus         = S(22, 70)
+	RookOnOpenFileBonus     = S(36, 7)
+	RookOnSemiOpenFileBonus = S(14, 8)
+	RookOnSeventhRankBonus  = S(19, 34)
+	QueenOnSeventhRankBonus = S(15, 22)
+	KnightOutpostBonus      = S(40, 22)
+	ConnectedKnightBonus    = S(-1, 3)
+	BishopOutpostBonus      = S(40, 0)
+
+	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
+	OutpostsRanks = [2]Bitboard{
+		Ranks[3] | Ranks[4] | Ranks[5],
+		Ranks[2] | Ranks[3] | Ranks[4],
 	}
 )
 
@@ -58,6 +74,9 @@ type Evaluation struct {
 
 // EvalData contains positional data about the current position
 type EvalData struct {
+	kings           [2]Bitboard
+	pawns           [2]Bitboard
+	outposts        [2]Bitboard
 	attackedByPawns [2]Bitboard
 }
 
@@ -77,14 +96,25 @@ func (ev *Evaluation) Clear() {
 
 // clear clears the EvalData
 func (ed *EvalData) clear() {
+	ed.kings = [2]Bitboard{0, 0}
+	ed.pawns = [2]Bitboard{0, 0}
 	ed.attackedByPawns = [2]Bitboard{0, 0}
+	ed.outposts = [2]Bitboard{0, 0}
 }
 
 // init initializes the evaluation data
 func (ed *EvalData) init(pos *Position) {
 	ed.clear()
+	ed.kings[White] = pos.Pieces[WhiteKing]
+	ed.kings[Black] = pos.Pieces[BlackKing]
+	ed.pawns[White] = pos.Pieces[WhitePawn]
+	ed.pawns[Black] = pos.Pieces[BlackPawn]
 	ed.attackedByPawns[White] = pawnAttacks(&pos.Pieces[WhitePawn], White)
 	ed.attackedByPawns[Black] = pawnAttacks(&pos.Pieces[BlackPawn], Black)
+	ed.outposts = [2]Bitboard{
+		OutpostSquares(ed.pawns[White], ed.pawns[Black], White),
+		OutpostSquares(ed.pawns[Black], ed.pawns[White], Black),
+	}
 }
 
 // GetEvalPhase returns the mg phase value of the position depending on the remaining material on it
@@ -128,30 +158,55 @@ func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
 
 // evaluateQueens returns the score of the Queens in the position for the side passed
 func (ev *Evaluation) evaluateQueens(pos *Position, side Color) (sc Score) {
+	opponent := side.Opponent()
 	queens := pos.Pieces[PieceOf(Queen, side)]
 	for queens > 0 {
 		nextQueen := queens.NextBit()
-		sq := squareRelativeToSide(Bsf(nextQueen), side)
+		from := Bsf(nextQueen)
+		rank := from / 8
+		sq := squareRelativeToSide(from, side)
 		sc += PieceSquaresScores[Queen][sq]
 
-		attacks := Attacks(Queen, nextQueen, pos.Sides[All])
+		attacks := queenAttacks(&nextQueen, pos.Sides[All])
 		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
 		sc += QueenMobility[safeSquares]
+
+		relativeKingRank := squareRelativeToSide(Bsf(ev.EvalData.kings[opponent]), side) / 8
+		if relativeKingRank == 7 && rank == 6 {
+			sc += QueenOnSeventhRankBonus
+		}
 	}
 	return sc
 }
 
 // evaluateRooks returns the socre of the Rooks in the position for the side passed
 func (ev *Evaluation) evaluateRooks(pos *Position, side Color) (sc Score) {
+	opponent := side.Opponent()
 	rooks := pos.Pieces[PieceOf(Rook, side)]
 	for rooks > 0 {
 		nextRook := rooks.NextBit()
-		sq := squareRelativeToSide(Bsf(nextRook), side)
+		from := Bsf(nextRook)
+		file := from % 8
+		rank := from / 8
+		sq := squareRelativeToSide(from, side)
 		sc += PieceSquaresScores[Rook][sq]
 
-		attacks := Attacks(Rook, nextRook, pos.Sides[All])
+		attacks := rookAttacks(from, pos.Sides[All])
 		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
 		sc += RookMobility[safeSquares]
+
+		// Open files
+		if (ev.EvalData.pawns[side]|ev.EvalData.pawns[opponent])&Files[file] == 0 {
+			sc += RookOnOpenFileBonus
+		} else if ev.EvalData.pawns[side]&Files[file] == 0 && ev.EvalData.pawns[opponent]&Files[file] > 0 {
+			sc += RookOnSemiOpenFileBonus
+		}
+
+		// Rook on 7th
+		relativeKingRank := squareRelativeToSide(Bsf(ev.EvalData.kings[opponent]), side) / 8
+		if relativeKingRank == 7 && rank == 6 {
+			sc += RookOnSeventhRankBonus
+		}
 	}
 	return sc
 }
@@ -159,14 +214,25 @@ func (ev *Evaluation) evaluateRooks(pos *Position, side Color) (sc Score) {
 // evaluateBishops returns the score of the Bishops in the position for the side passed
 func (ev *Evaluation) evaluateBishops(pos *Position, side Color) (sc Score) {
 	bishops := pos.Pieces[PieceOf(Bishop, side)]
+
+	// Bishop pair bonus
+	if bishops.Count() >= 2 {
+		sc += BishopPairBonus
+	}
+
 	for bishops > 0 {
 		nextBishop := bishops.NextBit()
-		sq := squareRelativeToSide(Bsf(nextBishop), side)
+		from := Bsf(nextBishop)
+		sq := squareRelativeToSide(from, side)
 		sc += PieceSquaresScores[Bishop][sq]
 
-		attacks := Attacks(Bishop, nextBishop, pos.Sides[All])
+		attacks := bishopAttacks(from, pos.Sides[All])
 		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
 		sc += BishopMobility[safeSquares]
+
+		if nextBishop&ev.EvalData.outposts[side] > 0 {
+			sc += BishopOutpostBonus
+		}
 	}
 	return sc
 }
@@ -176,12 +242,20 @@ func (ev *Evaluation) evaluateKnights(pos *Position, side Color) (sc Score) {
 	knights := pos.Pieces[PieceOf(Knight, side)]
 	for knights > 0 {
 		nextKnight := knights.NextBit()
-		sq := squareRelativeToSide(Bsf(nextKnight), side)
+		from := Bsf(nextKnight)
+		sq := squareRelativeToSide(from, side)
 		sc += PieceSquaresScores[Knight][sq]
 
-		attacks := Attacks(Knight, nextKnight, pos.Sides[All])
+		attacks := knightAttacksTable[from]
 		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
 		sc += KnightMobility[safeSquares]
+
+		if nextKnight&ev.EvalData.outposts[side] > 0 {
+			sc += KnightOutpostBonus
+		}
+		if attacks&pos.Pieces[PieceOf(Knight, side)] > 0 {
+			sc += ConnectedKnightBonus
+		}
 	}
 	return sc
 }
@@ -203,4 +277,24 @@ func squareRelativeToSide(sq int, side Color) int {
 		return sq ^ 56
 	}
 	return sq
+}
+
+// OutpostSquares returns a bitboard of outpost squares for the given side
+// An outpost square is:
+// - In enemy territory (rank 4-6 for white, 3-5 for black)
+// - Cannot be attacked by enemy pawns
+// - Protected by own pawn(s)
+func OutpostSquares(alliedPawns Bitboard, enemyPawns Bitboard, side Color) Bitboard {
+	outpostRanks := OutpostsRanks[side]
+
+	frontSpans := Bitboard(0)
+	if side == White {
+		frontSpans = ((fillDown(enemyPawns)&notAFile)>>1 | (fillDown(enemyPawns)&notHFile)<<1) >> 8
+	} else {
+		frontSpans = ((fillUp(enemyPawns)&notAFile)>>1 | (fillUp(enemyPawns)&notHFile)<<1) << 8
+	}
+
+	protectedByPawns := pawnAttacks(&alliedPawns, side)
+
+	return ^frontSpans & protectedByPawns & outpostRanks
 }
