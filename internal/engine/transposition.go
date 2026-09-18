@@ -336,7 +336,7 @@ func (pht *PawnHashTable) store(key uint64, mgScore int, egScore int) {
 }
 
 // probe tries to find an entry in the PawnHashTable
-func (pht *PawnHashTable) probe(key uint64, side Color) (int, int, bool) {
+func (pht *PawnHashTable) probe(key uint64) (int, int, bool) {
 	pht.probes++
 	index := key % pht.size
 	bucket := &pht.buckets[index]
@@ -346,10 +346,6 @@ func (pht *PawnHashTable) probe(key uint64, side Color) (int, int, bool) {
 		if entry.key == key {
 			pht.found++
 			entry.age = uint8(pht.age)
-
-			if side == Black {
-				return -int(entry.mgScore), -int(entry.egScore), true
-			}
 			return int(entry.mgScore), int(entry.egScore), true
 		}
 	}
