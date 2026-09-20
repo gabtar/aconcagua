@@ -92,7 +92,7 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 986
+const TuneableParams = 1086
 
 // GetEvaluationParams returns a flat array with the current evaluation params
 func GetEvaluationParams() (params [TuneableParams]float64) {
@@ -168,6 +168,30 @@ func GetEvaluationParams() (params [TuneableParams]float64) {
 			mgIndex := 954 + flag*16 + rank*2
 			intParams[mgIndex], intParams[mgIndex+1] = score.Get()
 		}
+	}
+
+	// King pawn shield params. 986-1017
+	for sameFile, dists := range engine.PawnShield {
+		for dist, score := range dists {
+			mgIndex := 986 + sameFile*16 + dist*2
+			intParams[mgIndex], intParams[mgIndex+1] = score.Get()
+		}
+	}
+
+	// King pawn storm params. 1018-1081
+	for sameFile, blockedRow := range engine.PawnStorm {
+		for blocked, dists := range blockedRow {
+			for dist, score := range dists {
+				mgIndex := 1018 + sameFile*32 + blocked*16 + dist*2
+				intParams[mgIndex], intParams[mgIndex+1] = score.Get()
+			}
+		}
+	}
+
+	// King on open files params. 1082-1085
+	for sameFile, score := range engine.KingOnOpenFiles {
+		mgIndex := 1082 + sameFile*2
+		intParams[mgIndex], intParams[mgIndex+1] = score.Get()
 	}
 
 	// Convert to float params
@@ -326,6 +350,56 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 	}
 	psqt += "}\n"
 
+	// King Safety
+	psqt += "// King Safety\n"
+	psqt += "PawnShield          = [2][8]Score{\n"
+	for sameFile := range 2 {
+		row := "  {"
+		for dist := range 8 {
+			mgIndex := 986 + sameFile*16 + dist*2
+			row += fmt.Sprintf("S(%d, %d)", intParams[mgIndex], intParams[mgIndex+1])
+			if dist < 7 {
+				row += ", "
+			}
+		}
+		row += "}"
+		if sameFile < 1 {
+			row += ","
+		}
+		psqt += row + "\n"
+	}
+	psqt += "}\n"
+	psqt += "PawnStorm           = [2][2][8]Score{\n"
+	for sameFile := range 2 {
+		psqt += "  {\n"
+		for blocked := range 2 {
+			row := "    {"
+			for dist := range 8 {
+				mgIndex := 1018 + sameFile*32 + blocked*16 + dist*2
+				row += fmt.Sprintf("S(%d, %d)", intParams[mgIndex], intParams[mgIndex+1])
+				if dist < 7 {
+					row += ", "
+				}
+			}
+			row += "}"
+			if blocked < 1 {
+				row += ","
+			}
+			psqt += row + "\n"
+		}
+		psqt += "  },\n"
+	}
+	psqt += "}\n"
+	psqt += "KingOnOpenFiles     = [2]Score{"
+	for sameFile := range 2 {
+		mgIndex := 1082 + sameFile*2
+		psqt += fmt.Sprintf("S(%d, %d)", intParams[mgIndex], intParams[mgIndex+1])
+		if sameFile < 1 {
+			psqt += ", "
+		}
+	}
+	psqt += "}\n"
+
 	return psqt
 }
 
@@ -416,6 +490,7 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 	generateMobilityWeights(pos, phase, weights)
 	generateMaterialAdjustmentWeights(pos, phase, weights)
 	generatePawnStructureWeights(pos, phase, weights)
+	generateKingSafetyWeights(pos, phase, weights)
 }
 
 // generatePieceScoreWeights generates the weights of the pieces socre in the position
@@ -696,6 +771,120 @@ func generatePawnStructureWeights(pos *engine.Position, phase int, weights *[]Po
 			}
 		}
 	}
+}
+
+// generateKingSafetyWeights generates the PositionWeights for the king safety
+// pawn shield and pawn storm params in the position
+func generateKingSafetyWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	mgPhase := min(phase, engine.MaxPhaseValue)
+	egPhase := engine.MaxPhaseValue - phase
+
+	for side := engine.Color(engine.White); side <= engine.Black; side++ {
+		modifier := side.Modifier()
+		opponent := side.Opponent()
+		king := pos.Pieces[engine.PieceOf(engine.King, side)]
+		if king == 0 {
+			continue
+		}
+		from := engine.Bsf(king)
+		kingFile, kingRank := from%8, from/8
+
+		// Squares in front of the king on the king file and the two adjacent files
+		frontMask := fillUp(king)
+		if side == engine.Black {
+			frontMask = fillDown(king)
+		}
+		if kingFile > 0 {
+			if side == engine.White {
+				frontMask |= fillUp(bitboardFromIndex(from - 1))
+			} else {
+				frontMask |= fillDown(bitboardFromIndex(from - 1))
+			}
+		}
+		if kingFile < 7 {
+			if side == engine.White {
+				frontMask |= fillUp(bitboardFromIndex(from + 1))
+			} else {
+				frontMask |= fillDown(bitboardFromIndex(from + 1))
+			}
+		}
+
+		for file := max(0, kingFile-1); file <= min(7, kingFile+1); file++ {
+			shielders := pos.Pieces[engine.PieceOf(engine.Pawn, side)] & engine.Files[file] & frontMask
+			stormers := pos.Pieces[engine.PieceOf(engine.Pawn, opponent)] & engine.Files[file] & frontMask
+
+			sameFile := 0
+			if file == kingFile {
+				sameFile = 1
+			}
+
+			// Shield. The nearest allied pawn ahead of the king on each file
+			shieldRank := 8
+			if shielders > 0 {
+				shieldRank = engine.NearestFromSide(shielders, side) / 8
+				dist := abs(kingRank - shieldRank)
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(986 + sameFile*16 + dist*2), weight: int16(modifier * mgPhase)},
+					PositionWeight{paramIndex: int16(986 + sameFile*16 + dist*2 + 1), weight: int16(modifier * egPhase)},
+				)
+			}
+
+			// Storm. The most advanced enemy pawn ahead of the king on each file
+			if stormers > 0 {
+				stormRank := engine.NearestFromSide(stormers, opponent) / 8
+				blocked := 0
+				if shieldRank != 8 && abs(shieldRank-stormRank) == 1 {
+					blocked = 1
+				}
+				dist := abs(kingRank - stormRank)
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(1018 + sameFile*32 + blocked*16 + dist*2), weight: int16(modifier * mgPhase)},
+					PositionWeight{paramIndex: int16(1018 + sameFile*32 + blocked*16 + dist*2 + 1), weight: int16(modifier * egPhase)},
+				)
+			}
+
+			// King on open/near open files
+			if (shielders | stormers) == 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(1082 + sameFile*2), weight: int16(modifier * mgPhase)},
+					PositionWeight{paramIndex: int16(1082 + sameFile*2 + 1), weight: int16(modifier * egPhase)},
+				)
+			}
+		}
+	}
+}
+
+// fillUp flood a bitboard toward rank 8, replicating engine.fillUp
+func fillUp(b engine.Bitboard) engine.Bitboard {
+	b |= b << 8
+	b |= b << 16
+	b |= b << 32
+	return b
+}
+
+// fillDown flood a bitboard toward rank 1, replicating engine.fillDown
+func fillDown(b engine.Bitboard) engine.Bitboard {
+	b |= b >> 8
+	b |= b >> 16
+	b |= b >> 32
+	return b
+}
+
+// bitboardFromIndex returns the bitboard of the square index, or 0 if out of bounds,
+// replicating engine.bitboardFromIndex
+func bitboardFromIndex(sq int) engine.Bitboard {
+	if sq > 63 || sq < 0 {
+		return 0
+	}
+	return engine.Bitboards[sq]
+}
+
+// abs returns the absolute value of number
+func abs(number int) int {
+	if number < 0 {
+		return -number
+	}
+	return number
 }
 
 // FindOptimalScalingFactor returns the scaling factor that minimizes the mean square error

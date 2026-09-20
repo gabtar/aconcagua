@@ -33,8 +33,12 @@ func TestEvaluation(t *testing.T) {
 		{"Eval 20", "8/P1k5/K7/8/8/8/8/8 w - - 0 1"},
 		{"Eval 21", "rnb1kbnr/ppp1ppp1/8/q5B1/8/2NPQN2/PPP2P1P/R3KB1q w Qkq - 0 0"},
 		{"Eval 22", "2k5/8/8/8/8/4K3/8/8 w - - 0 1"},
-		{"Eval 23", "4r1k1/5ppp/2N5/3Pb3/8/6P1/5P1P/4R1K1 w - - 0 1"}, // Outpost test
-		{"Eval 24", "8/2b2k2/5pp1/3N4/6PP/4QPK1/2q2P2/8 w - - 0 1"},   // New Safety test
+		{"Eval 23", "4r1k1/5ppp/2N5/3Pb3/8/6P1/5P1P/4R1K1 w - - 0 1"},                        // Outpost test
+		{"Eval 24", "8/2b2k2/5pp1/3N4/6PP/4QPK1/2q2P2/8 w - - 0 1"},                          // New Safety test
+		{"Eval 25", "r1bq1rk1/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQ1RK1 w - - 0 1"}, // Shield/storm #1
+		{"Eval 26", "r1bqk2r/pppp1ppp/2n5/2b1p3/2B1P3/2N5/PPPP1PPP/R1BQ1RK1 w kq - 0 1"},     // Shield/storm #2
+		{"Eval 27", "6k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1"},                                   // Shield/storm #3
+		{"Eval 28", "2kr4/1ppp4/8/8/8/8/8/2K5 b - - 0 1"},                                    // Shield/storm #4
 	}
 
 	for _, tc := range testCases {

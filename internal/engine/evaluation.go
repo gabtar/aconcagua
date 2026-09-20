@@ -8,48 +8,65 @@ const (
 var (
 	// Mobility arrays based on the number of squares a piece can attack
 	QueenMobility = [28]Score{
-		S(-21, -77), S(-18, -66), S(-38, -56), S(-50, -74), S(-58, 21), S(-35, 79),
-		S(-31, 108), S(-24, 117), S(-20, 136), S(-16, 161), S(-11, 167), S(-7, 174),
-		S(-2, 182), S(2, 181), S(6, 185), S(8, 194), S(10, 196), S(9, 206),
-		S(12, 209), S(14, 213), S(23, 215), S(37, 201), S(59, 193), S(80, 176),
-		S(103, 166), S(63, 153), S(31, 143), S(15, 141),
+		S(-21, -77), S(-18, -66), S(-38, -56), S(-50, -74), S(-61, 19), S(-37, 75),
+		S(-32, 102), S(-25, 111), S(-21, 130), S(-17, 156), S(-13, 162), S(-8, 169),
+		S(-4, 178), S(1, 177), S(4, 181), S(6, 190), S(8, 192), S(8, 201),
+		S(10, 206), S(12, 208), S(20, 211), S(32, 200), S(52, 193), S(76, 178),
+		S(101, 169), S(76, 166), S(37, 151), S(19, 147),
 	}
 	RookMobility = [15]Score{
-		S(-37, -16), S(-30, 6), S(-19, 34), S(-10, 56), S(-4, 69), S(0, 77),
-		S(3, 83), S(6, 89), S(10, 90), S(17, 92), S(22, 96), S(26, 100),
-		S(32, 102), S(39, 101), S(42, 99),
+		S(-35, -16), S(-31, 4), S(-15, 33), S(-9, 55), S(-3, 67), S(0, 76),
+		S(2, 82), S(5, 88), S(9, 89), S(16, 91), S(20, 95), S(24, 98),
+		S(31, 100), S(38, 98), S(44, 95),
 	}
 	BishopMobility = [14]Score{
-		S(-35, -130), S(-65, -44), S(-31, 0), S(-17, 23), S(-5, 35), S(2, 42),
-		S(10, 52), S(17, 57), S(21, 63), S(27, 64), S(33, 65), S(52, 58),
-		S(60, 62), S(69, 52),
+		S(-38, -129), S(-63, -46), S(-31, 0), S(-17, 23), S(-5, 34), S(3, 42),
+		S(10, 51), S(18, 55), S(21, 61), S(28, 62), S(34, 63), S(53, 55),
+		S(61, 59), S(71, 49),
 	}
 	KnightMobility = [9]Score{
-		S(-128, -166), S(-29, -16), S(-7, 14), S(2, 35), S(14, 44), S(17, 55),
-		S(28, 57), S(39, 59), S(52, 55),
+		S(-126, -162), S(-29, -22), S(-8, 11), S(2, 33), S(15, 42), S(18, 54),
+		S(28, 56), S(39, 59), S(53, 55),
 	}
 
 	// Material Adjustment
-	BishopPairBonus         = S(24, 72)
-	RookOnOpenFileBonus     = S(36, 11)
-	RookOnSemiOpenFileBonus = S(15, 19)
-	RookOnSeventhRankBonus  = S(20, 33)
-	QueenOnSeventhRankBonus = S(17, 25)
-	KnightOutpostBonus      = S(37, 22)
-	ConnectedKnightBonus    = S(0, -5)
-	BishopOutpostBonus      = S(42, -1)
+	BishopPairBonus         = S(25, 70)
+	RookOnOpenFileBonus     = S(36, 10)
+	RookOnSemiOpenFileBonus = S(15, 17)
+	RookOnSeventhRankBonus  = S(20, 27)
+	QueenOnSeventhRankBonus = S(18, 26)
+	KnightOutpostBonus      = S(37, 21)
+	ConnectedKnightBonus    = S(0, -4)
+	BishopOutpostBonus      = S(43, 0)
 
 	// Pawn Structure
-	DoubledPawnPenalty        = S(1, -11)
-	IsolatedPawnPenalty       = S(-2, -7)
-	BackwardPawnPenalty       = S(1, -6)
+	DoubledPawnPenalty        = S(2, -11)
+	IsolatedPawnPenalty       = S(-3, -2)
+	BackwardPawnPenalty       = S(0, -4)
 	DefendedPawnBonus         = S(9, 8)
-	ConnectedPawnBonus        = S(9, 1)
-	PassedPawnsBonus          = [8]Score{S(0, 0), S(2, 9), S(-3, 16), S(-5, 42), S(19, 70), S(-4, 116), S(-9, 97), S(0, 0)}
+	ConnectedPawnBonus        = S(8, 4)
+	PassedPawnsBonus          = [8]Score{S(0, 0), S(4, 11), S(-2, 18), S(-5, 44), S(19, 74), S(16, 130), S(-1, 93), S(0, 0)}
 	CandidatePassedPawnsBonus = [2][8]Score{
-		{S(0, 0), S(-7, 3), S(-7, 1), S(7, 30), S(19, 47), S(11, 77), S(0, 65), S(0, 0)},
-		{S(0, 0), S(-9, -2), S(-4, 18), S(7, 39), S(24, 68), S(5, 115), S(0, 97), S(0, 0)},
+		{S(0, 0), S(-17, 4), S(-11, 4), S(7, 37), S(29, 56), S(31, 82), S(0, 65), S(0, 0)},
+		{S(0, 0), S(-15, 0), S(-4, 22), S(6, 41), S(41, 78), S(15, 122), S(0, 97), S(0, 0)},
 	}
+
+	// King Safety
+	PawnShield = [2][8]Score{
+		{S(22, -1), S(21, -8), S(10, -4), S(7, -13), S(3, -17), S(4, -14), S(-2, 3), S(0, 0)},
+		{S(0, 0), S(24, 0), S(19, 0), S(10, -12), S(4, -13), S(-5, 0), S(-3, -1), S(0, 0)},
+	}
+	PawnStorm = [2][2][8]Score{
+		{
+			{S(20, 22), S(-4, -4), S(-21, 4), S(-15, -5), S(1, -8), S(8, -13), S(9, -12), S(0, 0)},
+			{S(4, 10), S(0, -2), S(0, -13), S(10, -19), S(9, -4), S(11, -13), S(15, 0), S(0, 0)},
+		},
+		{
+			{S(0, 0), S(23, 23), S(-15, 9), S(4, 0), S(13, -4), S(16, -8), S(16, -5), S(0, 0)},
+			{S(0, 0), S(8, 12), S(-5, -22), S(20, -8), S(21, -6), S(13, 1), S(7, -1), S(0, 0)},
+		},
+	}
+	KingOnOpenFiles = [2]Score{S(-16, -9), S(-17, -10)}
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -171,8 +188,66 @@ func (ev *Evaluation) Evaluate(pos *Position) (score int) {
 // evaluateKings returns the score of the Kings in the position for the side passed
 func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
 	king := pos.Pieces[PieceOf(King, side)]
-	sq := squareRelativeToSide(Bsf(king), side)
+	from := Bsf(king)
+	sq := squareRelativeToSide(from, side)
 	sc += PieceSquaresScores[King][sq]
+
+	kingFile, kingRank := from%8, from/8
+
+	// Squares in front of the king on the king file and the two adjacent files
+	frontMask := Bitboard(0)
+	kingSquare := bitboardFromIndex(from)
+	if side == White {
+		frontMask = fillUp(kingSquare)
+		if kingFile > 0 {
+			frontMask |= fillUp(bitboardFromIndex(from - 1))
+		}
+		if kingFile < 7 {
+			frontMask |= fillUp(bitboardFromIndex(from + 1))
+		}
+	} else {
+		frontMask = fillDown(kingSquare)
+		if kingFile > 0 {
+			frontMask |= fillDown(bitboardFromIndex(from - 1))
+		}
+		if kingFile < 7 {
+			frontMask |= fillDown(bitboardFromIndex(from + 1))
+		}
+	}
+
+	for file := max(0, kingFile-1); file <= min(7, kingFile+1); file++ {
+		shielders := pos.Pieces[PieceOf(Pawn, side)] & Files[file] & frontMask
+		stormers := pos.Pieces[PieceOf(Pawn, side.Opponent())] & Files[file] & frontMask
+
+		sameFile := 0
+		if file == kingFile {
+			sameFile = 1
+		}
+
+		// Shield. Nearest allied pawn in front of the king
+		shieldRank := 8
+		if shielders > 0 {
+			shieldRank = NearestFromSide(shielders, side) / 8
+			sc += PawnShield[sameFile][abs(kingRank-shieldRank)]
+		}
+
+		// Storm. Most advanced enemy pawn ahead of the king
+		if stormers > 0 {
+			stormRank := NearestFromSide(stormers, side.Opponent()) / 8
+			blocked := 0
+			if shieldRank != 8 && abs(shieldRank-stormRank) == 1 {
+				blocked = 1
+			}
+			sc += PawnStorm[sameFile][blocked][abs(kingRank-stormRank)]
+		}
+
+		// King on open/near open files
+		openFile := (shielders | stormers) == 0
+		if openFile {
+			sc += KingOnOpenFiles[sameFile]
+		}
+	}
+
 	return sc
 }
 

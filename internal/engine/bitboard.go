@@ -56,7 +56,7 @@ func Bsr(bitboard Bitboard) int {
 	return 63 - bits.LeadingZeros64(uint64(bitboard))
 }
 
-// NearestFromSide returns the nearest square from the point of view of the side
+// NearestFromSide returns the distance to the nearest bit set from the side passed perspective
 func NearestFromSide(bitboard Bitboard, side Color) int {
 	if side == White {
 		return Bsf(bitboard)
