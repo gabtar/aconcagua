@@ -8,65 +8,71 @@ const (
 var (
 	// Mobility arrays based on the number of squares a piece can attack
 	QueenMobility = [28]Score{
-		S(-21, -77), S(-18, -66), S(-38, -56), S(-50, -74), S(-61, 19), S(-37, 75),
-		S(-32, 102), S(-25, 111), S(-21, 130), S(-17, 156), S(-13, 162), S(-8, 169),
-		S(-4, 178), S(1, 177), S(4, 181), S(6, 190), S(8, 192), S(8, 201),
-		S(10, 206), S(12, 208), S(20, 211), S(32, 200), S(52, 193), S(76, 178),
-		S(101, 169), S(76, 166), S(37, 151), S(19, 147),
+		S(-21, -77), S(-18, -66), S(-38, -56), S(-50, -74), S(-62, 18), S(-36, 73),
+		S(-30, 100), S(-23, 109), S(-19, 130), S(-16, 155), S(-11, 162), S(-7, 169),
+		S(-3, 178), S(1, 178), S(3, 182), S(5, 191), S(7, 193), S(7, 202),
+		S(8, 206), S(11, 208), S(19, 211), S(31, 198), S(50, 192), S(74, 177),
+		S(98, 168), S(80, 170), S(39, 154), S(20, 149),
 	}
 	RookMobility = [15]Score{
-		S(-35, -16), S(-31, 4), S(-15, 33), S(-9, 55), S(-3, 67), S(0, 76),
-		S(2, 82), S(5, 88), S(9, 89), S(16, 91), S(20, 95), S(24, 98),
-		S(31, 100), S(38, 98), S(44, 95),
+		S(-34, -16), S(-31, 3), S(-13, 31), S(-7, 54), S(-1, 66), S(1, 75),
+		S(3, 82), S(5, 88), S(9, 89), S(15, 91), S(18, 95), S(21, 98),
+		S(28, 100), S(36, 97), S(42, 94),
 	}
 	BishopMobility = [14]Score{
-		S(-38, -129), S(-63, -46), S(-31, 0), S(-17, 23), S(-5, 34), S(3, 42),
-		S(10, 51), S(18, 55), S(21, 61), S(28, 62), S(34, 63), S(53, 55),
-		S(61, 59), S(71, 49),
+		S(-40, -129), S(-60, -46), S(-27, 0), S(-16, 23), S(-4, 34), S(3, 41),
+		S(10, 50), S(16, 55), S(19, 60), S(25, 61), S(30, 62), S(48, 54),
+		S(58, 56), S(69, 46),
 	}
 	KnightMobility = [9]Score{
-		S(-126, -162), S(-29, -22), S(-8, 11), S(2, 33), S(15, 42), S(18, 54),
-		S(28, 56), S(39, 59), S(53, 55),
+		S(-125, -160), S(-29, -24), S(-8, 11), S(3, 32), S(15, 42), S(18, 54),
+		S(28, 56), S(39, 58), S(53, 53),
 	}
 
 	// Material Adjustment
 	BishopPairBonus         = S(25, 70)
-	RookOnOpenFileBonus     = S(36, 10)
-	RookOnSemiOpenFileBonus = S(15, 17)
-	RookOnSeventhRankBonus  = S(20, 27)
-	QueenOnSeventhRankBonus = S(18, 26)
+	RookOnOpenFileBonus     = S(34, 11)
+	RookOnSemiOpenFileBonus = S(12, 19)
+	RookOnSeventhRankBonus  = S(20, 24)
+	QueenOnSeventhRankBonus = S(18, 25)
 	KnightOutpostBonus      = S(37, 21)
-	ConnectedKnightBonus    = S(0, -4)
-	BishopOutpostBonus      = S(43, 0)
+	ConnectedKnightBonus    = S(0, -5)
+	BishopOutpostBonus      = S(41, 0)
 
 	// Pawn Structure
-	DoubledPawnPenalty        = S(2, -11)
-	IsolatedPawnPenalty       = S(-3, -2)
-	BackwardPawnPenalty       = S(0, -4)
+	DoubledPawnPenalty        = S(2, -12)
+	IsolatedPawnPenalty       = S(-2, -2)
+	BackwardPawnPenalty       = S(-1, -3)
 	DefendedPawnBonus         = S(9, 8)
-	ConnectedPawnBonus        = S(8, 4)
-	PassedPawnsBonus          = [8]Score{S(0, 0), S(4, 11), S(-2, 18), S(-5, 44), S(19, 74), S(16, 130), S(-1, 93), S(0, 0)}
+	ConnectedPawnBonus        = S(7, 4)
+	PassedPawnsBonus          = [8]Score{S(0, 0), S(3, 12), S(-2, 18), S(-5, 45), S(19, 75), S(20, 138), S(3, 96), S(0, 0)}
 	CandidatePassedPawnsBonus = [2][8]Score{
-		{S(0, 0), S(-17, 4), S(-11, 4), S(7, 37), S(29, 56), S(31, 82), S(0, 65), S(0, 0)},
-		{S(0, 0), S(-15, 0), S(-4, 22), S(6, 41), S(41, 78), S(15, 122), S(0, 97), S(0, 0)},
+		{S(0, 0), S(-21, 4), S(-11, 6), S(8, 38), S(29, 56), S(40, 85), S(0, 65), S(0, 0)},
+		{S(0, 0), S(-18, 0), S(-3, 21), S(7, 40), S(45, 75), S(20, 126), S(0, 97), S(0, 0)},
 	}
 
 	// King Safety
 	PawnShield = [2][8]Score{
-		{S(22, -1), S(21, -8), S(10, -4), S(7, -13), S(3, -17), S(4, -14), S(-2, 3), S(0, 0)},
-		{S(0, 0), S(24, 0), S(19, 0), S(10, -12), S(4, -13), S(-5, 0), S(-3, -1), S(0, 0)},
+		{S(24, -4), S(24, -12), S(14, -6), S(8, -15), S(5, -21), S(5, -20), S(-2, 2), S(0, 0)},
+		{S(0, 0), S(26, -6), S(24, -1), S(10, -15), S(7, -20), S(-3, -3), S(-3, -1), S(0, 0)},
 	}
 	PawnStorm = [2][2][8]Score{
 		{
-			{S(20, 22), S(-4, -4), S(-21, 4), S(-15, -5), S(1, -8), S(8, -13), S(9, -12), S(0, 0)},
-			{S(4, 10), S(0, -2), S(0, -13), S(10, -19), S(9, -4), S(11, -13), S(15, 0), S(0, 0)},
+			{S(25, 30), S(-6, -6), S(-25, 2), S(-19, -5), S(-1, -8), S(7, -14), S(8, -13), S(0, 0)},
+			{S(6, 14), S(0, -3), S(1, -16), S(7, -20), S(8, -5), S(11, -14), S(22, 3), S(0, 0)},
 		},
 		{
-			{S(0, 0), S(23, 23), S(-15, 9), S(4, 0), S(13, -4), S(16, -8), S(16, -5), S(0, 0)},
-			{S(0, 0), S(8, 12), S(-5, -22), S(20, -8), S(21, -6), S(13, 1), S(7, -1), S(0, 0)},
+			{S(0, 0), S(33, 33), S(-9, 4), S(1, -1), S(11, -7), S(16, -11), S(16, -8), S(0, 0)},
+			{S(0, 0), S(11, 17), S(-3, -29), S(20, -15), S(24, -11), S(20, -2), S(13, 0), S(0, 0)},
 		},
 	}
-	KingOnOpenFiles = [2]Score{S(-16, -9), S(-17, -10)}
+	KingOnOpenFiles = [2]Score{S(-10, -14), S(-28, -13)}
+
+	KnightAttackWeight   = S(23, 9)
+	BishopAttackWeight   = S(23, 5)
+	RookAttackWeight     = S(26, 0)
+	QueenAttackWeight    = S(19, 10)
+	KingZoneDefenseBonus = S(10, 8)
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -103,12 +109,14 @@ type Evaluation struct {
 
 // EvalData contains positional data about the current position
 type EvalData struct {
-	kings           [2]Bitboard
-	pawns           [2]Bitboard
-	attackedByPawns [2]Bitboard
-	backwardsPawns  [2]Bitboard
-	passedPawns     [2]Bitboard
-	outposts        [2]Bitboard
+	kings               [2]Bitboard
+	pawns               [2]Bitboard
+	attackedByPawns     [2]Bitboard
+	backwardsPawns      [2]Bitboard
+	passedPawns         [2]Bitboard
+	outposts            [2]Bitboard
+	kingAttackersCount  [2]int
+	kingAttackersWeight [2]Score
 }
 
 // NewEvaluation returns a new Evaluation
@@ -133,6 +141,8 @@ func (ed *EvalData) clear() {
 	ed.backwardsPawns = [2]Bitboard{0, 0}
 	ed.passedPawns = [2]Bitboard{0, 0}
 	ed.outposts = [2]Bitboard{0, 0}
+	ed.kingAttackersCount = [2]int{0, 0}
+	ed.kingAttackersWeight = [2]Score{0, 0}
 }
 
 // init initializes the evaluation data
@@ -168,11 +178,11 @@ func (ev *Evaluation) Evaluate(pos *Position) (score int) {
 	sc := S(0, 0)
 
 	sc += ev.evaluatePawns(pos)
-	sc += ev.evaluateKings(pos, White) - ev.evaluateKings(pos, Black)
 	sc += ev.evaluateQueens(pos, White) - ev.evaluateQueens(pos, Black)
 	sc += ev.evaluateRooks(pos, White) - ev.evaluateRooks(pos, Black)
 	sc += ev.evaluateBishops(pos, White) - ev.evaluateBishops(pos, Black)
 	sc += ev.evaluateKnights(pos, White) - ev.evaluateKnights(pos, Black)
+	sc += ev.evaluateKings(pos, White) - ev.evaluateKings(pos, Black)
 
 	phase := GetEvalPhase(pos)
 	mgPhase := min(phase, MaxPhaseValue)
@@ -187,6 +197,7 @@ func (ev *Evaluation) Evaluate(pos *Position) (score int) {
 
 // evaluateKings returns the score of the Kings in the position for the side passed
 func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
+	opponent := side.Opponent()
 	king := pos.Pieces[PieceOf(King, side)]
 	from := Bsf(king)
 	sq := squareRelativeToSide(from, side)
@@ -217,7 +228,7 @@ func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
 
 	for file := max(0, kingFile-1); file <= min(7, kingFile+1); file++ {
 		shielders := pos.Pieces[PieceOf(Pawn, side)] & Files[file] & frontMask
-		stormers := pos.Pieces[PieceOf(Pawn, side.Opponent())] & Files[file] & frontMask
+		stormers := pos.Pieces[PieceOf(Pawn, opponent)] & Files[file] & frontMask
 
 		sameFile := 0
 		if file == kingFile {
@@ -233,7 +244,7 @@ func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
 
 		// Storm. Most advanced enemy pawn ahead of the king
 		if stormers > 0 {
-			stormRank := NearestFromSide(stormers, side.Opponent()) / 8
+			stormRank := NearestFromSide(stormers, opponent) / 8
 			blocked := 0
 			if shieldRank != 8 && abs(shieldRank-stormRank) == 1 {
 				blocked = 1
@@ -246,6 +257,12 @@ func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
 		if openFile {
 			sc += KingOnOpenFiles[sameFile]
 		}
+	}
+
+	// Safety. Only apply penalties when we have enough attackers(1 piece and at least a queen or more than 2 pieces)
+	if ev.EvalData.kingAttackersCount[opponent] > (1 - pos.Pieces[PieceOf(Queen, opponent)].Count()) {
+		defendedSquares := (KingZone[side][from] & ev.EvalData.attackedByPawns[side]).Count()
+		sc += -ev.EvalData.kingAttackersWeight[opponent] + S(defendedSquares, 0)*KingZoneDefenseBonus
 	}
 
 	return sc
@@ -265,6 +282,12 @@ func (ev *Evaluation) evaluateQueens(pos *Position, side Color) (sc Score) {
 		attacks := queenAttacks(&nextQueen, pos.Sides[All])
 		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
 		sc += QueenMobility[safeSquares]
+
+		enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
+		if attacks&enemyKingZone != 0 {
+			ev.EvalData.kingAttackersCount[side]++
+			ev.EvalData.kingAttackersWeight[side] += QueenAttackWeight
+		}
 
 		relativeKingRank := squareRelativeToSide(Bsf(ev.EvalData.kings[opponent]), side) / 8
 		if relativeKingRank == 7 && rank == 6 {
@@ -290,6 +313,12 @@ func (ev *Evaluation) evaluateRooks(pos *Position, side Color) (sc Score) {
 		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
 		sc += RookMobility[safeSquares]
 
+		enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
+		if attacks&enemyKingZone != 0 {
+			ev.EvalData.kingAttackersCount[side]++
+			ev.EvalData.kingAttackersWeight[side] += RookAttackWeight
+		}
+
 		// Open files
 		if (ev.EvalData.pawns[side]|ev.EvalData.pawns[opponent])&Files[file] == 0 {
 			sc += RookOnOpenFileBonus
@@ -308,6 +337,7 @@ func (ev *Evaluation) evaluateRooks(pos *Position, side Color) (sc Score) {
 
 // evaluateBishops returns the score of the Bishops in the position for the side passed
 func (ev *Evaluation) evaluateBishops(pos *Position, side Color) (sc Score) {
+	opponent := side.Opponent()
 	bishops := pos.Pieces[PieceOf(Bishop, side)]
 
 	// Bishop pair bonus
@@ -325,6 +355,12 @@ func (ev *Evaluation) evaluateBishops(pos *Position, side Color) (sc Score) {
 		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
 		sc += BishopMobility[safeSquares]
 
+		enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
+		if attacks&enemyKingZone != 0 {
+			ev.EvalData.kingAttackersCount[side]++
+			ev.EvalData.kingAttackersWeight[side] += BishopAttackWeight
+		}
+
 		if nextBishop&ev.EvalData.outposts[side] > 0 {
 			sc += BishopOutpostBonus
 		}
@@ -334,7 +370,9 @@ func (ev *Evaluation) evaluateBishops(pos *Position, side Color) (sc Score) {
 
 // evaluateKnights returns the score of the Knights in the position for the side passed
 func (ev *Evaluation) evaluateKnights(pos *Position, side Color) (sc Score) {
+	opponent := side.Opponent()
 	knights := pos.Pieces[PieceOf(Knight, side)]
+
 	for knights > 0 {
 		nextKnight := knights.NextBit()
 		from := Bsf(nextKnight)
@@ -344,6 +382,12 @@ func (ev *Evaluation) evaluateKnights(pos *Position, side Color) (sc Score) {
 		attacks := knightAttacksTable[from]
 		safeSquares := (attacks & ^ev.EvalData.attackedByPawns[side.Opponent()]).Count()
 		sc += KnightMobility[safeSquares]
+
+		enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
+		if attacks&enemyKingZone != 0 {
+			ev.EvalData.kingAttackersCount[side]++
+			ev.EvalData.kingAttackersWeight[side] += KnightAttackWeight
+		}
 
 		if nextKnight&ev.EvalData.outposts[side] > 0 {
 			sc += KnightOutpostBonus
