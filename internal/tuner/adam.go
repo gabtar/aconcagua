@@ -3,6 +3,8 @@ package tuner
 import (
 	"fmt"
 	"math"
+
+	"github.com/gabtar/aconcagua/internal/engine"
 )
 
 // AdamOptimizer implements the Adam optimization algorithm
@@ -61,7 +63,7 @@ func ComputeGradients(entry *DatasetEntry, params [TuneableParams]float64, K flo
 
 	for _, attr := range entry.Weights {
 		if attr.paramIndex >= 0 && int(attr.paramIndex) < len(gradients) {
-			evalGradient := float64(attr.weight) / 62.0
+			evalGradient := float64(attr.weight) / float64(engine.MaxPhaseValue)
 			gradients[attr.paramIndex] += lossGradient * evalGradient
 		}
 	}

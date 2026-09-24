@@ -13,7 +13,7 @@ import (
 )
 
 // ScalingFactor is the scaling factor for the training dataset
-const ScalingFactor = 0.008000000000000007 // lichess-big3-resolved
+const ScalingFactor = 0.008100000000000007 // lichess-big3-resolved
 
 // DatasetEntry is an struct conatining a single training example
 type DatasetEntry struct {

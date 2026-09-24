@@ -16,6 +16,8 @@ func main() {
 	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/trainingdata.epd", 7878653) // Lichess + zurichess combined
 	// params := tuner.GetEvaluationParams()
 	// tuner.AdamTuner(params, &dataset, tuner.ScalingFactor, 150)
+	// sf := tuner.FindOptimalScalingFactor(dataset, params)
+	// fmt.Println("Optimal Scaling Factor: ", sf)
 
 	// Find fixed magic numbers
 	// engine.GenerateMagicNumbersForRooksAndBishops()
