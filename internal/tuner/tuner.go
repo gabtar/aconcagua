@@ -92,7 +92,7 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 1096
+const TuneableParams = 1104
 
 // GetEvaluationParams returns a flat array with the current evaluation params
 func GetEvaluationParams() (params [TuneableParams]float64) {
@@ -202,6 +202,11 @@ func GetEvaluationParams() (params [TuneableParams]float64) {
 
 	// King Zone Defense. 1094-1095
 	intParams[1094], intParams[1095] = engine.KingZoneDefenseBonus.Get()
+
+	intParams[1096], intParams[1097] = engine.SafeQueenCheck.Get()
+	intParams[1098], intParams[1099] = engine.SafeRookCheck.Get()
+	intParams[1100], intParams[1101] = engine.SafeBishopCheck.Get()
+	intParams[1102], intParams[1103] = engine.SafeKnightCheck.Get()
 
 	// Convert to float params
 	for i := range TuneableParams {
@@ -420,6 +425,10 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		{"RookAttackWeight", 1088},
 		{"QueenAttackWeight", 1086},
 		{"KingZoneDefenseBonus", 1094},
+		{"SafeQueenCheck", 1096},
+		{"SafeRookCheck", 1098},
+		{"SafeBishopCheck", 1100},
+		{"SafeKnightCheck", 1102},
 	}
 	for _, ka := range kingAttacks {
 		psqt += fmt.Sprintf("%-24s= S(%d, %d)\n", ka.name, intParams[ka.startIdx], intParams[ka.startIdx+1])
@@ -886,6 +895,16 @@ func generateKingAttacksWeights(pos *engine.Position, phase int, weights *[]Posi
 	egPhase := engine.MaxPhaseValue - phase
 	blocks := pos.Sides[engine.All]
 
+	attackedBy := [2][6]engine.Bitboard{}
+	for piece, bb := range pos.Pieces {
+		side := engine.SideOf(piece)
+		role := engine.RoleOf(piece)
+		for bb > 0 {
+			nextPiece := bb.NextBit()
+			attackedBy[side][role] |= engine.Attacks(piece, nextPiece, pos.Sides[engine.All])
+		}
+	}
+
 	for side := engine.Color(engine.White); side <= engine.Black; side++ {
 		opponent := side.Opponent()
 		enemyKing := pos.KingPosition(opponent)
@@ -914,10 +933,51 @@ func generateKingAttacksWeights(pos *engine.Position, phase int, weights *[]Posi
 		if attackersCount > (1 - pos.Pieces[engine.PieceOf(engine.Queen, side)].Count()) {
 			*weights = append(*weights, tempWeights...)
 
+			// Zone Defense Weights
 			*weights = append(*weights,
 				PositionWeight{paramIndex: int16(1094), weight: int16(-side.Modifier() * enemyDefendedSquares * mgPhase)},
 				PositionWeight{paramIndex: int16(1095), weight: int16(-side.Modifier() * enemyDefendedSquares * egPhase)},
 			)
+
+			king := pos.KingPosition(opponent)
+			defendedByPawns := attackedBy[opponent][engine.Pawn]
+			knightChecksThreats := engine.Attacks(engine.WhiteKnight, king, pos.Sides[engine.All])
+			bishopChecksThreats := engine.Attacks(engine.WhiteBishop, king, pos.Sides[engine.All])
+			rookChecksThreats := engine.Attacks(engine.WhiteRook, king, pos.Sides[engine.All])
+			queenChecksThreats := engine.Attacks(engine.WhiteQueen, king, pos.Sides[engine.All])
+
+			knightChecks := (knightChecksThreats & ^defendedByPawns & attackedBy[side][engine.Knight]).Count()
+			bishopChecks := (bishopChecksThreats & ^defendedByPawns & attackedBy[side][engine.Bishop]).Count()
+			rookChecks := (rookChecksThreats & ^defendedByPawns & attackedBy[side][engine.Rook]).Count()
+			queenChecks := (queenChecksThreats & ^defendedByPawns & attackedBy[side][engine.Queen]).Count()
+
+			if queenChecks > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(1096), weight: int16(side.Modifier() * queenChecks * mgPhase)},
+					PositionWeight{paramIndex: int16(1097), weight: int16(side.Modifier() * queenChecks * egPhase)},
+				)
+			}
+
+			if rookChecks > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(1098), weight: int16(side.Modifier() * rookChecks * mgPhase)},
+					PositionWeight{paramIndex: int16(1099), weight: int16(side.Modifier() * rookChecks * egPhase)},
+				)
+			}
+
+			if bishopChecks > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(1100), weight: int16(side.Modifier() * bishopChecks * mgPhase)},
+					PositionWeight{paramIndex: int16(1101), weight: int16(side.Modifier() * bishopChecks * egPhase)},
+				)
+			}
+
+			if knightChecks > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(1102), weight: int16(side.Modifier() * knightChecks * mgPhase)},
+					PositionWeight{paramIndex: int16(1103), weight: int16(side.Modifier() * knightChecks * egPhase)},
+				)
+			}
 		}
 	}
 }
