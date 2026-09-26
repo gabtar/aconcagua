@@ -39,6 +39,7 @@ func TestEvaluation(t *testing.T) {
 		{"Eval 26", "r1bqk2r/pppp1ppp/2n5/2b1p3/2B1P3/2N5/PPPP1PPP/R1BQ1RK1 w kq - 0 1"},     // Shield/storm #2
 		{"Eval 27", "6k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1"},                                   // Shield/storm #3
 		{"Eval 28", "2kr4/1ppp4/8/8/8/8/8/2K5 b - - 0 1"},                                    // Shield/storm #4
+		{"Eval 29", "1k6/1p1Q4/p6p/1P6/P1r4P/5p2/1r3P2/6K1 w - - 8 55"},                      // Rook/Queen on 7th fix
 	}
 
 	for _, tc := range testCases {

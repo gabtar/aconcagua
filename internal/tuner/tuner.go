@@ -643,11 +643,9 @@ func generateMaterialAdjustmentWeights(pos *engine.Position, phase int, weights 
 				)
 			}
 			// Seventh rank
-			relativeKingRank := engine.Bsf(enemyKing) / 8
-			if side == engine.White {
-				relativeKingRank = 7 - relativeKingRank
-			}
-			if relativeKingRank == 7 && rank == 6 {
+			kingRank := engine.RankRelativeToSide(engine.Bsf(enemyKing), side)
+			rookRank := engine.RankRelativeToSide(from, side)
+			if kingRank == 7 && rookRank == 6 {
 				*weights = append(*weights,
 					PositionWeight{paramIndex: 918, weight: int16(side.Modifier() * mgPhase)},
 					PositionWeight{paramIndex: 919, weight: int16(side.Modifier() * egPhase)},
@@ -658,17 +656,11 @@ func generateMaterialAdjustmentWeights(pos *engine.Position, phase int, weights 
 		// Queen on seventh
 		queens := pos.Pieces[engine.PieceOf(engine.Queen, side)]
 		for queens > 0 {
-			nextQueen := queens.NextBit()
-			rank := engine.Bsf(nextQueen) / 8
-			if side == engine.White {
-				rank = 7 - rank
-			}
-			relativeKingRank := engine.Bsf(enemyKing) / 8
-			if side == engine.White {
-				relativeKingRank = 7 - relativeKingRank
-			}
+			from := engine.Bsf(queens.NextBit())
 
-			if relativeKingRank == 7 && rank == 6 {
+			kingRank := engine.RankRelativeToSide(engine.Bsf(enemyKing), side)
+			queenRank := engine.RankRelativeToSide(from, side)
+			if kingRank == 7 && queenRank == 6 {
 				*weights = append(*weights,
 					PositionWeight{paramIndex: 920, weight: int16(side.Modifier() * mgPhase)},
 					PositionWeight{paramIndex: 921, weight: int16(side.Modifier() * egPhase)},

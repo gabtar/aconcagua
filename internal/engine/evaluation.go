@@ -8,33 +8,33 @@ const (
 var (
 	// Mobility arrays based on the number of squares a piece can attack
 	QueenMobility = [28]Score{
-		S(-21, -77), S(-18, -66), S(-38, -56), S(-51, -74), S(-53, 22), S(-25, 73),
-		S(-20, 105), S(-15, 118), S(-12, 141), S(-10, 166), S(-7, 172), S(-3, 181),
-		S(0, 189), S(3, 187), S(4, 190), S(5, 194), S(7, 190), S(6, 194),
-		S(5, 194), S(5, 191), S(6, 190), S(14, 175), S(28, 169), S(50, 154),
-		S(74, 146), S(68, 154), S(34, 146), S(16, 142),
+		S(-21, -77), S(-18, -66), S(-39, -56), S(-50, -74), S(-50, 24), S(-26, 76),
+		S(-22, 111), S(-17, 126), S(-15, 149), S(-12, 172), S(-9, 177), S(-5, 183),
+		S(-2, 190), S(1, 188), S(3, 190), S(4, 195), S(6, 192), S(5, 197),
+		S(7, 195), S(10, 191), S(16, 187), S(26, 168), S(35, 161), S(45, 143),
+		S(63, 133), S(58, 140), S(29, 138), S(11, 134),
 	}
 	RookMobility = [15]Score{
-		S(-31, -16), S(-30, 4), S(-9, 35), S(-5, 60), S(0, 73), S(3, 82),
-		S(5, 88), S(7, 93), S(10, 93), S(15, 96), S(19, 99), S(20, 102),
-		S(24, 104), S(28, 103), S(35, 99),
+		S(-30, -16), S(-30, 4), S(-12, 33), S(-6, 56), S(-1, 68), S(1, 77),
+		S(2, 83), S(4, 89), S(8, 89), S(12, 92), S(15, 96), S(16, 100),
+		S(19, 102), S(23, 100), S(29, 97),
 	}
 	BishopMobility = [14]Score{
-		S(-37, -127), S(-52, -46), S(-24, 4), S(-13, 26), S(-2, 36), S(4, 44),
-		S(10, 53), S(16, 57), S(18, 62), S(25, 62), S(30, 62), S(49, 53),
-		S(56, 54), S(69, 44),
+		S(-36, -127), S(-53, -48), S(-24, 2), S(-13, 24), S(-3, 34), S(4, 42),
+		S(10, 51), S(16, 55), S(17, 61), S(24, 61), S(30, 61), S(48, 53),
+		S(57, 54), S(70, 44),
 	}
 	KnightMobility = [9]Score{
-		S(-121, -152), S(-26, -26), S(-6, 12), S(4, 34), S(15, 44), S(17, 55),
-		S(27, 56), S(38, 57), S(51, 51),
+		S(-120, -148), S(-28, -26), S(-7, 10), S(3, 31), S(14, 41), S(17, 52),
+		S(27, 53), S(38, 54), S(51, 50),
 	}
 
 	// Material Adjustment
-	BishopPairBonus         = S(23, 66)
-	RookOnOpenFileBonus     = S(32, 13)
-	RookOnSemiOpenFileBonus = S(11, 22)
-	RookOnSeventhRankBonus  = S(21, 19)
-	QueenOnSeventhRankBonus = S(9, 11)
+	BishopPairBonus         = S(25, 65)
+	RookOnOpenFileBonus     = S(32, 12)
+	RookOnSemiOpenFileBonus = S(11, 21)
+	RookOnSeventhRankBonus  = S(8, 20)
+	QueenOnSeventhRankBonus = S(0, 2)
 	KnightOutpostBonus      = S(38, 20)
 	ConnectedKnightBonus    = S(0, -4)
 	BishopOutpostBonus      = S(42, 0)
@@ -43,40 +43,40 @@ var (
 	DoubledPawnPenalty        = S(3, -13)
 	IsolatedPawnPenalty       = S(-2, -2)
 	BackwardPawnPenalty       = S(-2, -3)
-	DefendedPawnBonus         = S(9, 9)
+	DefendedPawnBonus         = S(9, 8)
 	ConnectedPawnBonus        = S(7, 4)
-	PassedPawnsBonus          = [8]Score{S(0, 0), S(1, 11), S(-4, 18), S(-5, 46), S(20, 78), S(24, 148), S(14, 99), S(0, 0)}
+	PassedPawnsBonus          = [8]Score{S(0, 0), S(3, 11), S(-3, 17), S(-5, 45), S(20, 75), S(24, 145), S(12, 93), S(0, 0)}
 	CandidatePassedPawnsBonus = [2][8]Score{
-		{S(0, 0), S(-32, 6), S(-15, 10), S(6, 40), S(30, 60), S(57, 88), S(0, 65), S(0, 0)},
-		{S(0, 0), S(-20, 1), S(-5, 22), S(6, 41), S(46, 76), S(41, 143), S(0, 97), S(0, 0)},
+		{S(0, 0), S(-34, 9), S(-15, 10), S(7, 38), S(30, 58), S(56, 85), S(0, 65), S(0, 0)},
+		{S(0, 0), S(-19, 1), S(-4, 21), S(6, 40), S(46, 74), S(50, 150), S(0, 97), S(0, 0)},
 	}
 
 	// King Safety
 	PawnShield = [2][8]Score{
-		{S(28, -12), S(26, -20), S(17, -11), S(12, -23), S(11, -29), S(6, -30), S(1, -1), S(0, 0)},
-		{S(0, 0), S(34, -20), S(30, -15), S(15, -24), S(12, -32), S(-4, -16), S(-1, -5), S(0, 0)},
+		{S(29, -12), S(27, -20), S(19, -14), S(13, -24), S(14, -32), S(8, -33), S(2, -4), S(0, 0)},
+		{S(0, 0), S(36, -20), S(32, -18), S(17, -27), S(15, -36), S(-6, -19), S(0, -8), S(0, 0)},
 	}
 	PawnStorm = [2][2][8]Score{
 		{
-			{S(25, 26), S(-18, -18), S(-23, -3), S(-18, -8), S(1, -10), S(8, -15), S(9, -12), S(0, 0)},
-			{S(14, 31), S(-2, -8), S(-3, -16), S(6, -20), S(7, -3), S(10, -11), S(31, 8), S(0, 0)},
+			{S(18, 24), S(-25, -25), S(-23, -5), S(-17, -10), S(1, -12), S(9, -16), S(9, -14), S(0, 0)},
+			{S(17, 39), S(-3, -12), S(-2, -17), S(6, -20), S(6, -4), S(9, -11), S(32, 9), S(0, 0)},
 		},
 		{
-			{S(0, 0), S(57, 27), S(-7, -2), S(0, -5), S(10, -10), S(15, -13), S(15, -8), S(0, 0)},
-			{S(0, 0), S(25, 37), S(-12, -28), S(16, -12), S(23, -13), S(20, -5), S(32, 0), S(0, 0)},
+			{S(0, 0), S(63, 22), S(-6, -5), S(2, -8), S(10, -12), S(16, -15), S(16, -12), S(0, 0)},
+			{S(0, 0), S(31, 46), S(-10, -29), S(16, -12), S(23, -13), S(20, -5), S(41, -2), S(0, 0)},
 		},
 	}
-	KingOnOpenFiles = [2]Score{S(1, -20), S(-33, -16)}
+	KingOnOpenFiles = [2]Score{S(2, -23), S(-32, -20)}
 
-	KnightAttackWeight   = S(19, -5)
-	BishopAttackWeight   = S(20, -10)
-	RookAttackWeight     = S(20, -20)
-	QueenAttackWeight    = S(3, 3)
-	KingZoneDefenseBonus = S(8, 11)
-	SafeQueenCheck       = S(13, 31)
-	SafeRookCheck        = S(15, 31)
-	SafeBishopCheck      = S(14, 32)
-	SafeKnightCheck      = S(13, 31)
+	KnightAttackWeight   = S(22, -6)
+	BishopAttackWeight   = S(21, -9)
+	RookAttackWeight     = S(26, -31)
+	QueenAttackWeight    = S(6, -10)
+	KingZoneDefenseBonus = S(10, 2)
+	SafeQueenCheck       = S(16, 16)
+	SafeRookCheck        = S(31, 14)
+	SafeBishopCheck      = S(18, 18)
+	SafeKnightCheck      = S(14, 18)
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -196,31 +196,12 @@ func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
 	opponent := side.Opponent()
 	king := pos.Pieces[PieceOf(King, side)]
 	from := Bsf(king)
-	sq := squareRelativeToSide(from, side)
-	sc += PieceSquaresScores[King][sq]
+	sc += PieceSquaresScores[King][relativePsqtSquare(from, side)]
 
 	kingFile, kingRank := from%8, from/8
 
 	// Squares in front of the king on the king file and the two adjacent files
-	frontMask := Bitboard(0)
-	kingSquare := bitboardFromIndex(from)
-	if side == White {
-		frontMask = fillUp(kingSquare)
-		if kingFile > 0 {
-			frontMask |= fillUp(bitboardFromIndex(from - 1))
-		}
-		if kingFile < 7 {
-			frontMask |= fillUp(bitboardFromIndex(from + 1))
-		}
-	} else {
-		frontMask = fillDown(kingSquare)
-		if kingFile > 0 {
-			frontMask |= fillDown(bitboardFromIndex(from - 1))
-		}
-		if kingFile < 7 {
-			frontMask |= fillDown(bitboardFromIndex(from + 1))
-		}
-	}
+	frontMask := KingFrontMask[side][from]
 
 	for file := max(0, kingFile-1); file <= min(7, kingFile+1); file++ {
 		shielders := pos.Pieces[PieceOf(Pawn, side)] & Files[file] & frontMask
@@ -289,9 +270,7 @@ func (ev *Evaluation) evaluateQueens(pos *Position, side Color) (sc Score) {
 	for queens > 0 {
 		nextQueen := queens.NextBit()
 		from := Bsf(nextQueen)
-		rank := from / 8
-		sq := squareRelativeToSide(from, side)
-		sc += PieceSquaresScores[Queen][sq]
+		sc += PieceSquaresScores[Queen][relativePsqtSquare(from, side)]
 
 		attacks := queenAttacks(&nextQueen, pos.Sides[All])
 		ev.EvalData.attackedBy[side][Queen] |= attacks
@@ -304,8 +283,9 @@ func (ev *Evaluation) evaluateQueens(pos *Position, side Color) (sc Score) {
 			ev.EvalData.kingAttackersWeight[side] += QueenAttackWeight
 		}
 
-		relativeKingRank := squareRelativeToSide(Bsf(ev.EvalData.kings[opponent]), side) / 8
-		if relativeKingRank == 7 && rank == 6 {
+		kingRank := RankRelativeToSide(Bsf(ev.EvalData.kings[opponent]), side)
+		queenRank := RankRelativeToSide(from, side)
+		if queenRank == 6 && kingRank == 7 {
 			sc += QueenOnSeventhRankBonus
 		}
 	}
@@ -320,9 +300,7 @@ func (ev *Evaluation) evaluateRooks(pos *Position, side Color) (sc Score) {
 		nextRook := rooks.NextBit()
 		from := Bsf(nextRook)
 		file := from % 8
-		rank := from / 8
-		sq := squareRelativeToSide(from, side)
-		sc += PieceSquaresScores[Rook][sq]
+		sc += PieceSquaresScores[Rook][relativePsqtSquare(from, side)]
 
 		attacks := rookAttacks(from, pos.Sides[All])
 		ev.EvalData.attackedBy[side][Rook] |= attacks
@@ -343,8 +321,9 @@ func (ev *Evaluation) evaluateRooks(pos *Position, side Color) (sc Score) {
 		}
 
 		// Rook on 7th
-		relativeKingRank := squareRelativeToSide(Bsf(ev.EvalData.kings[opponent]), side) / 8
-		if relativeKingRank == 7 && rank == 6 {
+		kingRank := RankRelativeToSide(Bsf(ev.EvalData.kings[opponent]), side)
+		rookRank := RankRelativeToSide(from, side)
+		if kingRank == 7 && rookRank == 6 {
 			sc += RookOnSeventhRankBonus
 		}
 	}
@@ -364,8 +343,7 @@ func (ev *Evaluation) evaluateBishops(pos *Position, side Color) (sc Score) {
 	for bishops > 0 {
 		nextBishop := bishops.NextBit()
 		from := Bsf(nextBishop)
-		sq := squareRelativeToSide(from, side)
-		sc += PieceSquaresScores[Bishop][sq]
+		sc += PieceSquaresScores[Bishop][relativePsqtSquare(from, side)]
 
 		attacks := bishopAttacks(from, pos.Sides[All])
 		ev.EvalData.attackedBy[side][Bishop] |= attacks
@@ -393,8 +371,7 @@ func (ev *Evaluation) evaluateKnights(pos *Position, side Color) (sc Score) {
 	for knights > 0 {
 		nextKnight := knights.NextBit()
 		from := Bsf(nextKnight)
-		sq := squareRelativeToSide(from, side)
-		sc += PieceSquaresScores[Knight][sq]
+		sc += PieceSquaresScores[Knight][relativePsqtSquare(from, side)]
 
 		attacks := knightAttacksTable[from]
 		ev.EvalData.attackedBy[side][Knight] |= attacks
@@ -442,8 +419,7 @@ func (ev *Evaluation) evaluatePawns(pos *Position) (sc Score) {
 			nextPawn := pawns.NextBit()
 			from := Bsf(nextPawn)
 			file := from % 8
-			sq := squareRelativeToSide(from, side)
-			sc += sideModifier[side] * PieceSquaresScores[Pawn][sq]
+			sc += sideModifier[side] * PieceSquaresScores[Pawn][relativePsqtSquare(from, side)]
 
 			// Doubled. A pawn is doubled when another pawn is in the same file
 			pawnsInFile := alliedPawns & Files[file]
@@ -495,12 +471,20 @@ func (ev *Evaluation) evaluatePawns(pos *Position) (sc Score) {
 	return sc
 }
 
-// squareRelativeToSide returns the square number from the point of view of the side passed
-func squareRelativeToSide(sq int, side Color) int {
+// relativePsqtSquare returns the square number from the point of view of the side passed
+func relativePsqtSquare(sq int, side Color) int {
 	if side == White {
 		return sq ^ 56
 	}
 	return sq
+}
+
+// RankRelativeToSide returns the relative rank from the point of view of the side
+func RankRelativeToSide(from int, side Color) int {
+	if side == White {
+		return from / 8
+	}
+	return 7 - from/8
 }
 
 // OutpostSquares returns a bitboard of outpost squares for the given side
