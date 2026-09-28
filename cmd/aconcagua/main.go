@@ -12,10 +12,9 @@ func main() {
 	uci.Start()
 
 	// Use to run the tuner
-	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/lichess-big3-resolved.book", 7000000)
-	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/trainingdata.epd", 7878653) // Lichess + zurichess combined
-	// params := tuner.GetEvaluationParams()
-	// tuner.AdamTuner(params, &dataset, tuner.ScalingFactor, 250)
+	// filename := "./internal/tuner/training-set/trainingdata.epd"
+	// totalSamples := 7878653
+	// tuner.AdamTuner(filename, totalSamples, tuner.ScalingFactor, 5)
 	// sf := tuner.FindOptimalScalingFactor(dataset, params)
 	// fmt.Println("Optimal Scaling Factor: ", sf)
 

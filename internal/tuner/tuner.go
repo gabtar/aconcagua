@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gabtar/aconcagua/internal/engine"
 )
@@ -23,8 +22,11 @@ type DatasetEntry struct {
 	Phase   int
 }
 
+// Dataset is a set of DatasetEntry
+type Dataset []DatasetEntry
+
 // NewDataset returns a new preallocated dataset
-func NewDataset(size int) (dataset []DatasetEntry) {
+func NewDataset(size int) (dataset Dataset) {
 	dataset = make([]DatasetEntry, size)
 	for i := range size {
 		dataset[i] = DatasetEntry{
@@ -34,31 +36,27 @@ func NewDataset(size int) (dataset []DatasetEntry) {
 			Phase:   0,
 		}
 	}
-
 	return
 }
 
-// LoadDataSet loads a dataset from a file
-func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
-	file, err := os.Open(filename)
-	if err != nil {
-		fmt.Println(err)
+// clear clears the dataset
+func (dt *Dataset) clear() {
+	for i := range len(*dt) {
+		(*dt)[i] = DatasetEntry{
+			Fen:     "",
+			Result:  0.0,
+			Weights: make([]PositionWeight, 0, 300),
+			Phase:   0,
+		}
 	}
-	defer file.Close()
+}
 
-	// Preallocate memory to load entries faster
-	dataset = NewDataset(size)
-
-	scanner := bufio.NewScanner(file)
-
-	// Increase buffer size for faster scanning
-	buf := make([]byte, 0, 1024*1024) // 1MB buffer
-	scanner.Buffer(buf, 1024*1024)
-
+// Load loads a up to 'size' entries in the dataset
+func (dt *Dataset) Load(scanner *bufio.Scanner, size int) {
+	dt.clear()
 	pos := engine.NewPosition()
-	count := 0
-	start := time.Now()
-	for scanner.Scan() {
+
+	for i := 0; i < size && scanner.Scan(); i++ {
 		line := scanner.Text()
 		parts := strings.Split(line, "[") // for lichess-big3-resolved dataset
 		resultString := map[string]float64{
@@ -72,30 +70,18 @@ func LoadDataSet(filename string, size int) (dataset []DatasetEntry) {
 		phase := engine.GetEvalPhase(pos)
 		result := resultString[parts[1]]
 
-		generatePositionWeights(pos, phase, &dataset[count].Weights)
-		dataset[count].Fen = fen
-		dataset[count].Result = result
-		dataset[count].Phase = phase
-
-		count++
-		if count >= size {
-			break
-		}
-
-		if count%100000 == 0 {
-			elapsed := time.Since(start)
-			fmt.Printf("Loaded %d entries in %s\n", count, elapsed)
-		}
+		generatePositionWeights(pos, phase, &(*dt)[i].Weights)
+		(*dt)[i].Fen = fen
+		(*dt)[i].Result = result
+		(*dt)[i].Phase = phase
 	}
-
-	return dataset
 }
 
 // Number of total tuneable params
-const TuneableParams = 1104
+const TuneableParams = 1106
 
-// GetEvaluationParams returns a flat array with the current evaluation params
-func GetEvaluationParams() (params [TuneableParams]float64) {
+// getEvaluationParams returns a flat array with the current evaluation params
+func getEvaluationParams() (params [TuneableParams]float64) {
 	intParams := [TuneableParams]int{}
 
 	// Psqt params. Flat original Psqt array into a single array
@@ -203,10 +189,12 @@ func GetEvaluationParams() (params [TuneableParams]float64) {
 	// King Zone Defense. 1094-1095
 	intParams[1094], intParams[1095] = engine.KingZoneDefenseBonus.Get()
 
+	// Safe Checks + EnemyQueen. 1096-1105
 	intParams[1096], intParams[1097] = engine.SafeQueenCheck.Get()
 	intParams[1098], intParams[1099] = engine.SafeRookCheck.Get()
 	intParams[1100], intParams[1101] = engine.SafeBishopCheck.Get()
 	intParams[1102], intParams[1103] = engine.SafeKnightCheck.Get()
+	intParams[1104], intParams[1105] = engine.EnemyQueen.Get()
 
 	// Convert to float params
 	for i := range TuneableParams {
@@ -273,7 +261,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		psqt += fmt.Sprintf("S(%d, %d), ", intParams[mgIndex], intParams[egIndex])
 	}
 	psqt = psqt[:len(psqt)-2] // remove last ", "
-	psqt += "}\n\n"
+	psqt += "}\n"
 
 	// Mobility
 	mobility := []struct {
@@ -286,7 +274,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		{"BishopMobility", 14, 866},
 		{"KnightMobility", 9, 894},
 	}
-	psqt += "// Mobility Arrays\n"
+	psqt += "\n// Mobility Arrays\n"
 	for _, m := range mobility {
 		psqt += fmt.Sprintf("%s = [%d]Score{\n  ", m.name, m.size)
 		for i := range m.size {
@@ -298,7 +286,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 			}
 		}
 		psqt = psqt[:len(psqt)-1] // remove last " "
-		psqt += "\n}\n\n"
+		psqt += "\n}\n"
 	}
 
 	// Material Adjustments
@@ -315,7 +303,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		{"ConnectedKnightBonus", 924},
 		{"BishopOutpostBonus", 926},
 	}
-	psqt += "// Material Adjustments\n"
+	psqt += "\n// Material Adjustments\n"
 	for _, a := range adjustments {
 		psqt += fmt.Sprintf("%-24s= S(%d, %d)\n", a.name, intParams[a.startIdx], intParams[a.startIdx+1])
 	}
@@ -331,7 +319,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		{"DefendedPawnBonus", 934},
 		{"ConnectedPawnBonus", 936},
 	}
-	psqt += "// Pawn Structure\n"
+	psqt += "\n// Pawn Structure\n"
 	for _, p := range pawnStructures {
 		psqt += fmt.Sprintf("%-24s= S(%d, %d)\n", p.name, intParams[p.startIdx], intParams[p.startIdx+1])
 	}
@@ -356,16 +344,13 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 				row += ", "
 			}
 		}
-		row += "}"
-		if flag < 1 {
-			row += ","
-		}
+		row += "},"
 		psqt += row + "\n"
 	}
 	psqt += "}\n"
 
 	// King Safety
-	psqt += "// King Safety\n"
+	psqt += "\n// King Safety\n"
 	psqt += "PawnShield          = [2][8]Score{\n"
 	for sameFile := range 2 {
 		row := "  {"
@@ -376,10 +361,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 				row += ", "
 			}
 		}
-		row += "}"
-		if sameFile < 1 {
-			row += ","
-		}
+		row += "},"
 		psqt += row + "\n"
 	}
 	psqt += "}\n"
@@ -395,10 +377,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 					row += ", "
 				}
 			}
-			row += "}"
-			if blocked < 1 {
-				row += ","
-			}
+			row += "},"
 			psqt += row + "\n"
 		}
 		psqt += "  },\n"
@@ -415,7 +394,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 	psqt += "}\n"
 
 	// King Attacks
-	psqt += "// King Attacks\n"
+	psqt += "\n// King Attacks\n"
 	kingAttacks := []struct {
 		name     string
 		startIdx int
@@ -429,6 +408,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		{"SafeRookCheck", 1098},
 		{"SafeBishopCheck", 1100},
 		{"SafeKnightCheck", 1102},
+		{"EnemyQueen", 1104},
 	}
 	for _, ka := range kingAttacks {
 		psqt += fmt.Sprintf("%-24s= S(%d, %d)\n", ka.name, intParams[ka.startIdx], intParams[ka.startIdx+1])
@@ -942,6 +922,7 @@ func generateKingAttacksWeights(pos *engine.Position, phase int, weights *[]Posi
 			bishopChecks := (bishopChecksThreats & ^defendedByPawns & attackedBy[side][engine.Bishop]).Count()
 			rookChecks := (rookChecksThreats & ^defendedByPawns & attackedBy[side][engine.Rook]).Count()
 			queenChecks := (queenChecksThreats & ^defendedByPawns & attackedBy[side][engine.Queen]).Count()
+			enemyQueens := pos.Pieces[engine.PieceOf(engine.Queen, side)].Count()
 
 			if queenChecks > 0 {
 				*weights = append(*weights,
@@ -968,6 +949,13 @@ func generateKingAttacksWeights(pos *engine.Position, phase int, weights *[]Posi
 				*weights = append(*weights,
 					PositionWeight{paramIndex: int16(1102), weight: int16(side.Modifier() * knightChecks * mgPhase)},
 					PositionWeight{paramIndex: int16(1103), weight: int16(side.Modifier() * knightChecks * egPhase)},
+				)
+			}
+
+			if enemyQueens > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(1104), weight: int16(side.Modifier() * enemyQueens * mgPhase)},
+					PositionWeight{paramIndex: int16(1105), weight: int16(side.Modifier() * enemyQueens * egPhase)},
 				)
 			}
 		}

@@ -8,33 +8,33 @@ const (
 var (
 	// Mobility arrays based on the number of squares a piece can attack
 	QueenMobility = [28]Score{
-		S(-21, -77), S(-18, -66), S(-39, -56), S(-50, -74), S(-50, 24), S(-26, 76),
-		S(-22, 111), S(-17, 126), S(-15, 149), S(-12, 172), S(-9, 177), S(-5, 183),
-		S(-2, 190), S(1, 188), S(3, 190), S(4, 195), S(6, 192), S(5, 197),
-		S(7, 195), S(10, 191), S(16, 187), S(26, 168), S(35, 161), S(45, 143),
-		S(63, 133), S(58, 140), S(29, 138), S(11, 134),
+		S(-21, -77), S(-18, -66), S(-39, -56), S(-49, -74), S(-50, 25), S(-27, 77),
+		S(-23, 114), S(-18, 127), S(-15, 148), S(-12, 170), S(-9, 174), S(-5, 181),
+		S(-2, 187), S(1, 185), S(3, 188), S(4, 193), S(5, 191), S(4, 196),
+		S(5, 196), S(7, 193), S(16, 188), S(29, 167), S(40, 160), S(52, 142),
+		S(62, 131), S(58, 132), S(27, 134), S(9, 129),
 	}
 	RookMobility = [15]Score{
-		S(-30, -16), S(-30, 4), S(-12, 33), S(-6, 56), S(-1, 68), S(1, 77),
-		S(2, 83), S(4, 89), S(8, 89), S(12, 92), S(15, 96), S(16, 100),
-		S(19, 102), S(23, 100), S(29, 97),
+		S(-29, -16), S(-31, 3), S(-11, 31), S(-6, 55), S(0, 66), S(1, 75),
+		S(3, 82), S(4, 88), S(8, 88), S(12, 91), S(15, 94), S(16, 98),
+		S(19, 101), S(23, 99), S(29, 96),
 	}
 	BishopMobility = [14]Score{
-		S(-36, -127), S(-53, -48), S(-24, 2), S(-13, 24), S(-3, 34), S(4, 42),
-		S(10, 51), S(16, 55), S(17, 61), S(24, 61), S(30, 61), S(48, 53),
-		S(57, 54), S(70, 44),
+		S(-35, -127), S(-52, -49), S(-24, 0), S(-13, 23), S(-2, 33), S(4, 41),
+		S(10, 49), S(16, 54), S(18, 60), S(25, 60), S(30, 60), S(48, 52),
+		S(56, 54), S(69, 44),
 	}
 	KnightMobility = [9]Score{
-		S(-120, -148), S(-28, -26), S(-7, 10), S(3, 31), S(14, 41), S(17, 52),
-		S(27, 53), S(38, 54), S(51, 50),
+		S(-119, -145), S(-28, -27), S(-7, 8), S(3, 30), S(14, 40), S(17, 51),
+		S(27, 52), S(38, 53), S(51, 49),
 	}
 
 	// Material Adjustment
 	BishopPairBonus         = S(25, 65)
 	RookOnOpenFileBonus     = S(32, 12)
-	RookOnSemiOpenFileBonus = S(11, 21)
-	RookOnSeventhRankBonus  = S(8, 20)
-	QueenOnSeventhRankBonus = S(0, 2)
+	RookOnSemiOpenFileBonus = S(11, 20)
+	RookOnSeventhRankBonus  = S(-3, 29)
+	QueenOnSeventhRankBonus = S(-10, 11)
 	KnightOutpostBonus      = S(38, 20)
 	ConnectedKnightBonus    = S(0, -4)
 	BishopOutpostBonus      = S(42, 0)
@@ -45,38 +45,39 @@ var (
 	BackwardPawnPenalty       = S(-2, -3)
 	DefendedPawnBonus         = S(9, 8)
 	ConnectedPawnBonus        = S(7, 4)
-	PassedPawnsBonus          = [8]Score{S(0, 0), S(3, 11), S(-3, 17), S(-5, 45), S(20, 75), S(24, 145), S(12, 93), S(0, 0)}
+	PassedPawnsBonus          = [8]Score{S(0, 0), S(3, 11), S(-3, 17), S(-4, 44), S(20, 74), S(25, 144), S(13, 92), S(0, 0)}
 	CandidatePassedPawnsBonus = [2][8]Score{
-		{S(0, 0), S(-34, 9), S(-15, 10), S(7, 38), S(30, 58), S(56, 85), S(0, 65), S(0, 0)},
-		{S(0, 0), S(-19, 1), S(-4, 21), S(6, 40), S(46, 74), S(50, 150), S(0, 97), S(0, 0)},
+		{S(0, 0), S(-36, 11), S(-14, 10), S(7, 38), S(31, 57), S(57, 84), S(0, 65), S(0, 0)},
+		{S(0, 0), S(-20, 2), S(-4, 21), S(6, 39), S(46, 73), S(56, 153), S(0, 97), S(0, 0)},
 	}
 
 	// King Safety
 	PawnShield = [2][8]Score{
-		{S(29, -12), S(27, -20), S(19, -14), S(13, -24), S(14, -32), S(8, -33), S(2, -4), S(0, 0)},
-		{S(0, 0), S(36, -20), S(32, -18), S(17, -27), S(15, -36), S(-6, -19), S(0, -8), S(0, 0)},
+		{S(29, -12), S(26, -19), S(18, -13), S(13, -24), S(14, -32), S(8, -33), S(3, -6), S(0, 0)},
+		{S(0, 0), S(34, -20), S(32, -17), S(17, -27), S(15, -36), S(-8, -20), S(0, -11), S(0, 0)},
 	}
 	PawnStorm = [2][2][8]Score{
 		{
-			{S(18, 24), S(-25, -25), S(-23, -5), S(-17, -10), S(1, -12), S(9, -16), S(9, -14), S(0, 0)},
-			{S(17, 39), S(-3, -12), S(-2, -17), S(6, -20), S(6, -4), S(9, -11), S(32, 9), S(0, 0)},
+			{S(15, 24), S(-31, -30), S(-23, -4), S(-17, -10), S(1, -12), S(9, -17), S(9, -14), S(0, 0)},
+			{S(19, 44), S(-4, -15), S(-2, -17), S(6, -20), S(6, -4), S(9, -11), S(32, 9), S(0, 0)},
 		},
 		{
-			{S(0, 0), S(63, 22), S(-6, -5), S(2, -8), S(10, -12), S(16, -15), S(16, -12), S(0, 0)},
-			{S(0, 0), S(31, 46), S(-10, -29), S(16, -12), S(23, -13), S(20, -5), S(41, -2), S(0, 0)},
+			{S(0, 0), S(64, 22), S(-5, -5), S(2, -9), S(10, -12), S(16, -15), S(15, -12), S(0, 0)},
+			{S(0, 0), S(35, 52), S(-10, -29), S(15, -12), S(23, -13), S(20, -5), S(47, -5), S(0, 0)},
 		},
 	}
-	KingOnOpenFiles = [2]Score{S(2, -23), S(-32, -20)}
+	KingOnOpenFiles = [2]Score{S(2, -23), S(-32, -21)}
 
-	KnightAttackWeight   = S(22, -6)
-	BishopAttackWeight   = S(21, -9)
-	RookAttackWeight     = S(26, -31)
-	QueenAttackWeight    = S(6, -10)
-	KingZoneDefenseBonus = S(10, 2)
-	SafeQueenCheck       = S(16, 16)
-	SafeRookCheck        = S(31, 14)
-	SafeBishopCheck      = S(18, 18)
-	SafeKnightCheck      = S(14, 18)
+	KnightAttackWeight   = S(21, -3)
+	BishopAttackWeight   = S(20, -7)
+	RookAttackWeight     = S(22, -21)
+	QueenAttackWeight    = S(5, -12)
+	KingZoneDefenseBonus = S(11, 3)
+	SafeQueenCheck       = S(19, 9)
+	SafeRookCheck        = S(40, 0)
+	SafeBishopCheck      = S(18, 16)
+	SafeKnightCheck      = S(15, 15)
+	EnemyQueen           = S(2, 10)
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -100,7 +101,7 @@ var S = NewScore
 func (sc Score) Get() (mg int, eg int) {
 	mg = int(int16(sc & MgScoreMask))
 	// NOTE: as used in Ehtereal/Berserk engine the 0x8000 compensates the shift for eg,
-	// otherwise we will have overflow and wrong values
+	// otherwise we will have overflow and get wrong values
 	eg = int(int16((sc + 0x8000) >> 16))
 	return
 }
@@ -237,27 +238,26 @@ func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
 	}
 
 	// Safety. Only apply penalties when we have enough attackers(1 piece and at least a queen or more than 2 pieces)
-	if ev.EvalData.kingAttackersCount[opponent] > (1 - pos.Pieces[PieceOf(Queen, opponent)].Count()) {
+	enemyQueens := pos.Pieces[PieceOf(Queen, opponent)].Count()
+	if ev.EvalData.kingAttackersCount[opponent] > (1 - enemyQueens) {
 
-		// Safe checks
 		// Possible squares where an enemy piece can move to give check to our king
 		defendedByPawns := ev.EvalData.attackedBy[side][Pawn]
 		knightChecksThreats := knightAttacksTable[from]
 		bishopChecksThreats := bishopAttacks(from, pos.Sides[All])
 		rookChecksThreats := rookAttacks(from, pos.Sides[All])
-		queenChecksThreats := queenAttacks(&king, pos.Sides[All])
+		queenChecksThreats := bishopChecksThreats | rookChecksThreats
 
+		defendedSquares := (KingZone[side][from] & defendedByPawns).Count()
 		knightChecks := (knightChecksThreats & ^defendedByPawns & ev.EvalData.attackedBy[opponent][Knight]).Count()
 		bishopChecks := (bishopChecksThreats & ^defendedByPawns & ev.EvalData.attackedBy[opponent][Bishop]).Count()
 		rookChecks := (rookChecksThreats & ^defendedByPawns & ev.EvalData.attackedBy[opponent][Rook]).Count()
 		queenChecks := (queenChecksThreats & ^defendedByPawns & ev.EvalData.attackedBy[opponent][Queen]).Count()
 
-		defendedSquares := (KingZone[side][from] & defendedByPawns).Count()
-		// Safe checks threaten our king: penalize the defender (the attacker gains
-		// as much, mirroring the positive Safe*Check values).
-		sc += -ev.EvalData.kingAttackersWeight[opponent] + Score(defendedSquares)*KingZoneDefenseBonus -
+		sc += Score(defendedSquares)*KingZoneDefenseBonus - ev.EvalData.kingAttackersWeight[opponent] -
 			Score(knightChecks)*SafeKnightCheck - Score(bishopChecks)*SafeBishopCheck -
-			Score(rookChecks)*SafeRookCheck - Score(queenChecks)*SafeQueenCheck
+			Score(rookChecks)*SafeRookCheck - Score(queenChecks)*SafeQueenCheck -
+			Score(enemyQueens)*EnemyQueen
 	}
 
 	return sc

@@ -1,11 +1,16 @@
 package tuner
 
 import (
+	"bufio"
 	"fmt"
 	"math"
+	"os"
 
 	"github.com/gabtar/aconcagua/internal/engine"
 )
+
+// DefaultBatchSize is the default samples to load in a batch for a tuning session
+const DefaultBatchSize = 128000
 
 // AdamOptimizer implements the Adam optimization algorithm
 type AdamOptimizer struct {
@@ -48,13 +53,13 @@ func (adam *AdamOptimizer) Update(params *[TuneableParams]float64, gradients *[]
 }
 
 // ComputeGradients computes the gradients of the loss with respect to the parameters
-func ComputeGradients(entry *DatasetEntry, params [TuneableParams]float64, K float64) [TuneableParams]float64 {
+func ComputeGradients(entry *DatasetEntry, params *[TuneableParams]float64, K float64) [TuneableParams]float64 {
 	// clear gradients
 	for i := range len(gradients) {
 		gradients[i] = 0.0
 	}
 
-	eval := evaluatePosition(&params, &entry.Weights)
+	eval := evaluatePosition(params, &entry.Weights)
 	predicted := 1.0 / (1.0 + math.Exp(-K*eval))
 	actual := entry.Result
 
@@ -71,30 +76,55 @@ func ComputeGradients(entry *DatasetEntry, params [TuneableParams]float64, K flo
 	return gradients
 }
 
-func AdamTuner(params [TuneableParams]float64, dataset *[]DatasetEntry, K float64, epochs int) {
+func AdamTuner(filename string, entries int, K float64, epochs int) {
+	params := getEvaluationParams()
 	adam := NewAdamOptimizer(len(params), 0.1)
-	entries := len(*dataset)
+	// Use ceiling division to include the last partial batch
+	totalBatches := (entries + DefaultBatchSize - 1) / DefaultBatchSize
+	data := NewDataset(DefaultBatchSize)
+
+	file, err, reset, close := openFile(filename)
+	if err != nil {
+		fmt.Println(err)
+	}
+	scanner := bufio.NewScanner(file)
 
 	fmt.Printf("Starting Adam optimization with %d parameters, %d positions, K=%.6f\n",
 		len(params), entries, K)
 
 	for epoch := 1; epoch <= epochs; epoch++ {
+		reset()
+		scanner = bufio.NewScanner(file)
 		totalGradients := make([]float64, len(params))
 		totalLoss := 0.0
 
-		for i := range entries {
-			gradients := ComputeGradients(&(*dataset)[i], params, K)
-
-			for i := range totalGradients {
-				totalGradients[i] += gradients[i]
+		for batch := 0; batch < totalBatches; batch++ {
+			// Calculate actual size for this batch (last batch may be smaller)
+			batchSize := DefaultBatchSize
+			if batch == totalBatches-1 {
+				batchSize = entries - DefaultBatchSize*batch
+				if batchSize <= 0 {
+					batchSize = DefaultBatchSize
+				}
 			}
 
-			eval := evaluatePosition(&params, &(*dataset)[i].Weights)
-			predicted := 1.0 / (1.0 + math.Exp(-K*eval))
-			error := predicted - (*dataset)[i].Result
-			totalLoss += error * error
+			data.Load(scanner, batchSize)
+
+			for i := range batchSize {
+				gradients := ComputeGradients(&data[i], &params, K)
+
+				for j := range totalGradients {
+					totalGradients[j] += gradients[j]
+				}
+
+				eval := evaluatePosition(&params, &data[i].Weights)
+				predicted := 1.0 / (1.0 + math.Exp(-K*eval))
+				error := predicted - data[i].Result
+				totalLoss += error * error
+			}
 		}
 
+		// Average gradients over all entries
 		for i := range totalGradients {
 			totalGradients[i] /= float64(entries)
 		}
@@ -111,7 +141,29 @@ func AdamTuner(params [TuneableParams]float64, dataset *[]DatasetEntry, K float6
 		if epoch > 10 && mse < 0.001 || epoch == epochs {
 			fmt.Printf("Converged at epoch %d\n", epoch)
 			saveParams(params, epoch)
+			close()
 			break
 		}
 	}
+}
+
+// openFile opens a file and returns the file, an error, a reset funcion and a close function
+func openFile(path string) (file *os.File, err error, reset func(), close func()) {
+	file, err = os.Open(path)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	reset = func() {
+		_, err := file.Seek(0, 0)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
+	close = func() {
+		file.Close()
+	}
+
+	return
 }
