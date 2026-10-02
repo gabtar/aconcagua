@@ -78,7 +78,7 @@ func (dt *Dataset) Load(scanner *bufio.Scanner, size int) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 1106
+const TuneableParams = 1124
 
 // getEvaluationParams returns a flat array with the current evaluation params
 func getEvaluationParams() (params [TuneableParams]float64) {
@@ -195,6 +195,18 @@ func getEvaluationParams() (params [TuneableParams]float64) {
 	intParams[1100], intParams[1101] = engine.SafeBishopCheck.Get()
 	intParams[1102], intParams[1103] = engine.SafeKnightCheck.Get()
 	intParams[1104], intParams[1105] = engine.EnemyQueen.Get()
+
+	// Threats. 1106-1115
+	intParams[1106], intParams[1107] = engine.MinorAttackedByPawnThreat.Get()
+	intParams[1108], intParams[1109] = engine.MajorAttackedByPawnThreat.Get()
+	intParams[1110], intParams[1111] = engine.RookAttackedByMinorThreat.Get()
+	intParams[1112], intParams[1113] = engine.QueenAttackedByMinorThreat.Get()
+	intParams[1114], intParams[1115] = engine.HangingPawnThreat.Get()
+
+	intParams[1116], intParams[1117] = engine.PinnedPieceThreat[0].Get()
+	intParams[1118], intParams[1119] = engine.PinnedPieceThreat[1].Get()
+	intParams[1120], intParams[1121] = engine.PinnedPieceThreat[2].Get()
+	intParams[1122], intParams[1123] = engine.PinnedPieceThreat[3].Get()
 
 	// Convert to float params
 	for i := range TuneableParams {
@@ -414,6 +426,30 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		psqt += fmt.Sprintf("%-24s= S(%d, %d)\n", ka.name, intParams[ka.startIdx], intParams[ka.startIdx+1])
 	}
 
+	// Threats
+	psqt += "\n// Threats\n"
+	threats := []struct {
+		name     string
+		startIdx int
+	}{
+		{"MinorAttackedByPawnThreat", 1106},
+		{"MajorAttackedByPawnThreat", 1108},
+		{"RookAttackedByMinorThreat", 1110},
+		{"QueenAttackedByMinorThreat", 1112},
+		{"HangingPawnThreat", 1114},
+	}
+	for _, th := range threats {
+		psqt += fmt.Sprintf("%-24s= S(%d, %d)\n", th.name, intParams[th.startIdx], intParams[th.startIdx+1])
+	}
+
+	psqt += "\nPinnedPieceThreat     = [4]Score{"
+	for i := range 4 {
+		mgIdx := 1116 + i*2
+		psqt += fmt.Sprintf("S(%d, %d),", intParams[mgIdx], intParams[mgIdx+1])
+	}
+	psqt = psqt[:len(psqt)-1]
+	psqt += "}"
+
 	return psqt
 }
 
@@ -506,6 +542,7 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 	generatePawnStructureWeights(pos, phase, weights)
 	generateKingSafetyWeights(pos, phase, weights)
 	generateKingAttacksWeights(pos, phase, weights)
+	generateThreatsWeights(pos, phase, weights)
 }
 
 // generatePieceScoreWeights generates the weights of the pieces socre in the position
@@ -552,15 +589,17 @@ func generateMobilityWeights(pos *engine.Position, phase int, weights *[]Positio
 		engine.Attacks(engine.WhitePawn, pos.Pieces[engine.WhitePawn], pos.Sides[engine.All]),
 		engine.Attacks(engine.BlackPawn, pos.Pieces[engine.BlackPawn], pos.Sides[engine.All]),
 	}
+	pinnedPieces := pos.PinnedPieces(engine.White) | pos.PinnedPieces(engine.Black)
 
 	for p, bb := range pieces {
 		for bb > 0 {
 			nextPiece := bb.NextBit()
+			role := roles[p]
 			side := engine.Color(engine.White)
 			if nextPiece&pos.Sides[engine.Black] > 0 {
 				side = engine.Black
 			}
-			safeSquares := (engine.Attacks(engine.PieceOf(roles[p], side), nextPiece, pos.Sides[engine.All]) & ^attackedByPawns[side.Opponent()]).Count()
+			safeSquares := (engine.Attacks(engine.PieceOf(role, side), nextPiece, pos.Sides[engine.All]) & ^attackedByPawns[side.Opponent()]).Count()
 			mgIdx := startIndex[p] + 2*int16(safeSquares)
 			egIdx := mgIdx + 1
 
@@ -568,6 +607,15 @@ func generateMobilityWeights(pos *engine.Position, phase int, weights *[]Positio
 				PositionWeight{paramIndex: mgIdx, weight: int16(side.Modifier() * mgPhase)},
 				PositionWeight{paramIndex: egIdx, weight: int16(side.Modifier() * egPhase)},
 			)
+
+			// PinnedPieceThreat
+			if pinnedPieces&nextPiece > 0 {
+				mgIdx := int16(1116 + 2*(role-1))
+				*weights = append(*weights,
+					PositionWeight{paramIndex: mgIdx, weight: int16(side.Modifier() * mgPhase)},
+					PositionWeight{paramIndex: mgIdx + 1, weight: int16(side.Modifier() * egPhase)},
+				)
+			}
 		}
 	}
 }
@@ -606,10 +654,6 @@ func generateMaterialAdjustmentWeights(pos *engine.Position, phase int, weights 
 			nextRook := rooks.NextBit()
 			from := engine.Bsf(nextRook)
 			file := from % 8
-			rank := from / 8
-			if side == engine.White {
-				rank = 7 - rank
-			}
 			// Open files
 			if (pawns[side]|pawns[opponent])&engine.Files[file] == 0 {
 				*weights = append(*weights,
@@ -740,10 +784,7 @@ func generatePawnStructureWeights(pos *engine.Position, phase int, weights *[]Po
 
 			// Passed
 			if passed[side]&nextPawn > 0 {
-				rank := from / 8
-				if side == engine.Black {
-					rank = 7 - rank
-				}
+				rank := engine.RankRelativeToSide(from, side)
 				*weights = append(*weights,
 					PositionWeight{paramIndex: int16(938 + 2*rank), weight: int16(modifier * mgPhase)},
 					PositionWeight{paramIndex: int16(939 + 2*rank), weight: int16(modifier * egPhase)},
@@ -958,6 +999,79 @@ func generateKingAttacksWeights(pos *engine.Position, phase int, weights *[]Posi
 					PositionWeight{paramIndex: int16(1105), weight: int16(side.Modifier() * enemyQueens * egPhase)},
 				)
 			}
+		}
+	}
+}
+
+// generateThreatsWeights generates the weights for threats in the position
+func generateThreatsWeights(pos *engine.Position, phase int, weights *[]PositionWeight) {
+	attackedBy := [2][6]engine.Bitboard{}
+
+	mgPhase := min(phase, engine.MaxPhaseValue)
+	egPhase := engine.MaxPhaseValue - phase
+	blocks := pos.Sides[engine.All]
+	for piece, pieceBB := range pos.Pieces {
+		side := engine.SideOf(piece)
+		role := engine.RoleOf(piece)
+		for pieceBB > 0 {
+			nextPiece := pieceBB.NextBit()
+			attackedBy[side][role] |= engine.Attacks(piece, nextPiece, blocks)
+		}
+	}
+
+	for side := engine.Color(engine.White); side <= engine.Black; side++ {
+		opponent := side.Opponent()
+
+		attackedByMinors := attackedBy[opponent][engine.Knight] | attackedBy[opponent][engine.Bishop]
+		attackedByMajors := attackedBy[opponent][engine.Rook] | attackedBy[opponent][engine.Queen]
+		attackedByPawns := attackedBy[opponent][engine.Pawn]
+		attackedByEnemy := attackedByMinors | attackedByMajors | attackedByPawns
+		defendedByAllied := attackedBy[side][engine.Pawn] | attackedBy[side][engine.Knight] |
+			attackedBy[side][engine.Bishop] | attackedBy[side][engine.Rook] |
+			attackedBy[side][engine.Queen] | attackedBy[side][engine.King]
+
+		minors := pos.Pieces[engine.PieceOf(engine.Knight, side)] | pos.Pieces[engine.PieceOf(engine.Bishop, side)]
+		rooks := pos.Pieces[engine.PieceOf(engine.Rook, side)]
+		queens := pos.Pieces[engine.PieceOf(engine.Queen, side)]
+
+		miniorsAttackedByPawns := (minors & attackedByPawns).Count()
+		if miniorsAttackedByPawns > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(1106), weight: int16(side.Modifier() * miniorsAttackedByPawns * mgPhase)},
+				PositionWeight{paramIndex: int16(1107), weight: int16(side.Modifier() * miniorsAttackedByPawns * egPhase)},
+			)
+		}
+
+		majorsAttackedByPawns := ((rooks | queens) & attackedByPawns).Count()
+		if majorsAttackedByPawns > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(1108), weight: int16(side.Modifier() * majorsAttackedByPawns * mgPhase)},
+				PositionWeight{paramIndex: int16(1109), weight: int16(side.Modifier() * majorsAttackedByPawns * egPhase)},
+			)
+		}
+
+		rooksAttackedByMinors := (rooks & attackedByMinors).Count()
+		if rooksAttackedByMinors > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(1110), weight: int16(side.Modifier() * rooksAttackedByMinors * mgPhase)},
+				PositionWeight{paramIndex: int16(1111), weight: int16(side.Modifier() * rooksAttackedByMinors * egPhase)},
+			)
+		}
+
+		queensAttackedByMinors := (queens & attackedByMinors).Count()
+		if queensAttackedByMinors > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(1112), weight: int16(side.Modifier() * queensAttackedByMinors * mgPhase)},
+				PositionWeight{paramIndex: int16(1113), weight: int16(side.Modifier() * queensAttackedByMinors * egPhase)},
+			)
+		}
+
+		hangingPawns := (pos.Pieces[engine.PieceOf(engine.Pawn, side)] & attackedByEnemy & ^defendedByAllied).Count()
+		if hangingPawns > 0 {
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(1114), weight: int16(side.Modifier() * hangingPawns * mgPhase)},
+				PositionWeight{paramIndex: int16(1115), weight: int16(side.Modifier() * hangingPawns * egPhase)},
+			)
 		}
 	}
 }
