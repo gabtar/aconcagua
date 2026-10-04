@@ -564,6 +564,30 @@ func TestThreefoldRepetitions(t *testing.T) {
 		if got != expected {
 			t.Errorf("Expected: %v got: %v", expected, got)
 		}
+	}
+}
 
+func TestIsOppositeColorBishops(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		fen                    string
+		isOppositeColorBishops bool
+	}{
+		{"Queen vs Rook endgame", "2q3k1/2B3p1/1P2Rp2/P4P2/6P1/5K2/8/8 w - - 0 1", false},
+		{"Opposite color bishops", "6k1/2B3p1/5p2/5P2/2b3P1/5K2/8/8 w - - 0 1", true},
+		{"Two bishops vs one", "8/2B1b1k1/4Pp2/4pP1P/2b3P1/4K3/8/8 w - - 0 1", false},
+		{"Same color bishops", "1b6/3k4/1Bp5/2P5/1P6/2K5/8/8 w - - 0 1", false},
+	}
+
+	for _, test := range testCases {
+		pos := NewPosition()
+		pos.LoadFromFenString(test.fen)
+
+		expected := test.isOppositeColorBishops
+		got := pos.isOppositeColorBishops()
+
+		if got != expected {
+			t.Errorf("Expected: %v got: %v", expected, got)
+		}
 	}
 }

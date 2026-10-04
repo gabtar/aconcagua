@@ -14,9 +14,9 @@ func main() {
 	// Use to run the tuner
 	// filename := "./internal/tuner/training-set/trainingdata.epd"
 	// totalSamples := 7878653
-	// tuner.AdamTuner(filename, totalSamples, tuner.ScalingFactor, 250)
-	// sf := tuner.FindOptimalScalingFactor(dataset, params)
-	// fmt.Println("Optimal Scaling Factor: ", sf)
+	// tuner.AdamTuner(filename, totalSamples, tuner.ScalingFactor, 100)
+	// params := tuner.GetEvaluationParams()
+	// tuner.FindOptimalScalingFactor(filename, totalSamples, params)
 
 	// Find fixed magic numbers
 	// engine.GenerateMagicNumbersForRooksAndBishops()

@@ -3,90 +3,98 @@ package engine
 const (
 	MaxPhaseValue = 24
 	MgScoreMask   = 0xffff
+
+	// Endgame Scaling Factors
+	ScaleNormal      = 128
+	ScalePureOCB     = 48
+	ScaleOCBPawnStep = 8
+	ScaleOCBKnights  = 80
+	ScaleOCBMajors   = 100
+	ScaleNoPawns     = 8
 )
 
 var (
 	// Mobility arrays based on the number of squares a piece can attack
 	QueenMobility = [28]Score{
-		S(-21, -77), S(-18, -66), S(-40, -56), S(-51, -75), S(-50, 22), S(-23, 68),
-		S(-19, 102), S(-14, 118), S(-12, 141), S(-10, 165), S(-6, 170), S(-3, 176),
-		S(0, 184), S(3, 183), S(4, 185), S(5, 192), S(6, 190), S(5, 197),
-		S(6, 198), S(8, 196), S(15, 193), S(26, 175), S(36, 168), S(50, 151),
-		S(68, 141), S(69, 148), S(39, 150), S(19, 146),
+		S(-21, -77), S(-18, -66), S(-41, -56), S(-46, -75), S(-46, 27), S(-22, 72),
+		S(-18, 111), S(-14, 127), S(-11, 150), S(-9, 173), S(-6, 179), S(-2, 185),
+		S(0, 193), S(4, 192), S(5, 195), S(6, 202), S(7, 200), S(5, 207),
+		S(7, 206), S(9, 204), S(16, 200), S(30, 177), S(44, 165), S(65, 138),
+		S(63, 136), S(75, 122), S(32, 135), S(11, 131),
 	}
 	RookMobility = [15]Score{
-		S(-30, -16), S(-25, 0), S(-9, 28), S(-4, 51), S(0, 63), S(3, 72),
-		S(5, 78), S(6, 84), S(10, 84), S(14, 88), S(17, 92), S(18, 96),
-		S(21, 99), S(25, 99), S(33, 96),
+		S(-25, -16), S(-23, 0), S(-11, 34), S(-6, 59), S(-1, 72), S(1, 81),
+		S(2, 88), S(4, 94), S(8, 94), S(12, 98), S(15, 102), S(16, 106),
+		S(18, 110), S(22, 110), S(33, 105),
 	}
 	BishopMobility = [14]Score{
-		S(-36, -129), S(-52, -51), S(-23, 0), S(-13, 21), S(-2, 32), S(4, 40),
-		S(10, 49), S(16, 54), S(17, 59), S(23, 60), S(28, 61), S(45, 53),
-		S(50, 57), S(66, 46),
+		S(-36, -130), S(-52, -49), S(-24, 4), S(-14, 27), S(-4, 38), S(3, 46),
+		S(9, 55), S(14, 61), S(15, 67), S(20, 69), S(25, 70), S(39, 65),
+		S(45, 67), S(55, 59),
 	}
 	KnightMobility = [9]Score{
-		S(-122, -147), S(-32, -26), S(-10, 9), S(2, 31), S(14, 41), S(17, 52),
-		S(27, 54), S(38, 55), S(52, 50),
+		S(-124, -135), S(-33, -26), S(-12, 14), S(0, 37), S(11, 47), S(13, 58),
+		S(24, 61), S(35, 62), S(48, 59),
 	}
 
 	// Material Adjustment
-	BishopPairBonus         = S(25, 63)
-	RookOnOpenFileBonus     = S(31, 12)
-	RookOnSemiOpenFileBonus = S(12, 20)
-	RookOnSeventhRankBonus  = S(-3, 33)
-	QueenOnSeventhRankBonus = S(-2, 16)
+	BishopPairBonus         = S(25, 64)
+	RookOnOpenFileBonus     = S(30, 14)
+	RookOnSemiOpenFileBonus = S(12, 21)
+	RookOnSeventhRankBonus  = S(-10, 36)
+	QueenOnSeventhRankBonus = S(-12, 26)
 	KnightOutpostBonus      = S(37, 20)
-	ConnectedKnightBonus    = S(0, -4)
-	BishopOutpostBonus      = S(42, 0)
+	ConnectedKnightBonus    = S(0, -5)
+	BishopOutpostBonus      = S(40, 0)
 
 	// Pawn Structure
-	DoubledPawnPenalty        = S(3, -12)
+	DoubledPawnPenalty        = S(2, -12)
 	IsolatedPawnPenalty       = S(-2, -2)
 	BackwardPawnPenalty       = S(-2, -2)
-	DefendedPawnBonus         = S(10, 8)
-	ConnectedPawnBonus        = S(7, 4)
-	PassedPawnsBonus          = [8]Score{S(0, 0), S(2, 11), S(-3, 17), S(-6, 45), S(20, 74), S(24, 144), S(8, 94), S(0, 0)}
+	DefendedPawnBonus         = S(9, 9)
+	ConnectedPawnBonus        = S(7, 5)
+	PassedPawnsBonus          = [8]Score{S(0, 0), S(1, 11), S(-3, 18), S(-5, 46), S(19, 78), S(25, 150), S(9, 101), S(0, 0)}
 	CandidatePassedPawnsBonus = [2][8]Score{
-		{S(0, 0), S(-38, 15), S(-14, 10), S(7, 38), S(31, 58), S(53, 88), S(0, 65), S(0, 0)},
-		{S(0, 0), S(-20, 2), S(-4, 21), S(6, 39), S(46, 73), S(65, 155), S(0, 97), S(0, 0)},
+		{S(0, 0), S(-39, 16), S(-14, 10), S(7, 40), S(30, 60), S(53, 91), S(0, 65), S(0, 0)},
+		{S(0, 0), S(-20, 2), S(-4, 22), S(5, 41), S(44, 76), S(69, 155), S(0, 97), S(0, 0)},
 	}
 
 	// King Safety
 	PawnShield = [2][8]Score{
-		{S(29, -12), S(26, -20), S(18, -13), S(13, -25), S(14, -32), S(8, -33), S(7, -7), S(0, 0)},
-		{S(0, 0), S(34, -20), S(31, -17), S(16, -27), S(13, -36), S(-13, -17), S(3, -13), S(0, 0)},
+		{S(28, -12), S(26, -20), S(18, -13), S(13, -24), S(13, -33), S(8, -33), S(8, -8), S(0, 0)},
+		{S(0, 0), S(34, -21), S(31, -17), S(16, -28), S(13, -37), S(-14, -17), S(6, -16), S(0, 0)},
 	}
 	PawnStorm = [2][2][8]Score{
 		{
-			{S(15, 24), S(-44, -40), S(-23, -5), S(-16, -10), S(2, -12), S(10, -17), S(10, -15), S(0, 0)},
-			{S(23, 53), S(-6, -23), S(-2, -17), S(7, -21), S(6, -4), S(10, -11), S(32, 9), S(0, 0)},
+			{S(6, 28), S(-60, -49), S(-22, -5), S(-16, -10), S(2, -12), S(9, -17), S(10, -15), S(0, 0)},
+			{S(26, 63), S(-8, -31), S(-2, -19), S(7, -22), S(7, -5), S(10, -11), S(31, 10), S(0, 0)},
 		},
 		{
-			{S(0, 0), S(64, 22), S(-7, -5), S(2, -9), S(10, -12), S(16, -15), S(16, -12), S(0, 0)},
-			{S(0, 0), S(41, 62), S(-10, -29), S(15, -12), S(23, -13), S(21, -5), S(55, -11), S(0, 0)},
+			{S(0, 0), S(63, 23), S(-7, -5), S(2, -9), S(10, -12), S(17, -15), S(16, -12), S(0, 0)},
+			{S(0, 0), S(42, 71), S(-9, -31), S(15, -13), S(23, -14), S(21, -5), S(58, -16), S(0, 0)},
 		},
 	}
-	KingOnOpenFiles = [2]Score{S(3, -23), S(-25, -21)}
+	KingOnOpenFiles = [2]Score{S(1, -22), S(-27, -21)}
 
-	KnightAttackWeight   = S(20, -3)
+	KnightAttackWeight   = S(20, -2)
 	BishopAttackWeight   = S(19, -7)
-	RookAttackWeight     = S(19, -15)
-	QueenAttackWeight    = S(3, -3)
-	KingZoneDefenseBonus = S(10, 3)
-	SafeQueenCheck       = S(20, 9)
-	SafeRookCheck        = S(45, -6)
-	SafeBishopCheck      = S(17, 16)
-	SafeKnightCheck      = S(16, 14)
-	EnemyQueen           = S(0, -4)
+	RookAttackWeight     = S(18, -16)
+	QueenAttackWeight    = S(2, -1)
+	KingZoneDefenseBonus = S(9, 4)
+	SafeQueenCheck       = S(19, 11)
+	SafeRookCheck        = S(40, -1)
+	SafeBishopCheck      = S(17, 17)
+	SafeKnightCheck      = S(15, 16)
+	EnemyQueen           = S(0, 1)
 
 	// Threats
-	MinorAttackedByPawnThreat  = S(-45, -12)
-	MajorAttackedByPawnThreat  = S(-31, -39)
-	RookAttackedByMinorThreat  = S(-33, -20)
-	QueenAttackedByMinorThreat = S(-27, -33)
-	HangingPawnThreat          = S(7, -10)
+	MinorAttackedByPawnThreat  = S(-44, -13)
+	MajorAttackedByPawnThreat  = S(-51, 13)
+	RookAttackedByMinorThreat  = S(-43, 3)
+	QueenAttackedByMinorThreat = S(-35, 7)
+	HangingPawnThreat          = S(8, -12)
 
-	PinnedPieceThreat = [4]Score{S(-75, -64), S(-47, -36), S(-25, -48), S(-32, -52)}
+	PinnedPieceThreat = [4]Score{S(-74, -67), S(-46, -32), S(-10, -71), S(-27, -61)}
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -196,9 +204,11 @@ func (ev *Evaluation) Evaluate(pos *Position) (score int) {
 
 	phase := GetEvalPhase(pos)
 	mgPhase := min(phase, MaxPhaseValue)
-	egPhase := MaxPhaseValue - phase
+	egPhase := MaxPhaseValue - mgPhase
 	mg, eg := sc.Get()
-	score = (mg*mgPhase + eg*egPhase) / MaxPhaseValue
+
+	scale := ScaleFactor(pos)
+	score = (mg*mgPhase + eg*egPhase*scale/ScaleNormal) / MaxPhaseValue
 	if pos.Turn == Black {
 		score = -score
 	}
@@ -543,6 +553,57 @@ func (ev *Evaluation) evaluateThreats(pos *Position) (sc Score) {
 	}
 
 	return
+}
+
+// ScaleFactor returns the scale factor for the endgame
+// ScaleFactor returns the scale factor for the endgame
+func ScaleFactor(pos *Position) int {
+	whitePawns := pos.Pieces[WhitePawn].Count()
+	blackPawns := pos.Pieces[BlackPawn].Count()
+	whiteMaterial := nonPawnMaterial(pos, White) + whitePawns
+	blackMaterial := nonPawnMaterial(pos, Black) + blackPawns
+
+	// Strong side by remaining material
+	strong, strongPawns := Color(White), whitePawns
+	if blackMaterial > whiteMaterial || (blackMaterial == whiteMaterial && blackPawns > whitePawns) {
+		strong, strongPawns = Black, blackPawns
+	}
+	weak := strong.Opponent()
+
+	// Opposite color bishops
+	if pos.isOppositeColorBishops() {
+		knights := (pos.Pieces[WhiteKnight] | pos.Pieces[BlackKnight]).Count()
+		majors := (pos.Pieces[WhiteRook] | pos.Pieces[WhiteQueen] |
+			pos.Pieces[BlackRook] | pos.Pieces[BlackQueen]).Count()
+
+		if knights == 0 && majors == 0 {
+			return min(ScaleNormal, ScalePureOCB+ScaleOCBPawnStep*strongPawns)
+		}
+
+		if knights > 0 && majors == 0 {
+			return ScaleOCBKnights
+		}
+
+		if majors > 0 {
+			return ScaleOCBMajors
+		}
+	}
+
+	// Strong side has no pawns: it can't win without a decisive material lead
+	if strongPawns == 0 && nonPawnMaterial(pos, strong)-nonPawnMaterial(pos, weak) <= 3 {
+		return ScaleNoPawns
+	}
+
+	// Scale down as the number of pawns of the strong side reduces
+	return min(ScaleNormal, 96+strongPawns*8)
+}
+
+// nonPawnMaterial returns the non pawn material of a side
+func nonPawnMaterial(pos *Position, side Color) int {
+	return pos.Pieces[PieceOf(Knight, side)].Count()*3 +
+		pos.Pieces[PieceOf(Bishop, side)].Count()*3 +
+		pos.Pieces[PieceOf(Rook, side)].Count()*5 +
+		pos.Pieces[PieceOf(Queen, side)].Count()*9
 }
 
 // relativePsqtSquare returns the square number from the point of view of the side passed

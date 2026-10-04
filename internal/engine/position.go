@@ -319,6 +319,18 @@ func (pos *Position) insuficientMaterial() bool {
 	return true
 }
 
+// isOppositeColorBishops returns if the position is an opposite colored bishop endgame
+func (pos *Position) isOppositeColorBishops() bool {
+	whiteBishops := pos.Pieces[WhiteBishop]
+	blackBishops := pos.Pieces[BlackBishop]
+
+	if whiteBishops.Count() != 1 || blackBishops.Count() != 1 {
+		return false
+	}
+
+	return ((whiteBishops | blackBishops) & LightSquares).Count() == 1
+}
+
 // MakeMove executes a chess move, updating the board state
 func (pos *Position) MakeMove(move *Move) {
 	pieceToMove := pos.PieceAt(move.from())
