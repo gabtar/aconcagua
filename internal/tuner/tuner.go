@@ -79,7 +79,7 @@ func (dt *Dataset) Load(scanner *bufio.Scanner, size int) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 1124
+const TuneableParams = 1130
 
 // getEvaluationParams returns a flat array with the current evaluation params
 func getEvaluationParams() (params [TuneableParams]float64) {
@@ -197,7 +197,7 @@ func getEvaluationParams() (params [TuneableParams]float64) {
 	intParams[1102], intParams[1103] = engine.SafeKnightCheck.Get()
 	intParams[1104], intParams[1105] = engine.EnemyQueen.Get()
 
-	// Threats. 1106-1115
+	// Threats. 1106-1123
 	intParams[1106], intParams[1107] = engine.MinorAttackedByPawnThreat.Get()
 	intParams[1108], intParams[1109] = engine.MajorAttackedByPawnThreat.Get()
 	intParams[1110], intParams[1111] = engine.RookAttackedByMinorThreat.Get()
@@ -208,6 +208,11 @@ func getEvaluationParams() (params [TuneableParams]float64) {
 	intParams[1118], intParams[1119] = engine.PinnedPieceThreat[1].Get()
 	intParams[1120], intParams[1121] = engine.PinnedPieceThreat[2].Get()
 	intParams[1122], intParams[1123] = engine.PinnedPieceThreat[3].Get()
+
+	// Passed Pawns. 1124-1129
+	intParams[1124], intParams[1125] = engine.PassedKingDistance.Get()
+	intParams[1126], intParams[1127] = engine.PassedEnemyKingDistance.Get()
+	intParams[1128], intParams[1129] = engine.PassedPawnProtected.Get()
 
 	// Convert to float params
 	for i := range TuneableParams {
@@ -451,6 +456,11 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 	psqt = psqt[:len(psqt)-1]
 	psqt += "}"
 
+	psqt += "\nPassed Pawns\n"
+	psqt += fmt.Sprintf("PassedKingDistance = S(%d, %d)\n", intParams[1124], intParams[1125])
+	psqt += fmt.Sprintf("PassedEnemyKingDistance = S(%d, %d)\n", intParams[1126], intParams[1127])
+	psqt += fmt.Sprintf("PassedPawnProtected = S(%d, %d)\n", intParams[1128], intParams[1129])
+
 	return psqt
 }
 
@@ -548,6 +558,7 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 	generateKingSafetyWeights(pos, mgPhase, egPhase, scaleFactor, weights)
 	generateKingAttacksWeights(pos, mgPhase, egPhase, scaleFactor, weights)
 	generateThreatsWeights(pos, mgPhase, egPhase, scaleFactor, weights)
+	generatePassedPawnsWeights(pos, mgPhase, egPhase, scaleFactor, weights)
 }
 
 // generatePieceScoreWeights generates the weights of the pieces socre in the position
@@ -1050,6 +1061,42 @@ func generateThreatsWeights(pos *engine.Position, mgPhase, egPhase, sf float64, 
 				PositionWeight{paramIndex: int16(1114), weight: sideModifier * hangingPawns * mgPhase},
 				PositionWeight{paramIndex: int16(1115), weight: sideModifier * hangingPawns * sf / engine.ScaleNormal * egPhase},
 			)
+		}
+	}
+}
+
+// generatePassedPawnsWeights returns the weights for the passed pawns
+func generatePassedPawnsWeights(pos *engine.Position, mgPhase, egPhase, sf float64, weights *[]PositionWeight) {
+	for side := engine.Color(engine.White); side <= engine.Black; side++ {
+		opponent := side.Opponent()
+		sideModifier := float64(side.Modifier())
+		alliedPawns := pos.Pieces[engine.PieceOf(engine.Pawn, side)]
+		enemyPawns := pos.Pieces[engine.PieceOf(engine.Pawn, opponent)]
+		passed := engine.PassedPawns(alliedPawns, enemyPawns, side)
+		protected := engine.Attacks(engine.PieceOf(engine.Pawn, opponent), alliedPawns, pos.Sides[engine.All])
+
+		for passed > 0 {
+			nextPassed := passed.NextBit()
+			from := engine.Bsf(nextPassed)
+			alliedKingSq := engine.Bsf(pos.KingPosition(side))
+			enemyKingSq := engine.Bsf(pos.KingPosition(opponent))
+
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(1124), weight: sideModifier * float64(engine.ManhattanDistance(from, alliedKingSq)) * mgPhase},
+				PositionWeight{paramIndex: int16(1125), weight: sideModifier * float64(engine.ManhattanDistance(from, alliedKingSq)) * sf / engine.ScaleNormal * egPhase},
+			)
+
+			*weights = append(*weights,
+				PositionWeight{paramIndex: int16(1126), weight: sideModifier * float64(engine.ManhattanDistance(from, enemyKingSq)) * mgPhase},
+				PositionWeight{paramIndex: int16(1127), weight: sideModifier * float64(engine.ManhattanDistance(from, enemyKingSq)) * sf / engine.ScaleNormal * egPhase},
+			)
+
+			if protected&alliedPawns > 0 {
+				*weights = append(*weights,
+					PositionWeight{paramIndex: int16(1128), weight: sideModifier * mgPhase},
+					PositionWeight{paramIndex: int16(1129), weight: sideModifier * sf / engine.ScaleNormal * egPhase},
+				)
+			}
 		}
 	}
 }

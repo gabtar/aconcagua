@@ -14,7 +14,7 @@ func main() {
 	// Use to run the tuner
 	// filename := "./internal/tuner/training-set/trainingdata.epd"
 	// totalSamples := 7878653
-	// tuner.AdamTuner(filename, totalSamples, tuner.ScalingFactor, 100)
+	// tuner.AdamTuner(filename, totalSamples, tuner.ScalingFactor, 200)
 	// params := tuner.GetEvaluationParams()
 	// tuner.FindOptimalScalingFactor(filename, totalSamples, params)
 

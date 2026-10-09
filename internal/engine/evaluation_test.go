@@ -17,3 +17,12 @@ func TestScore(t *testing.T) {
 		t.Errorf("Expected eg: %v, got: %v", -30, eg)
 	}
 }
+
+func TestManhattanDistance(t *testing.T) {
+	got := ManhattanDistance(a1, h8)
+	expected := 14
+
+	if got != expected {
+		t.Errorf("Expected dist: %v, got: %v", expected, got)
+	}
+}
