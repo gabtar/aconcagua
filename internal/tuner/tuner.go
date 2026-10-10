@@ -79,7 +79,7 @@ func (dt *Dataset) Load(scanner *bufio.Scanner, size int) {
 }
 
 // Number of total tuneable params
-const TuneableParams = 1130
+const TuneableParams = 1129
 
 // getEvaluationParams returns a flat array with the current evaluation params
 func getEvaluationParams() (params [TuneableParams]float64) {
@@ -135,7 +135,7 @@ func getEvaluationParams() (params [TuneableParams]float64) {
 	intParams[918], intParams[919] = engine.RookOnSeventhRankBonus.Get()
 	intParams[920], intParams[921] = engine.QueenOnSeventhRankBonus.Get()
 	intParams[922], intParams[923] = engine.KnightOutpostBonus.Get()
-	intParams[924], intParams[925] = engine.ConnectedKnightBonus.Get()
+	// intParams[924], intParams[925] = engine.ConnectedKnightBonus.Get()
 	intParams[926], intParams[927] = engine.BishopOutpostBonus.Get()
 
 	// Pawn structure params. 928-953
@@ -195,24 +195,25 @@ func getEvaluationParams() (params [TuneableParams]float64) {
 	intParams[1098], intParams[1099] = engine.SafeRookCheck.Get()
 	intParams[1100], intParams[1101] = engine.SafeBishopCheck.Get()
 	intParams[1102], intParams[1103] = engine.SafeKnightCheck.Get()
-	intParams[1104], intParams[1105] = engine.EnemyQueen.Get()
 
-	// Threats. 1106-1123
-	intParams[1106], intParams[1107] = engine.MinorAttackedByPawnThreat.Get()
-	intParams[1108], intParams[1109] = engine.MajorAttackedByPawnThreat.Get()
-	intParams[1110], intParams[1111] = engine.RookAttackedByMinorThreat.Get()
-	intParams[1112], intParams[1113] = engine.QueenAttackedByMinorThreat.Get()
-	intParams[1114], intParams[1115] = engine.HangingPawnThreat.Get()
+	// Threats. 1104-1121
+	intParams[1104], intParams[1105] = engine.MinorAttackedByPawnThreat.Get()
+	intParams[1106], intParams[1107] = engine.MajorAttackedByPawnThreat.Get()
+	intParams[1108], intParams[1109] = engine.RookAttackedByMinorThreat.Get()
+	intParams[1110], intParams[1111] = engine.QueenAttackedByMinorThreat.Get()
+	intParams[1112], intParams[1113] = engine.HangingPawnThreat.Get()
 
-	intParams[1116], intParams[1117] = engine.PinnedPieceThreat[0].Get()
-	intParams[1118], intParams[1119] = engine.PinnedPieceThreat[1].Get()
-	intParams[1120], intParams[1121] = engine.PinnedPieceThreat[2].Get()
-	intParams[1122], intParams[1123] = engine.PinnedPieceThreat[3].Get()
+	intParams[1114], intParams[1115] = engine.PinnedPieceThreat[0].Get()
+	intParams[1116], intParams[1117] = engine.PinnedPieceThreat[1].Get()
+	intParams[1118], intParams[1119] = engine.PinnedPieceThreat[2].Get()
+	intParams[1120], intParams[1121] = engine.PinnedPieceThreat[3].Get()
 
-	// Passed Pawns. 1124-1129
-	intParams[1124], intParams[1125] = engine.PassedKingDistance.Get()
-	intParams[1126], intParams[1127] = engine.PassedEnemyKingDistance.Get()
-	intParams[1128], intParams[1129] = engine.PassedPawnProtected.Get()
+	// Passed Pawns. 1122-1127
+	intParams[1122], intParams[1123] = engine.PassedKingDistance.Get()
+	intParams[1124], intParams[1125] = engine.PassedEnemyKingDistance.Get()
+	intParams[1126], intParams[1127] = engine.PassedPawnProtected.Get()
+
+	intParams[1128] = engine.Tempo
 
 	// Convert to float params
 	for i := range TuneableParams {
@@ -318,7 +319,7 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		{"RookOnSeventhRankBonus", 918},
 		{"QueenOnSeventhRankBonus", 920},
 		{"KnightOutpostBonus", 922},
-		{"ConnectedKnightBonus", 924},
+		// {"ConnectedKnightBonus", 924},
 		{"BishopOutpostBonus", 926},
 	}
 	psqt += "\n// Material Adjustments\n"
@@ -426,7 +427,6 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		{"SafeRookCheck", 1098},
 		{"SafeBishopCheck", 1100},
 		{"SafeKnightCheck", 1102},
-		{"EnemyQueen", 1104},
 	}
 	for _, ka := range kingAttacks {
 		psqt += fmt.Sprintf("%-24s= S(%d, %d)\n", ka.name, intParams[ka.startIdx], intParams[ka.startIdx+1])
@@ -438,11 +438,11 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 		name     string
 		startIdx int
 	}{
-		{"MinorAttackedByPawnThreat", 1106},
-		{"MajorAttackedByPawnThreat", 1108},
-		{"RookAttackedByMinorThreat", 1110},
-		{"QueenAttackedByMinorThreat", 1112},
-		{"HangingPawnThreat", 1114},
+		{"MinorAttackedByPawnThreat", 1104},
+		{"MajorAttackedByPawnThreat", 1106},
+		{"RookAttackedByMinorThreat", 1108},
+		{"QueenAttackedByMinorThreat", 1110},
+		{"HangingPawnThreat", 1112},
 	}
 	for _, th := range threats {
 		psqt += fmt.Sprintf("%-24s= S(%d, %d)\n", th.name, intParams[th.startIdx], intParams[th.startIdx+1])
@@ -450,17 +450,18 @@ func paramsToPrettyFormat(bestParams [TuneableParams]float64) (psqt string) {
 
 	psqt += "\nPinnedPieceThreat     = [4]Score{"
 	for i := range 4 {
-		mgIdx := 1116 + i*2
+		mgIdx := 1114 + i*2
 		psqt += fmt.Sprintf("S(%d, %d),", intParams[mgIdx], intParams[mgIdx+1])
 	}
 	psqt = psqt[:len(psqt)-1]
 	psqt += "}"
 
 	psqt += "\nPassed Pawns\n"
-	psqt += fmt.Sprintf("PassedKingDistance = S(%d, %d)\n", intParams[1124], intParams[1125])
-	psqt += fmt.Sprintf("PassedEnemyKingDistance = S(%d, %d)\n", intParams[1126], intParams[1127])
-	psqt += fmt.Sprintf("PassedPawnProtected = S(%d, %d)\n", intParams[1128], intParams[1129])
+	psqt += fmt.Sprintf("PassedKingDistance = S(%d, %d)\n", intParams[1122], intParams[1123])
+	psqt += fmt.Sprintf("PassedEnemyKingDistance = S(%d, %d)\n", intParams[1124], intParams[1125])
+	psqt += fmt.Sprintf("PassedPawnProtected = S(%d, %d)\n", intParams[1126], intParams[1127])
 
+	psqt += fmt.Sprintf("Tempo = %d\n", intParams[1128])
 	return psqt
 }
 
@@ -559,6 +560,12 @@ func generatePositionWeights(pos *engine.Position, phase int, weights *[]Positio
 	generateKingAttacksWeights(pos, mgPhase, egPhase, scaleFactor, weights)
 	generateThreatsWeights(pos, mgPhase, egPhase, scaleFactor, weights)
 	generatePassedPawnsWeights(pos, mgPhase, egPhase, scaleFactor, weights)
+
+	// Tempo
+	*weights = append(*weights,
+		PositionWeight{paramIndex: int16(1128), weight: float64(engine.MaxPhaseValue * pos.Turn.Modifier())},
+	)
+
 }
 
 // generatePieceScoreWeights generates the weights of the pieces socre in the position
@@ -625,7 +632,7 @@ func generateMobilityWeights(pos *engine.Position, mgPhase, egPhase, sf float64,
 
 			// PinnedPieceThreat
 			if pinnedPieces&nextPiece > 0 {
-				mgIdx := int16(1116 + 2*(role-1))
+				mgIdx := int16(1114 + 2*(role-1))
 				*weights = append(*weights,
 					PositionWeight{paramIndex: mgIdx, weight: sideModifier * mgPhase},
 					PositionWeight{paramIndex: mgIdx + 1, weight: sideModifier * sf / engine.ScaleNormal * egPhase},
@@ -717,13 +724,13 @@ func generateMaterialAdjustmentWeights(pos *engine.Position, mgPhase, egPhase, s
 				)
 			}
 
-			knightAttacks := engine.Attacks(engine.PieceOf(engine.Knight, side), nextKnight, pos.Sides[engine.All])
-			if knightAttacks&pos.Pieces[engine.PieceOf(engine.Knight, side)] > 0 {
-				*weights = append(*weights,
-					PositionWeight{paramIndex: 924, weight: sideModifier * mgPhase},
-					PositionWeight{paramIndex: 925, weight: sideModifier * sf / engine.ScaleNormal * egPhase},
-				)
-			}
+			// knightAttacks := engine.Attacks(engine.PieceOf(engine.Knight, side), nextKnight, pos.Sides[engine.All])
+			// if knightAttacks&pos.Pieces[engine.PieceOf(engine.Knight, side)] > 0 {
+			// 	*weights = append(*weights,
+			// 		PositionWeight{paramIndex: 924, weight: sideModifier * mgPhase},
+			// 		PositionWeight{paramIndex: 925, weight: sideModifier * sf / engine.ScaleNormal * egPhase},
+			// 	)
+			// }
 		}
 
 		// Bishop outposts
@@ -954,7 +961,6 @@ func generateKingAttacksWeights(pos *engine.Position, mgPhase, egPhase, sf float
 			bishopChecks := float64((bishopChecksThreats & ^defendedByPawns & attackedBy[side][engine.Bishop]).Count())
 			rookChecks := float64((rookChecksThreats & ^defendedByPawns & attackedBy[side][engine.Rook]).Count())
 			queenChecks := float64((queenChecksThreats & ^defendedByPawns & attackedBy[side][engine.Queen]).Count())
-			enemyQueens := float64(pos.Pieces[engine.PieceOf(engine.Queen, side)].Count())
 
 			if queenChecks > 0 {
 				*weights = append(*weights,
@@ -981,13 +987,6 @@ func generateKingAttacksWeights(pos *engine.Position, mgPhase, egPhase, sf float
 				*weights = append(*weights,
 					PositionWeight{paramIndex: int16(1102), weight: sideModifier * knightChecks * mgPhase},
 					PositionWeight{paramIndex: int16(1103), weight: sideModifier * knightChecks * sf / engine.ScaleNormal * egPhase},
-				)
-			}
-
-			if enemyQueens > 0 {
-				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(1104), weight: sideModifier * enemyQueens * mgPhase},
-					PositionWeight{paramIndex: int16(1105), weight: sideModifier * enemyQueens * sf / engine.ScaleNormal * egPhase},
 				)
 			}
 		}
@@ -1026,40 +1025,40 @@ func generateThreatsWeights(pos *engine.Position, mgPhase, egPhase, sf float64, 
 		miniorsAttackedByPawns := float64((minors & attackedByPawns).Count())
 		if miniorsAttackedByPawns > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(1106), weight: sideModifier * miniorsAttackedByPawns * mgPhase},
-				PositionWeight{paramIndex: int16(1107), weight: sideModifier * miniorsAttackedByPawns * sf / engine.ScaleNormal * egPhase},
+				PositionWeight{paramIndex: int16(1104), weight: sideModifier * miniorsAttackedByPawns * mgPhase},
+				PositionWeight{paramIndex: int16(1105), weight: sideModifier * miniorsAttackedByPawns * sf / engine.ScaleNormal * egPhase},
 			)
 		}
 
 		majorsAttackedByPawns := float64(((rooks | queens) & attackedByPawns).Count())
 		if majorsAttackedByPawns > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(1108), weight: sideModifier * majorsAttackedByPawns * mgPhase},
-				PositionWeight{paramIndex: int16(1109), weight: sideModifier * majorsAttackedByPawns * sf / engine.ScaleNormal * egPhase},
+				PositionWeight{paramIndex: int16(1106), weight: sideModifier * majorsAttackedByPawns * mgPhase},
+				PositionWeight{paramIndex: int16(1107), weight: sideModifier * majorsAttackedByPawns * sf / engine.ScaleNormal * egPhase},
 			)
 		}
 
 		rooksAttackedByMinors := float64((rooks & attackedByMinors).Count())
 		if rooksAttackedByMinors > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(1110), weight: sideModifier * rooksAttackedByMinors * mgPhase},
-				PositionWeight{paramIndex: int16(1111), weight: sideModifier * rooksAttackedByMinors * sf / engine.ScaleNormal * egPhase},
+				PositionWeight{paramIndex: int16(1108), weight: sideModifier * rooksAttackedByMinors * mgPhase},
+				PositionWeight{paramIndex: int16(1109), weight: sideModifier * rooksAttackedByMinors * sf / engine.ScaleNormal * egPhase},
 			)
 		}
 
 		queensAttackedByMinors := float64((queens & attackedByMinors).Count())
 		if queensAttackedByMinors > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(1112), weight: sideModifier * queensAttackedByMinors * mgPhase},
-				PositionWeight{paramIndex: int16(1113), weight: sideModifier * queensAttackedByMinors * sf / engine.ScaleNormal * egPhase},
+				PositionWeight{paramIndex: int16(1110), weight: sideModifier * queensAttackedByMinors * mgPhase},
+				PositionWeight{paramIndex: int16(1111), weight: sideModifier * queensAttackedByMinors * sf / engine.ScaleNormal * egPhase},
 			)
 		}
 
 		hangingPawns := float64((pos.Pieces[engine.PieceOf(engine.Pawn, side)] & attackedByEnemy & ^defendedByAllied).Count())
 		if hangingPawns > 0 {
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(1114), weight: sideModifier * hangingPawns * mgPhase},
-				PositionWeight{paramIndex: int16(1115), weight: sideModifier * hangingPawns * sf / engine.ScaleNormal * egPhase},
+				PositionWeight{paramIndex: int16(1112), weight: sideModifier * hangingPawns * mgPhase},
+				PositionWeight{paramIndex: int16(1113), weight: sideModifier * hangingPawns * sf / engine.ScaleNormal * egPhase},
 			)
 		}
 	}
@@ -1082,19 +1081,19 @@ func generatePassedPawnsWeights(pos *engine.Position, mgPhase, egPhase, sf float
 			enemyKingSq := engine.Bsf(pos.KingPosition(opponent))
 
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(1124), weight: sideModifier * float64(engine.ManhattanDistance(from, alliedKingSq)) * mgPhase},
-				PositionWeight{paramIndex: int16(1125), weight: sideModifier * float64(engine.ManhattanDistance(from, alliedKingSq)) * sf / engine.ScaleNormal * egPhase},
+				PositionWeight{paramIndex: int16(1122), weight: sideModifier * float64(engine.ManhattanDistance(from, alliedKingSq)) * mgPhase},
+				PositionWeight{paramIndex: int16(1123), weight: sideModifier * float64(engine.ManhattanDistance(from, alliedKingSq)) * sf / engine.ScaleNormal * egPhase},
 			)
 
 			*weights = append(*weights,
-				PositionWeight{paramIndex: int16(1126), weight: sideModifier * float64(engine.ManhattanDistance(from, enemyKingSq)) * mgPhase},
-				PositionWeight{paramIndex: int16(1127), weight: sideModifier * float64(engine.ManhattanDistance(from, enemyKingSq)) * sf / engine.ScaleNormal * egPhase},
+				PositionWeight{paramIndex: int16(1124), weight: sideModifier * float64(engine.ManhattanDistance(from, enemyKingSq)) * mgPhase},
+				PositionWeight{paramIndex: int16(1125), weight: sideModifier * float64(engine.ManhattanDistance(from, enemyKingSq)) * sf / engine.ScaleNormal * egPhase},
 			)
 
 			if protected&alliedPawns > 0 {
 				*weights = append(*weights,
-					PositionWeight{paramIndex: int16(1128), weight: sideModifier * mgPhase},
-					PositionWeight{paramIndex: int16(1129), weight: sideModifier * sf / engine.ScaleNormal * egPhase},
+					PositionWeight{paramIndex: int16(1126), weight: sideModifier * mgPhase},
+					PositionWeight{paramIndex: int16(1127), weight: sideModifier * sf / engine.ScaleNormal * egPhase},
 				)
 			}
 		}

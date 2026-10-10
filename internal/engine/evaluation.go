@@ -16,90 +16,90 @@ const (
 var (
 	// Mobility arrays based on the number of squares a piece can attack
 	QueenMobility = [28]Score{
-		S(-21, -77), S(-18, -66), S(-41, -56), S(-45, -75), S(-46, 29), S(-21, 75),
-		S(-19, 115), S(-14, 133), S(-12, 156), S(-10, 180), S(-6, 186), S(-3, 192),
-		S(0, 200), S(3, 199), S(4, 201), S(5, 208), S(6, 206), S(4, 213),
-		S(6, 212), S(8, 209), S(16, 205), S(30, 182), S(46, 168), S(68, 139),
-		S(64, 138), S(80, 120), S(32, 134), S(10, 129),
+		S(-21, -77), S(-18, -66), S(-41, -56), S(-44, -75), S(-45, 30), S(-23, 77),
+		S(-19, 117), S(-15, 136), S(-12, 159), S(-10, 182), S(-7, 188), S(-3, 195),
+		S(0, 203), S(3, 203), S(4, 205), S(5, 211), S(6, 210), S(5, 216),
+		S(7, 215), S(9, 212), S(17, 206), S(30, 183), S(45, 169), S(68, 138),
+		S(64, 139), S(82, 117), S(32, 134), S(9, 128),
 	}
 	RookMobility = [15]Score{
-		S(-24, -16), S(-22, 0), S(-11, 37), S(-6, 62), S(-1, 75), S(0, 85),
-		S(2, 91), S(4, 97), S(7, 98), S(11, 102), S(14, 106), S(15, 111),
-		S(17, 115), S(21, 115), S(32, 110),
+		S(-23, -16), S(-21, 0), S(-10, 38), S(-5, 64), S(-1, 77), S(1, 86),
+		S(2, 93), S(4, 100), S(7, 101), S(11, 104), S(13, 109), S(14, 113),
+		S(16, 117), S(20, 116), S(30, 109),
 	}
 	BishopMobility = [14]Score{
-		S(-36, -130), S(-52, -47), S(-24, 6), S(-14, 30), S(-4, 41), S(2, 48),
-		S(8, 58), S(14, 63), S(15, 69), S(20, 72), S(25, 72), S(39, 67),
-		S(44, 71), S(50, 64),
+		S(-37, -130), S(-51, -47), S(-24, 8), S(-14, 32), S(-3, 43), S(3, 50),
+		S(9, 60), S(14, 65), S(15, 71), S(20, 72), S(24, 73), S(38, 67),
+		S(42, 71), S(47, 63),
 	}
 	KnightMobility = [9]Score{
-		S(-124, -132), S(-33, -26), S(-12, 15), S(0, 37), S(10, 48), S(13, 60),
-		S(23, 62), S(34, 63), S(48, 60),
+		S(-124, -130), S(-33, -25), S(-12, 15), S(0, 38), S(11, 49), S(14, 61),
+		S(24, 63), S(35, 65), S(49, 60),
 	}
 
 	// Material Adjustment
-	BishopPairBonus         = S(26, 64)
-	RookOnOpenFileBonus     = S(30, 13)
-	RookOnSemiOpenFileBonus = S(12, 20)
-	RookOnSeventhRankBonus  = S(-9, 32)
-	QueenOnSeventhRankBonus = S(-12, 23)
-	KnightOutpostBonus      = S(37, 20)
-	ConnectedKnightBonus    = S(0, -5)
-	BishopOutpostBonus      = S(40, 1)
+	BishopPairBonus         = S(25, 63)
+	RookOnOpenFileBonus     = S(31, 13)
+	RookOnSemiOpenFileBonus = S(12, 23)
+	RookOnSeventhRankBonus  = S(-6, 31)
+	QueenOnSeventhRankBonus = S(-8, 24)
+	KnightOutpostBonus      = S(36, 19)
+	BishopOutpostBonus      = S(39, 0)
 
 	// Pawn Structure
-	DoubledPawnPenalty        = S(2, -12)
+	DoubledPawnPenalty        = S(3, -12)
 	IsolatedPawnPenalty       = S(-2, -2)
 	BackwardPawnPenalty       = S(-3, -1)
 	DefendedPawnBonus         = S(9, 9)
 	ConnectedPawnBonus        = S(6, 6)
-	PassedPawnsBonus          = [8]Score{S(0, 0), S(-2, 1), S(-7, 10), S(-7, 45), S(17, 85), S(25, 158), S(11, 109), S(0, 0)}
+	PassedPawnsBonus          = [8]Score{S(0, 0), S(-3, -7), S(-9, 4), S(-13, 44), S(9, 87), S(18, 164), S(7, 116), S(0, 0)}
 	CandidatePassedPawnsBonus = [2][8]Score{
-		{S(0, 0), S(-38, 19), S(-14, 12), S(6, 42), S(30, 61), S(54, 87), S(0, 65), S(0, 0)},
-		{S(0, 0), S(-21, 5), S(-5, 24), S(5, 43), S(45, 77), S(69, 154), S(0, 97), S(0, 0)},
+		{S(0, 0), S(-41, 17), S(-16, 10), S(6, 41), S(31, 64), S(60, 91), S(0, 65), S(0, 0)},
+		{S(0, 0), S(-20, 5), S(-4, 23), S(5, 42), S(41, 76), S(69, 153), S(0, 97), S(0, 0)},
 	}
 
 	// King Safety
 	PawnShield = [2][8]Score{
-		{S(30, -14), S(27, -21), S(19, -14), S(14, -25), S(14, -31), S(6, -28), S(7, -2), S(0, 0)},
-		{S(0, 0), S(35, -21), S(32, -18), S(17, -29), S(14, -36), S(-15, -13), S(6, -12), S(0, 0)},
+		{S(31, -13), S(27, -20), S(19, -13), S(14, -24), S(14, -30), S(6, -27), S(4, 0), S(0, 0)},
+		{S(0, 0), S(35, -21), S(32, -17), S(17, -28), S(14, -36), S(-16, -12), S(6, -10), S(0, 0)},
 	}
 	PawnStorm = [2][2][8]Score{
 		{
-			{S(3, 25), S(-65, -52), S(-21, -4), S(-16, -6), S(1, -7), S(9, -12), S(9, -11), S(0, 0)},
-			{S(26, 59), S(-9, -33), S(-2, -14), S(7, -17), S(6, -1), S(11, -10), S(33, 7), S(0, 0)},
+			{S(6, 31), S(-68, -54), S(-22, -2), S(-17, -4), S(1, -5), S(8, -10), S(9, -10), S(0, 0)},
+			{S(26, 58), S(-9, -34), S(-4, -13), S(6, -15), S(5, 0), S(10, -8), S(35, 6), S(0, 0)},
 		},
 		{
-			{S(0, 0), S(63, 20), S(-5, -3), S(3, -4), S(10, -6), S(16, -9), S(15, -6), S(0, 0)},
-			{S(0, 0), S(41, 66), S(-9, -24), S(15, -6), S(22, -8), S(21, -2), S(60, -17), S(0, 0)},
+			{S(0, 0), S(67, 24), S(-6, -1), S(2, -1), S(9, -4), S(15, -7), S(15, -5), S(0, 0)},
+			{S(0, 0), S(41, 65), S(-11, -21), S(14, -4), S(21, -5), S(20, 0), S(61, -17), S(0, 0)},
 		},
 	}
-	KingOnOpenFiles = [2]Score{S(2, -22), S(-25, -18)}
+	KingOnOpenFiles = [2]Score{S(1, -18), S(-26, -14)}
 
 	KnightAttackWeight   = S(20, -2)
-	BishopAttackWeight   = S(19, -6)
-	RookAttackWeight     = S(17, -15)
-	QueenAttackWeight    = S(2, -1)
+	BishopAttackWeight   = S(18, -6)
+	RookAttackWeight     = S(18, -16)
+	QueenAttackWeight    = S(1, 0)
 	KingZoneDefenseBonus = S(9, 5)
-	SafeQueenCheck       = S(19, 12)
+	SafeQueenCheck       = S(19, 11)
 	SafeRookCheck        = S(40, -1)
-	SafeBishopCheck      = S(17, 18)
-	SafeKnightCheck      = S(15, 16)
-	EnemyQueen           = S(0, 0)
+	SafeBishopCheck      = S(17, 17)
+	SafeKnightCheck      = S(15, 15)
 
 	// Threats
-	MinorAttackedByPawnThreat  = S(-44, -13)
-	MajorAttackedByPawnThreat  = S(-52, 18)
-	RookAttackedByMinorThreat  = S(-44, 3)
-	QueenAttackedByMinorThreat = S(-35, 10)
-	HangingPawnThreat          = S(8, -11)
+	MinorAttackedByPawnThreat  = S(-52, -21)
+	MajorAttackedByPawnThreat  = S(-60, 9)
+	RookAttackedByMinorThreat  = S(-52, -5)
+	QueenAttackedByMinorThreat = S(-44, 1)
+	HangingPawnThreat          = S(0, -19)
 
-	PinnedPieceThreat = [4]Score{S(-74, -67), S(-46, -32), S(-10, -71), S(-27, -61)}
+	PinnedPieceThreat = [4]Score{S(-67, -60), S(-42, -25), S(-9, -73), S(-28, -64)}
 
 	// Passed Pawns
-	PassedKingDistance      = S(2, -7)
-	PassedEnemyKingDistance = S(-1, 6)
-	PassedPawnProtected     = S(-2, 1)
+	PassedKingDistance      = S(3, -8)
+	PassedEnemyKingDistance = S(-1, 7)
+	PassedPawnProtected     = S(1, -2)
+
+	Tempo = 23
 
 	// OutpostsRanks contains the bitboard mask for ranks that are considered outposts
 	OutpostsRanks = [2]Bitboard{
@@ -218,6 +218,7 @@ func (ev *Evaluation) Evaluate(pos *Position) (score int) {
 	if pos.Turn == Black {
 		score = -score
 	}
+	score += Tempo
 	return
 }
 
@@ -286,8 +287,7 @@ func (ev *Evaluation) evaluateKings(pos *Position, side Color) (sc Score) {
 
 		sc += Score(defendedSquares)*KingZoneDefenseBonus - ev.EvalData.kingAttackersWeight[opponent] -
 			Score(knightChecks)*SafeKnightCheck - Score(bishopChecks)*SafeBishopCheck -
-			Score(rookChecks)*SafeRookCheck - Score(queenChecks)*SafeQueenCheck -
-			Score(enemyQueens)*EnemyQueen
+			Score(rookChecks)*SafeRookCheck - Score(queenChecks)*SafeQueenCheck
 	}
 
 	return sc
@@ -428,9 +428,6 @@ func (ev *Evaluation) evaluateKnights(pos *Position, side Color) (sc Score) {
 
 		if nextKnight&ev.EvalData.outposts[side] > 0 {
 			sc += KnightOutpostBonus
-		}
-		if attacks&pos.Pieces[PieceOf(Knight, side)] > 0 {
-			sc += ConnectedKnightBonus
 		}
 
 		if ev.EvalData.pinnedPieces&nextKnight > 0 {
