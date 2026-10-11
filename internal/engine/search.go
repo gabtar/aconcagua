@@ -142,9 +142,9 @@ type NoisyHistoryTable [6][10][64]int
 // update updates the score of the move passed in the NoisyHistoryTable
 func (nht *NoisyHistoryTable) update(bonus int, move *Move, pos *Position) {
 	if move.flag() >= capture {
-		attacker := pieceRole(pos.PieceAt(move.from()))
+		attacker := RoleOf(pos.PieceAt(move.from()))
 		victim := pos.getCapturedPiece(move)
-		victimIdx := pieceRole(victim)
+		victimIdx := RoleOf(victim)
 		if victim == NoPiece { // Simple Promotion Slot. NoPiece + (0-3) depending on move flag/promotion type
 			victimIdx = 6 + move.flag() - knightPromotion
 		}

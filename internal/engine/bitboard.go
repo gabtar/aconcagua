@@ -32,8 +32,8 @@ func reverseArray(arr []string) []string {
 	return arr
 }
 
-// count returns the number of non zero bits in a bitboard
-func (b Bitboard) count() int {
+// Count returns the number of non zero bits in a bitboard
+func (b Bitboard) Count() int {
 	return bits.OnesCount64(uint64(b))
 }
 
@@ -56,7 +56,7 @@ func Bsr(bitboard Bitboard) int {
 	return 63 - bits.LeadingZeros64(uint64(bitboard))
 }
 
-// NearestFromSide returns the nearest square from the point of view of the side
+// NearestFromSide returns the distance to the nearest bit set from the side passed perspective
 func NearestFromSide(bitboard Bitboard, side Color) int {
 	if side == White {
 		return Bsf(bitboard)

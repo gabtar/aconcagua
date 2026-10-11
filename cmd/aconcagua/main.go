@@ -12,10 +12,11 @@ func main() {
 	uci.Start()
 
 	// Use to run the tuner
-	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/lichess-big3-resolved.book", 7000000)
-	// dataset := tuner.LoadDataSet("./internal/tuner/training-set/trainingdata.epd", 7878653) // Lichess + zurichess combined
+	// filename := "./internal/tuner/training-set/trainingdata.epd"
+	// totalSamples := 7878653
+	// tuner.AdamTuner(filename, totalSamples, tuner.ScalingFactor, 100)
 	// params := tuner.GetEvaluationParams()
-	// tuner.AdamTuner(params, &dataset, tuner.ScalingFactor, 300)
+	// tuner.FindOptimalScalingFactor(filename, totalSamples, params)
 
 	// Find fixed magic numbers
 	// engine.GenerateMagicNumbersForRooksAndBishops()

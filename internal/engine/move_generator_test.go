@@ -240,7 +240,7 @@ func TestKingValidMoves(t *testing.T) {
 	kingBB := bitboardFromCoordinates("e1")
 
 	expected := 3
-	got := kingMoves(&kingBB, pos, White).count()
+	got := kingMoves(&kingBB, pos, White).Count()
 
 	if got != expected {
 		t.Errorf("Expected: %v, got: %v", expected, got)

@@ -26,14 +26,14 @@ var mvvScore = [6]int{0, 4000, 2100, 1000, 1000, 340} // King, Queen, Rook, Bish
 // scoreNoisy scores the captures/promotion moves for move ordering
 func (ml *MoveList) scoreNoisy(pos *Position, nh *NoisyHistoryTable) {
 	for i := 0; i < ml.length; i++ {
-		attacker := pieceRole(pos.PieceAt(ml.moves[i].from()))
+		attacker := RoleOf(pos.PieceAt(ml.moves[i].from()))
 		victim := pos.getCapturedPiece(&ml.moves[i])
-		victimIdx := pieceRole(victim)
+		victimIdx := RoleOf(victim)
 		mvv := 0
 		if victim == NoPiece { // quiet promotion
 			victimIdx = 6 + ml.moves[i].flag() - knightPromotion
 		} else {
-			mvv = mvvScore[pieceRole(victim)]
+			mvv = mvvScore[RoleOf(victim)]
 		}
 		ml.scores[i] = MaxHistoryBonus + mvv + nh[attacker][victimIdx][ml.moves[i].to()]
 	}
