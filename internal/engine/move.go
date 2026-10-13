@@ -22,6 +22,8 @@ const (
 // NoMove is an empty move
 const NoMove = Move(0)
 
+const NullMove = Move(32768)
+
 // Move represents an encoded chess move on the board
 // the move is represented by 16 bits of information
 // first 6 bits for the from square (1-64)

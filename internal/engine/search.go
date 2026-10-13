@@ -258,7 +258,10 @@ func (cm *CounterMoveTable) clear() {
 
 // store stores a move in the counter move table
 func (cm *CounterMoveTable) store(priorMove, move Move, side Color) {
-	if priorMove == NoMove {
+	// A NullMove (or NoMove) has no from/to relationship, so it must not
+	// write to the table (it would alias into cm[side][0][0] and corrupt
+	// an unrelated counter move for the next time that slot is read).
+	if priorMove == NoMove || priorMove == NullMove {
 		return
 	}
 
@@ -267,7 +270,7 @@ func (cm *CounterMoveTable) store(priorMove, move Move, side Color) {
 
 // get gets a move from the counter move table
 func (cm *CounterMoveTable) get(priorMove Move, side Color) Move {
-	if priorMove == NoMove {
+	if priorMove == NoMove || priorMove == NullMove {
 		return NoMove
 	}
 
@@ -424,7 +427,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	flag := FlagAlpha
 	branchPv := NewPvLine(depth)
-	staticEval := s.evaluate(pos, ttMove, ttEval)
+	staticEval := s.evaluate(pos, ttMove, ttEval, ply)
 	s.stack.staticEval[ply] = staticEval
 
 	// Improving. When we are getting a better position than 2ply before(same side to move), we can
@@ -447,10 +450,14 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	// that it will also exceed beta if we search all moves.
 	if depth >= NullMovePruningDepth && !isCheck && nullMoveAllowed && !pvNode && staticEval >= beta && !pos.kingAndPawnsOnlyEndgame() {
 		ep := pos.makeNullMove()
-		s.stack.store(NoMove, ply)
+		priorMove := s.stack.moves[ply]
+		s.stack.store(NullMove, ply)
 		R := 4 + depth/3
 		sc := -s.negamax(pos, depth-R, ply+1, -beta, -beta+1, &branchPv, false)
 		pos.unmakeNullMove(ep)
+
+		// Restore the move that led to this node
+		s.stack.moves[ply] = priorMove
 
 		if sc >= beta {
 			return beta
@@ -587,7 +594,13 @@ func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 }
 
 // evaluate returns the evaluation of the position
-func (s *Search) evaluate(pos *Position, ttMove Move, ttEval int) int {
+func (s *Search) evaluate(pos *Position, ttMove Move, ttEval int, ply int) int {
+	// Reuse stored eval when null move pruning occurs
+	// to avoid recalculating (taken from Ethereal)
+	if ply >= 1 && s.stack.moves[ply-1] == NullMove {
+		return -s.stack.staticEval[ply-1] + 2*Tempo
+	}
+
 	if ttMove != NoMove {
 		return ttEval
 	}

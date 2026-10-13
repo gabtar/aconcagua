@@ -22,7 +22,7 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 		return ttScore
 	}
 
-	staticEval := s.evaluate(pos, ttMove, ttEval)
+	staticEval := s.evaluate(pos, ttMove, ttEval, ply)
 
 	if staticEval >= beta {
 		return beta
