@@ -139,11 +139,14 @@ func (tt *TranspositionTable) store(key uint64, depth int, ply int, flag uint8, 
 		// Exact match entry found. Try to replace always
 		if entry.key32 == key32 {
 			replaceIdx = i
-
 			// Never replace if we don't have an exact flag and the
 			// existing entry has a good depth
 			if flag != FlagExact && depth < int(entry.depth)-3 {
 				return
+			}
+
+			if move == NoMove {
+				move = entry.move // Preserve last move if no present
 			}
 			break
 		}
