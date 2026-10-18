@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"math"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -10,6 +11,7 @@ const (
 	FlagExact = uint8(0)
 	FlagAlpha = uint8(1)
 	FlagBeta  = uint8(2)
+	NoEval    = math.MaxInt16
 )
 
 const (
@@ -56,8 +58,21 @@ func NewTranspositionTable(sizeInMb int) *TranspositionTable {
 	bucketSizeInBytes := 16 * BucketSize // 16 bytes(TTEntry) per entry * 3 entries
 	numBuckets := uint64(sizeInMb * 1024 * 1024 / bucketSizeInBytes)
 
+	buckets := make([]TTBucket, numBuckets)
+	for i := range buckets {
+		for j := range buckets[i].entries {
+			buckets[i].entries[j].key32 = 0
+			buckets[i].entries[j].move = NoMove
+			buckets[i].entries[j].score = 0
+			buckets[i].entries[j].eval = NoEval
+			buckets[i].entries[j].depth = 0
+			buckets[i].entries[j].flag = 0
+			buckets[i].entries[j].age = 0
+		}
+	}
+
 	return &TranspositionTable{
-		buckets: make([]TTBucket, numBuckets),
+		buckets: buckets,
 		size:    numBuckets,
 		age:     0,
 		stored:  0,
@@ -87,7 +102,7 @@ func (tt *TranspositionTable) Clear() {
 			tt.buckets[i].entries[j].key32 = 0
 			tt.buckets[i].entries[j].move = NoMove
 			tt.buckets[i].entries[j].score = 0
-			tt.buckets[i].entries[j].eval = 0
+			tt.buckets[i].entries[j].eval = NoEval
 			tt.buckets[i].entries[j].depth = 0
 			tt.buckets[i].entries[j].flag = 0
 			tt.buckets[i].entries[j].age = 0
@@ -121,14 +136,23 @@ func (tt *TranspositionTable) store(key uint64, depth int, ply int, flag uint8, 
 	for i := range BucketSize {
 		entry := &bucket.entries[i]
 
-		// Always replace entry for exact key match
+		// Exact match entry found. Try to replace always
 		if entry.key32 == key32 {
 			replaceIdx = i
+			// Never replace if we don't have an exact flag and the
+			// existing entry has a good depth
+			if flag != FlagExact && depth < int(entry.depth)-3 {
+				return
+			}
+
+			if move == NoMove {
+				move = entry.move // Preserve last move if no present
+			}
 			break
 		}
 
-		// Empty slot
-		if entry.depth == 0 {
+		// Use an empty slot, if available
+		if entry.key32 == 0 {
 			replaceIdx = i
 			tt.stored++
 			break
@@ -159,6 +183,7 @@ func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, b
 	index := key % tt.size
 	key32 := uint32(key >> 32)
 	bucket := &tt.buckets[index]
+	eval := NoEval
 
 	for i := range BucketSize {
 		entry := &bucket.entries[i]
@@ -166,7 +191,7 @@ func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, b
 		if entry.key32 == key32 {
 			tt.hits++
 			move := entry.move
-			eval := int(entry.eval)
+			eval = int(entry.eval)
 
 			if entry.depth >= uint8(depth) {
 				score := adjustMateScoreFromTT(int(entry.score), ply)
@@ -191,7 +216,7 @@ func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, b
 			return 0, eval, move, false
 		}
 	}
-	return 0, 0, NoMove, false
+	return 0, eval, NoMove, false
 }
 
 // hashfull returns the approximate percentage of the transposition table that is used
@@ -203,7 +228,6 @@ func (tt *TranspositionTable) hashfull() int {
 	for i := range sampleSize {
 		bucket := &tt.buckets[i]
 		for j := range BucketSize {
-			// Check if entry is occupied (depth > 0)
 			if tt.age == bucket.entries[j].age && bucket.entries[j].depth > 0 {
 				used++
 				break // Only count one entry per bucket
