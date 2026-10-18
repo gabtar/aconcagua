@@ -427,7 +427,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	flag := FlagAlpha
 	branchPv := NewPvLine(depth)
-	staticEval := s.evaluate(pos, ttMove, ttEval, ply)
+	staticEval := s.evaluate(pos, ttEval, ply)
 	s.stack.staticEval[ply] = staticEval
 
 	// Improving. When we are getting a better position than 2ply before(same side to move), we can
@@ -594,15 +594,15 @@ func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 }
 
 // evaluate returns the evaluation of the position
-func (s *Search) evaluate(pos *Position, ttMove Move, ttEval int, ply int) int {
+func (s *Search) evaluate(pos *Position, ttEval int, ply int) int {
+	if ttEval != NoEval {
+		return ttEval
+	}
+
 	// Reuse stored eval when null move pruning occurs
 	// to avoid recalculating (taken from Ethereal)
 	if ply >= 1 && s.stack.moves[ply-1] == NullMove {
 		return -s.stack.staticEval[ply-1] + 2*Tempo
-	}
-
-	if ttMove != NoMove {
-		return ttEval
 	}
 	return s.Evaluation.Evaluate(pos)
 }
