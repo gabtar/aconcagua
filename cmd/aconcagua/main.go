@@ -1,12 +1,19 @@
 package main
 
 import (
+	"os"
+
 	"github.com/gabtar/aconcagua/internal/engine"
 	"github.com/gabtar/aconcagua/internal/uci"
 	// "github.com/gabtar/aconcagua/internal/tuner"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "bench" {
+		engine.RunBench()
+		return
+	}
+
 	eng := engine.NewEngine()
 	uci := uci.NewUciProtocol(eng)
 	uci.Start()

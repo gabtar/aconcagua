@@ -47,6 +47,7 @@ func init() {
 // Search is the main struct for the search
 type Search struct {
 	nodes              int
+	totalNodes         uint64
 	rootNodeCounts     [MaxLegalMoves]int
 	pvLine             pvLine
 	seldepth           uint8
@@ -79,6 +80,7 @@ func NewSearch() *Search {
 // clear clears the search
 func (s *Search) clear() {
 	s.nodes = 0
+	s.totalNodes = 0
 	s.killers.clear()
 	s.quietHistory.clear()
 	s.noisyHistory.clear()
@@ -289,7 +291,8 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 
 		lastScore, lastMove := bestMoveScore, bestMove
 		bestMoveScore = s.aspirationSearch(pos, d, lastScore)
-		nps := int(float64(s.nodes) / time.Since(s.TimeControl.iterationStartTime).Seconds())
+		s.totalNodes += uint64(s.nodes)
+		iterNps := int(float64(s.nodes) / time.Since(s.TimeControl.iterationStartTime).Seconds())
 
 		// Always use last iteration values if it was stopped due to ran out of time
 		if !s.TimeControl.stop {
@@ -297,9 +300,13 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 				bestMove = s.pvLine[0].String()
 			}
 			elapsed := s.TimeControl.elapsed()
+			totalNps := uint64(0)
+			if elapsed > 0 {
+				totalNps = s.totalNodes * 1000 / uint64(elapsed)
+			}
 			stdout <- fmt.Sprintf("info depth %d seldepth %d score %s nodes %d nps %d hashfull %d time %v pv %v",
-				d, s.seldepth, convertScore(bestMoveScore, d), s.nodes, nps, s.TranspositionTable.hashfull(),
-				elapsed, s.pvLine.String())
+				d, s.seldepth, convertScore(bestMoveScore, d), s.totalNodes, totalNps,
+				s.TranspositionTable.hashfull(), elapsed, s.pvLine.String())
 		} else {
 			bestMove = lastMove
 			bestMoveScore = lastScore
@@ -325,7 +332,7 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 
 		// Check if we should stop after this iteration
 		// Assume 2.5 as branching factor
-		estimatedNextIterationTime := int((float64(s.nodes) / float64(nps)) * 1000.0 * 2.5)
+		estimatedNextIterationTime := int((float64(s.nodes) / float64(iterNps)) * 1000.0 * 2.5)
 		if s.TimeControl.shouldStopSearch(estimatedNextIterationTime) {
 			break
 		}

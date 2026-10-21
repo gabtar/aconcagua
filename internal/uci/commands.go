@@ -29,6 +29,7 @@ func (c *UciCommandStruct) Execute(en *engine.Engine, stdout chan string, params
 	stdout <- "option name BookPath type string default <empty>"
 	stdout <- "option name UseBook type check default false"
 	stdout <- "option name UCI_Chess960 type check default false"
+	stdout <- "option name Threads type spin default 1 min 1 max 1"
 	stdout <- "option name Hash type spin default 64 min " + strconv.Itoa(MinHashSize) + " max " + strconv.Itoa(MaxHashSize)
 	stdout <- "option name ClearHash type button"
 	stdout <- "option name Overhead type spin default 10 min 0 max 1000"
@@ -148,6 +149,7 @@ func (c *UciSetOptionCommandStruct) Execute(en *engine.Engine, stdout chan strin
 		en.Search.Evaluation.Clear()
 	case "overhead":
 		c.setOverhead(en, stdout, optionValue)
+	case "threads": // TODO: implement threads
 	default:
 		stdout <- "info string Error: Unknown option name: " + params[1]
 	}
