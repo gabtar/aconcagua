@@ -33,6 +33,9 @@ func (c *UciCommandStruct) Execute(en *engine.Engine, stdout chan string, params
 	stdout <- "option name Hash type spin default 64 min " + strconv.Itoa(MinHashSize) + " max " + strconv.Itoa(MaxHashSize)
 	stdout <- "option name ClearHash type button"
 	stdout <- "option name Overhead type spin default 10 min 0 max 1000"
+	for _, line := range engine.TunableOptionLines() {
+		stdout <- line
+	}
 	stdout <- "uciok"
 }
 
@@ -41,6 +44,7 @@ type UciNewGameCommandStruct struct{}
 
 // Execute handles the "ucinewgame" command logic.
 func (c *UciNewGameCommandStruct) Execute(en *engine.Engine, stdout chan string, params ...string) {
+	en.Search.TranspositionTable.Clear()
 	en.Pos.LoadFromFenString(engine.StartingFenString)
 }
 
@@ -151,7 +155,9 @@ func (c *UciSetOptionCommandStruct) Execute(en *engine.Engine, stdout chan strin
 		c.setOverhead(en, stdout, optionValue)
 	case "threads": // TODO: implement threads
 	default:
-		stdout <- "info string Error: Unknown option name: " + params[1]
+		if !engine.SetTunable(params[1], optionValue) {
+			stdout <- "info string Error: Unknown option name: " + params[1]
+		}
 	}
 }
 

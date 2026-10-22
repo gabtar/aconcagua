@@ -37,6 +37,7 @@ func (uci *UciProtocol) Execute(command string, stdout chan string, params ...st
 		"ttstats": &TTStatsCommandStruct{},
 		"perft":   &PerftCommandStruct{},
 		"divide":  &DivideCommandStruct{},
+		"spsa":    &SpsaCommandStruct{},
 	}
 
 	comm, exists := uciCommands[command]

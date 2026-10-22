@@ -9,17 +9,17 @@ import (
 
 // Constants to use in the search
 const (
-	MaxSearchDepth                = 100
-	MateScore                     = 20000
-	MinInt                        = math.MinInt32
-	MaxInt                        = math.MaxInt32
-	ReverseFutitlityPruningMargin = 115
-	AspirationWindowSize          = 25
-	NullMovePruningDepth          = 2
-	MaxHistoryBonus               = 8192
-	SEEPruningDepth               = 8
-	SEECaptureMargin              = 120
-	SEEQuietMargin                = 80
+	MaxSearchDepth = 100
+	MateScore      = 20000
+	MinInt         = math.MinInt32
+	MaxInt         = math.MaxInt32
+	// ReverseFutitlityPruningMargin = 115
+	// AspirationWindowSize = 25
+	NullMovePruningDepth = 2
+	MaxHistoryBonus      = 8192
+	SEEPruningDepth      = 8
+	// SEECaptureMargin     = 120
+	// SEEQuietMargin       = 80
 )
 
 var (
@@ -30,7 +30,7 @@ var (
 	}
 
 	// FutilityPruningMargin contains the margin for futility pruning for each depth
-	FutilityPruningMargin = [5]int{0, 120, 180, 280, 420}
+	// FutilityPruningMargin = [5]int{0, 120, 180, 280, 420}
 
 	// LateMoveReductionFactor contains the reduction factor for each depth and move number
 	LateMoveReductionFactor = [MaxSearchDepth * 2][MaxLegalMoves * 2]int{}
@@ -446,7 +446,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 8 && !isCheck && !pvNode {
-		margin := ReverseFutitlityPruningMargin*depth - improving*65
+		margin := ReverseFutilityPruningMargin*depth - improving*RFPImprovingMultiplier
 		if staticEval-margin >= beta {
 			return beta
 		}
