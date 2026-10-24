@@ -22,14 +22,15 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 		return ttScore
 	}
 
-	staticEval := s.evaluate(pos, ttEval, ply)
+	rawEval := s.evaluate(pos, ttEval, ply)
+	eval := rawEval + s.correctionHistory.get(pos.PawnHash, pos.Turn)
 
-	if staticEval >= beta {
+	if eval >= beta {
 		return beta
 	}
 
-	if staticEval > alpha {
-		alpha = staticEval
+	if eval > alpha {
+		alpha = eval
 	}
 
 	noMove := NoMove
@@ -51,7 +52,7 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 		pos.UnmakeMove(&move)
 
 		if newScore >= beta {
-			s.TranspositionTable.store(pos.Hash, 0, ply, FlagBeta, beta, staticEval, move)
+			s.TranspositionTable.store(pos.Hash, 0, ply, FlagBeta, beta, rawEval, move)
 			return beta
 		}
 		if newScore > alpha {
@@ -61,7 +62,7 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 		}
 	}
 
-	s.TranspositionTable.store(pos.Hash, 0, ply, flag, alpha, staticEval, bestMove)
+	s.TranspositionTable.store(pos.Hash, 0, ply, flag, alpha, rawEval, bestMove)
 	return alpha
 }
 

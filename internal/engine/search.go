@@ -20,6 +20,7 @@ const (
 	SEEPruningDepth               = 8
 	SEECaptureMargin              = 120
 	SEEQuietMargin                = 80
+	MaxCorrectionHistory          = 1024
 )
 
 var (
@@ -56,6 +57,7 @@ type Search struct {
 	noisyHistory       NoisyHistoryTable
 	TranspositionTable TranspositionTable
 	counterMovesTable  CounterMoveTable
+	correctionHistory  PawnCorrectionHistory
 	stack              Stack
 	TimeControl        TimeControl
 	Evaluation         Evaluation
@@ -71,6 +73,7 @@ func NewSearch() *Search {
 		noisyHistory:       NoisyHistoryTable{},
 		TranspositionTable: *NewTranspositionTable(DefaultTableSizeInMb),
 		counterMovesTable:  CounterMoveTable{},
+		correctionHistory:  PawnCorrectionHistory{},
 		stack:              Stack{},
 		TimeControl:        *NewTimeControl(),
 		Evaluation:         *NewEvaluation(DefaultPawnHashTableSizeInMb),
@@ -85,6 +88,7 @@ func (s *Search) clear() {
 	s.quietHistory.clear()
 	s.noisyHistory.clear()
 	s.counterMovesTable.clear()
+	s.correctionHistory.clear()
 	s.stack.clear()
 	s.TranspositionTable.newSearch()
 	s.Evaluation.PawnCache.newSearch()
@@ -173,6 +177,29 @@ func (nht *NoisyHistoryTable) clear() {
 				nht[i][j][k] = 0
 			}
 		}
+	}
+}
+
+// PawnCorrectionHistory stores the correction history for pawn evaluation
+type PawnCorrectionHistory [2][16384]int
+
+func (pch *PawnCorrectionHistory) update(pos *Position, bonus int) {
+	idx := pos.PawnHash % 16384
+	side := pos.Turn
+
+	clampBonus := max(-MaxCorrectionHistory/4, min(MaxCorrectionHistory/4, bonus))
+	pch[side][idx] += clampBonus - pch[side][idx]*abs(clampBonus)/MaxCorrectionHistory
+}
+
+func (pch *PawnCorrectionHistory) get(hash uint64, side Color) int {
+	corr := 128 * (*pch)[side][hash%16384]
+	return corr / 2048
+}
+
+func (pch *PawnCorrectionHistory) clear() {
+	for i := range pch[White] {
+		pch[White][i] = 0
+		pch[Black][i] = 0
 	}
 }
 
@@ -434,20 +461,21 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	flag := FlagAlpha
 	branchPv := NewPvLine(depth)
-	staticEval := s.evaluate(pos, ttEval, ply)
-	s.stack.staticEval[ply] = staticEval
+	rawEval := s.evaluate(pos, ttEval, ply)
+	eval := rawEval + s.correctionHistory.get(pos.PawnHash, pos.Turn)
+	s.stack.staticEval[ply] = eval
 
 	// Improving. When we are getting a better position than 2ply before(same side to move), we can
 	// use this flag to be more aggresive in some pruning or other search techniques
 	improving := 0
-	if ply >= 2 && !isCheck && staticEval >= s.stack.staticEval[ply-2] {
+	if ply >= 2 && !isCheck && eval >= s.stack.staticEval[ply-2] {
 		improving = 1
 	}
 
 	// Reverse Futility Pruning / Static Null Move pruning
 	if depth <= 8 && !isCheck && !pvNode {
 		margin := ReverseFutitlityPruningMargin*depth - improving*65
-		if staticEval-margin >= beta {
+		if eval-margin >= beta {
 			return beta
 		}
 	}
@@ -455,7 +483,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	// Null Move Pruning. Gives a free shot to the opponent by passing the turn.
 	// If we still exceed beta in the reduced search, we will trust our position is so good,
 	// that it will also exceed beta if we search all moves.
-	if depth >= NullMovePruningDepth && !isCheck && nullMoveAllowed && !pvNode && staticEval >= beta && !pos.kingAndPawnsOnlyEndgame() {
+	if depth >= NullMovePruningDepth && !isCheck && nullMoveAllowed && !pvNode && eval >= beta && !pos.kingAndPawnsOnlyEndgame() {
 		ep := pos.makeNullMove()
 		priorMove := s.stack.moves[ply]
 		s.stack.store(NullMove, ply)
@@ -475,7 +503,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	// Discards potential moves near the horizon that are not likely to raise alpha (will not improve the position)
 	futilityPruningAllowed := false
 	if depth <= 4 && alpha > -MateScore && beta < MateScore {
-		futilityPruningAllowed = staticEval+FutilityPruningMargin[depth] <= alpha
+		futilityPruningAllowed = eval+FutilityPruningMargin[depth] <= alpha
 	}
 
 	// Internal Iterative Deepening
@@ -557,7 +585,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 
 		if newScore >= beta {
-			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, staticEval, move)
+			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, rawEval, move)
 			s.killers.store(ply, move)
 			s.counterMovesTable.store(s.stack.getPriorMove(ply), move, pos.Turn)
 			s.quietHistory.update(depth*depth, &move, pos.Turn)
@@ -566,6 +594,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 			s.noisyHistory.update(depth*depth, &move, pos)
 			s.noisyHistory.decrement(&noisySearched, &move, depth, pos)
+			s.updateCorrection(pos, move, FlagBeta, beta, eval, depth, isCheck)
 
 			return beta
 		}
@@ -581,11 +610,14 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, mg.moveNumber, ply)
 	if checkmateOrStealmateFound {
-		s.TranspositionTable.store(pos.Hash, depth, ply, FlagExact, score, staticEval, NoMove)
+		s.TranspositionTable.store(pos.Hash, depth, ply, FlagExact, score, rawEval, NoMove)
 		return score
 	}
 
-	s.TranspositionTable.store(pos.Hash, depth, ply, flag, alpha, staticEval, bestMove)
+	// Update Pawn correction history
+	s.updateCorrection(pos, bestMove, flag, alpha, eval, depth, isCheck)
+
+	s.TranspositionTable.store(pos.Hash, depth, ply, flag, alpha, rawEval, bestMove)
 	return alpha
 }
 
@@ -598,6 +630,16 @@ func isCheckmateOrStealmate(isCheck bool, moves int, ply int) (int, bool) {
 		return -MateScore + ply, true
 	}
 	return 0, false
+}
+
+func (s *Search) updateCorrection(pos *Position, bestMove Move, flag uint8, score, correctedEval, depth int, isCheck bool) {
+	if isCheck || depth <= 0 || bestMove.flag() >= capture || abs(score) >= MateScore-MaxSearchDepth {
+		return
+	}
+	if (flag == FlagAlpha && score >= correctedEval) || (flag == FlagBeta && score <= correctedEval) {
+		return
+	}
+	s.correctionHistory.update(pos, (score-correctedEval)*depth/8)
 }
 
 // evaluate returns the evaluation of the position
