@@ -17,6 +17,7 @@ const (
 	AspirationWindowSize          = 25
 	NullMovePruningDepth          = 2
 	MaxHistoryBonus               = 8192
+	RazoringMargin                = 300
 	SEEPruningDepth               = 8
 	SEECaptureMargin              = 120
 	SEEQuietMargin                = 80
@@ -477,6 +478,15 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		margin := ReverseFutitlityPruningMargin*depth - improving*65
 		if eval-margin >= beta {
 			return beta
+		}
+	}
+
+	// Razoring. When we are losing by much, we will try to see if some kind of tactic(quiescent search)
+	// could recover us from losing. If not, then we opt to completely discard the node
+	if depth <= 5 && !isCheck && eval+RazoringMargin*depth <= alpha {
+		sc := Quiescent(pos, s, alpha, beta, ply)
+		if sc <= alpha {
+			return sc
 		}
 	}
 
