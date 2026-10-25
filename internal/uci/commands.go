@@ -33,9 +33,6 @@ func (c *UciCommandStruct) Execute(en *engine.Engine, stdout chan string, params
 	stdout <- "option name Hash type spin default 64 min " + strconv.Itoa(MinHashSize) + " max " + strconv.Itoa(MaxHashSize)
 	stdout <- "option name ClearHash type button"
 	stdout <- "option name Overhead type spin default 10 min 0 max 1000"
-	for _, line := range engine.TunableOptionLines() {
-		stdout <- line
-	}
 	stdout <- "uciok"
 }
 
@@ -268,4 +265,13 @@ func (c *TTStatsCommandStruct) Execute(en *engine.Engine, stdout chan string, pa
 	stdout <- en.Search.TranspositionTable.Stats()
 	stdout <- "Evaluation Pawn Hash Table:"
 	stdout <- en.Search.Evaluation.PawnCache.Stats()
+}
+
+// SpsaCommandStruct prints the parameter list for the OpenBench tune page
+type SpsaCommandStruct struct{}
+
+func (c *SpsaCommandStruct) Execute(en *engine.Engine, stdout chan string, params ...string) {
+	for _, line := range engine.SpsaInputLines() {
+		stdout <- line
+	}
 }

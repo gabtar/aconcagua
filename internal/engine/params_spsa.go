@@ -6,18 +6,6 @@ import (
 	"strings"
 )
 
-// Spsa seach parameters converted to variables, so it can be setted by setoption command
-var (
-	ReverseFutilityPruningMargin = 115
-	AspirationWindowSize         = 25
-	SEECaptureMargin             = 120
-	SEEQuietMargin               = 80
-	RFPImprovingMultiplier       = 65
-
-	FutilityPruningMargin = [5]int{0, 120, 180, 280, 420}
-	SEEPieceValues        = [6]int{10000, 900, 500, 300, 300, 100}
-)
-
 // Tunable is an strcut
 type Tunable struct {
 	Name     string
@@ -27,6 +15,7 @@ type Tunable struct {
 	Step     int
 }
 
+// tunables is an array for tuning seach params using SPSA
 var tunables []Tunable
 
 // tune registers a parameter. The default is read from the variable itself.
@@ -41,6 +30,8 @@ func init() {
 	tune("SEECaptureMargin", &SEECaptureMargin, 60, 200)
 	tune("SEEQuietMargin", &SEEQuietMargin, 40, 140)
 	tune("AspirationWindowSize", &AspirationWindowSize, 10, 60)
+	tune("LmrTableBase", &LmrTableBase, 30, 60)
+	tune("LmrTableDivisor", &LmrTableDivisor, 150, 250)
 
 	tune("FutilityMargin1", &FutilityPruningMargin[1], 60, 200)
 	tune("FutilityMargin2", &FutilityPruningMargin[2], 100, 300)
@@ -51,16 +42,7 @@ func init() {
 	tune("SEERook", &SEEPieceValues[2], 350, 650)
 	tune("SEEBishop", &SEEPieceValues[3], 220, 420)
 	tune("SEEKnight", &SEEPieceValues[4], 220, 420)
-}
-
-// TunableOptionLines returns the "option name ..." lines for the uci command.
-func TunableOptionLines() []string {
-	lines := make([]string, 0, len(tunables))
-	for _, t := range tunables {
-		lines = append(lines, fmt.Sprintf("option name %s type spin default %d min %d max %d",
-			t.Name, t.Def, t.Min, t.Max))
-	}
-	return lines
+	tune("SEEPawn", &SEEPieceValues[5], 80, 120)
 }
 
 // SpsaInputLines returns the parameter list to paste into the OpenBench tune page.
@@ -82,6 +64,11 @@ func SetTunable(name, value string) bool {
 				return true // known option, bad value: ignore it
 			}
 			*t.Value = v
+
+			// recalculate lmr table if any of the LmrTable params are setted
+			if name == "LmrTableBase" || name == "LmrTableDivisor" {
+				initLMRTable()
+			}
 			return true
 		}
 	}
