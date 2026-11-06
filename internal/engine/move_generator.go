@@ -238,7 +238,7 @@ func (pos *Position) generateQuiets(ml *MoveList, pd *PositionData) {
 // kingMoves returns a bitboard with the legal moves of the king from the bitboard passed
 func kingMoves(k *Bitboard, pos *Position, side Color) (moves Bitboard) {
 	kingSq := Bsf(*k)
-	posiblesMoves := kingAttacksTable[Bsf(*k)] & ^pos.Sides[side]
+	posiblesMoves := kingAttacksTable[kingSq] & ^pos.Sides[side]
 	pos.RemovePiece(PieceOf(King, side), kingSq)
 	for posiblesMoves > 0 {
 		next := posiblesMoves.NextBit()
@@ -279,10 +279,11 @@ func knightMoves(k *Bitboard, pd *PositionData) (moves Bitboard) {
 func pawnMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 	posibleCaptures := pawnAttacks(p, side) & pd.enemies
 	emptySquares := ^(pd.allies | pd.enemies)
+	pawnSq := Bsf(*p)
 
-	pushes := pawnPushesTable[side][Bsf(*p)] & emptySquares
+	pushes := pawnPushesTable[side][pawnSq] & emptySquares
 	if pushes > 0 {
-		pushes |= pawnDoublePushesTable[side][Bsf(*p)] & emptySquares
+		pushes |= pawnDoublePushesTable[side][pawnSq] & emptySquares
 	}
 
 	moves = (posibleCaptures | pushes) & pd.checkRestrictedSquares &
@@ -310,9 +311,10 @@ func pawnNoisyMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) 
 // pawnQuietMoves returns a bitboard with the squares a pawn can legaly push (not including push promotions)
 func pawnQuietMoves(p *Bitboard, pd *PositionData, side Color) (moves Bitboard) {
 	emptySquares := ^(pd.allies | pd.enemies)
-	pushes := pawnPushesTable[side][Bsf(*p)] & emptySquares &^ PromotionEndRankForSide[side]
+	pawnSq := Bsf(*p)
+	pushes := pawnPushesTable[side][pawnSq] & emptySquares &^ PromotionEndRankForSide[side]
 	if pushes > 0 {
-		pushes |= pawnDoublePushesTable[side][Bsf(*p)] & emptySquares
+		pushes |= pawnDoublePushesTable[side][pawnSq] & emptySquares
 	}
 
 	moves = pushes & pd.checkRestrictedSquares &
@@ -419,20 +421,21 @@ func genEnPassantCaptures(pos *Position, side Color, ml *MoveList, pd *PositionD
 	if pos.enPassantTarget == 0 {
 		return
 	}
-
-	// Determine the target pawn location
-	capturedPawnBB := pawnPushesTable[side.Opponent()][Bsf(pos.enPassantTarget)]
+	epSq := Bsf(pos.enPassantTarget)
 
 	capturers := potentialEpCapturers(pos, side) & ^pd.pinnedPieces
 	for capturers > 0 {
 		capturerBB := capturers.NextBit()
+
+		// Determine the target pawn location
+		capturedPawnBB := pawnPushesTable[side.Opponent()][epSq]
 
 		// Validate that the capture does not produce a discovered check
 		if isEnPassantDiscoveredCheck(pos, capturerBB, capturedPawnBB, side) {
 			continue
 		}
 
-		ml.add(*encodeMove(uint16(Bsf(capturerBB)), uint16(Bsf(pos.enPassantTarget)), epCapture))
+		ml.add(*encodeMove(uint16(Bsf(capturerBB)), uint16(epSq), epCapture))
 	}
 }
 
@@ -536,13 +539,12 @@ func (mg *MoveGenerator) isLegal(move Move) bool {
 			return false
 		}
 
-		capturedPawnBB := pawnPushesTable[side.Opponent()][Bsf(mg.pos.enPassantTarget)]
-
 		if fromBB&mg.pd.pinnedPieces > 0 {
 			return false
 		}
 
 		if potentialEpCapturers(mg.pos, side)&fromBB > 0 {
+			capturedPawnBB := pawnPushesTable[side.Opponent()][Bsf(mg.pos.enPassantTarget)]
 			if isEnPassantDiscoveredCheck(mg.pos, fromBB, capturedPawnBB, side) {
 				return false
 			}

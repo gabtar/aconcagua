@@ -205,11 +205,12 @@ func (pos *Position) PinnedPieces(side Color) (pinned Bitboard) {
 	// We use the square attacked by algorithm in special way. If any of the opponent sliders can attack
 	// our king when we remove our pieces, and if its only one of our pieces between them the attacker
 	// and our king, then the piece is pinned
-	possiblePinners := bishopAttacks(Bsf(king), pos.Sides[opponent])&bishops |
-		rookAttacks(Bsf(king), pos.Sides[opponent])&rooks
+	kingSq := Bsf(king)
+	possiblePinners := bishopAttacks(kingSq, pos.Sides[opponent])&bishops |
+		rookAttacks(kingSq, pos.Sides[opponent])&rooks
 	for possiblePinners > 0 {
 		attacker := possiblePinners.NextBit()
-		kingToOpponentPath := squaresBetween[Bsf(attacker)][Bsf(king)]
+		kingToOpponentPath := squaresBetween[Bsf(attacker)][kingSq]
 		piecesBetween := kingToOpponentPath & pos.Sides[side]
 		if piecesBetween.Count() == 1 {
 			pinned |= piecesBetween

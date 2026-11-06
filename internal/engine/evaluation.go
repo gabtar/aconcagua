@@ -137,6 +137,7 @@ type Evaluation struct {
 // EvalData contains positional data about the current position
 type EvalData struct {
 	kings               [2]Bitboard
+	kingSq              [2]int
 	pawns               [2]Bitboard
 	attackedBy          [2][6]Bitboard
 	pinnedPieces        Bitboard
@@ -162,6 +163,7 @@ func (ev *Evaluation) Clear() {
 // clear clears the EvalData
 func (ed *EvalData) clear() {
 	ed.kings = [2]Bitboard{0, 0}
+	ed.kingSq = [2]int{}
 	ed.pawns = [2]Bitboard{0, 0}
 	ed.attackedBy = [2][6]Bitboard{}
 	ed.pinnedPieces = Bitboard(0)
@@ -175,6 +177,8 @@ func (ed *EvalData) init(pos *Position) {
 	ed.clear()
 	ed.kings[White] = pos.Pieces[WhiteKing]
 	ed.kings[Black] = pos.Pieces[BlackKing]
+	ed.kingSq[White] = Bsf(ed.kings[White])
+	ed.kingSq[Black] = Bsf(ed.kings[Black])
 	ed.pawns[White] = pos.Pieces[WhitePawn]
 	ed.pawns[Black] = pos.Pieces[BlackPawn]
 	ed.attackedBy[White][Pawn] = pawnAttacks(&pos.Pieces[WhitePawn], White)
@@ -307,7 +311,7 @@ func (ev *Evaluation) evaluateQueens(pos *Position, side Color) (sc Score) {
 		safeSquares := (attacks & ^ev.EvalData.attackedBy[opponent][Pawn]).Count()
 		sc += QueenMobility[safeSquares]
 
-		enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
+		enemyKingZone := KingZone[opponent][ev.EvalData.kingSq[opponent]]
 		if attacks&enemyKingZone != 0 {
 			ev.EvalData.kingAttackersCount[side]++
 			ev.EvalData.kingAttackersWeight[side] += QueenAttackWeight
@@ -341,7 +345,7 @@ func (ev *Evaluation) evaluateRooks(pos *Position, side Color) (sc Score) {
 		safeSquares := (attacks & ^ev.EvalData.attackedBy[opponent][Pawn]).Count()
 		sc += RookMobility[safeSquares]
 
-		enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
+		enemyKingZone := KingZone[opponent][ev.EvalData.kingSq[opponent]]
 		if attacks&enemyKingZone != 0 {
 			ev.EvalData.kingAttackersCount[side]++
 			ev.EvalData.kingAttackersWeight[side] += RookAttackWeight
@@ -355,7 +359,7 @@ func (ev *Evaluation) evaluateRooks(pos *Position, side Color) (sc Score) {
 		}
 
 		// Rook on 7th
-		kingRank := RankRelativeToSide(Bsf(ev.EvalData.kings[opponent]), side)
+		kingRank := RankRelativeToSide(ev.EvalData.kingSq[opponent], side)
 		rookRank := RankRelativeToSide(from, side)
 		if kingRank == 7 && rookRank == 6 {
 			sc += RookOnSeventhRankBonus
@@ -388,7 +392,7 @@ func (ev *Evaluation) evaluateBishops(pos *Position, side Color) (sc Score) {
 		safeSquares := (attacks & ^ev.EvalData.attackedBy[opponent][Pawn]).Count()
 		sc += BishopMobility[safeSquares]
 
-		enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
+		enemyKingZone := KingZone[opponent][ev.EvalData.kingSq[opponent]]
 		if attacks&enemyKingZone != 0 {
 			ev.EvalData.kingAttackersCount[side]++
 			ev.EvalData.kingAttackersWeight[side] += BishopAttackWeight
@@ -420,7 +424,7 @@ func (ev *Evaluation) evaluateKnights(pos *Position, side Color) (sc Score) {
 		safeSquares := (attacks & ^ev.EvalData.attackedBy[opponent][Pawn]).Count()
 		sc += KnightMobility[safeSquares]
 
-		enemyKingZone := KingZone[opponent][Bsf(ev.EvalData.kings[opponent])]
+		enemyKingZone := KingZone[opponent][ev.EvalData.kingSq[opponent]]
 		if attacks&enemyKingZone != 0 {
 			ev.EvalData.kingAttackersCount[side]++
 			ev.EvalData.kingAttackersWeight[side] += KnightAttackWeight
@@ -520,12 +524,12 @@ func (ev *Evaluation) evaluatePassed(pos *Position) (sc Score) {
 		enemyPawns := pos.Pieces[PieceOf(Pawn, opponent)]
 		passed := PassedPawns(alliedPawns, enemyPawns, side)
 		protected := pawnAttacks(&alliedPawns, opponent)
+		alliedKingSq := ev.EvalData.kingSq[side]
+		enemyKingSq := ev.EvalData.kingSq[opponent]
 
 		for passed > 0 {
 			nextPassed := passed.NextBit()
 			from := Bsf(nextPassed)
-			alliedKingSq := Bsf(ev.EvalData.kings[side])
-			enemyKingSq := Bsf(ev.EvalData.kings[opponent])
 
 			sc += sideModifier[side] * Score(ManhattanDistance(from, alliedKingSq)) * PassedKingDistance
 			sc += sideModifier[side] * Score(ManhattanDistance(from, enemyKingSq)) * PassedEnemyKingDistance

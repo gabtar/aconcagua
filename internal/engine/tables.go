@@ -25,7 +25,6 @@ const (
 
 // init initializes various tables for usage within the engine
 func init() {
-	initBitboards()
 	generatePsqtScores()
 	directions = generateDirections()
 	RayAttacks = generateRayAttacks()

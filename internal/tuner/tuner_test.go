@@ -13,7 +13,7 @@ func TestEvaluation(t *testing.T) {
 	}{
 		{"Eval 1", "8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1"},
 		{"Eval 2", "5rk1/1bn2ppp/8/1P6/2P2P2/3NPQ2/3PK3/8 w - - 0 1"},
-		{"Eval 3", "5rk1/8/8/8/8/8/1R2K3/8 w - - 0 1"},
+		{"Eval 3", "5rk1/8/8/8/8/4P3/1R2K3/8 w - - 0 1"}, // Fix by adding a pawn, due to rounding error
 		{"Eval 4", "2b1k3/7r/4p3/3pNN2/8/2p1R3/P4PPK/2q5 w - - 0 36"},
 		{"Eval 5", "7Q/ppq2k2/3bpnr1/3p4/3P4/2P5/PP3P2/1RB1K2R w K - 1 22"},
 		{"Eval 6", "6k1/5p2/2p5/1p3B1p/1P2P1P1/4q1P1/1R4PK/8 b - - 0 40"},

@@ -502,7 +502,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	// Extended Futility Pruning
 	// Discards potential moves near the horizon that are not likely to raise alpha (will not improve the position)
 	futilityPruningAllowed := false
-	if depth <= 4 && alpha > -MateScore && beta < MateScore {
+	if depth >= 0 && depth <= 4 && alpha > -MateScore && beta < MateScore {
 		futilityPruningAllowed = eval+FutilityPruningMargin[depth] <= alpha
 	}
 
