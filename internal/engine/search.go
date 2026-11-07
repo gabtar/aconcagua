@@ -151,7 +151,7 @@ func (nht *NoisyHistoryTable) update(bonus int, move *Move, pos *Position) {
 		attacker := RoleOf(pos.PieceAt(move.from()))
 		victim := pos.getCapturedPiece(move)
 		victimIdx := RoleOf(victim)
-		if victim == NoPiece { // Simple Promotion Slot. NoPiece + (0-3) depending on move flag/promotion type
+		if victim == NoPiece && move.flag() < knightCapturePromotion { // Simple Promotion Slot. NoPiece + (0-3) depending on move flag/promotion type
 			victimIdx = 6 + move.flag() - knightPromotion
 		}
 
@@ -531,7 +531,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 		// Late Move Pruning
 		// Prunes quiet moves that are likely not to be good, by assuming we have a good move ordering
-		if depth <= 8 && mg.stage == QuietStage && mg.moveNumber > LateMovePruningMoveNumber[improving][depth] && !isCheck && !pvNode {
+		if depth >= 0 && depth <= 8 && mg.stage == QuietStage && mg.moveNumber > LateMovePruningMoveNumber[improving][depth] && !isCheck && !pvNode {
 			continue
 		}
 
