@@ -87,7 +87,7 @@ func bitboardFromIndex(sq int) (bitboard Bitboard) {
 	if sq > 63 || sq < 0 {
 		bitboard = Bitboard(0)
 	} else {
-		bitboard = Bitboards[sq]
+		bitboard = Bitboard(1 << sq)
 	}
 	return
 }
@@ -95,16 +95,6 @@ func bitboardFromIndex(sq int) (bitboard Bitboard) {
 // squareToString returns a string representation of a square
 func squareToString(square int) string {
 	return fmt.Sprintf("%c%d", square%8+1+96, (square/8)+1)
-}
-
-// Bitboards is a precalculated array with bitboards for each square
-var Bitboards [64]Bitboard
-
-// initBitboards initializes the Bitboards array for each square
-func initBitboards() {
-	for sq := range 64 {
-		Bitboards[sq] = Bitboard(0b1 << sq)
-	}
 }
 
 // fillUp flood a bitboard toward rank 8

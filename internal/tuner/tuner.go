@@ -1122,7 +1122,7 @@ func bitboardFromIndex(sq int) engine.Bitboard {
 	if sq > 63 || sq < 0 {
 		return 0
 	}
-	return engine.Bitboards[sq]
+	return engine.Bitboard(1 << sq)
 }
 
 // abs returns the absolute value of number

@@ -2,7 +2,8 @@ package engine
 
 // queenAttacks returns a Bitboard with all the squares a queen is attacking
 func queenAttacks(q *Bitboard, blocks Bitboard) (attacks Bitboard) {
-	attacks = rookAttacks(Bsf(*q), blocks) | bishopAttacks(Bsf(*q), blocks)
+	queenSq := Bsf(*q)
+	attacks = rookAttacks(queenSq, blocks) | bishopAttacks(queenSq, blocks)
 	return
 }
 

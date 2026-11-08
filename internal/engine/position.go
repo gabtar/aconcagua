@@ -79,6 +79,7 @@ func (c *Color) Modifier() int {
 type Position struct {
 	Pieces          [12]Bitboard // order -> WKing, WQueen, WRook, WBishop, WKnight, WPawn, BKing, BQueen, BRook, BBishop, BKnight, BPawn
 	Sides           [3]Bitboard  // black, white and all pieces 'map' on the board
+	Squares         [64]int
 	Turn            Color
 	Hash            uint64
 	PawnHash        uint64
@@ -114,25 +115,7 @@ func (pos *Position) generatePositionData() PositionData {
 
 // PieceAt returns a Piece at the given square coordinate in the Position or NoPiece
 func (pos *Position) PieceAt(square int) (piece int) {
-	bb := bitboardFromIndex(square)
-	if bb&pos.Sides[All] == 0 {
-		return NoPiece
-	}
-
-	if bb&pos.Sides[White] > 0 {
-		for piece := WhiteKing; piece < BlackKing; piece++ {
-			if bb&pos.Pieces[piece] > 0 {
-				return piece
-			}
-		}
-	} else {
-		for piece := BlackKing; piece < NoPiece; piece++ {
-			if bb&pos.Pieces[piece] > 0 {
-				return piece
-			}
-		}
-	}
-	return
+	return pos.Squares[square]
 }
 
 // AddPiece adds to the position the Piece passed in the square passed
@@ -149,6 +132,7 @@ func (pos *Position) AddPiece(piece int, square int) {
 	pos.Pieces[piece] |= bb
 	pos.Sides[int(piece/6)] |= bb
 	pos.Sides[All] |= bb
+	pos.Squares[square] = piece
 }
 
 // EmptySquares returns a Bitboard with the empty squares of the position
@@ -221,11 +205,12 @@ func (pos *Position) PinnedPieces(side Color) (pinned Bitboard) {
 	// We use the square attacked by algorithm in special way. If any of the opponent sliders can attack
 	// our king when we remove our pieces, and if its only one of our pieces between them the attacker
 	// and our king, then the piece is pinned
-	possiblePinners := bishopAttacks(Bsf(king), pos.Sides[opponent])&bishops |
-		rookAttacks(Bsf(king), pos.Sides[opponent])&rooks
+	kingSq := Bsf(king)
+	possiblePinners := bishopAttacks(kingSq, pos.Sides[opponent])&bishops |
+		rookAttacks(kingSq, pos.Sides[opponent])&rooks
 	for possiblePinners > 0 {
 		attacker := possiblePinners.NextBit()
-		kingToOpponentPath := squaresBetween[Bsf(attacker)][Bsf(king)]
+		kingToOpponentPath := squaresBetween[Bsf(attacker)][kingSq]
 		piecesBetween := kingToOpponentPath & pos.Sides[side]
 		if piecesBetween.Count() == 1 {
 			pinned |= piecesBetween
@@ -252,6 +237,7 @@ func (pos *Position) RemovePiece(piece int, square int) {
 	pos.Sides[piece/6] &= ^bb
 	pos.Sides[All] &= ^bb
 	pos.Hash = pos.Hash ^ zobristHashKeys.getPieceSquareKey(piece, square)
+	pos.Squares[square] = NoPiece
 	if RoleOf(piece) == Pawn {
 		pos.PawnHash = pos.PawnHash ^ zobristHashKeys.getPieceSquareKey(piece, square)
 	}
@@ -675,6 +661,7 @@ func (pos *Position) LoadFromFenString(fen string) {
 				pos.Pieces[pieceReference[piece]] |= (0b1 << currentSquare)
 				pos.Sides[pieceReference[piece]/6] |= (0b1 << currentSquare)
 				pos.Sides[All] |= (0b1 << currentSquare)
+				pos.Squares[currentSquare] = pieceReference[piece]
 				currentSquare++
 			default:
 				currentSquare += int(piece[0]) - 48 // Updates square number
@@ -723,7 +710,13 @@ func (pos *Position) LoadMoves(moves ...string) {
 
 // NewPosition returns a new Position struct
 func NewPosition() (pos *Position) {
+	squares := [64]int{}
+	for sq := range 64 {
+		squares[sq] = NoPiece
+	}
+
 	return &Position{
+		Squares:         squares,
 		positionHistory: *NewPositionHistory(),
 		castling:        *NewCastling(4, 7, 0),
 	}
