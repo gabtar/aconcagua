@@ -21,6 +21,7 @@ const (
 	SEECaptureMargin              = 120
 	SEEQuietMargin                = 80
 	MaxCorrectionHistory          = 1024
+	SingularExtensionDepth        = 6
 )
 
 var (
@@ -372,7 +373,7 @@ func (s *Search) IterativeDeepening(pos *Position, maxDepth int, stdout chan str
 // aspirationSearch performs aspiration window search
 func (s *Search) aspirationSearch(pos *Position, depth int, lastScore int) int {
 	if depth < 4 {
-		return s.negamax(pos, depth, 0, MinInt, MaxInt, &s.pvLine, true)
+		return s.negamax(pos, depth, 0, MinInt, MaxInt, &s.pvLine, true, NoMove)
 	}
 
 	delta := AspirationWindowSize
@@ -380,7 +381,7 @@ func (s *Search) aspirationSearch(pos *Position, depth int, lastScore int) int {
 	beta := lastScore + delta
 
 	for {
-		score := s.negamax(pos, depth, 0, alpha, beta, &s.pvLine, true)
+		score := s.negamax(pos, depth, 0, alpha, beta, &s.pvLine, true, NoMove)
 
 		// Score falls inside the aspiration window
 		if score > alpha && score < beta {
@@ -419,7 +420,7 @@ func setDefaultMove(pos *Position) string {
 }
 
 // negamax returns the score of the best posible move by the evaluation function for a fixed depth
-func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, pvLine *pvLine, nullMoveAllowed bool) int {
+func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, pvLine *pvLine, nullMoveAllowed bool, excludedMove Move) int {
 	s.nodes++
 	pvLine.reset()
 
@@ -454,8 +455,10 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	// Transposition Table probe. If we already have searched this position with a sufficient depth
 	// we will trust our previous evaluation and return the score
-	ttScore, ttEval, ttMove, ttHit := s.TranspositionTable.probe(pos.Hash, depth, ply, alpha, beta)
-	if ttHit && !pvNode {
+	// Skip probing on singular extension search
+	ttScore, ttDepth, ttFlag, ttEval, ttMove, ttHit := s.TranspositionTable.probe(pos.Hash, depth, ply, alpha, beta)
+	singular := excludedMove != NoMove
+	if ttHit && !pvNode && !singular {
 		return ttScore
 	}
 
@@ -473,7 +476,7 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	}
 
 	// Reverse Futility Pruning / Static Null Move pruning
-	if depth <= 8 && !isCheck && !pvNode {
+	if depth <= 8 && !isCheck && !pvNode && !singular {
 		margin := ReverseFutitlityPruningMargin*depth - improving*65
 		if eval-margin >= beta {
 			return beta
@@ -483,12 +486,13 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	// Null Move Pruning. Gives a free shot to the opponent by passing the turn.
 	// If we still exceed beta in the reduced search, we will trust our position is so good,
 	// that it will also exceed beta if we search all moves.
-	if depth >= NullMovePruningDepth && !isCheck && nullMoveAllowed && !pvNode && eval >= beta && !pos.kingAndPawnsOnlyEndgame() {
+	if depth >= NullMovePruningDepth && !isCheck && nullMoveAllowed && !singular &&
+		!pvNode && eval >= beta && !pos.kingAndPawnsOnlyEndgame() {
 		ep := pos.makeNullMove()
 		priorMove := s.stack.moves[ply]
 		s.stack.store(NullMove, ply)
 		R := 4 + depth/3
-		sc := -s.negamax(pos, depth-R, ply+1, -beta, -beta+1, &branchPv, false)
+		sc := -s.negamax(pos, depth-R, ply+1, -beta, -beta+1, &branchPv, false, NoMove)
 		pos.unmakeNullMove(ep)
 
 		// Restore the move that led to this node
@@ -509,8 +513,8 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	// Internal Iterative Deepening
 	// If we dont have a move from the transposition table, make a reduced search to find a good
 	// move to improve our move ordering
-	if depth > 5 && pvNode && ttMove == NoMove {
-		s.negamax(pos, depth/2, ply+1, alpha, beta, &branchPv, true)
+	if depth > 5 && pvNode && ttMove == NoMove && !singular {
+		s.negamax(pos, depth/2, ply+1, alpha, beta, &branchPv, true, NoMove)
 		if len(branchPv) > 0 {
 			ttMove = branchPv[0]
 		}
@@ -526,6 +530,11 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	noisySearched := movesSearched{}
 
 	for move := mg.nextMove(); move != NoMove; move = mg.nextMove() {
+		// Skip move in singular extension search
+		if excludedMove == move {
+			continue
+		}
+
 		branchPv.reset()
 		moveFlag := move.flag()
 
@@ -561,20 +570,37 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		extension := 0
 		if isCheck {
 			extension = 1
+		} else if !rootNode && !singular && depth >= SingularExtensionDepth &&
+			ttMove == move && ttDepth >= depth-3 && ttFlag == FlagBeta &&
+			abs(ttScore) < MateScore-100 {
+
+			singularBeta := ttScore - 2*depth
+			R := 4 + depth/3
+
+			pos.UnmakeMove(&move)
+			singularScore := s.negamax(pos, depth-R, ply+1, singularBeta-1, singularBeta, &branchPv, true, move)
+			pos.MakeMove(&move)
+
+			if singularScore < singularBeta {
+				// fmt.Println("----Singular Extension DEBUG----")
+				// fmt.Println(pos.String())
+				// fmt.Printf("ttDepth: %d, depth: %d, ttScore: %d, singularScore: %d, move: %s\n", ttDepth, depth, ttScore, singularScore, move.String())
+				extension = 1
+			}
 		}
 
 		// Principal Variation Search
 		// Full search at first attempt of this subtree
 		if mg.moveNumber == 0 {
-			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
+			newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true, NoMove)
 		} else {
 			// Try first a quick, reduced search, with lmr and a null window(-alpha-1, -alpha)
 			reduction := lmrReductionFactor(depth, mg.moveNumber, mg.stage, moveFlag, isCheck, pvNode)
-			newScore = -s.negamax(pos, depth-1-reduction+extension, ply+1, -alpha-1, -alpha, &branchPv, true)
+			newScore = -s.negamax(pos, depth-1-reduction+extension, ply+1, -alpha-1, -alpha, &branchPv, true, NoMove)
 
 			// If an improvement was found, we need to search again with a full window and depth
 			if newScore > alpha {
-				newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true)
+				newScore = -s.negamax(pos, depth-1+extension, ply+1, -beta, -alpha, &branchPv, true, NoMove)
 			}
 		}
 		pos.UnmakeMove(&move)
@@ -610,14 +636,17 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 
 	score, checkmateOrStealmateFound := isCheckmateOrStealmate(isCheck, mg.moveNumber, ply)
 	if checkmateOrStealmateFound {
-		s.TranspositionTable.store(pos.Hash, depth, ply, FlagExact, score, rawEval, NoMove)
+		if !singular {
+			s.TranspositionTable.store(pos.Hash, depth, ply, FlagExact, score, rawEval, NoMove)
+		}
 		return score
 	}
 
-	// Update Pawn correction history
-	s.updateCorrection(pos, bestMove, flag, alpha, eval, depth, isCheck)
-
-	s.TranspositionTable.store(pos.Hash, depth, ply, flag, alpha, rawEval, bestMove)
+	if !singular {
+		// Update Pawn correction history
+		s.updateCorrection(pos, bestMove, flag, alpha, eval, depth, isCheck)
+		s.TranspositionTable.store(pos.Hash, depth, ply, flag, alpha, rawEval, bestMove)
+	}
 	return alpha
 }
 

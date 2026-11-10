@@ -178,11 +178,12 @@ func (tt *TranspositionTable) store(key uint64, depth int, ply int, flag uint8, 
 }
 
 // probe tries to find an entry in the transposition table
-func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, beta int) (int, int, Move, bool) {
+func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, beta int) (int, int, uint8, int, Move, bool) {
 	tt.tried++
 	index := key % tt.size
 	key32 := uint32(key >> 32)
 	bucket := &tt.buckets[index]
+	move := NoMove
 	eval := NoEval
 
 	for i := range BucketSize {
@@ -190,33 +191,34 @@ func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, b
 
 		if entry.key32 == key32 {
 			tt.hits++
-			move := entry.move
+			move = entry.move
 			eval = int(entry.eval)
+			ttDepth := int(entry.depth)
+			ttScore := adjustMateScoreFromTT(int(entry.score), ply)
 
 			if entry.depth >= uint8(depth) {
-				score := adjustMateScoreFromTT(int(entry.score), ply)
 
 				// Update age to mark as recently used
 				entry.age = tt.age
 
 				if entry.flag == FlagExact {
 					tt.pruned++
-					return score, eval, move, true
+					return ttScore, ttDepth, entry.flag, eval, move, true
 				}
-				if entry.flag == FlagAlpha && score <= alpha {
+				if entry.flag == FlagAlpha && ttScore <= alpha {
 					tt.pruned++
-					return alpha, eval, move, true
+					return alpha, ttDepth, entry.flag, eval, move, true
 				}
-				if entry.flag == FlagBeta && score >= beta {
+				if entry.flag == FlagBeta && ttScore >= beta {
 					tt.pruned++
-					return beta, eval, move, true
+					return beta, ttDepth, entry.flag, eval, move, true
 				}
 			}
 			// Found entry but can't use score, return move and eval
-			return 0, eval, move, false
+			return ttScore, ttDepth, entry.flag, eval, move, false
 		}
 	}
-	return 0, eval, NoMove, false
+	return 0, 0, FlagAlpha, eval, move, false
 }
 
 // hashfull returns the approximate percentage of the transposition table that is used
