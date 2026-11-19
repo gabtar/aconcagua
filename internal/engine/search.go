@@ -459,7 +459,14 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 	ttScore, ttDepth, ttFlag, ttEval, ttMove, ttHit := s.TranspositionTable.probe(pos.Hash, depth, ply, alpha, beta)
 	singular := excludedMove != NoMove
 	if ttHit && !pvNode && !singular {
-		return ttScore
+		switch ttFlag {
+		case FlagBeta:
+			return beta
+		case FlagAlpha:
+			return alpha
+		default:
+			return ttScore
+		}
 	}
 
 	flag := FlagAlpha
@@ -555,39 +562,39 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 			continue
 		}
 
+		// Extensions. In certain positions we will have to search deeper in the hope to find a better move faster
+		// or to resolve "tactical noisy"
+		extension := 0
+		if isCheck {
+			extension = 1
+		} else if !rootNode && !singular && depth >= SingularExtensionDepth &&
+			ttMove == move && ttDepth >= depth-3 &&
+			(ttFlag == FlagBeta || ttFlag == FlagExact) &&
+			abs(ttScore) < MateScore-100 {
+
+			singularBeta := ttScore - 2*depth
+			singularDepth := max(1, (depth-1)/2)
+
+			staticEvalBefore := s.stack.staticEval[ply]
+			singularScore := s.negamax(pos, singularDepth, ply, singularBeta-1, singularBeta, &branchPv, true, move)
+			s.stack.staticEval[ply] = staticEvalBefore
+
+			if singularScore < singularBeta {
+				extension = 1
+			}
+		}
+
 		if moveFlag < capture {
 			quietsSearched.add(move)
 		} else {
 			noisySearched.add(move)
 		}
 
-		pos.MakeMove(&move)
-		s.stack.store(move, ply)
-
 		// Keep track of nodes searched before this move
 		nodesBefore := s.nodes
 
-		extension := 0
-		if isCheck {
-			extension = 1
-		} else if !rootNode && !singular && depth >= SingularExtensionDepth &&
-			ttMove == move && ttDepth >= depth-3 && ttFlag == FlagBeta &&
-			abs(ttScore) < MateScore-100 {
-
-			singularBeta := ttScore - 2*depth
-			R := 4 + depth/3
-
-			pos.UnmakeMove(&move)
-			singularScore := s.negamax(pos, depth-R, ply+1, singularBeta-1, singularBeta, &branchPv, true, move)
-			pos.MakeMove(&move)
-
-			if singularScore < singularBeta {
-				// fmt.Println("----Singular Extension DEBUG----")
-				// fmt.Println(pos.String())
-				// fmt.Printf("ttDepth: %d, depth: %d, ttScore: %d, singularScore: %d, move: %s\n", ttDepth, depth, ttScore, singularScore, move.String())
-				extension = 1
-			}
-		}
+		pos.MakeMove(&move)
+		s.stack.store(move, ply)
 
 		// Principal Variation Search
 		// Full search at first attempt of this subtree
@@ -611,7 +618,9 @@ func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int,
 		}
 
 		if newScore >= beta {
-			s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, rawEval, move)
+			if !singular {
+				s.TranspositionTable.store(pos.Hash, depth, ply, FlagBeta, beta, rawEval, move)
+			}
 			s.killers.store(ply, move)
 			s.counterMovesTable.store(s.stack.getPriorMove(ply), move, pos.Turn)
 			s.quietHistory.update(depth*depth, &move, pos.Turn)

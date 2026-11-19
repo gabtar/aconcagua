@@ -92,7 +92,7 @@ func TestProbeEntryWithExactMatch(t *testing.T) {
 	move := NoMove
 
 	tt.store(key, depth, ply, flag, score, eval, move)
-	ttScore, ttEval, ttMove, ttHit := tt.probe(key, depth, ply, MinInt, MaxInt)
+	ttScore, _, _, ttEval, ttMove, ttHit := tt.probe(key, depth, ply, MinInt, MaxInt)
 
 	expectedScore := score
 	expectedEval := eval
@@ -125,9 +125,9 @@ func TestProbeEntryInsufficientDepth(t *testing.T) {
 	move := Move(55)
 
 	tt.store(key, depth, ply, flag, score, eval, move)
-	ttScore, ttEval, ttMove, ttHit := tt.probe(key, depth+1, ply, MinInt, MaxInt)
+	ttScore, _, _, ttEval, ttMove, ttHit := tt.probe(key, depth+1, ply, MinInt, MaxInt)
 
-	expectedScore := 0
+	expectedScore := score
 	expectedEval := eval
 	expectedMove := move
 	expectedHit := false

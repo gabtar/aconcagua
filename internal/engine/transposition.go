@@ -197,22 +197,11 @@ func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, b
 			ttScore := adjustMateScoreFromTT(int(entry.score), ply)
 
 			if entry.depth >= uint8(depth) {
-
 				// Update age to mark as recently used
 				entry.age = tt.age
 
-				if entry.flag == FlagExact {
-					tt.pruned++
-					return ttScore, ttDepth, entry.flag, eval, move, true
-				}
-				if entry.flag == FlagAlpha && ttScore <= alpha {
-					tt.pruned++
-					return alpha, ttDepth, entry.flag, eval, move, true
-				}
-				if entry.flag == FlagBeta && ttScore >= beta {
-					tt.pruned++
-					return beta, ttDepth, entry.flag, eval, move, true
-				}
+				tt.pruned++
+				return ttScore, ttDepth, entry.flag, eval, move, true
 			}
 			// Found entry but can't use score, return move and eval
 			return ttScore, ttDepth, entry.flag, eval, move, false

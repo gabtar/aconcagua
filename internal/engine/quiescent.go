@@ -17,9 +17,16 @@ func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 	}
 
 	// Transposition Table probe
-	ttScore, _, _, ttEval, ttMove, ttHit := s.TranspositionTable.probe(pos.Hash, 0, ply, alpha, beta)
+	ttScore, _, ttFlag, ttEval, ttMove, ttHit := s.TranspositionTable.probe(pos.Hash, 0, ply, alpha, beta)
 	if ttHit {
-		return ttScore
+		switch ttFlag {
+		case FlagBeta:
+			return beta
+		case FlagAlpha:
+			return alpha
+		default:
+			return ttScore
+		}
 	}
 
 	rawEval := s.evaluate(pos, ttEval, ply)
