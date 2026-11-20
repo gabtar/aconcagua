@@ -177,7 +177,9 @@ func (tt *TranspositionTable) store(key uint64, depth int, ply int, flag uint8, 
 	}
 }
 
-// probe tries to find an entry in the transposition table
+// probe tries to find an entry in the transposition table.
+// The returned score is always the raw stored score; callers are responsible
+// for clamping it to the current window when ttHit is true.
 func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, beta int) (int, int, uint8, int, Move, bool) {
 	tt.tried++
 	index := key % tt.size
@@ -193,6 +195,7 @@ func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, b
 			tt.hits++
 			move = entry.move
 			eval = int(entry.eval)
+			ttFlag := entry.flag
 			ttDepth := int(entry.depth)
 			ttScore := adjustMateScoreFromTT(int(entry.score), ply)
 
@@ -200,11 +203,15 @@ func (tt *TranspositionTable) probe(key uint64, depth int, ply int, alpha int, b
 				// Update age to mark as recently used
 				entry.age = tt.age
 
-				tt.pruned++
-				return ttScore, ttDepth, entry.flag, eval, move, true
+				if ttFlag == FlagExact ||
+					(ttFlag == FlagAlpha && ttScore <= alpha) ||
+					(entry.flag == FlagBeta && ttScore >= beta) {
+					tt.pruned++
+					return ttScore, ttDepth, ttFlag, eval, move, true
+				}
 			}
 			// Found entry but can't use score, return move and eval
-			return ttScore, ttDepth, entry.flag, eval, move, false
+			return ttScore, ttDepth, ttFlag, eval, move, false
 		}
 	}
 	return 0, 0, FlagAlpha, eval, move, false
