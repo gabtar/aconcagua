@@ -30,7 +30,7 @@ func (ml *MoveList) scoreNoisy(pos *Position, nh *NoisyHistoryTable) {
 		victim := pos.getCapturedPiece(&ml.moves[i])
 		victimIdx := RoleOf(victim)
 		mvv := 0
-		if victim == NoPiece { // quiet promotion
+		if ml.moves[i].flag() >= knightPromotion && ml.moves[i].flag() <= queenPromotion { // Simple Promotion Slot. NoPiece + (0-3) depending on move flag/promotion type
 			victimIdx = 6 + ml.moves[i].flag() - knightPromotion
 		} else {
 			mvv = mvvScore[RoleOf(victim)]

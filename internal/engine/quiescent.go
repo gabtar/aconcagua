@@ -6,6 +6,11 @@ var SEEPieceValues = [6]int{10000, 900, 500, 300, 300, 100}
 // Quiescent is an evaluation function that takes into account some dynamic possibilities
 func Quiescent(pos *Position, s *Search, alpha int, beta int, ply int) int {
 	s.nodes++
+
+	if ply >= MaxSearchDepth {
+		return s.Evaluation.Evaluate(pos)
+	}
+
 	if s.TimeControl.stop {
 		return 0
 	}

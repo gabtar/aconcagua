@@ -152,7 +152,7 @@ func (nht *NoisyHistoryTable) update(bonus int, move *Move, pos *Position) {
 		attacker := RoleOf(pos.PieceAt(move.from()))
 		victim := pos.getCapturedPiece(move)
 		victimIdx := RoleOf(victim)
-		if victim == NoPiece && move.flag() < knightCapturePromotion { // Simple Promotion Slot. NoPiece + (0-3) depending on move flag/promotion type
+		if move.flag() >= knightPromotion && move.flag() <= queenPromotion { // Simple Promotion Slot. NoPiece + (0-3) depending on move flag/promotion type
 			victimIdx = 6 + move.flag() - knightPromotion
 		}
 
@@ -423,6 +423,10 @@ func setDefaultMove(pos *Position) string {
 func (s *Search) negamax(pos *Position, depth int, ply int, alpha int, beta int, pvLine *pvLine, nullMoveAllowed bool, excludedMove Move) int {
 	s.nodes++
 	pvLine.reset()
+
+	if ply >= MaxSearchDepth {
+		return s.Evaluation.Evaluate(pos)
+	}
 
 	// Time check
 	if s.TimeControl.shouldStop() {
